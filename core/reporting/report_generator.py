@@ -176,12 +176,19 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
 
 
 if __name__ == "__main__":
-    from data_bridge import DataBridge
-    from technical_indicators import calc_all, gap_analysis
-    from combo_scorer import ComboScorer, entry_assessment
+    from core.data.data_bridge import DataBridge
+    from core.indicators.technical_indicators import calc_all, gap_analysis
+    from core.models.combo_scorer import ComboScorer, entry_assessment
+    try:
+        from core.config import OUTPUT_REPORTS_DIR
+        default_out_dir = OUTPUT_REPORTS_DIR
+    except Exception:
+        default_out_dir = Path(__file__).resolve().parent.parent.parent / "output" / "reports"
+    default_out_dir.mkdir(parents=True, exist_ok=True)
 
     code = sys.argv[1] if len(sys.argv) > 1 else "600519"
-    output = sys.argv[2] if len(sys.argv) > 2 else f"/mnt/c/Users/user/coding/TradingAgents/aStocks_{code}_{datetime.now():%Y%m%d}.html"
+    output = sys.argv[2] if len(sys.argv) > 2 else str(default_out_dir / f"aStocks_{code}_{datetime.now():%Y%m%d}.html")
+
 
     bridge = DataBridge()
     quote = bridge.get_realtime_quote(code)

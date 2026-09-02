@@ -24,12 +24,19 @@ import sys
 from datetime import datetime
 
 # ── 路径 ──
-SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-POSITIONS_PATH = os.path.join(SKILL_DIR, "data", "positions.csv")
-HISTORY_PATH = os.path.join(SKILL_DIR, "data", "positions_history.csv")
-SELECTED_PATH = os.path.join(SKILL_DIR, "data", "selected_pool.csv")
+try:
+    from core.config import OUTPUT_POOLS_DIR
+    POOLS_BASE = OUTPUT_POOLS_DIR
+except Exception:
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    POOLS_BASE = os.path.join(PROJECT_ROOT, "output", "pools")
+
+POSITIONS_PATH = os.path.join(str(POOLS_BASE), "positions.csv")
+HISTORY_PATH = os.path.join(str(POOLS_BASE), "positions_history.csv")
+SELECTED_PATH = os.path.join(str(POOLS_BASE), "selected_pool.csv")
 A_DATA_DIR = "./.AI-Platform/skills/stocks/a-share-data/scripts"
 VENV_PY = "python3"
+
 
 POSITIONS_FIELDS = [
     "code", "name", "buy_date", "buy_price", "qty",
@@ -68,6 +75,18 @@ def _write_csv(path, rows, fields):
 
 def _get_quote(code):
     try:
+        from core.data.data_bridge import DataBridge
+        q = DataBridge().get_realtime_quote(code)
+        if q and "price" in q:
+            return {
+                "最新价": q.get("price"),
+                "名称": q.get("name", code),
+                "涨跌幅(%)": q.get("change_pct", 0),
+                "代码": q.get("code", code)
+            }
+    except Exception:
+        pass
+    try:
         r = subprocess.run(
             [VENV_PY, os.path.join(A_DATA_DIR, "fetch_patched.py"),
              "fetch_realtime.py", "--quote", code, "--json"],
@@ -78,6 +97,7 @@ def _get_quote(code):
     except Exception:
         pass
     return {}
+
 
 
 # ── 命令实现 ──

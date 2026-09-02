@@ -16,9 +16,16 @@ import sys
 from datetime import datetime
 
 # ── 路径 ──
-SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SELECTED_PATH = os.path.join(SKILL_DIR, "data", "selected_pool.csv")
-WATCH_PATH = os.path.join(SKILL_DIR, "data", "watch_pool.csv")
+try:
+    from core.config import OUTPUT_POOLS_DIR
+    POOLS_BASE = OUTPUT_POOLS_DIR
+except Exception:
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    POOLS_BASE = os.path.join(PROJECT_ROOT, "output", "pools")
+
+SELECTED_PATH = os.path.join(str(POOLS_BASE), "selected_pool.csv")
+WATCH_PATH = os.path.join(str(POOLS_BASE), "watch_pool.csv")
+
 
 # ── CSV 列定义 ──
 SELECTED_FIELDS = ["code","name","added_date","rating","reason","sector","pe","change_pct",

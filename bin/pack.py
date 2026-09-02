@@ -13,12 +13,25 @@ import argparse
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+
+try:
+    from core.config import OUTPUT_DIR, BACKUPS_DIR
+    custom_out_name = OUTPUT_DIR.name
+    custom_backup_name = BACKUPS_DIR.name
+except Exception:
+    custom_out_name = "output"
+    custom_backup_name = "backups"
 
 EXCLUDE_DIRS = {
-    ".venv", "venv", "env", "__pycache__", ".git", "backups",
-    "output", "user_data", "cache", "reports", ".data_cache"
+    ".venv", "venv", "env", "__pycache__", ".git", "backups", custom_backup_name,
+    "output", "user_data", "cache", "reports", ".data_cache", custom_out_name
 }
 EXCLUDE_EXTS = {".pyc", ".db", ".sqlite", ".sqlite3", ".log", ".pid", ".zip", ".tar.gz"}
+
 
 def package_project(output_path: Path = None, version_tag: str = "v3") -> Path:
     if output_path is None:

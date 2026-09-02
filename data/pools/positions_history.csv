@@ -1,2 +1,0 @@
-code,name,buy_date,sell_date,buy_price,sell_price,qty,pnl,pnl_pct,sector,reason,strategy,entry_trigger,hold_days,risk_level,notes
-000858,五粮液,2026-08-01,2026-08-15,70.00,75.00,200,1000,7.14,白酒,触及目标止盈,波段网格,二次金叉突破,14,中,标准历史交易记录模板

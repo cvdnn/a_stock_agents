@@ -39,24 +39,28 @@ from typing import Any, Dict, List, Optional
 # ── 路径 ──────────────────────────────────────────────────────────────────────
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-TA_ANALYZE = SKILL_DIR / "scripts" / "ta_analyze.py"
-AI-Platform_SKILLS = Path.home() / ".AI-Platform" / "skills" / "stocks"
-DASHBOARD_DIR = AI-Platform_SKILLS / "a-share-dashboard"
+TA_ANALYZE = SKILL_DIR / "multi_agent" / "ta_analyze.py"
+try:
+    from core.config import OUTPUT_POOLS_DIR
+    POOLS_BASE = OUTPUT_POOLS_DIR
+except Exception:
+    POOLS_BASE = SKILL_DIR.parent / "output" / "pools"
 
 _VENV_CANDIDATES = [
+    Path(sys.executable),
     Path("python3"),
-    Path("/mnt/c/Users/user/coding/TradingAgents/_original_src/.venv/bin/python3"),
 ]
 VENV_PY = next((p for p in _VENV_CANDIDATES if p.exists()), Path(sys.executable))
 
 
 def _read_pool(name: str) -> List[Dict]:
     """读取股池 CSV。"""
-    path = DASHBOARD_DIR / "data" / f"{name}_pool.csv"
+    path = POOLS_BASE / f"{name}_pool.csv"
     if not path.exists():
         return []
     with open(path, "r", encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
 
 
 def _run_ta_batch(tickers: List[str], args) -> List[Dict]:

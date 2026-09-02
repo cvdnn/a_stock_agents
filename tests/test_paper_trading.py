@@ -7,12 +7,14 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "core"))
 
+from core.config import OUTPUT_CACHE_DIR
 from core.paper_trading.engine import PaperTradingEngine
 
 class TestPaperTrading(unittest.TestCase):
     def setUp(self):
-        self.db_path = str(ROOT / "cache" / "test_pt_unit.db")
+        self.db_path = str(OUTPUT_CACHE_DIR / "test_pt_unit.db")
         self.engine = PaperTradingEngine(db_path=self.db_path)
+
 
     def test_account(self):
         try:

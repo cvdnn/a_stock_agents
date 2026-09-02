@@ -26,10 +26,21 @@ import sys
 from datetime import datetime, time
 
 # ── 路径 ──
-SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WATCH_PATH = os.path.join(SKILL_DIR, "data", "watch_pool.csv")
+try:
+    from core.config import OUTPUT_POOLS_DIR, OUTPUT_CACHE_DIR
+    POOLS_BASE = str(OUTPUT_POOLS_DIR)
+    STATE_DIR = str(OUTPUT_CACHE_DIR)
+except Exception:
+    SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(SKILL_DIR))
+    output_pools = os.path.join(PROJECT_ROOT, "output", "pools")
+    POOLS_BASE = output_pools if os.path.exists(output_pools) else os.path.join(SKILL_DIR, "data")
+    STATE_DIR = os.path.join(PROJECT_ROOT, "output", "cache")
+
+WATCH_PATH = os.path.join(POOLS_BASE, "watch_pool.csv")
 A_SCRIPT = "./.AI-Platform/skills/stocks/a-share-data/scripts/fetch_patched.py"
 VENV_PY = "python3"
+
 
 
 def is_market_hours() -> bool:
@@ -135,18 +146,25 @@ def load_watch_pool():
 
 
 def load_state():
-    path = os.path.expanduser("~/.AI-Platform/scripts/entry_monitor_state.json")
+    path = os.path.join(STATE_DIR, "entry_monitor_state.json")
     if os.path.exists(path):
-        with open(path) as f:
-            return json.load(f)
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except Exception:
+            pass
     return {}
 
 
 def save_state(state):
-    path = os.path.expanduser("~/.AI-Platform/scripts/entry_monitor_state.json")
+    path = os.path.join(STATE_DIR, "entry_monitor_state.json")
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(state, f)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
 
 
 def main():

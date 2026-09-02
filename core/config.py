@@ -95,15 +95,16 @@ else:
 # Output Subpaths
 paths_cfg = GLOBAL_CONFIG.get("paths", {})
 OUTPUT_POOLS_DIR = OUTPUT_DIR / paths_cfg.get("pools_dir", "pools")
-OUTPUT_POSITIONS_DIR = OUTPUT_DIR / paths_cfg.get("positions_dir", "positions")
+OUTPUT_POSITIONS_DIR = OUTPUT_POOLS_DIR  # Unified with pools (positions.csv lives in pools_dir)
 OUTPUT_REPORTS_DIR = OUTPUT_DIR / paths_cfg.get("reports_dir", "reports")
 OUTPUT_CACHE_DIR = OUTPUT_DIR / paths_cfg.get("cache_dir", "cache")
 OUTPUT_BACKTEST_DIR = OUTPUT_DIR / paths_cfg.get("backtest_dir", "backtest")
 BACKUPS_DIR = PROJECT_ROOT / paths_cfg.get("backups_dir", "backups")
 
 # Initialize required directories safely
-for p in [OUTPUT_DIR, OUTPUT_POOLS_DIR, OUTPUT_POSITIONS_DIR, OUTPUT_REPORTS_DIR, OUTPUT_CACHE_DIR, OUTPUT_BACKTEST_DIR, BACKUPS_DIR]:
+for p in [OUTPUT_DIR, OUTPUT_POOLS_DIR, OUTPUT_REPORTS_DIR, OUTPUT_CACHE_DIR, OUTPUT_BACKTEST_DIR, BACKUPS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
+
 
 # Backward-compatibility aliases
 USER_DATA_DIR = OUTPUT_DIR
@@ -117,13 +118,78 @@ POSITIONS_DIR = OUTPUT_POSITIONS_DIR
 CACHE_DIR = OUTPUT_CACHE_DIR
 REPORTS_DIR = OUTPUT_REPORTS_DIR
 
-def init_output_templates():
-    """Initialize output data templates if not already present."""
-    pos_file = OUTPUT_POOLS_DIR / "positions.csv"
-    if not pos_file.exists():
-        example = OUTPUT_POOLS_DIR / "positions.csv.example"
-        if example.exists():
-            import shutil
-            shutil.copy2(example, pos_file)
+def init_output_templates(target_pools_dir: Path = None):
+    """Initialize output data templates and pool CSV files if not already present."""
+    import shutil
+    import csv
+
+    pools_dir = target_pools_dir or OUTPUT_POOLS_DIR
+    pools_dir.mkdir(parents=True, exist_ok=True)
+
+    # Standard default fields
+    default_headers = {
+        "positions.csv": ["code", "name", "buy_date", "buy_price", "qty", "stop_loss", "take_profit",
+                          "sector", "reason", "status", "strategy", "entry_trigger", "expected_days",
+                          "risk_level", "ma_status", "market_context", "backtest_result", "notes"],
+        "selected_pool.csv": ["code", "name", "added_date", "rating", "reason", "sector", "pe", "change_pct",
+                              "ma_status", "entry_trigger", "stop_loss", "take_profit", "risk_level",
+                              "market_context", "notes", "ta_decision", "ta_analysis_date", "ta_report_path",
+                              "consensus_rating"],
+        "watch_pool.csv": ["code", "name", "added_date", "rating", "reason", "sector", "pe", "change_pct",
+                           "fund_flow", "entry_condition", "market_context", "ta_analysis_date"],
+    }
+
+    # Possible template source directories to copy .example files from
+    template_sources = [
+        PROJECT_ROOT / "output" / "pools",
+        PROJECT_ROOT / "skills" / "a-share-dashboard" / "data",
+    ]
+
+    for filename, headers in default_headers.items():
+        example_name = f"{filename}.example"
+        target_example = pools_dir / example_name
+        target_file = pools_dir / filename
+
+        # 1. Copy .example file if not present in target directory
+        if not target_example.exists():
+            for src_dir in template_sources:
+                src_example = src_dir / example_name
+                if src_example.exists() and src_example.resolve() != target_example.resolve():
+                    try:
+                        shutil.copy2(src_example, target_example)
+                        break
+                    except Exception:
+                        pass
+
+        # 2. Initialize target CSV file if missing
+        if not target_file.exists():
+            if target_example.exists():
+                try:
+                    shutil.copy2(target_example, target_file)
+                except Exception:
+                    pass
+            # Fallback: create empty CSV with standard headers
+            if not target_file.exists():
+                try:
+                    with open(target_file, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f)
+                        writer.writerow(headers)
+                except Exception:
+                    pass
 
 init_output_templates()
+
+def get_active_paths() -> dict:
+    """Return a dictionary of all actively resolved workspace and output paths."""
+    return {
+        "project_root": str(PROJECT_ROOT),
+        "output_dir": str(OUTPUT_DIR),
+        "pools_dir": str(OUTPUT_POOLS_DIR),
+        "positions_dir": str(OUTPUT_POSITIONS_DIR),
+        "reports_dir": str(OUTPUT_REPORTS_DIR),
+        "cache_dir": str(OUTPUT_CACHE_DIR),
+        "backtest_dir": str(OUTPUT_BACKTEST_DIR),
+        "backups_dir": str(BACKUPS_DIR),
+        "is_custom_output": OUTPUT_DIR.resolve() != (PROJECT_ROOT / "output").resolve(),
+    }
+

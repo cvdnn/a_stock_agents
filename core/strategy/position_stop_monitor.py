@@ -17,10 +17,16 @@ from datetime import datetime, time
 from pathlib import Path
 
 # ── 路径 ──
-SCRIPT_DIR = Path(__file__).resolve().parent
-SKILL_DIR = SCRIPT_DIR.parent
-POSITIONS_PATH = SKILL_DIR / "data" / "positions.csv"
-STATE_FILE = Path(os.path.expanduser("~/.AI-Platform/scripts/position_stop_monitor_state.json"))
+try:
+    from core.config import OUTPUT_POOLS_DIR, OUTPUT_CACHE_DIR
+    POSITIONS_PATH = OUTPUT_POOLS_DIR / "positions.csv"
+    STATE_FILE = OUTPUT_CACHE_DIR / "position_stop_monitor_state.json"
+except Exception:
+    SCRIPT_DIR = Path(__file__).resolve().parent
+    PROJECT_ROOT = SCRIPT_DIR.parent.parent
+    POSITIONS_PATH = PROJECT_ROOT / "output" / "pools" / "positions.csv"
+    STATE_FILE = PROJECT_ROOT / "output" / "cache" / "position_stop_monitor_state.json"
+
 
 # ── 持仓预警配置 ──
 # 每只持仓: (code, name, 止损价, 预警线1(橙), 预警线2(黄))

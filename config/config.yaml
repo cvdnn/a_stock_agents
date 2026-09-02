@@ -20,12 +20,12 @@ paths:
   output_dir: "output"
   
   # 用户专属子目录 (相对于 output_dir)
-  pools_dir: "pools"
-  positions_dir: "positions"
-  reports_dir: "reports"
-  cache_dir: "cache"
-  backtest_dir: "backtest"
-  backups_dir: "backups"
+  pools_dir: "pools"        # 股票池与持仓数据 (positions.csv, selected_pool.csv, watch_pool.csv)
+  reports_dir: "reports"    # 投研与复盘报告
+  cache_dir: "cache"        # 运行缓存与模拟盘数据
+  backtest_dir: "backtest"  # 回测检验结果
+  backups_dir: "backups"    # 专属备份归档
+
 
 # ------------------------------------------------------------------------------
 # 行情与数据源配置 (4层自动降级架构)

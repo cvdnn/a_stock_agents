@@ -127,6 +127,23 @@ def cmd_action_plan(args):
             print(f"  - [{item.get('action')}] 委托方式: {item.get('order_type')}, 股数: {item.get('shares')}, 执行窗口: {item.get('execution_window')}")
             print(f"    纪律: {item.get('rule')}")
 
+def cmd_config_paths(args):
+    from core.config import get_active_paths
+    paths = get_active_paths()
+    if args.json:
+        print(json.dumps(paths, ensure_ascii=False, indent=2))
+    else:
+        print("=== A-Stock Agents 路径与专属数据隔离配置 ===")
+        print(f"  项目根目录 (PROJECT_ROOT):    {paths['project_root']}")
+        print(f"  用户专属数据 (OUTPUT_DIR):    {paths['output_dir']} {'[自定义生效]' if paths['is_custom_output'] else '[默认隔离目录]'}")
+        print(f"  - 股票池与持仓 (POOLS_DIR):   {paths['pools_dir']}")
+        print(f"  - 投研报告目录 (REPORTS_DIR): {paths['reports_dir']}")
+
+        print(f"  - 运行缓存目录 (CACHE_DIR):   {paths['cache_dir']}")
+        print(f"  - 回测结果目录 (BACKTEST):    {paths['backtest_dir']}")
+        print(f"  - 快照备份目录 (BACKUPS_DIR): {paths['backups_dir']}")
+        print(f"  隔离状态: {'✅ 已配置独立数据目录' if paths['is_custom_output'] else 'ℹ️ 使用项目内 output/ 目录'}")
+
 def cmd_skill_list(args):
     manifest_file = PROJECT_ROOT / "config" / "skills_manifest.json"
     if manifest_file.exists():
@@ -152,6 +169,25 @@ def main():
     
     parser = argparse.ArgumentParser(description="A-Stock Agents CLI - A股量化投研与智能体统一入口", parents=[common_parser])
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
+
+    # config
+    p_cfg = subparsers.add_parser("config", help="Configuration & Path Isolation", parents=[common_parser])
+    cfg_sub = p_cfg.add_subparsers(dest="config_cmd")
+    cfg_sub.add_parser("paths", help="Show active data isolation paths", parents=[common_parser])
+
+    # pool
+    p_pool = subparsers.add_parser("pool", help="Stock Pool Management", parents=[common_parser])
+    pool_sub = p_pool.add_subparsers(dest="pool_cmd")
+    p_pool_list = pool_sub.add_parser("list", help="List stock pools", parents=[common_parser])
+    p_pool_list.add_argument("--pool", choices=["selected", "watch"], default=None)
+    
+    # position
+    p_pos = subparsers.add_parser("position", help="Portfolio & Position Management", parents=[common_parser])
+    pos_sub = p_pos.add_subparsers(dest="pos_cmd")
+    p_pos_list = pos_sub.add_parser("list", help="List current positions", parents=[common_parser])
+    p_pos_list.add_argument("--history", action="store_true", help="View closed trades history")
+    pos_sub.add_parser("pnl", help="View total PnL", parents=[common_parser])
+    pos_sub.add_parser("snapshot", help="Take position snapshot with stop triggers", parents=[common_parser])
 
     # data
     p_data = subparsers.add_parser("data", help="Market & Technical Data", parents=[common_parser])
@@ -181,7 +217,28 @@ def main():
     skill_sub.add_parser("list", help="List all registered skills", parents=[common_parser])
 
     args = parser.parse_args()
-    if args.command == "data":
+    if args.command == "config":
+        if args.config_cmd == "paths" or not args.config_cmd:
+            cmd_config_paths(args)
+        else:
+            p_cfg.print_help()
+    elif args.command == "pool":
+        from core.strategy import pool_manager
+        if args.pool_cmd == "list" or not args.pool_cmd:
+            pool_manager.cmd_list(args)
+        else:
+            p_pool.print_help()
+    elif args.command == "position":
+        from core.strategy import position_manager
+        if args.pos_cmd == "list" or not args.pos_cmd:
+            position_manager.cmd_list(args)
+        elif args.pos_cmd == "pnl":
+            position_manager.cmd_pnl(args)
+        elif args.pos_cmd == "snapshot":
+            position_manager.cmd_snapshot(args)
+        else:
+            p_pos.print_help()
+    elif args.command == "data":
         if args.data_cmd == "quote":
             cmd_data_quote(args)
         elif args.data_cmd == "tech":
@@ -199,6 +256,7 @@ def main():
             p_skill.print_help()
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()

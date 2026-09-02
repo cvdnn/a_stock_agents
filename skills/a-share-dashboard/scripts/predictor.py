@@ -17,9 +17,18 @@ import subprocess
 import sys
 from datetime import datetime
 
-SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+try:
+    from core.config import OUTPUT_POOLS_DIR
+    POOLS_BASE = str(OUTPUT_POOLS_DIR)
+except Exception:
+    SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(SKILL_DIR))
+    output_pools = os.path.join(PROJECT_ROOT, "output", "pools")
+    POOLS_BASE = output_pools if os.path.exists(output_pools) else os.path.join(SKILL_DIR, "data")
+
 A_DATA_DIR = "./.AI-Platform/skills/stocks/a-share-data/scripts"
 VENV_PY = "python3"
+
 
 
 def _run(cmd, timeout=30):
@@ -239,7 +248,7 @@ def cmd_single(args):
 
 
 def cmd_pool(args):
-    path = os.path.join(SKILL_DIR, "data",
+    path = os.path.join(POOLS_BASE,
                         "selected_pool.csv" if args.pool == "selected" else "watch_pool.csv")
     if not os.path.exists(path):
         print(f"{args.pool}池为空")
@@ -259,10 +268,11 @@ def cmd_pool(args):
 
 
 def cmd_positions(args):
-    path = os.path.join(SKILL_DIR, "data", "positions.csv")
+    path = os.path.join(POOLS_BASE, "positions.csv")
     if not os.path.exists(path):
         print("持仓为空")
         return
+
     with open(path, "r", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     total_cost, total_val = 0, 0

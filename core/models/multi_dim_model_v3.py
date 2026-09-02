@@ -1294,8 +1294,12 @@ if __name__ == "__main__":
                     "in_return": in_r,
                     "out_return": out_r,
                     "decay_rate": decay,
-                })
-        with open(os.path.join(os.path.dirname(__file__), "v3_backtest_results.json"), "w", encoding="utf-8") as f:
+        try:
+            from core.config import OUTPUT_BACKTEST_DIR
+            bt_out_path = OUTPUT_BACKTEST_DIR / "v3_backtest_results.json"
+        except Exception:
+            bt_out_path = Path(__file__).resolve().parent / "v3_backtest_results.json"
+        with open(str(bt_out_path), "w", encoding="utf-8") as f:
             json.dump(bt_save, f, ensure_ascii=False, indent=2)
 
     # Save v3 results (v3.1: 加时间戳)
@@ -1307,10 +1311,14 @@ if __name__ == "__main__":
         "gate_open": model.gate.gate_open,
         "results": all_results
     }
-    out = os.path.join(os.path.dirname(__file__), "v3_model_results.json")
+    try:
+        from core.config import OUTPUT_CACHE_DIR
+        out = os.path.join(str(OUTPUT_CACHE_DIR), "v3_model_results.json")
+    except Exception:
+        out = os.path.join(os.path.dirname(__file__), "v3_model_results.json")
     with open(out, "w", encoding="utf-8") as f:
         json.dump(all_results_with_meta, f, ensure_ascii=False, indent=2)
 
     print(f"\n  结果已保存:")
     print(f"    截面评估: {out}")
-    print(f"    回测结果: v3_backtest_results.json")
+    print(f"    回测结果: {bt_out_path if 'bt_out_path' in locals() else 'v3_backtest_results.json'}")

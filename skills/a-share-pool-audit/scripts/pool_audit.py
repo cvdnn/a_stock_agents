@@ -37,10 +37,17 @@ def ma_status(p, m5, m10, m20):
     return "震荡"
 
 def main():
+    try:
+        from core.config import OUTPUT_POOLS_DIR
+        default_data = str(OUTPUT_POOLS_DIR)
+    except Exception:
+        default_data = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"))
+    ap.add_argument("--data", default=default_data)
     a = ap.parse_args()
     watch, selected, positions = (load_csv(os.path.join(a.data, f)) for f in ("watch_pool.csv", "selected_pool.csv", "positions.csv"))
+
     codes = sorted({r["code"] for rows in (watch, selected, positions) for r in rows if r.get("code")})
     if not codes: print("无股票数据"); return
     print("拉取 %d 只行情..." % len(codes))

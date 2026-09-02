@@ -15,22 +15,31 @@ from pathlib import Path
 from datetime import datetime
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
 
-PROTECTED_DIRS = ["output", "user_data", "backups"]
+try:
+    from core.config import OUTPUT_DIR, BACKUPS_DIR
+except Exception:
+    OUTPUT_DIR = PROJECT_ROOT / "output"
+    BACKUPS_DIR = PROJECT_ROOT / "backups"
+
+PROTECTED_DIRS = [OUTPUT_DIR.name, "output", "user_data", "backups"]
 PROTECTED_FILES = ["config/config.yaml"]
 
 def create_backup() -> Path:
     """Creates a timestamped snapshot backup of output data and configuration."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_dir = PROJECT_ROOT / "backups" / f"backup_{timestamp}"
+    backup_dir = BACKUPS_DIR / f"backup_{timestamp}"
     backup_dir.mkdir(parents=True, exist_ok=True)
     
-    print(f"--> [备份] 正在创建用户专属数据(output/)与配置快照: {backup_dir.name}...")
+    print(f"--> [备份] 正在创建用户专属数据({OUTPUT_DIR.name}/)与配置快照: {backup_dir.name}...")
     
     # 1. Backup output
-    output_dir = PROJECT_ROOT / "output"
-    if output_dir.exists():
-        shutil.copytree(output_dir, backup_dir / "output", dirs_exist_ok=True)
+    if OUTPUT_DIR.exists():
+        shutil.copytree(OUTPUT_DIR, backup_dir / "output", dirs_exist_ok=True)
         
     # 2. Backup config
     cfg_file = PROJECT_ROOT / "config" / "config.yaml"
@@ -40,6 +49,7 @@ def create_backup() -> Path:
         
     print(f"    快照已保存至: {backup_dir}")
     return backup_dir
+
 
 def apply_update_from_zip(zip_path: Path, backup_dir: Path) -> bool:
     """Extracts update package non-destructively, protecting output/."""
@@ -56,7 +66,7 @@ def apply_update_from_zip(zip_path: Path, backup_dir: Path) -> bool:
         src_root = temp_dir / "a_stock_agents" if (temp_dir / "a_stock_agents").exists() else temp_dir
         
         for item in src_root.iterdir():
-            if item.name in [".venv", "output", "user_data", "backups"]:
+            if item.name in [".venv", "venv", "backups", "output", "user_data", OUTPUT_DIR.name]:
                 continue
             dst_item = PROJECT_ROOT / item.name
             if item.is_dir():
@@ -108,10 +118,11 @@ def rollback(backup_dir: Path):
     """Rolls back output data and configs from backup."""
     print("--> [回滚] 正在从备份恢复专属数据与配置...")
     if (backup_dir / "output").exists():
-        shutil.copytree(backup_dir / "output", PROJECT_ROOT / "output", dirs_exist_ok=True)
+        shutil.copytree(backup_dir / "output", OUTPUT_DIR, dirs_exist_ok=True)
     if (backup_dir / "config" / "config.yaml").exists():
         shutil.copy2(backup_dir / "config" / "config.yaml", PROJECT_ROOT / "config" / "config.yaml")
     print("    回滚操作完成。")
+
 
 def main():
     parser = argparse.ArgumentParser(description="A-Stock Agents Safe Updater")

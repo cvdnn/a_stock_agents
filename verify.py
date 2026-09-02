@@ -23,10 +23,11 @@ def run_tests():
     print("=" * 70)
 
     passed_count = 0
-    total_count = 6
+    total_count = 7
+
 
     # Test 1: Skill Manifest Integrity
-    print("[1/6] 检查技能清单与 SKILL.md 完整性...")
+    print("[1/7] 检查技能清单与 SKILL.md 完整性...")
     try:
         manifest_p = PROJECT_ROOT / "config" / "skills_manifest.json"
         assert manifest_p.exists(), "skills_manifest.json missing"
@@ -43,7 +44,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 2: Data Bridge & Realtime Quote
-    print("[2/6] 测试行情数据层 (DataBridge & 腾讯实时快照)...")
+    print("[2/7] 测试行情数据层 (DataBridge & 腾讯实时快照)...")
     try:
         from core.data.data_bridge import DataBridge
         bridge = DataBridge()
@@ -61,7 +62,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 3: Technical Indicators Calculation
-    print("[3/6] 测试技术指标计算 (MA/MACD/KDJ/RSI/BOLL/ATR/二次金叉)...")
+    print("[3/7] 测试技术指标计算 (MA/MACD/KDJ/RSI/BOLL/ATR/二次金叉)...")
     try:
         from core.indicators.technical_indicators import calc_all, gap_analysis, second_golden_cross
         tech = calc_all(klines)
@@ -76,7 +77,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 4: Execution Action Engine & Breakeven Price Rounding
-    print("[4/6] 测试交易反应动作引擎与精确保本价进位法则...")
+    print("[4/7] 测试交易反应动作引擎与精确保本价进位法则...")
     try:
         from core.strategy.execution_action_engine import ExecutionActionEngine
         # Test breakeven calculation for 1000 shares at 10.00 -> should be 10.02
@@ -98,7 +99,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 5: Multi-Factor & Combo Scorer
-    print("[5/6] 测试多因子评分与量化诊断模型...")
+    print("[5/7] 测试多因子评分与量化诊断模型...")
     try:
         from core.models.combo_scorer import ComboScorer
         scorer = ComboScorer()
@@ -111,10 +112,11 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 6: Paper Trading System
-    print("[6/6] 测试模拟盘撮合与账户体系...")
+    print("[6/7] 测试模拟盘撮合与账户体系...")
     try:
+        from core.config import OUTPUT_CACHE_DIR
         from core.paper_trading.engine import PaperTradingEngine
-        pt_engine = PaperTradingEngine(db_path=str(PROJECT_ROOT / "cache" / "test_paper_trade.db"))
+        pt_engine = PaperTradingEngine(db_path=str(OUTPUT_CACHE_DIR / "test_paper_trade.db"))
         try:
             acc = pt_engine.get_account("default")
         except Exception:
@@ -123,6 +125,49 @@ def run_tests():
         cash = acc.get("cash", 0.0) if isinstance(acc, dict) else acc.cash
         assert cash >= 0, "Account cash invalid"
         print(f"  --> PASS (模拟盘账户初始化成功, 可用资金: {cash:,.2f})")
+        passed_count += 1
+    except Exception as e:
+        print(f"  --> FAIL: {e}")
+
+    # Test 7: Output Isolation & Custom Directory Configuration
+    print("[7/7] 测试用户专属 Output 目录隔离与自定义配置动态生效...")
+    try:
+        import subprocess
+        from core.config import get_active_paths, OUTPUT_DIR, OUTPUT_POOLS_DIR
+        paths = get_active_paths()
+        assert OUTPUT_DIR.exists(), "Default OUTPUT_DIR does not exist"
+        assert OUTPUT_POOLS_DIR.exists(), "Default OUTPUT_POOLS_DIR does not exist"
+        
+        # Test dynamic isolation via A_STOCK_OUTPUT_DIR in subprocess
+        test_temp_out = PROJECT_ROOT / "cache" / "_verify_custom_output"
+        if test_temp_out.exists():
+            import shutil
+            shutil.rmtree(test_temp_out)
+            
+        env = os.environ.copy()
+        env["A_STOCK_OUTPUT_DIR"] = str(test_temp_out)
+        
+        code_str = (
+            "import sys\n"
+            "from pathlib import Path\n"
+            "ROOT = Path('.').resolve()\n"
+            "sys.path.insert(0, str(ROOT))\n"
+            "from core.config import get_active_paths, OUTPUT_DIR, OUTPUT_POOLS_DIR\n"
+            "paths = get_active_paths()\n"
+            "assert paths['is_custom_output'] is True\n"
+            "assert (OUTPUT_POOLS_DIR / 'positions.csv').exists()\n"
+            "assert (OUTPUT_POOLS_DIR / 'selected_pool.csv').exists()\n"
+            "assert (OUTPUT_POOLS_DIR / 'watch_pool.csv').exists()\n"
+            "print('CUSTOM_OUTPUT_VERIFIED')\n"
+        )
+        res = subprocess.run([sys.executable, "-c", code_str], capture_output=True, text=True, cwd=str(PROJECT_ROOT), env=env)
+        assert res.returncode == 0 and "CUSTOM_OUTPUT_VERIFIED" in res.stdout, f"Custom output verification failed:\n{res.stderr}"
+        
+        if test_temp_out.exists():
+            import shutil
+            shutil.rmtree(test_temp_out)
+            
+        print(f"  --> PASS (自定义 output 路径隔离解析、自动创建、模板实例化及动态覆盖全部生效)")
         passed_count += 1
     except Exception as e:
         print(f"  --> FAIL: {e}")
@@ -140,3 +185,4 @@ def run_tests():
 
 if __name__ == "__main__":
     sys.exit(run_tests())
+

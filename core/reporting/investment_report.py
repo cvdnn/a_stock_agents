@@ -18,11 +18,18 @@ import sys
 from datetime import datetime
 
 # ── 路径 ──
-SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SELECTED_PATH = os.path.join(SKILL_DIR, "data", "selected_pool.csv")
-WATCH_PATH = os.path.join(SKILL_DIR, "data", "watch_pool.csv")
+try:
+    from core.config import OUTPUT_POOLS_DIR
+    POOLS_BASE = OUTPUT_POOLS_DIR
+except Exception:
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    POOLS_BASE = os.path.join(PROJECT_ROOT, "output", "pools")
+
+SELECTED_PATH = os.path.join(str(POOLS_BASE), "selected_pool.csv")
+WATCH_PATH = os.path.join(str(POOLS_BASE), "watch_pool.csv")
 A_DATA_DIR = "./.AI-Platform/skills/stocks/a-share-data/scripts"
 VENV_PY = "python3"
+
 
 
 def _run(cmd: list[str], timeout=30) -> dict:

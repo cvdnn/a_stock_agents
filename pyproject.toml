@@ -21,3 +21,8 @@ dependencies = [
 
 [project.scripts]
 astock = "core.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*"]
+
