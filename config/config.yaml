@@ -17,7 +17,7 @@ app_name: "a_stock_agents"
 # ------------------------------------------------------------------------------
 paths:
   # 用户专属根路径 (优先级: 环境变量 A_STOCK_OUTPUT_DIR > 本配置 > 默认 output/)
-  output_dir: "../AAAAA"
+  output_dir: "output"
   
   # 用户专属子目录 (相对于 output_dir)
   pools_dir: "pools"

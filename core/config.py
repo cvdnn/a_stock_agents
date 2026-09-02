@@ -18,6 +18,25 @@ if os.environ.get("A_STOCK_AGENTS_ROOT"):
 else:
     PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# Auto-load local .env if present (gitignored, for local private overrides like A_STOCK_OUTPUT_DIR)
+def _load_dotenv():
+    env_file = PROJECT_ROOT / ".env"
+    if env_file.exists():
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip('"').strip("'")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+        except Exception:
+            pass
+
+_load_dotenv()
+
 CONFIG_DIR = PROJECT_ROOT / "config"
 SKILLS_DIR = PROJECT_ROOT / "skills"
 DOCS_DIR = PROJECT_ROOT / "docs"
@@ -67,9 +86,9 @@ GLOBAL_CONFIG = load_config()
 # Priority: ENV VAR A_STOCK_OUTPUT_DIR > A_STOCK_USER_DATA_DIR > config.yaml paths.output_dir > default PROJECT_ROOT / "output"
 env_output = os.environ.get("A_STOCK_OUTPUT_DIR") or os.environ.get("A_STOCK_USER_DATA_DIR")
 if env_output:
-    OUTPUT_DIR = Path(env_output).resolve()
+    OUTPUT_DIR = Path(env_output) if Path(env_output).is_absolute() else (PROJECT_ROOT / env_output).resolve()
 else:
-    cfg_out_dir = GLOBAL_CONFIG.get("paths", {}).get("output_dir", GLOBAL_CONFIG.get("paths", {}).get("user_data_dir", "output"))
+    cfg_out_dir = GLOBAL_CONFIG.get("paths", {}).get("output_dir", "output")
     out_p = Path(cfg_out_dir)
     OUTPUT_DIR = out_p if out_p.is_absolute() else (PROJECT_ROOT / out_p).resolve()
 
