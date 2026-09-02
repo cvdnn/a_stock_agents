@@ -76,7 +76,8 @@ def load_config() -> dict:
             "commission_rate": 0.00025,
             "transfer_fee_rate": 0.00001,
             "min_commission": 5.0,
-            "breakeven_ceil_cent": True
+            "breakeven_ceil_cent": True,
+            "is_user_configured": False
         }
     }
 
@@ -212,5 +213,74 @@ def get_active_paths() -> dict:
         "backups_dir": str(BACKUPS_DIR),
         "is_custom_output": IS_CUSTOM_OUTPUT,
     }
+
+def get_market_config() -> dict:
+    """Return active market fee & cost configuration."""
+    global GLOBAL_CONFIG
+    m = GLOBAL_CONFIG.get("market", {})
+    return {
+        "default_benchmark": m.get("default_benchmark", "sh000001"),
+        "tax_rate_sell": float(m.get("tax_rate_sell", 0.0005)),
+        "commission_rate": float(m.get("commission_rate", 0.00025)),
+        "transfer_fee_rate": float(m.get("transfer_fee_rate", 0.00001)),
+        "min_commission": float(m.get("min_commission", 5.0)),
+        "breakeven_ceil_cent": bool(m.get("breakeven_ceil_cent", True)),
+        "is_user_configured": bool(m.get("is_user_configured", False)),
+    }
+
+def save_market_config(commission_rate: float = None,
+                       min_commission: float = None,
+                       tax_rate_sell: float = None,
+                       transfer_fee_rate: float = None,
+                       is_user_configured: bool = True) -> dict:
+    """Update and persist market configuration to config.yaml and reload GLOBAL_CONFIG."""
+    global GLOBAL_CONFIG
+    cfg_file = CONFIG_DIR / "config.yaml"
+    cfg_data = {}
+    if cfg_file.exists():
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                cfg_data = yaml.safe_load(f) or {}
+        except Exception:
+            cfg_data = {}
+    
+    if "market" not in cfg_data or not isinstance(cfg_data["market"], dict):
+        cfg_data["market"] = {}
+    
+    if commission_rate is not None:
+        cfg_data["market"]["commission_rate"] = float(commission_rate)
+    if min_commission is not None:
+        cfg_data["market"]["min_commission"] = float(min_commission)
+    if tax_rate_sell is not None:
+        cfg_data["market"]["tax_rate_sell"] = float(tax_rate_sell)
+    if transfer_fee_rate is not None:
+        cfg_data["market"]["transfer_fee_rate"] = float(transfer_fee_rate)
+    if is_user_configured is not None:
+        cfg_data["market"]["is_user_configured"] = bool(is_user_configured)
+        
+    try:
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg_data, f, allow_unicode=True, sort_keys=False)
+    except Exception as e:
+        print(f"[Error] Failed to write config.yaml: {e}")
+        
+    GLOBAL_CONFIG = load_config()
+    return get_market_config()
+
+def check_market_config_prompt() -> tuple:
+    """
+    Check whether market commission is configured by user.
+    Returns: (needs_prompt: bool, message: str)
+    """
+    m = get_market_config()
+    if not m.get("is_user_configured", False):
+        comm_pct = m['commission_rate'] * 10000.0
+        msg = (
+            f"[费率未确认提醒] 当前使用默认券商佣金参数 (万{comm_pct:.1f}，最低 {m['min_commission']:.1f} 元起收)。\n"
+            f"  若实际佣金不同（如万1、万1.5、免5等），将直接影响最低保本卖出价/做T成本计算精度。\n"
+            f"  可在命令行一键配置: python core/cli.py config market --commission {m['commission_rate']} --min-commission {m['min_commission']}"
+        )
+        return True, msg
+    return False, ""
 
 

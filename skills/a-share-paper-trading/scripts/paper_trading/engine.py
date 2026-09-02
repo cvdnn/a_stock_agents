@@ -69,21 +69,30 @@ def calc_transfer_fee(amount: float, symbol: Optional[str] = None) -> float:
     return round(amount * 0.00001, 2)
 
 
-# Default commission rate (configurable per backtest).  Industry mainstream: 万1.2
-DEFAULT_COMMISSION_RATE = 0.00012  # 万分之1.2
-# Stamp tax (sell-side only).  Updated 2023-08-28: 0.1% → 0.05%
-DEFAULT_STAMP_TAX_RATE = 0.0005  # 0.05%
+from core.config import get_market_config
+
+# Market rates (dynamically sourced from core.config)
+def _get_market_rates():
+    m = get_market_config()
+    return m.get("commission_rate", 0.00025), m.get("min_commission", 5.0), m.get("tax_rate_sell", 0.0005)
+
+DEFAULT_COMMISSION_RATE = 0.00025  # 万分之2.5
+DEFAULT_STAMP_TAX_RATE = 0.0005   # 0.05%
 
 
 def calc_commission(amount: float, symbol: Optional[str] = None,
-                    rate: float = DEFAULT_COMMISSION_RATE) -> float:
-    broker = max(5.0, round(amount * rate, 2))
+                    rate: Optional[float] = None, min_comm: Optional[float] = None) -> float:
+    m = get_market_config()
+    comm_rate = rate if rate is not None else m.get("commission_rate", 0.00025)
+    minimum = min_comm if min_comm is not None else m.get("min_commission", 5.0)
+    broker = max(minimum, round(amount * comm_rate, 2))
     return round(broker + calc_transfer_fee(amount, symbol), 2)
 
 
 def calc_tax(side: str, amount: float,
-             rate: float = DEFAULT_STAMP_TAX_RATE) -> float:
-    return 0.0 if side.lower() != "sell" else round(amount * rate, 2)
+             rate: Optional[float] = None) -> float:
+    tax_rate = rate if rate is not None else get_market_config().get("tax_rate_sell", 0.0005)
+    return 0.0 if side.lower() != "sell" else round(amount * tax_rate, 2)
 
 
 def _apply_slippage(price: float, side: str, slippage_bps: float = 0.0) -> float:

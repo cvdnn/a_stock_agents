@@ -54,12 +54,16 @@ def _find_a_stocks_scripts():
             return c
     return None
 _A_STOCKS_SCRIPTS = _find_a_stocks_scripts()
-if _A_STOCKS_SCRIPTS:
-    sys.path.insert(0, _A_STOCKS_SCRIPTS)
-from data_bridge import DataBridge
-from technical_indicators import calc_all
-from combo_scorer import ComboScorer
-from fundamental_filter import FundamentalFilter
+try:
+    from core.data.data_bridge import DataBridge
+    from core.indicators.technical_indicators import calc_all
+    from core.models.combo_scorer import ComboScorer
+    from core.strategy.fundamental_filter import FundamentalFilter
+except ImportError:
+    from data_bridge import DataBridge
+    from technical_indicators import calc_all
+    from combo_scorer import ComboScorer
+    from fundamental_filter import FundamentalFilter
 
 
 # ============================================================
@@ -739,13 +743,20 @@ class RotationBacktest:
       4. 2-3只组合分散模式(旋转模型建议#3)
     """
 
-    def __init__(self, initial_cash=1000000, commission_rate=0.00025,
-                 stamp_tax=0.0005, slippage=0.001, exit_line="MA15",
+    def __init__(self, initial_cash=1000000, commission_rate=None, min_commission=None,
+                 stamp_tax=None, slippage=0.001, exit_line="MA15",
                  rotation_threshold=15, num_positions=1, max_price=350.0,
                  filter_downtrend=True):
+        m_cfg = {}
+        try:
+            from core.config import get_market_config
+            m_cfg = get_market_config()
+        except Exception:
+            pass
         self.initial_cash = initial_cash
-        self.commission_rate = commission_rate
-        self.stamp_tax = stamp_tax
+        self.commission_rate = commission_rate if commission_rate is not None else m_cfg.get("commission_rate", 0.00025)
+        self.min_commission = min_commission if min_commission is not None else m_cfg.get("min_commission", 5.0)
+        self.stamp_tax = stamp_tax if stamp_tax is not None else m_cfg.get("tax_rate_sell", 0.0005)
         self.slippage = slippage
         self.exit_line = exit_line  # MA10/MA15/MA20
         self.rotation_threshold = rotation_threshold
@@ -914,7 +925,7 @@ class RotationBacktest:
                     exit_price = sd["closes"][day] * (1 - self.slippage)
                     qty = pos["qty"]
                     amount = exit_price * qty
-                    comm = max(5, amount * self.commission_rate)
+                    comm = max(self.min_commission, amount * self.commission_rate)
                     tax = amount * self.stamp_tax
                     cash += amount - comm - tax
                     pnl = (exit_price - pos["entry_price"]) * qty - comm - tax - pos.get("buy_comm", 0)
@@ -942,7 +953,7 @@ class RotationBacktest:
                 qty = int(target_value / entry_price / 100) * 100
                 if qty > 0:
                     amount = entry_price * qty
-                    comm = max(5, amount * self.commission_rate)
+                    comm = max(self.min_commission, amount * self.commission_rate)
                     cash -= amount + comm
                     positions[best_code] = {
                         "qty": qty, "entry_price": round(entry_price, 2),
@@ -969,7 +980,7 @@ class RotationBacktest:
             exit_price = sd["closes"][-1] * (1 - self.slippage)
             qty = pos["qty"]
             amount = exit_price * qty
-            comm = max(5, amount * self.commission_rate)
+            comm = max(self.min_commission, amount * self.commission_rate)
             tax = amount * self.stamp_tax
             cash += amount - comm - tax
             pnl = (exit_price - pos["entry_price"]) * qty - comm - tax - pos.get("buy_comm", 0)
@@ -1293,24 +1304,13 @@ if __name__ == "__main__":
                     "label": bt_results[i]["label"],
                     "in_return": in_r,
                     "out_return": out_r,
-    # ── 路径与环境自适应 ──
-    from pathlib import Path
-    script_dir = Path(__file__).resolve().parent
-    project_root = script_dir.parent.parent.parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-    if str(project_root / "core") not in sys.path:
-        sys.path.insert(0, str(project_root / "core"))
-
-    try:
-        from core.config import OUTPUT_BACKTEST_DIR, OUTPUT_CACHE_DIR
-        bt_out_path = OUTPUT_BACKTEST_DIR / "v3_backtest_results.json"
-        out_cache_path = OUTPUT_CACHE_DIR / "v3_model_results.json"
-    except Exception:
-        bt_out_path = Path(os.path.join(os.path.dirname(__file__), "v3_backtest_results.json"))
-        out_cache_path = Path(os.path.join(os.path.dirname(__file__), "v3_model_results.json"))
-
-    if do_bt and bt_save:
+                    "decay_rate": decay,
+                })
+        try:
+            from core.config import OUTPUT_BACKTEST_DIR
+            bt_out_path = OUTPUT_BACKTEST_DIR / "v3_backtest_results.json"
+        except Exception:
+            bt_out_path = Path(__file__).resolve().parent / "v3_backtest_results.json"
         with open(str(bt_out_path), "w", encoding="utf-8") as f:
             json.dump(bt_save, f, ensure_ascii=False, indent=2)
 
@@ -1323,9 +1323,14 @@ if __name__ == "__main__":
         "gate_open": model.gate.gate_open,
         "results": all_results
     }
-    with open(str(out_cache_path), "w", encoding="utf-8") as f:
+    try:
+        from core.config import OUTPUT_CACHE_DIR
+        out = os.path.join(str(OUTPUT_CACHE_DIR), "v3_model_results.json")
+    except Exception:
+        out = os.path.join(os.path.dirname(__file__), "v3_model_results.json")
+    with open(out, "w", encoding="utf-8") as f:
         json.dump(all_results_with_meta, f, ensure_ascii=False, indent=2)
 
     print(f"\n  结果已保存:")
-    print(f"    截面评估: {out_cache_path}")
-    print(f"    回测结果: {bt_out_path if do_bt else '未运行回测'}")
+    print(f"    截面评估: {out}")
+    print(f"    回测结果: {bt_out_path if 'bt_out_path' in locals() else 'v3_backtest_results.json'}")

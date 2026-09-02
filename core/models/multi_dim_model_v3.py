@@ -743,13 +743,20 @@ class RotationBacktest:
       4. 2-3只组合分散模式(旋转模型建议#3)
     """
 
-    def __init__(self, initial_cash=1000000, commission_rate=0.00025,
-                 stamp_tax=0.0005, slippage=0.001, exit_line="MA15",
+    def __init__(self, initial_cash=1000000, commission_rate=None, min_commission=None,
+                 stamp_tax=None, slippage=0.001, exit_line="MA15",
                  rotation_threshold=15, num_positions=1, max_price=350.0,
                  filter_downtrend=True):
+        m_cfg = {}
+        try:
+            from core.config import get_market_config
+            m_cfg = get_market_config()
+        except Exception:
+            pass
         self.initial_cash = initial_cash
-        self.commission_rate = commission_rate
-        self.stamp_tax = stamp_tax
+        self.commission_rate = commission_rate if commission_rate is not None else m_cfg.get("commission_rate", 0.00025)
+        self.min_commission = min_commission if min_commission is not None else m_cfg.get("min_commission", 5.0)
+        self.stamp_tax = stamp_tax if stamp_tax is not None else m_cfg.get("tax_rate_sell", 0.0005)
         self.slippage = slippage
         self.exit_line = exit_line  # MA10/MA15/MA20
         self.rotation_threshold = rotation_threshold
@@ -918,7 +925,7 @@ class RotationBacktest:
                     exit_price = sd["closes"][day] * (1 - self.slippage)
                     qty = pos["qty"]
                     amount = exit_price * qty
-                    comm = max(5, amount * self.commission_rate)
+                    comm = max(self.min_commission, amount * self.commission_rate)
                     tax = amount * self.stamp_tax
                     cash += amount - comm - tax
                     pnl = (exit_price - pos["entry_price"]) * qty - comm - tax - pos.get("buy_comm", 0)
@@ -946,7 +953,7 @@ class RotationBacktest:
                 qty = int(target_value / entry_price / 100) * 100
                 if qty > 0:
                     amount = entry_price * qty
-                    comm = max(5, amount * self.commission_rate)
+                    comm = max(self.min_commission, amount * self.commission_rate)
                     cash -= amount + comm
                     positions[best_code] = {
                         "qty": qty, "entry_price": round(entry_price, 2),
@@ -973,7 +980,7 @@ class RotationBacktest:
             exit_price = sd["closes"][-1] * (1 - self.slippage)
             qty = pos["qty"]
             amount = exit_price * qty
-            comm = max(5, amount * self.commission_rate)
+            comm = max(self.min_commission, amount * self.commission_rate)
             tax = amount * self.stamp_tax
             cash += amount - comm - tax
             pnl = (exit_price - pos["entry_price"]) * qty - comm - tax - pos.get("buy_comm", 0)

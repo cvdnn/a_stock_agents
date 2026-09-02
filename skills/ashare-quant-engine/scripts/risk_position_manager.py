@@ -12,6 +12,8 @@ A-Share Quant Engine - Risk & Position Manager (风控、止盈止损与仓位�
 import math
 from typing import Dict, List, Any, Optional, Tuple
 
+from core.config import get_market_config
+
 
 class PositionSizer:
     """仓位管理与资金分配器"""
@@ -119,8 +121,12 @@ class AccountPortfolio:
         if shares <= 0 or price <= 0:
             return False
         
+        m_cfg = get_market_config()
+        comm_rate = m_cfg.get("commission_rate", 0.00025)
+        min_comm = m_cfg.get("min_commission", 5.0)
+
         cost = shares * price
-        commission = max(5.0, cost * 0.00025)  # 佣金 万分之2.5，最低5元
+        commission = max(min_comm, cost * comm_rate)  # 佣金
         total_cost = cost + commission
 
         if self.cash < total_cost:
@@ -166,9 +172,14 @@ class AccountPortfolio:
         if pos["available_shares"] < shares or shares <= 0:
             return False
 
+        m_cfg = get_market_config()
+        comm_rate = m_cfg.get("commission_rate", 0.00025)
+        min_comm = m_cfg.get("min_commission", 5.0)
+        tax_rate = m_cfg.get("tax_rate_sell", 0.0005)
+
         gross_amount = shares * price
-        stamp_tax = gross_amount * 0.0005  # A股印花税 卖方单边万分之5
-        commission = max(5.0, gross_amount * 0.00025)  # 佣金
+        stamp_tax = gross_amount * tax_rate  # A股印花税 卖方单边万分之5
+        commission = max(min_comm, gross_amount * comm_rate)  # 佣金
         net_proceeds = gross_amount - stamp_tax - commission
 
         self.cash += net_proceeds

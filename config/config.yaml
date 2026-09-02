@@ -1,60 +1,30 @@
-# ==============================================================================
-# A-Stock Agents 全局配置文件 (Version v3)
-# ==============================================================================
-
-version: "v3"
-app_name: "a_stock_agents"
-
-# ------------------------------------------------------------------------------
-# 用户专属目录与数据解耦配置 (Output & User Data Isolation)
-# ------------------------------------------------------------------------------
-# 默认用户专属数据、报告、股池与运行缓存存储在项目根目录下的 output 文件夹中。
-# 如需将专属数据与项目代码完全物理隔离（如部署在独立数据盘或外部目录），
-# 可直接修改 output_dir 路径，或设置环境变量 A_STOCK_OUTPUT_DIR。
-# 示例：
-#   Linux:   output_dir: "/var/data/astock_output"
-#   Windows: output_dir: "D:/astock_output_data"
-# ------------------------------------------------------------------------------
+version: v3
+app_name: a_stock_agents
 paths:
-  # 用户专属根路径 (优先级: 环境变量 A_STOCK_OUTPUT_DIR > 本配置 > 默认 output/)
-  output_dir: "output"
-  
-  # 用户专属子目录 (相对于 output_dir)
-  pools_dir: "pools"        # 股票池与持仓数据 (positions.csv, selected_pool.csv, watch_pool.csv)
-  reports_dir: "reports"    # 投研与复盘报告
-  cache_dir: "cache"        # 运行缓存与模拟盘数据
-  backtest_dir: "backtest"  # 回测检验结果
-  backups_dir: "backups"    # 专属备份归档
-
-
-# ------------------------------------------------------------------------------
-# 行情与数据源配置 (4层自动降级架构)
-# ------------------------------------------------------------------------------
+  output_dir: output
+  pools_dir: pools
+  reports_dir: reports
+  cache_dir: cache
+  backtest_dir: backtest
+  backups_dir: backups
 data_sources:
-  primary: "tencent"        # L1: 腾讯 qt.gtimg.cn 直连 (~0.1s, 零外部依赖)
-  secondary: "eastmoney"    # L2: 东方财富接口
-  tertiary: "sina"          # L3: 新浪财经接口
-  fallback: "local_cache"   # L4: 本地历史数据缓存
+  primary: tencent
+  secondary: eastmoney
+  tertiary: sina
+  fallback: local_cache
   request_timeout_seconds: 10
   max_retries: 3
-
-# ------------------------------------------------------------------------------
-# 市场交易费率与成本进位法则
-# ------------------------------------------------------------------------------
 market:
-  default_benchmark: "sh000001"
-  tax_rate_sell: 0.0005     # 卖出印花税 0.05%
-  commission_rate: 0.00025  # 券商佣金 万2.5
-  transfer_fee_rate: 0.00001 # 过户费 十万分之1 (双向)
-  min_commission: 5.0       # 佣金最低 5 元起收
-  breakeven_ceil_cent: true # 最低保本卖出价必须向上精确进位到分
-
-# ------------------------------------------------------------------------------
-# 实战风控与止损预警规则
-# ------------------------------------------------------------------------------
+  default_benchmark: sh000001
+  tax_rate_sell: 0.0005
+  commission_rate: 0.00025
+  transfer_fee_rate: 1.0e-05
+  min_commission: 5.0
+  breakeven_ceil_cent: true
+  is_user_configured: true
 risk_control:
-  tier0_warning_pct: 0.03   # T0 警戒线 (-3%): 盘中破位预警，禁止加仓
-  tier1_cut_pct: 0.05       # T1 减仓线 (-5%): 触发坚决减半仓锁定风险
-  tier2_stop_pct: 0.08      # T2 绝杀线 (-8%): 无论任何理由无条件清仓
-  max_single_position_pct: 0.25 # 单只股票持仓上限 25%
-  max_total_position_pct: 0.80  # 总仓位硬约束上限 80%
+  tier0_warning_pct: 0.03
+  tier1_cut_pct: 0.05
+  tier2_stop_pct: 0.08
+  max_single_position_pct: 0.25
+  max_total_position_pct: 0.8

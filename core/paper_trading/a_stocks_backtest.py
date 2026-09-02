@@ -66,11 +66,17 @@ class BacktestEngine:
             except Exception:
                 pass
 
-        bt_cfg = cfg.get("backtest", {})
+        m_cfg = {}
+        try:
+            from core.config import get_market_config
+            m_cfg = get_market_config()
+        except Exception:
+            pass
 
         self.initial_cash = initial_cash if initial_cash is not None else bt_cfg.get("initial_cash", 1000000)
-        self.commission_rate = commission_rate if commission_rate is not None else bt_cfg.get("commission_rate", 0.00025)
-        self.stamp_tax = stamp_tax if stamp_tax is not None else bt_cfg.get("stamp_tax", 0.0005)
+        self.commission_rate = commission_rate if commission_rate is not None else (bt_cfg.get("commission_rate") or m_cfg.get("commission_rate", 0.00025))
+        self.min_commission = (bt_cfg.get("min_commission") if "min_commission" in bt_cfg else m_cfg.get("min_commission", 5.0))
+        self.stamp_tax = stamp_tax if stamp_tax is not None else (bt_cfg.get("stamp_tax") or m_cfg.get("tax_rate_sell", 0.0005))
         _slippage = slippage_ticks if slippage_ticks is not None else bt_cfg.get("slippage_ticks", 1)
         self.risk_free_rate = risk_free_rate if risk_free_rate is not None else bt_cfg.get("risk_free_rate", 0.02)
 
@@ -81,9 +87,9 @@ class BacktestEngine:
     # 交易成本计算
     # ------------------------------------------------------------------
     def _calc_commission(self, amount):
-        """计算佣金: 万分之2.5, 最低5元"""
+        """计算佣金: 默认万分之2.5, 且最低5元 (可配置)"""
         comm = amount * self.commission_rate
-        return max(comm, 5.0)
+        return max(comm, getattr(self, "min_commission", 5.0))
 
     def _calc_stamp_tax(self, amount):
         """计算印花税: 卖出万分之5"""

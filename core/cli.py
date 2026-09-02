@@ -119,6 +119,10 @@ def cmd_action_plan(args):
         print(json.dumps(res, ensure_ascii=False, indent=2, default=str))
     else:
         print(f"=== [{code}] {name} 实战交易反应决策单 ===")
+        if res.get("config_prompt"):
+            print("-" * 65)
+            print("⚠️  " + res["config_prompt"].replace("\n", "\n   "))
+            print("-" * 65)
         print(f"现价: {res.get('current_price')} | 买入成本: {cost:.2f} | 盈亏: {res.get('profit_pct'):+.2f}%")
         print(f"最低保本卖出价: {res.get('breakeven_price')} 元 (精确含税费进位)")
         print(f"建议反应动作: {res.get('action_type')} (紧急度: {res.get('urgency')})")
@@ -138,11 +142,79 @@ def cmd_config_paths(args):
         print(f"  用户专属数据 (OUTPUT_DIR):    {paths['output_dir']} {'[自定义生效]' if paths['is_custom_output'] else '[默认隔离目录]'}")
         print(f"  - 股票池与持仓 (POOLS_DIR):   {paths['pools_dir']}")
         print(f"  - 投研报告目录 (REPORTS_DIR): {paths['reports_dir']}")
-
         print(f"  - 运行缓存目录 (CACHE_DIR):   {paths['cache_dir']}")
         print(f"  - 回测结果目录 (BACKTEST):    {paths['backtest_dir']}")
         print(f"  - 快照备份目录 (BACKUPS_DIR): {paths['backups_dir']}")
         print(f"  隔离状态: {'✅ 已配置独立数据目录' if paths['is_custom_output'] else 'ℹ️ 使用项目内 output/ 目录'}")
+
+def cmd_config_market(args):
+    from core.config import get_market_config, save_market_config
+    
+    if getattr(args, "interactive", False):
+        m = get_market_config()
+        print("=== A-Stock Agents 券商交易费率向导配置 ===")
+        print(f"当前配置状态: {'[已确认]' if m['is_user_configured'] else '[使用默认值(未确认)]'}")
+        print(f"  当前佣金率: {m['commission_rate']} (万{m['commission_rate']*10000:.1f})")
+        print(f"  当前最低佣金: {m['min_commission']} 元 (免5填0.0)")
+        print(f"  当前卖出印花税: {m['tax_rate_sell']} (万{m['tax_rate_sell']*10000:.1f})")
+        print(f"  当前过户费率: {m['transfer_fee_rate']}")
+        print("-" * 50)
+        
+        try:
+            val_comm = input(f"请输入券商佣金率 [回车保持 {m['commission_rate']}]: ").strip()
+            comm = float(val_comm) if val_comm else m['commission_rate']
+            
+            val_min = input(f"请输入单笔最低佣金(元, 免5填0.0) [回车保持 {m['min_commission']}]: ").strip()
+            min_c = float(val_min) if val_min else m['min_commission']
+            
+            val_tax = input(f"请输入卖出印花税率 [回车保持 {m['tax_rate_sell']}]: ").strip()
+            tax = float(val_tax) if val_tax else m['tax_rate_sell']
+            
+            new_m = save_market_config(commission_rate=comm, min_commission=min_c, tax_rate_sell=tax, is_user_configured=True)
+            print("✅ 费率配置已成功保存并即时生效！")
+            print(f"  新佣金率: {new_m['commission_rate']} (万{new_m['commission_rate']*10000:.1f}) | 最低起收: {new_m['min_commission']}元")
+        except Exception as e:
+            print(f"❌ 配置失败: {e}")
+        return
+
+    has_update = (getattr(args, "commission", None) is not None or 
+                  getattr(args, "min_commission", None) is not None or 
+                  getattr(args, "tax", None) is not None or 
+                  getattr(args, "transfer", None) is not None)
+    
+    if has_update:
+        new_m = save_market_config(
+            commission_rate=args.commission,
+            min_commission=args.min_commission,
+            tax_rate_sell=args.tax,
+            transfer_fee_rate=args.transfer,
+            is_user_configured=True
+        )
+        if args.json:
+            print(json.dumps(new_m, ensure_ascii=False, indent=2))
+        else:
+            print("✅ 券商交易费率配置已成功更新并持久化至 config.yaml：")
+            print(f"  - 券商佣金率: {new_m['commission_rate']} (万{new_m['commission_rate']*10000:.2f})")
+            print(f"  - 最低单笔佣金: {new_m['min_commission']:.1f} 元 {'(已启用免五规则)' if new_m['min_commission'] <= 0 else '(最低起收)'}")
+            print(f"  - 卖出印花税率: {new_m['tax_rate_sell']} (万{new_m['tax_rate_sell']*10000:.1f})")
+            print(f"  - 过户费率: {new_m['transfer_fee_rate']}")
+            print(f"  - 配置状态: 已确认 (is_user_configured: True)")
+    else:
+        m = get_market_config()
+        if args.json:
+            print(json.dumps(m, ensure_ascii=False, indent=2))
+        else:
+            print("=== A-Stock Agents 市场交易费率配置 ===")
+            print(f"  券商佣金率:     {m['commission_rate']} (万{m['commission_rate']*10000:.2f})")
+            print(f"  最低佣金起收:   {m['min_commission']:.1f} 元 {'(免五)' if m['min_commission'] <= 0 else ''}")
+            print(f"  卖出印花税率:   {m['tax_rate_sell']} (万{m['tax_rate_sell']*10000:.1f})")
+            print(f"  过户费率(双边): {m['transfer_fee_rate']}")
+            print(f"  精确进位到分:   {'开启 (向上进位保证保本)' if m['breakeven_ceil_cent'] else '关闭'}")
+            print(f"  用户确认状态:   {'✅ 已自定义配置' if m['is_user_configured'] else '⚠️ 未确认 (使用默认万2.5/5元)'}")
+            if not m['is_user_configured']:
+                print("\n  💡 [提示] 若实际费率不同，建议执行以下命令配置您的真实佣金：")
+                print(f"     python core/cli.py config market --commission 0.00025 --min-commission 5.0")
+                print(f"     或运行交互向导: python core/cli.py config market --interactive")
 
 def cmd_skill_list(args):
     manifest_file = PROJECT_ROOT / "config" / "skills_manifest.json"
@@ -174,6 +246,13 @@ def main():
     p_cfg = subparsers.add_parser("config", help="Configuration & Path Isolation", parents=[common_parser])
     cfg_sub = p_cfg.add_subparsers(dest="config_cmd")
     cfg_sub.add_parser("paths", help="Show active data isolation paths", parents=[common_parser])
+    
+    p_mkt = cfg_sub.add_parser("market", help="View & configure market fee rates (commission, min fee, stamp tax)", parents=[common_parser])
+    p_mkt.add_argument("--commission", type=float, default=None, help="Broker commission rate e.g. 0.00025 (万2.5) or 0.00012 (万1.2)")
+    p_mkt.add_argument("--min-commission", type=float, default=None, help="Minimum commission per trade in RMB (e.g. 5.0 or 0.0 for 免5)")
+    p_mkt.add_argument("--tax", type=float, default=None, help="Stamp tax rate on sell (e.g. 0.0005 for 0.05%)")
+    p_mkt.add_argument("--transfer", type=float, default=None, help="Transfer fee rate (e.g. 0.00001)")
+    p_mkt.add_argument("--interactive", action="store_true", help="Interactive prompt to configure market fees")
 
     # pool
     p_pool = subparsers.add_parser("pool", help="Stock Pool Management", parents=[common_parser])
@@ -218,8 +297,12 @@ def main():
 
     args = parser.parse_args()
     if args.command == "config":
-        if args.config_cmd == "paths" or not args.config_cmd:
+        if args.config_cmd == "paths":
             cmd_config_paths(args)
+        elif args.config_cmd == "market":
+            cmd_config_market(args)
+        elif not args.config_cmd:
+            cmd_config_market(args)
         else:
             p_cfg.print_help()
     elif args.command == "pool":

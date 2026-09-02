@@ -14,11 +14,7 @@ import re
 import math
 from typing import Dict, Any, List, Optional, Tuple
 
-# 交易摩擦成本常数
-COMMISSION_RATE = 0.00012   # 佣金 万1.2 (双边)
-STAMP_TAX_RATE = 0.0005     # 印花税 万5 (仅卖出)
-TRANSFER_FEE_RATE = 0.00001 # 过户费 万0.1 (沪深双边)
-MIN_COMMISSION = 5.0        # 单笔最低佣金 5元
+from core.config import get_market_config, check_market_config_prompt
 
 
 class IntentEvaluator:
@@ -231,23 +227,59 @@ class ExecutionActionEngine:
     全量实战交易反应中枢 (集成意图路由与下跌矩阵)
     """
 
-    @staticmethod
-    def calc_min_breakeven_price(cost: float, shares: int = 1000) -> float:
-        """计算含税费保本价"""
-        if cost <= 0 or shares <= 0: return cost
+    @classmethod
+    def calc_min_breakeven_price(cls, cost: float, shares: int = 1000, market_cfg: Optional[Dict[str, Any]] = None) -> float:
+        """
+        计算含税费与佣金保本卖出价（覆盖买卖摩擦税费后向上精确进位至0.01元）
+        支持动态从全局配置或传入的 market_cfg 读取费率参数（佣金率、最低佣金起收等）
+        """
+        if cost <= 0 or shares <= 0:
+            return cost
+        
+        cfg = market_cfg or get_market_config()
+        comm_rate = float(cfg.get("commission_rate", 0.00025))
+        min_comm = float(cfg.get("min_commission", 5.0))
+        stamp_tax = float(cfg.get("tax_rate_sell", 0.0005))
+        transfer_rate = float(cfg.get("transfer_fee_rate", 0.00001))
+        ceil_cent = bool(cfg.get("breakeven_ceil_cent", True))
+
         buy_principal = cost * shares
-        buy_comm = max(buy_principal * COMMISSION_RATE, MIN_COMMISSION)
-        buy_transfer = buy_principal * TRANSFER_FEE_RATE
+        buy_comm = max(buy_principal * comm_rate, min_comm)
+        buy_transfer = buy_principal * transfer_rate
         total_buy_cost = buy_principal + buy_comm + buy_transfer
-        denom = 1.0 - COMMISSION_RATE - STAMP_TAX_RATE - TRANSFER_FEE_RATE
-        raw_p = total_buy_cost / (shares * denom)
-        return math.ceil(raw_p * 100.0) / 100.0
+
+        # 区分卖出佣金是否触发最低佣金起收线
+        # Case A: 卖出佣金 <= min_comm
+        denom_a = 1.0 - stamp_tax - transfer_rate
+        raw_p_a = (total_buy_cost + min_comm) / (shares * denom_a) if denom_a > 0 else cost
+        
+        # Case B: 卖出佣金 > min_comm
+        denom_b = 1.0 - comm_rate - stamp_tax - transfer_rate
+        raw_p_b = total_buy_cost / (shares * denom_b) if denom_b > 0 else cost
+
+        if raw_p_a * shares * comm_rate <= min_comm:
+            raw_p = raw_p_a
+        else:
+            raw_p = raw_p_b
+
+        if ceil_cent:
+            p_breakeven = math.ceil(round(raw_p, 6) * 100.0) / 100.0
+            def _net_rev(p):
+                sg = p * shares
+                sc = max(sg * comm_rate, min_comm)
+                return sg - sc - (sg * stamp_tax) - (sg * transfer_rate)
+            while _net_rev(p_breakeven) < total_buy_cost - 1e-4:
+                p_breakeven = round(p_breakeven + 0.01, 2)
+            return p_breakeven
+        else:
+            return round(raw_p, 4)
 
     @classmethod
     def _format_result(cls, code: str, name: str, price: float, is_held: bool,
                        action_type: str, urgency: str, actions: List[Dict[str, Any]],
                        exec_window: str, profit_pct: float, breakeven_p: float,
-                       downside_diag: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                       downside_diag: Optional[Dict[str, Any]] = None,
+                       config_prompt: Optional[str] = None) -> Dict[str, Any]:
         return {
             "code": code,
             "name": name,
@@ -259,7 +291,8 @@ class ExecutionActionEngine:
             "breakeven_price": breakeven_p,
             "recommended_window": exec_window,
             "action_items": actions,
-            "downside_diagnosis": downside_diag
+            "downside_diagnosis": downside_diag,
+            "config_prompt": config_prompt
         }
 
     @classmethod
@@ -273,6 +306,9 @@ class ExecutionActionEngine:
         """
         全量决策生成
         """
+        needs_prompt, prompt_msg = check_market_config_prompt()
+        config_prompt = prompt_msg if needs_prompt else None
+
         price = float(quote.get("price", 0.0))
         open_p = float(quote.get("open", price))
         high_p = float(quote.get("high", price))
@@ -319,13 +355,13 @@ class ExecutionActionEngine:
                 action_type = "STOP_LOSS"
                 urgency = "CRITICAL"
                 actions.append(downside_diag)
-                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "盘中即时触发", profit_pct, breakeven_p, downside_diag)
+                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "盘中即时触发", profit_pct, breakeven_p, downside_diag, config_prompt)
 
             if downside_diag["downside_type"] == DownsideReactionMatrix.TYPE_D_TRUE_TREND_BREAKDOWN:
                 action_type = "STOP_LOSS"
                 urgency = "HIGH"
                 actions.append(downside_diag)
-                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "次日 09:30-09:45", profit_pct, breakeven_p, downside_diag)
+                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "次日 09:30-09:45", profit_pct, breakeven_p, downside_diag, config_prompt)
 
             # 1.2 动态移动追踪止盈 (浮盈 > +8%)
             if profit_pct >= 8.0:
@@ -341,7 +377,7 @@ class ExecutionActionEngine:
                         "target_price": f"触发线 {trailing_stop_p:.2f} 元",
                         "time_window": "跌破动态线即时执行"
                     })
-                    return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "盘中即时 / 14:50", profit_pct, breakeven_p, downside_diag)
+                    return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "盘中即时 / 14:50", profit_pct, breakeven_p, downside_diag, config_prompt)
                 else:
                     action_type = "HOLD"
                     urgency = "LOW"
@@ -353,21 +389,21 @@ class ExecutionActionEngine:
                         "target_price": f"动态防守线 {trailing_stop_p:.2f} 元",
                         "time_window": "全天监控"
                     })
-                    return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "持股待涨", profit_pct, breakeven_p, downside_diag)
+                    return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "持股待涨", profit_pct, breakeven_p, downside_diag, config_prompt)
 
             # 1.3 高位乖离 / 阻力减仓
             if downside_diag["downside_type"] in (DownsideReactionMatrix.TYPE_A_OVERBOUGHT_TOP, DownsideReactionMatrix.TYPE_C_REBOUND_RESISTANCE_HIT):
                 action_type = "TRIM"
                 urgency = "MEDIUM" if downside_diag["downside_type"] == DownsideReactionMatrix.TYPE_A_OVERBOUGHT_TOP else "HIGH"
                 actions.append(downside_diag)
-                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, downside_diag["execution_window"], profit_pct, breakeven_p, downside_diag)
+                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, downside_diag["execution_window"], profit_pct, breakeven_p, downside_diag, config_prompt)
 
             # 1.4 主力假摔做 T
             if downside_diag["downside_type"] == DownsideReactionMatrix.TYPE_B_FALSE_BREAKDOWN_SHAKEOUT:
                 action_type = "DO_T"
                 urgency = "MEDIUM"
                 actions.append(downside_diag)
-                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, downside_diag["execution_window"], profit_pct, breakeven_p, downside_diag)
+                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, downside_diag["execution_window"], profit_pct, breakeven_p, downside_diag, config_prompt)
 
         # 2. 未持仓 / 新标的建仓决策
         if not is_held:
@@ -387,7 +423,7 @@ class ExecutionActionEngine:
                     "initial_stop_loss": f"{round(max(price * 0.95, price - 1.8 * atr14), 2)} 元",
                     "time_window": "14:45-14:55 定盘确认买入"
                 })
-                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "尾盘 14:45-14:55", profit_pct, breakeven_p, downside_diag)
+                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "尾盘 14:45-14:55", profit_pct, breakeven_p, downside_diag, config_prompt)
 
             # 均线回踩两笔挂单
             is_pullback = (abs(bias20) <= 2.5 and vol_ratio < 0.90 and 
@@ -403,7 +439,7 @@ class ExecutionActionEngine:
                     "initial_stop_loss": f"{round(ma20 * 0.96, 2)} 元 (跌破 MA20 4% 止损)",
                     "time_window": "早盘 09:25 集合竞价或开盘前提前挂入"
                 })
-                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "早盘提前限价挂单", profit_pct, breakeven_p, downside_diag)
+                return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "早盘提前限价挂单", profit_pct, breakeven_p, downside_diag, config_prompt)
 
         # 3. 常规持股或观望
         if is_held:
@@ -416,7 +452,7 @@ class ExecutionActionEngine:
                 "order_type": "暂不下单",
                 "time_window": "全天观察"
             })
-            return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "持有观察", profit_pct, breakeven_p, downside_diag)
+            return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "持有观察", profit_pct, breakeven_p, downside_diag, config_prompt)
         else:
             action_type = "OBSERVE"
             urgency = "LOW"
@@ -426,7 +462,7 @@ class ExecutionActionEngine:
                 "target_watch_price": f"突破关注 {ma20 * 1.01:.2f} 元 / 回踩关注 {ma20:.2f} 元",
                 "time_window": "放入自选股池监控"
             })
-            return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "观望等待", profit_pct, breakeven_p, downside_diag)
+            return cls._format_result(code, name, price, is_held, action_type, urgency, actions, "观望等待", profit_pct, breakeven_p, downside_diag, config_prompt)
 
     @classmethod
     def render_markdown_card(cls, result: Dict[str, Any]) -> str:
@@ -456,6 +492,9 @@ class ExecutionActionEngine:
         ]
         if is_held:
             lines.append(f"> **持仓浮盈**：`{result['profit_pct']:+.2f}%` | **最低税费保本价**：`¥{result['breakeven_price']:.2f}`")
+        if result.get("config_prompt"):
+            prompt_lines = result["config_prompt"].split("\n")
+            lines.append(f"> ⚠️ **券商费率提示**：{prompt_lines[0]}")
 
         for idx, item in enumerate(result["action_items"], 1):
             title_txt = item.get('action') or item.get('title')
