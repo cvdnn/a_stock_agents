@@ -26,42 +26,46 @@
 ## 一、架构全景图
 
 ```mermaid
-graph TD
-    subgraph "AI 交互与平台调度层 (Multi-Platform AI)"
-        User([终端用户]) --> AIChat[自然语言 AIChat 对话]
-        AIChat --> AgentRouter[意图识别与技能路由]
+flowchart TB
+    subgraph UI ["🤖 AI 交互与接入层 (Multi-Platform AI)"]
+        direction TB
+        User(["👤 终端用户 / AIChat 自然语言交互"])
+        User --> Router["⚡ 意图识别与技能路由中枢"]
         
-        AgentRouter --> ThirdParty[第三方平台: Antigravity / Hermes / Codex]
-        AgentRouter --> CustomJava[自建平台: Spring AI / LangChain4j]
-        
-        ThirdParty -- "SKILL.md 发现 / CLI 调用" --> CLI[bin/astock CLI 入口]
-        CustomJava -- "ProcessBuilder / Manifest 注册" --> CLI
+        Router --> P1["🌐 第三方 AI Agent<br/>(Antigravity / Hermes / Codex)"]
+        Router --> P2["☕ 自建 Java AI 平台<br/>(Spring AI / LangChain4j)"]
     end
 
-    subgraph "A-Stock Agents 统一执行中枢"
-        CLI --> Config[core/config.py 动态环境解析]
+    subgraph Hub ["⚙️ 统一调度中枢"]
+        P1 -- "SKILL.md / CLI" --> CLI["🖥️ CLI 统一入口 (bin/astock)"]
+        P2 -- "ProcessBuilder (JSON)" --> CLI
+        CLI <--> Config["📁 动态环境与配置 (core/config.py)"]
     end
 
-    subgraph "核心量化与策略引擎库 (core/)"
-        DataBridge[core/data: 4层降级数据桥接]
-        Indicators[core/indicators: 零依赖经典技术指标]
-        Models[core/models: 5A旋转/多因子/截面合成]
-        Strategy[core/strategy: 反应决策/保本价进位]
-        PaperTrading[core/paper_trading: 模拟撮合/T+1回测]
-        MultiAgent[core/multi_agent: 7大分析师多空辩论]
+    subgraph Engines ["📈 核心量化投研引擎矩阵 (core/)"]
+        direction TB
+        E1["📡 行情数据层 (core/data)<br/>4级降级 / 腾讯毫秒直连"]
+        E2["📐 指标计算层 (core/indicators)<br/>零依赖 MA/MACD/KDJ/二次金叉"]
+        E3["🎯 选股模型层 (core/models)<br/>5A多维共振 / 截面Rank合成"]
+        E4["🛡️ 实战风控层 (core/strategy)<br/>保本价精确进位 / 三场景动作"]
+        E5["👥 智能体研判 (core/multi_agent)<br/>7大AI分析师多空博弈辩论"]
+        E6["💼 模拟撮合层 (core/paper_trading)<br/>多账户管理 / A股T+1撮合"]
     end
 
-    subgraph "用户专属数据目录 (output/ - 物理隔离)"
-        UserOutput[output/ 股池/持仓/报告/缓存]
+    subgraph Storage ["🔒 用户专属数据 (output/ - 物理硬隔离)"]
+        Output["📊 个人股池 / 真实持仓 / 诊断研报 / 运行缓存<br/>(支持环境变量 A_STOCK_OUTPUT_DIR 挂载外部独立磁盘)"]
     end
 
-    CLI --> DataBridge
-    CLI --> Indicators
-    CLI --> Models
-    CLI --> Strategy
-    CLI --> PaperTrading
-    CLI --> MultiAgent
-    Strategy <--> UserOutput
+    CLI --> E1 & E2
+    CLI --> E3 & E4
+    CLI --> E5 & E6
+    E4 <--> Storage
+    E6 <--> Storage
+
+    style UI fill:#f8fafc,stroke:#3b82f6,stroke-width:1.5px
+    style Hub fill:#fffbeb,stroke:#f59e0b,stroke-width:1.5px
+    style Engines fill:#faf5ff,stroke:#8b5cf6,stroke-width:1.5px
+    style Storage fill:#f0fdf4,stroke:#10b981,stroke-width:1.5px
 ```
 
 ---
