@@ -20,7 +20,7 @@ EXCLUDE_DIRS = {
 }
 EXCLUDE_EXTS = {".pyc", ".db", ".sqlite", ".sqlite3", ".log", ".pid", ".zip", ".tar.gz"}
 
-def package_project(output_path: Path = None, version_tag: str = "v2") -> Path:
+def package_project(output_path: Path = None, version_tag: str = "v3") -> Path:
     if output_path is None:
         output_path = PROJECT_ROOT.parent / f"a_stock_agents_{version_tag}.zip"
 
@@ -67,7 +67,7 @@ def package_project(output_path: Path = None, version_tag: str = "v2") -> Path:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A-Stock Agents Safe Packager")
     parser.add_argument("--output", "-o", type=str, default=None, help="Output zip path")
-    parser.add_argument("--tag", "-t", type=str, default="v2", help="Version tag (e.g. v2, v3, v4)")
+    parser.add_argument("--tag", "-t", type=str, default="v3", help="Version tag (e.g. v2, v3, v4)")
     args = parser.parse_args()
     
     out_p = Path(args.output).resolve() if args.output else None

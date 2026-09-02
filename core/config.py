@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Core configuration module for a_stock_agents (v2).
+Core configuration module for a_stock_agents (v3).
 Handles dynamic project root resolution, output user data isolation, and settings loading.
 Version naming rule: v2, v3, v4...
 """
@@ -10,7 +10,7 @@ import sys
 import yaml
 from pathlib import Path
 
-VERSION = "v2"
+VERSION = "v3"
 
 # 1. Resolve Project Root
 if os.environ.get("A_STOCK_AGENTS_ROOT"):

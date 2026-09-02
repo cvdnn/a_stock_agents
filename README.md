@@ -1,6 +1,6 @@
 # A-Stock Agents — A股全流程量化投研智能体
 
-[![Version](https://img.shields.io/badge/Version-v2-blue.svg)](#)
+[![Version](https://img.shields.io/badge/Version-v3-blue.svg)](#)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-green.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-blue.svg)](#)
 [![AI Integration](https://img.shields.io/badge/AI%20Platforms-Antigravity%20%7C%20Hermes%20%7C%20Codex%20%7C%20Java%20AI-orange.svg)](#)
@@ -336,8 +336,8 @@ paths:
 ### 2. 安全打包发布 (`bin/pack.py`)
 执行打包时，打包工具**强制排除 `output/` 目录、实盘数据、`.venv` 与日志缓存**：
 ```bash
-# 自动生成排除个人数据的纯净包 a_stock_agents_v2.zip (版本规则: v2, v3, v4...)
-python bin/pack.py --tag v2
+# 自动生成排除个人数据的纯净包 a_stock_agents_v3.zip (版本规则: v2, v3, v4...)
+python bin/pack.py --tag v3
 ```
 
 ---

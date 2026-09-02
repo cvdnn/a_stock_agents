@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "a_stock_agents"
-version = "2.0.0"
-description = "A-Stock Multi-Agent Quantitative Research & Trading Framework (v2)"
+version = "3.0.0"
+description = "A-Stock Multi-Agent Quantitative Research & Trading Framework (v3)"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
