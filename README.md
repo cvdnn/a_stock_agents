@@ -104,38 +104,39 @@ python verify.py
 
 ## 四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)
 
-本项目设计完全遵循通用 Agent Skill 规范，可无缝接入主流第三方 AI 编程助手与 Agent 执行环境：
+本项目原生支持 **项目级就地按需调用（In-Place Project Skills）**，**无需将技能文件复制或软链接至系统全局目录**，即可在主流 AI Agent 平台中开箱即用：
 
-### 1. Google Antigravity / Gemini CLI
-- **技能自动发现**：
-  - Antigravity 原生支持基于 YAML Frontmatter 的 `SKILL.md` 规范。
-  - 项目中的 `skills/*/SKILL.md` 均已标准化，可直接将 `skills/` 软链接或复制到 `~/.gemini/config/skills/` 中。
-- **命令行工具调用**：
-  - Antigravity 代理在对话中可直接通过 `run_command` 执行 `./bin/astock <subcommand> --json` 获取量化数据与策略分析结果。
-- **示例指令**：
-  ```
-  “帮我查询贵州茅台的现价与MACD指标” -> 代理自动调用 astock data tech 600519
-  “评估我持仓的保本卖出价” -> 代理自动调用 astock action plan
-  ```
+### 1. 核心使用模式：项目内就地按需调用（推荐 · 零污染）
+- **工作区就地检索 (Workspace In-Place Discovery)**：
+  - 当 AI Agent（如 Google Antigravity、Claude Code、OpenAI Codex、Cursor）在当前工作区中工作时，可直接就地读取项目内的 [`skills/<skill_id>/SKILL.md`](skills/) 获取专业领域策略指引。
+  - AI 代理直接执行项目内的 CLI 工具：`./bin/astock <subcommand> --json` 完成量化运算与策略决策。
+- **单一真理来源 (Single Source of Truth)**：
+  - 所有技能代码、提示词与量化引擎均在项目内由 Git 统筹管理，任何修改即时生效，杜绝了多处复制带来的版本冲突。
 
-### 2. Hermes Agent
-- **技能挂载**：
-  - 将本项目的 `skills/` 目录挂载或链接至 `~/.hermes/skills/`。
-  - Hermes 会自动加载各技能的系统提示词（如 `tuige-shortline-trading`、`macd-second-golden-cross`）。
-- **执行环境适配**：
-  - 在 Hermes 会话中设置环境变量：
-    ```bash
-    export A_STOCK_AGENTS_ROOT="/path/to/a_stock_agents"
-    ```
-  - Hermes 可直接执行项目内 `bin/astock` 或各技能下的独立脚本。
+---
 
-### 3. OpenAI Codex / Copilot CLI / Claude Code
-- **CLI 模式调用**：
-  - 在大模型上下文或 Function Calling 工具定义中，将 `astock` 注册为终端量化工具：
-  - **工具描述**：`A-Stock quantitative CLI for market data, indicators, 5A rotation screener, and execution action engine.`
-  - **命令格式**：`./bin/astock <command> --json`
-- **Sub-Agent 调度**：
-  - 在多智能体协作流中，主 Agent 可派发 `ta-multi-agent-analysis` 或 `5a-stock-rotation` 子任务，子 Agent 通过标准输入输出与本工程交互。
+### 2. 各主流 AI 平台接入指南
+
+#### A. Google Antigravity / Gemini CLI
+- **项目级使用模式**：
+  - 将 `a_stock_agents` 作为工作区打开，Antigravity 可直接就地索引 `skills/*/SKILL.md`。
+  - 对话中通过 `run_command` 直接调用 `./bin/astock <subcommand> --json` 获取结构化量化数据。
+- **跨目录环境变量引用**（可选）：
+  - 若在外部项目会话中调用，设置环境变量 `A_STOCK_AGENTS_ROOT=/path/to/a_stock_agents` 即可远程执行 `astock`。
+
+#### B. Hermes Agent
+- **路径直接挂载（免复制）**：
+  - 在 Hermes 配置或启动会话时，直接将技能检索路径指向本项目的 `skills/` 目录（或配置环境变量 `A_STOCK_AGENTS_ROOT`）。
+  - Hermes Agent 将自动按需读取对应技能的系统提示词（如 `macd-second-golden-cross`、`tuige-shortline-trading`），并通过子进程执行量化脚本。
+
+#### C. OpenAI Codex / Copilot CLI / Claude Code
+- **CLI 工具黑盒执行**：
+  - 在大模型上下文或 Function Calling 工具定义中，直接将 `astock` 注册为量化分析工具：
+  - **Tool Name**：`astock_quant_tool`
+  - **Description**：`A-Stock quantitative CLI for market data, indicators, 5A rotation screener, and execution action engine.`
+  - **Command**：`/path/to/a_stock_agents/bin/astock <command> --json`
+- **Sub-Agent 协同派发**：
+  - 主 Agent 可派发 `ta-multi-agent-analysis` 等子任务，直接复用项目内的 7 大分析师辩论框架。
 
 ---
 
