@@ -3,22 +3,23 @@
 [![Version](https://img.shields.io/badge/Version-v2-blue.svg)](#)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-green.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-blue.svg)](#)
-[![Java AI Integration](https://img.shields.io/badge/Java%20AI-Ready-orange.svg)](#)
+[![AI Integration](https://img.shields.io/badge/AI%20Platforms-Antigravity%20%7C%20Hermes%20%7C%20Codex%20%7C%20Java%20AI-orange.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](#)
 
 **A-Stock Agents** 是一套高内聚、自包含、生产就绪的 **A股全流程量化投研、多智能体协同研判与实战反应决策系统**。
-专为独立服务器部署、量化实战交易以及**自建 Java AI 平台（基于 Spring AI / LangChain4j / 自定义 Agent 框架）**提供开箱即用的量化分析、风控执行与自然语言 AIChat 交互能力。
+专为独立服务器部署、量化实战交易、**主流第三方 AI Agent 平台（Google Antigravity、Hermes Agent、OpenAI Codex、Claude Code）** 以及 **自建 Java AI 平台（基于 Spring AI / LangChain4j / 自定义 Agent）** 提供开箱即用的量化分析、风控执行与自然语言 AIChat 交互能力。
 
 ---
 
 ## 📑 目录
 - [一、架构全景图](#一架构全景图)
 - [二、核心功能与 16 大智能体技能体系](#二核心功能与-16-大智能体技能体系)
-- [三、部署安装说明 (含 AI 平台专属接入指南)](#三部署安装说明-含-ai-平台专属接入指南)
-- [四、使用说明与 CLI 指令速查](#四使用说明与-cli-指令速查)
-- [五、用户专属数据隔离 (output/) 与安全更新](#五用户专属数据隔离-output-与安全更新)
-- [六、开源协议评估与选型建议](#六开源协议评估与选型建议)
-- [七、免责声明](#七免责声明)
+- [三、环境准备与常规安装](#三环境准备与常规安装)
+- [四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)](#四第三方-ai-平台与工具使用指南-antigravity--hermes--codex-等)
+- [五、自建 Java AI 平台接入指南 (Custom AI Platform)](#五自建-java-ai-平台接入指南-custom-ai-platform)
+- [六、CLI 实战命令速查与使用说明](#六cli-实战命令速查与使用说明)
+- [七、用户专属数据隔离 (output/)、安全打包与热更新](#七用户专属数据隔离-output-安全打包与热更新)
+- [八、免责声明](#八免责声明)
 
 ---
 
@@ -26,16 +27,18 @@
 
 ```mermaid
 graph TD
-    subgraph "Java AI 平台 / AIChat 交互层"
-        User([终端用户]) --> AIChat[AIChat 对话界面]
-        AIChat --> JavaEngine[Java AI 平台调度核心]
-        JavaEngine --> SkillRegistry[Skill 注册管理器]
-        SkillRegistry --> Manifest[config/skills_manifest.json]
-        JavaEngine --> SystemPrompt[prompts/java_aichat_system_prompt.md]
+    subgraph "AI 交互与平台调度层 (Multi-Platform AI)"
+        User([终端用户]) --> AIChat[自然语言 AIChat 对话]
+        AIChat --> AgentRouter[意图识别与技能路由]
+        
+        AgentRouter --> ThirdParty[第三方平台: Antigravity / Hermes / Codex]
+        AgentRouter --> CustomJava[自建平台: Spring AI / LangChain4j]
+        
+        ThirdParty -- "SKILL.md 发现 / CLI 调用" --> CLI[bin/astock CLI 入口]
+        CustomJava -- "ProcessBuilder / Manifest 注册" --> CLI
     end
 
     subgraph "A-Stock Agents 统一执行中枢"
-        JavaEngine -- "ProcessBuilder 子进程调用" --> CLI[bin/astock CLI 入口]
         CLI --> Config[core/config.py 动态环境解析]
     end
 
@@ -110,24 +113,22 @@ graph TD
 
 ---
 
-## 三、部署安装说明 (含 AI 平台专属接入指南)
+## 三、环境准备与常规安装
 
-### 1. 人工常规安装部署
-
-#### Linux / macOS
+### 1. Linux / macOS
 ```bash
-# 1. 进入项目目录
+# 进入项目目录
 cd a_stock_agents
 
-# 2. 赋予脚本执行权限并一键安装
+# 赋予执行权限并一键安装
 chmod +x install.sh update.sh bin/astock
 ./install.sh
 
-# 3. 运行就绪性自检
+# 运行自检
 python verify.py
 ```
 
-#### Windows (PowerShell)
+### 2. Windows (PowerShell)
 ```powershell
 cd a_stock_agents
 .\install.ps1
@@ -136,9 +137,46 @@ python verify.py
 
 ---
 
-### 2. 自建 Java AI 平台 / Agent 接入安装指南 (给 AI 使用)
+## 四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)
 
-Java AI 平台（如基于 Spring AI、LangChain4j 或自定义 Agent 框架）通常具有 Skill 管理器与 Tool Function Calling 能力。以下为专为 AI 平台设计的标准化接入流程：
+本项目设计完全遵循通用 Agent Skill 规范，可无缝接入主流第三方 AI 编程助手与 Agent 执行环境：
+
+### 1. Google Antigravity / Gemini CLI
+- **技能自动发现**：
+  - Antigravity 原生支持基于 YAML Frontmatter 的 `SKILL.md` 规范。
+  - 项目中的 `skills/*/SKILL.md` 均已标准化，可直接将 `skills/` 软链接或复制到 `~/.gemini/config/skills/` 中。
+- **命令行工具调用**：
+  - Antigravity 代理在对话中可直接通过 `run_command` 执行 `./bin/astock <subcommand> --json` 获取量化数据与策略分析结果。
+- **示例指令**：
+  ```
+  “帮我查询贵州茅台的现价与MACD指标” -> 代理自动调用 astock data tech 600519
+  “评估我持仓的保本卖出价” -> 代理自动调用 astock action plan
+  ```
+
+### 2. Hermes Agent
+- **技能挂载**：
+  - 将本项目的 `skills/` 目录挂载或链接至 `~/.hermes/skills/`。
+  - Hermes 会自动加载各技能的系统提示词（如 `tuige-shortline-trading`、`macd-second-golden-cross`）。
+- **执行环境适配**：
+  - 在 Hermes 会话中设置环境变量：
+    ```bash
+    export A_STOCK_AGENTS_ROOT="/path/to/a_stock_agents"
+    ```
+  - Hermes 可直接执行项目内 `bin/astock` 或各技能下的独立脚本。
+
+### 3. OpenAI Codex / Copilot CLI / Claude Code
+- **CLI 模式调用**：
+  - 在大模型上下文或 Function Calling 工具定义中，将 `astock` 注册为终端量化工具：
+  - **工具描述**：`A-Stock quantitative CLI for market data, indicators, 5A rotation screener, and execution action engine.`
+  - **命令格式**：`./bin/astock <command> --json`
+- **Sub-Agent 调度**：
+  - 在多智能体协作流中，主 Agent 可派发 `ta-multi-agent-analysis` 或 `5a-stock-rotation` 子任务，子 Agent 通过标准输入输出与本工程交互。
+
+---
+
+## 五、自建 Java AI 平台接入指南 (Custom AI Platform)
+
+自建 Java AI 平台（如基于 Spring AI、LangChain4j 或自定义 Agent 架构）接入标准化三步流程：
 
 ```
 +-------------------------------------------------------------------------+
@@ -150,8 +188,8 @@ Java AI 平台（如基于 Spring AI、LangChain4j 或自定义 Agent 框架）�
 +-------------------------------------------------------------------------+
 ```
 
-#### 步骤 1：技能注册清单解析
-Java 平台启动时，读取 `config/skills_manifest.json`。该清单声明了 16 个技能的 ID、名称、触发词、推荐模型及调用指令格式：
+### 步骤 1：读取技能清单与元数据注册
+Java 平台启动时，直接解析 `config/skills_manifest.json`：
 
 ```json
 {
@@ -172,8 +210,8 @@ Java 平台启动时，读取 `config/skills_manifest.json`。该清单声明了
 }
 ```
 
-#### 步骤 2：Java ProcessBuilder 工具执行器实现
-Java 平台将 `astock` 封装为一个通用工具，以 JSON 格式通信：
+### 步骤 2：Java ProcessBuilder 工具执行器实现
+Java 后端通过子进程调用 CLI，以 JSON 格式无缝交互：
 
 ```java
 package com.ai.platform.tools;
@@ -201,7 +239,7 @@ public class AStockTool {
         List<String> fullCmd = new ArrayList<>();
         fullCmd.add(cliPath);
         fullCmd.addAll(subCommands);
-        fullCmd.add("--json"); // 强制 JSON 输出
+        fullCmd.add("--json"); // 强制 JSON 格式输出
 
         ProcessBuilder pb = new ProcessBuilder(fullCmd);
         pb.directory(new File(projectRoot));
@@ -225,14 +263,14 @@ public class AStockTool {
 }
 ```
 
-#### 步骤 3：AIChat 系统提示词接入
-直接将 [`prompts/java_aichat_system_prompt.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/prompts/java_aichat_system_prompt.md) 设置为 AIChat 对话的 System Message，大模型即可具备：
-1. **意图自动路由**：将用户的自然语言问题（如“帮我看下贵州茅台现在多少钱”、“分析一下这只股票能不能买”）自动识别并调用对应 CLI 工具。
-2. **强制实战风控输出**：输出时自动计算保本价、三级止损线（-3% / -5% / -8%）与三场景即时反应动作。
+### 步骤 3：AIChat 系统提示词无缝注入
+将 [`prompts/java_aichat_system_prompt.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/prompts/java_aichat_system_prompt.md) 设置为 AIChat 对话的 System Message，大模型即可具备：
+1. **自然语言自动意图路由**：根据用户输入自动提取股票代码并映射到对应技能。
+2. **强制实战风控输出**：输出建议时自动核算保本价、三级止损线（-3% / -5% / -8%）与三场景即时反应动作。
 
 ---
 
-## 四、使用说明与 CLI 指令速查
+## 六、CLI 实战命令速查与使用说明
 
 所有 CLI 命令均原生支持 `--json` 参数，便于程序解析。
 
@@ -270,7 +308,7 @@ public class AStockTool {
 
 ---
 
-## 五、用户专属数据隔离 (output/) 与安全更新
+## 七、用户专属数据隔离 (output/)、安全打包与热更新
 
 ### 1. 专属数据目录规范 (`output/`)
 为了防止个人持仓、交易记录和私人报告在项目版本打包或共享时发生数据泄露，系统设计了 **`output/` 专属目录隔离机制**：
@@ -322,26 +360,7 @@ python bin/update.py --rollback backup_20260902_174003
 
 ---
 
-## 六、开源协议评估与选型建议
-
-针对 **A-Stock Agents** 涉及量化金融算法、交易策略、Agent 技能及自建 AI 平台集成的特性，对主流开源协议评估如下：
-
-| 协议类型 | 商业友好度 | 衍生品闭源许可 | 专利授权保护 | 传染性 | 适用定位评估 |
-| :--- | :---: | :---: | :---: | :---: | :--- |
-| **Apache 2.0 (推荐)** | **极高** | **允许** | **包含明确专利授权** | 无 | **最适合企业与自建平台**：明确包含商业使用与专利保护条款，允许在商业 AI 平台中封装，防范专利纠纷。 |
-| **MIT** | **极高** | **允许** | 简单说明 | 无 | **最轻量级**：权限极度宽松，适合极简开源，但缺乏细化专利授权保护。 |
-| **AGPL v3** | 较低 | **严禁闭源** | 包含 | **极强 (网络传染)** | **强传染性**：只要在云端提供网络服务，就必须强制开源全部修改后的后端代码，对自建商业平台限制较大。 |
-| **BSL / 商业双许可** | 适中 | 商业需授权 | 包含 | 可控 | **商业化收费**：非商业用途免费，企业级生产集成需购买商业授权。 |
-
-### 📌 最终推荐结论：采用 **Apache License 2.0**
-- **核心优势**：
-  1. **专利保护完备**：具备完善的**专利授权与防御条款**，防止代码贡献者事后发起专利侵权诉讼。
-  2. **企业商用友好**：允许自建 Java AI 平台将其作为私有基础设施进行二次开发与封装，**无强制开源后端业务代码的传染性风险**。
-  3. **责任免除明确（No Warranty）**：对量化算法和交易决策提供标准免责保护，规避实盘投资引发的法律纠纷。
-
----
-
-## 七、免责声明
+## 八、免责声明
 
 1. 本项目所提供的所有量化算法、技术指标、5A 选股模型、实战决策建议及多智能体研判结论，**仅供金融投研学习、量化策略研究与技术验证使用，不构成任何实质性投资建议或交易推荐**。
 2. 证券市场有风险，投资决策需建立在独立思考与专业判断之上。用户依据本项目提供的数据、策略或模型进行的任何实盘交易操作，其盈亏风险由使用者自行完全承担。
