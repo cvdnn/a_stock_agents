@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-A-Stock Agents Project Packager (v2.0.0).
+A-Stock Agents Project Packager.
 Safely packages code, standard skills, templates, and docs into a portable .zip,
-strictly guaranteeing that user_data/, private pools, caches, .venv, and logs are NEVER packaged.
+strictly guaranteeing that output/, user_data/, private pools, caches, .venv, and logs are NEVER packaged.
+Version naming rule: v2, v3, v4...
 """
 
 import os
@@ -15,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 EXCLUDE_DIRS = {
     ".venv", "venv", "env", "__pycache__", ".git", "backups",
-    "user_data", "cache", "reports", ".data_cache"
+    "output", "user_data", "cache", "reports", ".data_cache"
 }
 EXCLUDE_EXTS = {".pyc", ".db", ".sqlite", ".sqlite3", ".log", ".pid", ".zip", ".tar.gz"}
 
@@ -59,14 +60,14 @@ def package_project(output_path: Path = None, version_tag: str = "v2") -> Path:
     print(f"  - 打包文件总数: {file_count}")
     print(f"  - 未压缩体积: {total_uncompressed / (1024*1024):.2f} MB")
     print(f"  - 压缩包体积: {zip_size / (1024*1024):.2f} MB ({zip_size} bytes)")
-    print(f"  - 隐私安全审计: 100% 个人数据隔离 (user_data/ 已安全排除)")
+    print(f"  - 隐私安全审计: 100% 个人数据隔离 (output/ 已安全排除)")
     print("=" * 70)
     return output_path
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A-Stock Agents Safe Packager")
     parser.add_argument("--output", "-o", type=str, default=None, help="Output zip path")
-    parser.add_argument("--tag", "-t", type=str, default="v2", help="Version tag")
+    parser.add_argument("--tag", "-t", type=str, default="v2", help="Version tag (e.g. v2, v3, v4)")
     args = parser.parse_args()
     
     out_p = Path(args.output).resolve() if args.output else None

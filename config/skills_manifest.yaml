@@ -1,5 +1,5 @@
 platform: Java-AI-Platform-Compatible
-version: 2.0.0
+version: v2
 total_skills: 16
 skills:
 - id: a-share-data

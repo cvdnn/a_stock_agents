@@ -1,25 +1,25 @@
 # ==============================================================================
-# A-Stock Agents 全局配置文件 (Version 2.0.0)
+# A-Stock Agents 全局配置文件 (Version v2)
 # ==============================================================================
 
-version: "2.0.0"
+version: "v2"
 app_name: "a_stock_agents"
 
 # ------------------------------------------------------------------------------
-# 个人数据与项目解耦配置 (User Data Isolation)
+# 用户专属目录与数据解耦配置 (Output & User Data Isolation)
 # ------------------------------------------------------------------------------
-# 默认个人数据存储在项目根目录下的 user_data 文件夹中。
-# 如需将个人数据与代码完全物理隔离（如部署在独立数据盘或外部目录），
-# 可直接修改 user_data_dir 路径，或设置环境变量 A_STOCK_USER_DATA_DIR。
+# 默认用户专属数据、报告、股池与运行缓存存储在项目根目录下的 output 文件夹中。
+# 如需将专属数据与项目代码完全物理隔离（如部署在独立数据盘或外部目录），
+# 可直接修改 output_dir 路径，或设置环境变量 A_STOCK_OUTPUT_DIR。
 # 示例：
-#   Linux:   user_data_dir: "/var/data/astock_user"
-#   Windows: user_data_dir: "D:/astock_private_data"
+#   Linux:   output_dir: "/var/data/astock_output"
+#   Windows: output_dir: "D:/astock_output_data"
 # ------------------------------------------------------------------------------
 paths:
-  # 个人数据根路径 (优先级: 环境变量 A_STOCK_USER_DATA_DIR > 本配置 > 默认 user_data/)
-  user_data_dir: "user_data"
+  # 用户专属根路径 (优先级: 环境变量 A_STOCK_OUTPUT_DIR > 本配置 > 默认 output/)
+  output_dir: "output"
   
-  # 个人数据子目录 (相对于 user_data_dir)
+  # 用户专属子目录 (相对于 output_dir)
   pools_dir: "pools"
   positions_dir: "positions"
   reports_dir: "reports"

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-A-Stock Agents Safe Updater (v2.0.0).
-Safely updates code and skills while protecting user_data/ and custom configurations.
+A-Stock Agents Safe Updater.
+Safely updates code and skills while protecting output/ and custom configurations.
+Version naming rule: v2, v3, v4...
 """
 
 import os
@@ -15,18 +16,21 @@ from datetime import datetime
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+PROTECTED_DIRS = ["output", "user_data", "backups"]
+PROTECTED_FILES = ["config/config.yaml"]
+
 def create_backup() -> Path:
-    """Creates a timestamped snapshot backup of user data and configuration."""
+    """Creates a timestamped snapshot backup of output data and configuration."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_dir = PROJECT_ROOT / "backups" / f"backup_{timestamp}"
     backup_dir.mkdir(parents=True, exist_ok=True)
     
-    print(f"--> [备份] 正在创建个人数据与配置快照: {backup_dir.name}...")
+    print(f"--> [备份] 正在创建用户专属数据(output/)与配置快照: {backup_dir.name}...")
     
-    # 1. Backup user_data
-    user_data = PROJECT_ROOT / "user_data"
-    if user_data.exists():
-        shutil.copytree(user_data, backup_dir / "user_data", dirs_exist_ok=True)
+    # 1. Backup output
+    output_dir = PROJECT_ROOT / "output"
+    if output_dir.exists():
+        shutil.copytree(output_dir, backup_dir / "output", dirs_exist_ok=True)
         
     # 2. Backup config
     cfg_file = PROJECT_ROOT / "config" / "config.yaml"
@@ -38,7 +42,7 @@ def create_backup() -> Path:
     return backup_dir
 
 def apply_update_from_zip(zip_path: Path, backup_dir: Path) -> bool:
-    """Extracts update package non-destructively, protecting user_data."""
+    """Extracts update package non-destructively, protecting output/."""
     print(f"--> [更新] 正在从更新包解压更新: {zip_path}...")
     temp_dir = PROJECT_ROOT / "cache" / "_update_temp"
     if temp_dir.exists():
@@ -52,7 +56,7 @@ def apply_update_from_zip(zip_path: Path, backup_dir: Path) -> bool:
         src_root = temp_dir / "a_stock_agents" if (temp_dir / "a_stock_agents").exists() else temp_dir
         
         for item in src_root.iterdir():
-            if item.name in [".venv", "user_data", "backups"]:
+            if item.name in [".venv", "output", "user_data", "backups"]:
                 continue
             dst_item = PROJECT_ROOT / item.name
             if item.is_dir():
@@ -78,10 +82,15 @@ def sync_dependencies():
         return
     print("--> [依赖] 检查并同步 Python 依赖库...")
     try:
-        subprocess.run([str(venv_py), "-m", "pip", "install", "-r", str(PROJECT_ROOT / "requirements.txt"), "-q"], check=True)
-        print("    依赖库已是最新状态。")
-    except Exception as e:
-        print(f"[警告] 依赖同步遇到异常: {e}")
+        # Check if uv is used or standard pip
+        subprocess.run(["uv", "pip", "install", "--python", str(venv_py), "-r", str(PROJECT_ROOT / "requirements.txt"), "-q"], check=True)
+        print("    依赖库已由 uv 同步至最新。")
+    except Exception:
+        try:
+            subprocess.run([str(venv_py), "-m", "pip", "install", "-r", str(PROJECT_ROOT / "requirements.txt"), "-q"], check=True)
+            print("    依赖库已由 pip 同步至最新。")
+        except Exception as e:
+            print(f"[警告] 依赖同步遇到异常: {e}")
 
 def run_self_verification() -> bool:
     """Runs verify.py after update."""
@@ -96,23 +105,23 @@ def run_self_verification() -> bool:
         return False
 
 def rollback(backup_dir: Path):
-    """Rolls back user data and configs from backup."""
-    print("--> [回滚] 正在从备份恢复个人数据与配置...")
-    if (backup_dir / "user_data").exists():
-        shutil.copytree(backup_dir / "user_data", PROJECT_ROOT / "user_data", dirs_exist_ok=True)
+    """Rolls back output data and configs from backup."""
+    print("--> [回滚] 正在从备份恢复专属数据与配置...")
+    if (backup_dir / "output").exists():
+        shutil.copytree(backup_dir / "output", PROJECT_ROOT / "output", dirs_exist_ok=True)
     if (backup_dir / "config" / "config.yaml").exists():
         shutil.copy2(backup_dir / "config" / "config.yaml", PROJECT_ROOT / "config" / "config.yaml")
     print("    回滚操作完成。")
 
 def main():
     parser = argparse.ArgumentParser(description="A-Stock Agents Safe Updater")
-    parser.add_argument("--from-zip", "-z", type=str, default=None, help="Update from zip package")
-    parser.add_argument("--backup-only", "-b", action="store_true", help="Only perform user data backup")
+    parser.add_argument("--from-zip", "-z", type=str, default=None, help="Update from zip package (e.g. a_stock_agents_v2.zip)")
+    parser.add_argument("--backup-only", "-b", action="store_true", help="Only perform output data backup")
     parser.add_argument("--rollback", "-r", type=str, default=None, help="Rollback from specified backup dir")
     args = parser.parse_args()
 
     print("=" * 70)
-    print(" [A-Stock Agents 安全更新与数据保护系统 (v2)]")
+    print(" [A-Stock Agents 安全更新与数据保护系统]")
     print(f" 项目根目录: {PROJECT_ROOT}")
     print("=" * 70)
 
@@ -132,7 +141,7 @@ def main():
 
     if not args.from_zip:
         print("请指定更新源包，例如: python bin/update.py --from-zip a_stock_agents_v2.zip")
-        print("或者仅创建个人数据备份: python bin/update.py --backup-only")
+        print("或者仅创建用户数据备份: python bin/update.py --backup-only")
         return
 
     zip_path = Path(args.from_zip).resolve()
@@ -151,7 +160,7 @@ def main():
     verified = run_self_verification()
     if verified:
         print("=" * 70)
-        print(" [成功] A-Stock Agents 升级完成！个人数据与配置 100% 完好。")
+        print(" [成功] A-Stock Agents 升级完成！专属数据(output/)与配置 100% 完好。")
         print("=" * 70)
     else:
         print("=" * 70)

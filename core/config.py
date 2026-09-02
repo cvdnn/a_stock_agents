@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Core configuration module for a_stock_agents (v2.0.0).
-Handles dynamic project root resolution, user data isolation, and settings loading.
+Core configuration module for a_stock_agents (v2).
+Handles dynamic project root resolution, output user data isolation, and settings loading.
+Version naming rule: v2, v3, v4...
 """
 
 import os
@@ -9,7 +10,7 @@ import sys
 import yaml
 from pathlib import Path
 
-VERSION = "2.0.0"
+VERSION = "v2"
 
 # 1. Resolve Project Root
 if os.environ.get("A_STOCK_AGENTS_ROOT"):
@@ -42,7 +43,7 @@ def load_config() -> dict:
         "version": VERSION,
         "app_name": "a_stock_agents",
         "paths": {
-            "user_data_dir": "user_data",
+            "output_dir": "output",
             "pools_dir": "pools",
             "positions_dir": "positions",
             "reports_dir": "reports",
@@ -62,42 +63,48 @@ def load_config() -> dict:
 
 GLOBAL_CONFIG = load_config()
 
-# 2. Resolve User Data Directory (Complete Isolation)
-# Priority: ENV VAR A_STOCK_USER_DATA_DIR > config.yaml paths.user_data_dir > default PROJECT_ROOT / "user_data"
-env_user_data = os.environ.get("A_STOCK_USER_DATA_DIR")
-if env_user_data:
-    USER_DATA_DIR = Path(env_user_data).resolve()
+# 2. Resolve Output / User Data Directory (Complete Isolation)
+# Priority: ENV VAR A_STOCK_OUTPUT_DIR > A_STOCK_USER_DATA_DIR > config.yaml paths.output_dir > default PROJECT_ROOT / "output"
+env_output = os.environ.get("A_STOCK_OUTPUT_DIR") or os.environ.get("A_STOCK_USER_DATA_DIR")
+if env_output:
+    OUTPUT_DIR = Path(env_output).resolve()
 else:
-    cfg_user_dir = GLOBAL_CONFIG.get("paths", {}).get("user_data_dir", "user_data")
-    user_p = Path(cfg_user_dir)
-    USER_DATA_DIR = user_p if user_p.is_absolute() else (PROJECT_ROOT / user_p).resolve()
+    cfg_out_dir = GLOBAL_CONFIG.get("paths", {}).get("output_dir", GLOBAL_CONFIG.get("paths", {}).get("user_data_dir", "output"))
+    out_p = Path(cfg_out_dir)
+    OUTPUT_DIR = out_p if out_p.is_absolute() else (PROJECT_ROOT / out_p).resolve()
 
-# User Data Subpaths
+# Output Subpaths
 paths_cfg = GLOBAL_CONFIG.get("paths", {})
-USER_POOLS_DIR = USER_DATA_DIR / paths_cfg.get("pools_dir", "pools")
-USER_POSITIONS_DIR = USER_DATA_DIR / paths_cfg.get("positions_dir", "positions")
-USER_REPORTS_DIR = USER_DATA_DIR / paths_cfg.get("reports_dir", "reports")
-USER_CACHE_DIR = USER_DATA_DIR / paths_cfg.get("cache_dir", "cache")
-USER_BACKTEST_DIR = USER_DATA_DIR / paths_cfg.get("backtest_dir", "backtest")
-USER_BACKUPS_DIR = PROJECT_ROOT / paths_cfg.get("backups_dir", "backups")
+OUTPUT_POOLS_DIR = OUTPUT_DIR / paths_cfg.get("pools_dir", "pools")
+OUTPUT_POSITIONS_DIR = OUTPUT_DIR / paths_cfg.get("positions_dir", "positions")
+OUTPUT_REPORTS_DIR = OUTPUT_DIR / paths_cfg.get("reports_dir", "reports")
+OUTPUT_CACHE_DIR = OUTPUT_DIR / paths_cfg.get("cache_dir", "cache")
+OUTPUT_BACKTEST_DIR = OUTPUT_DIR / paths_cfg.get("backtest_dir", "backtest")
+BACKUPS_DIR = PROJECT_ROOT / paths_cfg.get("backups_dir", "backups")
 
 # Initialize required directories safely
-for p in [USER_DATA_DIR, USER_POOLS_DIR, USER_POSITIONS_DIR, USER_REPORTS_DIR, USER_CACHE_DIR, USER_BACKTEST_DIR, USER_BACKUPS_DIR]:
+for p in [OUTPUT_DIR, OUTPUT_POOLS_DIR, OUTPUT_POSITIONS_DIR, OUTPUT_REPORTS_DIR, OUTPUT_CACHE_DIR, OUTPUT_BACKTEST_DIR, BACKUPS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
 # Backward-compatibility aliases
-POOLS_DIR = USER_POOLS_DIR
-POSITIONS_DIR = USER_POSITIONS_DIR
-CACHE_DIR = USER_CACHE_DIR
-REPORTS_DIR = USER_REPORTS_DIR
+USER_DATA_DIR = OUTPUT_DIR
+USER_POOLS_DIR = OUTPUT_POOLS_DIR
+USER_POSITIONS_DIR = OUTPUT_POSITIONS_DIR
+USER_REPORTS_DIR = OUTPUT_REPORTS_DIR
+USER_CACHE_DIR = OUTPUT_CACHE_DIR
+USER_BACKTEST_DIR = OUTPUT_BACKTEST_DIR
+POOLS_DIR = OUTPUT_POOLS_DIR
+POSITIONS_DIR = OUTPUT_POSITIONS_DIR
+CACHE_DIR = OUTPUT_CACHE_DIR
+REPORTS_DIR = OUTPUT_REPORTS_DIR
 
-def init_user_data_templates():
-    """Initialize user data templates if not already present."""
-    pos_file = USER_POOLS_DIR / "positions.csv"
+def init_output_templates():
+    """Initialize output data templates if not already present."""
+    pos_file = OUTPUT_POOLS_DIR / "positions.csv"
     if not pos_file.exists():
-        example = USER_POOLS_DIR / "positions.csv.example"
+        example = OUTPUT_POOLS_DIR / "positions.csv.example"
         if example.exists():
             import shutil
             shutil.copy2(example, pos_file)
 
-init_user_data_templates()
+init_output_templates()

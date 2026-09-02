@@ -1,0 +1,41 @@
+# ==============================================================================
+# A-Stock Agents Git Ignore Rules (Version Rule: v2, v3, v4...)
+# ==============================================================================
+
+# Python runtime
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# User Output Data & Private Assets (Complete Isolation)
+output/
+!output/**/.gitkeep
+!output/**/*.example
+user_data/
+data/positions/
+data/pools/*.csv
+!data/pools/*.example
+
+# Local runtime caches & databases
+cache/
+reports/
+backups/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.pid
+
+# Environment variables & secrets
+.env
+.env.*
+
+# Distribution archives
+*.zip
+*.tar.gz
