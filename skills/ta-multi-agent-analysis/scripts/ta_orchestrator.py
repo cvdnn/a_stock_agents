@@ -36,23 +36,30 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# ── 路径 ──────────────────────────────────────────────────────────────────────
+# ── 路径与环境自适应 ──────────────────────────────────────────────────────────
 
-SKILL_DIR = Path(__file__).resolve().parent.parent
-TA_ANALYZE = SKILL_DIR / "scripts" / "ta_analyze.py"
-AI-Platform_SKILLS = Path.home() / ".AI-Platform" / "skills" / "stocks"
-DASHBOARD_DIR = AI-Platform_SKILLS / "a-share-dashboard"
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+
+from core.config import OUTPUT_POOLS_DIR
+
+TA_ANALYZE = SCRIPT_DIR / "ta_analyze.py"
+POOLS_BASE = OUTPUT_POOLS_DIR
 
 _VENV_CANDIDATES = [
+    Path(sys.executable),
     Path("python3"),
-    Path("/mnt/c/Users/user/coding/TradingAgents/_original_src/.venv/bin/python3"),
 ]
 VENV_PY = next((p for p in _VENV_CANDIDATES if p.exists()), Path(sys.executable))
 
 
 def _read_pool(name: str) -> List[Dict]:
     """读取股池 CSV。"""
-    path = DASHBOARD_DIR / "data" / f"{name}_pool.csv"
+    path = POOLS_BASE / f"{name}_pool.csv"
     if not path.exists():
         return []
     with open(path, "r", encoding="utf-8") as f:

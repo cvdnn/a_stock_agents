@@ -15,9 +15,16 @@ import sys
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+# ── 路径与环境自适应 ──
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
 
-SKILL_DIR = Path("./.AI-Platform/skills/stocks/a-share-dashboard")
-POSITIONS_PATH = SKILL_DIR / "data" / "positions.csv"
+from core.config import OUTPUT_POOLS_DIR
+POSITIONS_PATH = OUTPUT_POOLS_DIR / "positions.csv"
 
 
 def read_csv(path: Path) -> list[dict]:

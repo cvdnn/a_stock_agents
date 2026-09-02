@@ -1293,9 +1293,25 @@ if __name__ == "__main__":
                     "label": bt_results[i]["label"],
                     "in_return": in_r,
                     "out_return": out_r,
-                    "decay_rate": decay,
-                })
-        with open(os.path.join(os.path.dirname(__file__), "v3_backtest_results.json"), "w", encoding="utf-8") as f:
+    # ── 路径与环境自适应 ──
+    from pathlib import Path
+    script_dir = Path(__file__).resolve().parent
+    project_root = script_dir.parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    if str(project_root / "core") not in sys.path:
+        sys.path.insert(0, str(project_root / "core"))
+
+    try:
+        from core.config import OUTPUT_BACKTEST_DIR, OUTPUT_CACHE_DIR
+        bt_out_path = OUTPUT_BACKTEST_DIR / "v3_backtest_results.json"
+        out_cache_path = OUTPUT_CACHE_DIR / "v3_model_results.json"
+    except Exception:
+        bt_out_path = Path(os.path.join(os.path.dirname(__file__), "v3_backtest_results.json"))
+        out_cache_path = Path(os.path.join(os.path.dirname(__file__), "v3_model_results.json"))
+
+    if do_bt and bt_save:
+        with open(str(bt_out_path), "w", encoding="utf-8") as f:
             json.dump(bt_save, f, ensure_ascii=False, indent=2)
 
     # Save v3 results (v3.1: 加时间戳)
@@ -1307,10 +1323,9 @@ if __name__ == "__main__":
         "gate_open": model.gate.gate_open,
         "results": all_results
     }
-    out = os.path.join(os.path.dirname(__file__), "v3_model_results.json")
-    with open(out, "w", encoding="utf-8") as f:
+    with open(str(out_cache_path), "w", encoding="utf-8") as f:
         json.dump(all_results_with_meta, f, ensure_ascii=False, indent=2)
 
     print(f"\n  结果已保存:")
-    print(f"    截面评估: {out}")
-    print(f"    回测结果: v3_backtest_results.json")
+    print(f"    截面评估: {out_cache_path}")
+    print(f"    回测结果: {bt_out_path if do_bt else '未运行回测'}")

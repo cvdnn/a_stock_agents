@@ -24,22 +24,23 @@ import os
 import subprocess
 import sys
 from datetime import datetime, time
+from pathlib import Path
 
-# ── 路径 ──
-try:
-    from core.config import OUTPUT_POOLS_DIR, OUTPUT_CACHE_DIR
-    POOLS_BASE = str(OUTPUT_POOLS_DIR)
-    STATE_DIR = str(OUTPUT_CACHE_DIR)
-except Exception:
-    SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    PROJECT_ROOT = os.path.dirname(os.path.dirname(SKILL_DIR))
-    output_pools = os.path.join(PROJECT_ROOT, "output", "pools")
-    POOLS_BASE = output_pools if os.path.exists(output_pools) else os.path.join(SKILL_DIR, "data")
-    STATE_DIR = os.path.join(PROJECT_ROOT, "output", "cache")
+# ── 路径与环境自适应 ──
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+
+from core.config import OUTPUT_POOLS_DIR, OUTPUT_CACHE_DIR
+POOLS_BASE = str(OUTPUT_POOLS_DIR)
+STATE_DIR = str(OUTPUT_CACHE_DIR)
 
 WATCH_PATH = os.path.join(POOLS_BASE, "watch_pool.csv")
-A_SCRIPT = "./.AI-Platform/skills/stocks/a-share-data/scripts/fetch_patched.py"
-VENV_PY = "python3"
+A_SCRIPT = str(PROJECT_ROOT / "core" / "data" / "fetch_realtime.py")
+VENV_PY = sys.executable
 
 
 

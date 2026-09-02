@@ -92,6 +92,8 @@ else:
     out_p = Path(cfg_out_dir)
     OUTPUT_DIR = out_p if out_p.is_absolute() else (PROJECT_ROOT / out_p).resolve()
 
+IS_CUSTOM_OUTPUT = OUTPUT_DIR.resolve() != (PROJECT_ROOT / "output").resolve()
+
 # Output Subpaths
 paths_cfg = GLOBAL_CONFIG.get("paths", {})
 OUTPUT_POOLS_DIR = OUTPUT_DIR / paths_cfg.get("pools_dir", "pools")
@@ -118,6 +120,24 @@ POSITIONS_DIR = OUTPUT_POSITIONS_DIR
 CACHE_DIR = OUTPUT_CACHE_DIR
 REPORTS_DIR = OUTPUT_REPORTS_DIR
 
+def get_pool_path(filename: str = "positions.csv") -> Path:
+    """Get absolute path to a specific pool file under current OUTPUT_POOLS_DIR."""
+    if not filename.endswith(".csv"):
+        filename = f"{filename}.csv"
+    return OUTPUT_POOLS_DIR / filename
+
+def get_cache_path(filename: str) -> Path:
+    """Get absolute path to a cache file under current OUTPUT_CACHE_DIR."""
+    return OUTPUT_CACHE_DIR / filename
+
+def get_report_path(filename: str) -> Path:
+    """Get absolute path to a report file under current OUTPUT_REPORTS_DIR."""
+    return OUTPUT_REPORTS_DIR / filename
+
+def get_backtest_path(filename: str) -> Path:
+    """Get absolute path to a backtest file under current OUTPUT_BACKTEST_DIR."""
+    return OUTPUT_BACKTEST_DIR / filename
+
 def init_output_templates(target_pools_dir: Path = None):
     """Initialize output data templates and pool CSV files if not already present."""
     import shutil
@@ -141,8 +161,8 @@ def init_output_templates(target_pools_dir: Path = None):
 
     # Possible template source directories to copy .example files from
     template_sources = [
-        PROJECT_ROOT / "output" / "pools",
         PROJECT_ROOT / "skills" / "a-share-dashboard" / "data",
+        PROJECT_ROOT / "output" / "pools",
     ]
 
     for filename, headers in default_headers.items():
@@ -190,6 +210,7 @@ def get_active_paths() -> dict:
         "cache_dir": str(OUTPUT_CACHE_DIR),
         "backtest_dir": str(OUTPUT_BACKTEST_DIR),
         "backups_dir": str(BACKUPS_DIR),
-        "is_custom_output": OUTPUT_DIR.resolve() != (PROJECT_ROOT / "output").resolve(),
+        "is_custom_output": IS_CUSTOM_OUTPUT,
     }
+
 

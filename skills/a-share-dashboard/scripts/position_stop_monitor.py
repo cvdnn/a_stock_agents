@@ -10,41 +10,61 @@
 """
 from __future__ import annotations
 
+import csv
 import json
 import os
 import sys
 from datetime import datetime, time
 from pathlib import Path
 
-# ── 路径 ──
+# ── 路径与环境自适应 ──
 SCRIPT_DIR = Path(__file__).resolve().parent
-SKILL_DIR = SCRIPT_DIR.parent
-POSITIONS_PATH = SKILL_DIR / "data" / "positions.csv"
-STATE_FILE = Path(os.path.expanduser("~/.AI-Platform/scripts/position_stop_monitor_state.json"))
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
 
-# ── 持仓预警配置 ──
-# 每只持仓: (code, name, 止损价, 预警线1(橙), 预警线2(黄))
-# 预警线: 止损价上方一定距离，提前提醒
-POSITIONS_ALERTS = [
-    {"code": "002230", "name": "科大讯飞", "stop_loss": 42.00,
-     "alerts": [
-         (42.80, "⚠️ 科大讯飞 接近止损！距止损仅0.80元", "red"),
-         (43.20, "⚡ 科大讯飞 黄色预警，跌幅加大，关注止损", "orange"),
-         (43.80, "📊 科大讯飞 蓝色提醒，股价持续承压", "yellow"),
-     ]},
-    {"code": "600760", "name": "中航沈飞", "stop_loss": 40.00,
-     "alerts": [
-         (40.50, "⚠️ 中航沈飞 接近止损！距止损仅0.50元", "red"),
-         (41.20, "⚡ 中航沈飞 橙色预警，跌幅加大", "orange"),
-         (42.00, "📊 中航沈飞 MA20位置，关注能否收复", "yellow"),
-     ]},
-    {"code": "603893", "name": "瑞芯微", "stop_loss": 160.00,
-     "alerts": [
-         (163.00, "⚠️ 瑞芯微 接近止损！距止损仅3元", "red"),
-         (168.00, "⚡ 瑞芯微 橙色预警，盈利回吐", "orange"),
-         (173.00, "📊 瑞芯微 MA20位置，关注支撑", "yellow"),
-     ]},
-]
+from core.config import OUTPUT_POOLS_DIR, OUTPUT_CACHE_DIR
+POSITIONS_PATH = OUTPUT_POOLS_DIR / "positions.csv"
+STATE_FILE = OUTPUT_CACHE_DIR / "position_stop_monitor_state.json"
+
+
+def load_positions_alerts() -> list[dict]:
+    """从当前 OUTPUT_POOLS_DIR/positions.csv 动态读取持仓并生成风控预警线"""
+    alerts = []
+    if POSITIONS_PATH.exists():
+        try:
+            with open(POSITIONS_PATH, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    code = row.get("code", "").strip()
+                    name = row.get("name", "").strip() or code
+                    stop_loss_str = row.get("stop_loss", "").strip()
+                    if not code:
+                        continue
+                    try:
+                        stop_loss = float(stop_loss_str) if stop_loss_str else 0.0
+                    except ValueError:
+                        stop_loss = 0.0
+                    
+                    if stop_loss > 0:
+                        a1 = round(stop_loss * 1.01, 2)
+                        a2 = round(stop_loss * 1.02, 2)
+                        a3 = round(stop_loss * 1.03, 2)
+                        alerts.append({
+                            "code": code,
+                            "name": name,
+                            "stop_loss": stop_loss,
+                            "alerts": [
+                                (a1, f"⚠️ {name} 接近止损！距止损仅 {a1 - stop_loss:.2f}元", "red"),
+                                (a2, f"⚡ {name} 橙色预警，跌幅加大，关注止损线", "orange"),
+                                (a3, f"📊 {name} 关注支撑位置，警惕回调风险", "yellow"),
+                            ]
+                        })
+        except Exception:
+            pass
+    return alerts
 
 
 def is_market_hours() -> bool:
@@ -61,52 +81,51 @@ def is_market_hours() -> bool:
 
 def load_state() -> dict:
     if STATE_FILE.exists():
-        return json.loads(STATE_FILE.read_text())
+        try:
+            return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
     return {"triggered": {}}
 
 
 def save_state(state: dict) -> None:
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def main():
-    if not is_market_hours():
+    force = "--show" in sys.argv or "--force" in sys.argv or "-f" in sys.argv
+    if not force and not is_market_hours():
         return  # 非交易时间不检测
+
+    positions = load_positions_alerts()
+    if not positions:
+        if force:
+            print("持仓池 (positions.csv) 中暂无已配置止损价的标的。")
+        return
+
+    if force:
+        print(f"📊 持仓风控监控 (共 {len(positions)} 只):")
+        for pos in positions:
+            print(f"  - [{pos['code']}] {pos['name']} 止损价: {pos['stop_loss']:.2f}")
 
     state = load_state()
     triggered = state.setdefault("triggered", {})
     today = datetime.now().strftime("%Y-%m-%d")
 
-    # 从文件读取当前持仓现价
-    # 这里使用腾讯行情API
-    import urllib.request
+    from core.data.data_bridge import DataBridge
+    bridge = DataBridge()
 
-    for pos in POSITIONS_ALERTS:
+    for pos in positions:
         code = pos["code"]
-        # 获取实时价（腾讯行情）
-        try:
-            url = f"https://qt.gtimg.cn/q=sh{code}0001"
-            if code.startswith("00") or code.startswith("30"):
-                url = f"https://qt.gtimg.cn/q=sz{code}"
-            else:
-                url = f"https://qt.gtimg.cn/q=sh{code}"
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0"
-            })
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                text = resp.read().decode("gbk")
-            # 解析: v_sh600760="..."
-            items = text.split("~")
-            if len(items) >= 4:
-                price = float(items[3])
-                change_pct = float(items[32]) if len(items) > 32 else 0.0
-            else:
-                print(f"{code} 行情解析失败")
-                continue
-        except Exception as e:
-            print(f"{code} 获取行情失败: {e}")
+        q = bridge.get_realtime_quote(code)
+        if not q or "price" not in q or q.get("price", 0) <= 0:
+            if force:
+                print(f"{code} 获取实时行情失败")
             continue
+
+        price = float(q["price"])
+        change_pct = float(q.get("change_pct", 0.0))
 
         # 检查止损
         if price <= pos["stop_loss"]:
@@ -115,7 +134,7 @@ def main():
                 triggered[key] = True
                 print(f"\n🚨 止损触发: {pos['name']}({code})")
                 print(f"   现价: {price:.2f} | 止损: {pos['stop_loss']:.2f}")
-                print(f"   操作: 立即清仓!")
+                print(f"   操作: 达到纪律止损位，建议执行纪律减仓/清仓!")
             continue
 
         # 检查各层预警
@@ -125,7 +144,7 @@ def main():
                 if key not in triggered:
                     triggered[key] = True
                     print(f"\n{alert_msg}")
-                    print(f"   现价: {price:.2f} (跌幅{change_pct:+.2f}%)")
+                    print(f"   现价: {price:.2f} (涨跌: {change_pct:+.2f}%) | 止损参考: {pos['stop_loss']:.2f}")
                 break  # 只触发最接近的一个
 
     save_state(state)

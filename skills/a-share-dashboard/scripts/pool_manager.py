@@ -14,16 +14,18 @@ import csv
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
-# ── 路径 ──
-try:
-    from core.config import OUTPUT_POOLS_DIR
-    POOLS_BASE = str(OUTPUT_POOLS_DIR)
-except Exception:
-    SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    PROJECT_ROOT = os.path.dirname(os.path.dirname(SKILL_DIR))
-    output_pools = os.path.join(PROJECT_ROOT, "output", "pools")
-    POOLS_BASE = output_pools if os.path.exists(output_pools) else os.path.join(SKILL_DIR, "data")
+# ── 路径与环境自适应 ──
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+
+from core.config import OUTPUT_POOLS_DIR
+POOLS_BASE = str(OUTPUT_POOLS_DIR)
 
 SELECTED_PATH = os.path.join(POOLS_BASE, "selected_pool.csv")
 WATCH_PATH = os.path.join(POOLS_BASE, "watch_pool.csv")

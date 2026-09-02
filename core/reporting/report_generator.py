@@ -7,11 +7,20 @@ aStocks HTML 报告生成器
 
 import json
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 
-SKILL_DIR = Path(__file__).resolve().parent.parent
-TEMPLATE_PATH = Path("./.AI-Platform/skills/stocks/a-share-data/templates/stock-report.html")
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+
+from core.config import OUTPUT_REPORTS_DIR
+
+TEMPLATE_PATH = PROJECT_ROOT / "skills" / "a-share-data" / "templates" / "stock-report.html"
 
 
 def generate_simple_report(data: dict, output_path: str = None) -> str:
@@ -179,11 +188,8 @@ if __name__ == "__main__":
     from core.data.data_bridge import DataBridge
     from core.indicators.technical_indicators import calc_all, gap_analysis
     from core.models.combo_scorer import ComboScorer, entry_assessment
-    try:
-        from core.config import OUTPUT_REPORTS_DIR
-        default_out_dir = OUTPUT_REPORTS_DIR
-    except Exception:
-        default_out_dir = Path(__file__).resolve().parent.parent.parent / "output" / "reports"
+
+    default_out_dir = OUTPUT_REPORTS_DIR
     default_out_dir.mkdir(parents=True, exist_ok=True)
 
     code = sys.argv[1] if len(sys.argv) > 1 else "600519"

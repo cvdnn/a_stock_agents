@@ -54,12 +54,16 @@ def _find_a_stocks_scripts():
             return c
     return None
 _A_STOCKS_SCRIPTS = _find_a_stocks_scripts()
-if _A_STOCKS_SCRIPTS:
-    sys.path.insert(0, _A_STOCKS_SCRIPTS)
-from data_bridge import DataBridge
-from technical_indicators import calc_all
-from combo_scorer import ComboScorer
-from fundamental_filter import FundamentalFilter
+try:
+    from core.data.data_bridge import DataBridge
+    from core.indicators.technical_indicators import calc_all
+    from core.models.combo_scorer import ComboScorer
+    from core.strategy.fundamental_filter import FundamentalFilter
+except ImportError:
+    from data_bridge import DataBridge
+    from technical_indicators import calc_all
+    from combo_scorer import ComboScorer
+    from fundamental_filter import FundamentalFilter
 
 
 # ============================================================
@@ -1294,6 +1298,7 @@ if __name__ == "__main__":
                     "in_return": in_r,
                     "out_return": out_r,
                     "decay_rate": decay,
+                })
         try:
             from core.config import OUTPUT_BACKTEST_DIR
             bt_out_path = OUTPUT_BACKTEST_DIR / "v3_backtest_results.json"

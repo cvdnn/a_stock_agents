@@ -22,20 +22,24 @@ import os
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
 
-# ── 路径 ──
-try:
-    from core.config import OUTPUT_POOLS_DIR
-    POOLS_BASE = OUTPUT_POOLS_DIR
-except Exception:
-    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    POOLS_BASE = os.path.join(PROJECT_ROOT, "output", "pools")
+# ── 路径与环境自适应 ──
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+
+from core.config import OUTPUT_POOLS_DIR
+POOLS_BASE = OUTPUT_POOLS_DIR
 
 POSITIONS_PATH = os.path.join(str(POOLS_BASE), "positions.csv")
 HISTORY_PATH = os.path.join(str(POOLS_BASE), "positions_history.csv")
 SELECTED_PATH = os.path.join(str(POOLS_BASE), "selected_pool.csv")
-A_DATA_DIR = "./.AI-Platform/skills/stocks/a-share-data/scripts"
-VENV_PY = "python3"
+A_DATA_DIR = str(PROJECT_ROOT / "core" / "data")
+VENV_PY = sys.executable
 
 
 POSITIONS_FIELDS = [
@@ -104,7 +108,7 @@ def _get_quote(code):
 
 def cmd_list(args):
     """列出当前持仓或历史"""
-    if args.history:
+    if getattr(args, "history", False):
         rows = _read_csv(HISTORY_PATH)
         if not rows:
             print("暂无平仓历史")

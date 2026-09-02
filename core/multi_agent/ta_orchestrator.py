@@ -36,15 +36,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# ── 路径 ──────────────────────────────────────────────────────────────────────
+# ── 路径与环境自适应 ──────────────────────────────────────────────────────────
 
-SKILL_DIR = Path(__file__).resolve().parent.parent
-TA_ANALYZE = SKILL_DIR / "multi_agent" / "ta_analyze.py"
-try:
-    from core.config import OUTPUT_POOLS_DIR
-    POOLS_BASE = OUTPUT_POOLS_DIR
-except Exception:
-    POOLS_BASE = SKILL_DIR.parent / "output" / "pools"
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+
+from core.config import OUTPUT_POOLS_DIR
+
+TA_ANALYZE = SCRIPT_DIR / "ta_analyze.py"
+POOLS_BASE = OUTPUT_POOLS_DIR
 
 _VENV_CANDIDATES = [
     Path(sys.executable),

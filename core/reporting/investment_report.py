@@ -16,20 +16,23 @@ import os
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
 
-# ── 路径 ──
-try:
-    from core.config import OUTPUT_POOLS_DIR
-    POOLS_BASE = OUTPUT_POOLS_DIR
-except Exception:
-    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    POOLS_BASE = os.path.join(PROJECT_ROOT, "output", "pools")
+# ── 路径与环境自适应 ──
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+
+from core.config import OUTPUT_POOLS_DIR, OUTPUT_REPORTS_DIR
+POOLS_BASE = OUTPUT_POOLS_DIR
 
 SELECTED_PATH = os.path.join(str(POOLS_BASE), "selected_pool.csv")
 WATCH_PATH = os.path.join(str(POOLS_BASE), "watch_pool.csv")
-A_DATA_DIR = "./.AI-Platform/skills/stocks/a-share-data/scripts"
-VENV_PY = "python3"
-
+A_DATA_DIR = str(PROJECT_ROOT / "core" / "data")
+VENV_PY = sys.executable
 
 
 def _run(cmd: list[str], timeout=30) -> dict:
@@ -45,8 +48,14 @@ def _run(cmd: list[str], timeout=30) -> dict:
 
 def get_quote(code: str) -> dict:
     """获取实时行情"""
-    r = _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_patched.py"),
-              "fetch_realtime.py", "--quote", code, "--json"])
+    try:
+        from core.data.data_bridge import DataBridge
+        q = DataBridge().get_realtime_quote(code)
+        if q and "price" in q:
+            return q
+    except Exception:
+        pass
+    r = _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_realtime.py"), "--quote", code, "--json"])
     if r["data"]:
         try:
             return json.loads(r["data"])
@@ -57,14 +66,23 @@ def get_quote(code: str) -> dict:
 
 def get_technical(code: str) -> dict:
     """获取技术指标"""
-    r = _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_patched.py"),
-              "fetch_technical.py", code, "--freq", "1d", "--count", "120",
+    try:
+        from core.data.data_bridge import DataBridge
+        from core.indicators.technical_indicators import calc_all
+        bridge = DataBridge()
+        klines = bridge.tencent_kline(code, count=120)
+        if klines and len(klines) >= 20:
+            tech = calc_all(klines)
+            return tech.get("latest", {})
+    except Exception:
+        pass
+    r = _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_technical.py"), code, "--freq", "1d", "--count", "120",
               "--indicators", "MA,MACD,KDJ,RSI,BOLL", "--json"], timeout=45)
     if r["data"]:
         try:
             data = json.loads(r["data"])
             if data:
-                return data[-1]  # 最新一根
+                return data[-1] if isinstance(data, list) else data  # 最新一根
         except (json.JSONDecodeError, IndexError):
             pass
     return {"error": "技术指标获取失败"}
@@ -245,13 +263,22 @@ def report_pool(pool_type: str):
 
         quote = get_quote(code)
         if "error" not in quote:
-            print(f"  现价: {quote.get('最新价','?')} ({quote.get('涨跌幅(%)',0):+.2f}%)")
+            price = quote.get("price") or quote.get("最新价", "?")
+            chg = quote.get("change_pct") if quote.get("change_pct") is not None else quote.get("涨跌幅(%)", 0.0)
+            try:
+                chg_str = f"{float(chg):+.2f}%"
+            except (ValueError, TypeError):
+                chg_str = str(chg)
+            print(f"  现价: {price} ({chg_str})")
         else:
             print(f"  [行情获取失败]")
 
         tech = get_technical(code)
         if "error" not in tech:
-            print(f"  均线: MA5={tech.get('MA5','?'):.1f} MA10={tech.get('MA10','?'):.1f} MA20={tech.get('MA20','?'):.1f}")
+            ma5 = tech.get("ma5") or tech.get("MA5") or (tech.get("ma", {}).get(5) if isinstance(tech.get("ma"), dict) else "?")
+            ma10 = tech.get("ma10") or tech.get("MA10") or (tech.get("ma", {}).get(10) if isinstance(tech.get("ma"), dict) else "?")
+            ma20 = tech.get("ma20") or tech.get("MA20") or (tech.get("ma", {}).get(20) if isinstance(tech.get("ma"), dict) else "?")
+            print(f"  均线: MA5={ma5} MA10={ma10} MA20={ma20}")
 
     print(f"\n{'='*56}")
 

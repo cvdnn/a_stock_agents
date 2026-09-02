@@ -37,11 +37,17 @@ def ma_status(p, m5, m10, m20):
     return "震荡"
 
 def main():
-    try:
-        from core.config import OUTPUT_POOLS_DIR
-        default_data = str(OUTPUT_POOLS_DIR)
-    except Exception:
-        default_data = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+    import sys
+    from pathlib import Path
+    script_dir = Path(__file__).resolve().parent
+    project_root = script_dir.parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    if str(project_root / "core") not in sys.path:
+        sys.path.insert(0, str(project_root / "core"))
+
+    from core.config import OUTPUT_POOLS_DIR
+    default_data = str(OUTPUT_POOLS_DIR)
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=default_data)
