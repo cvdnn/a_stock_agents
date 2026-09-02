@@ -1,0 +1,13 @@
+{2560战法卖出选股  v2}
+M1:=10;    {死叉均线: 10或15}
+MA5:=MA(CLOSE,5);
+MA10:=MA(CLOSE,10);
+MA15:=MA(CLOSE,15);
+MA20:=MA(CLOSE,20);
+V5:=MA(VOL,5);
+S1:=CROSS(MA20,CLOSE) AND VOL>=V5*2;      {放量破MA20}
+S2A:=CROSS(MA10,MA5);
+S2B:=CROSS(MA15,MA5);
+S2:=IF(M1=10,S2A,S2B);                     {5日死叉(10或15)}
+S3:=VOL>=V5*2 AND CLOSE<REF(CLOSE,1);      {天量收阴}
+卖出:S1 OR S2 OR S3;

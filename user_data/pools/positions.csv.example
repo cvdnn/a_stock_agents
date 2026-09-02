@@ -1,0 +1,2 @@
+code,name,buy_date,buy_price,qty,stop_loss,take_profit,sector,reason,status,strategy,entry_trigger,expected_days,risk_level,ma_status,market_context,backtest_result,notes
+600519,贵州茅台,2026-09-01,1300.00,100,1235.00,1400.00,白酒,行业龙头多维共振,持有,趋势波段,回踩MA20企稳,15,中,多头,大盘震荡筑底,,标准持仓示例模板

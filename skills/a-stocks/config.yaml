@@ -1,0 +1,134 @@
+# aStocks 技能配置
+# 独立配置文件，不依赖 TACN/TradingAgents 项目
+#
+# 环境变量覆盖 (优先级高于本文件):
+#   ASTOCKS_VENV_PY          → python.venv_python
+#   ASTOCKS_SYSTEM_PY         → python.system_python
+#   ASTOCKS_A_SHARE_DATA_DIR  → skills.a_share_data
+#
+# 配置优先级: 环境变量 > config.yaml > 自动探测 > 默认值
+
+# ─── Python 环境 ─────────────────────────────
+python:
+  # venv Python: 用于 proxy-patch 模式 (需 akshare/curl_cffi)
+  # 留空则自动探测: python3 → TradingAgents/.venv
+  venv_python: ""
+  # 系统 Python: L1/L4 零依赖模式使用
+  system_python: "python3"
+
+# ─── 数据源降级配置 ───────────────────────────
+data_fallback:
+  # 优先级: L1 > L2 > L3 > L4
+  L1_tencent_direct: true       # 腾讯 qt.gtimg.cn (~0.1s, 零依赖)
+  L2_sina_scripts: true         # 新浪/腾讯脚本 (~3-5s, 需 a-share-data)
+  L3_proxy_patch: false         # 东财 proxy-patch (需TOKEN+积分+venv)
+  L4_efinance: false            # efinance (有限接口)
+
+# ─── 策略参数 ───────────────────────────────
+strategy:
+  # 三合一组合策略 (100分制)
+  combo:
+    ma_structure_max: 25
+    macd_max: 20
+    volume_max: 15
+    cyq_max: 15         # 筹码集中度 (需 L3 proxy-patch)
+    fund_flow_max: 15   # 资金流向 (需 L3 proxy-patch)
+    sector_max: 5        # 板块共振
+    pe_max: 5            # PE估值
+    # 评级阈值
+    grade_a: 56
+    grade_b: 49
+    grade_c: 35
+
+  # 入场
+  entry:
+    a_position: 0.35
+    b_position: 0.20
+    c_position: 0.0
+
+  # 止损
+  stop_loss:
+    t0_intraday: -5.0
+    t1_ma10: true
+    t2_ma20: true
+
+# ─── 监控 ────────────────────────────────────
+monitor:
+  interval: "every 5m"
+  delivery: "all"
+
+# ─── 回测引擎 ────────────────────────────────
+backtest:
+  initial_cash: 1000000
+  commission_rate: 0.00025    # 佣金 万分之2.5
+  stamp_tax: 0.0005           # 印花税 卖出万分之5
+  slippage_ticks: 1            # 滑点tick数 (1 tick = 0.01元)
+  risk_free_rate: 0.02         # 无风险利率 (夏普比率用)
+
+# ─── 组合风险管理 ────────────────────────────
+portfolio_risk:
+  target_volatility: 0.15      # 目标年化波动率 15%
+  max_single_stock: 0.15       # 单股最大仓位 15%
+  max_single_sector: 0.25      # 单板块最大仓位 25%
+  max_single_industry: 0.30    # 单行业最大仓位 30%
+  drawdown_thresholds: [0.05, 0.10, 0.15]  # 回撤阈值
+  correlation_threshold: 0.7   # 高相关性减仓阈值
+
+# ─── 依赖技能路径 ────────────────────────────
+skills:
+  # 留空则自动探测 skills/<name>
+  a_share_data: ""
+  paper_trading: ""
+  dashboard: ""
+  trading_combo: ""
+
+# ─── LLM 多分析师协议配置 ─────────────────────
+llm_analysis:
+  # 是否启用深度 LLM 分析 (默认: true)
+  enabled: true
+  # 最大分析股票数 (单次批量)
+  max_stocks_per_batch: 5
+  # 是否包含风险辩论阶段
+  risk_debate_enabled: true
+  # 基本面数据源 (优先级降序)
+  fundamentals_sources:
+    - "tencent_pe"       # L1: 腾讯行情PE (零依赖)
+    - "efinance"         # L4: efinance 基本面 (需 efinance)
+    - "akshare"          # L3: akshare 财务数据 (需 venv)
+
+# ─── 数据源注册表 (DataSource Registry) — 仅A股 ──────
+data_sources:
+  china:
+    tencent_qt:
+      layer: L1
+      speed: "~0.14s"
+      market: [A股, 指数]
+      features: [实时行情, PE, 换手率, 市值, 批量10只]
+      zero_dep: true
+      pe_coverage: "100%"
+    tencent_kline:
+      layer: L1
+      speed: "~0.18s"
+      market: [A股]
+      features: [日K线, 前复权, 120根]
+      zero_dep: true
+      endpoint: "ifzq.gtimg.cn"
+    sina_scripts:
+      layer: L2
+      speed: "~3-5s"
+      market: [A股]
+      features: [行情, 板块, 行业]
+      zero_dep: false
+    proxy_patch:
+      layer: L3
+      speed: "~0.4-2s"
+      market: [A股]
+      features: [CYQ筹码, 资金流向, 个股事件, A+H列表]
+      zero_dep: false
+      requires_venv: true
+    efinance:
+      layer: L4
+      speed: "~0.2s"
+      market: [A股]
+      features: [基本面, PE动态, PB, ROE]
+      zero_dep: false

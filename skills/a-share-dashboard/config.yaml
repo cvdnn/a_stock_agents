@@ -1,0 +1,29 @@
+# a-share-dashboard 账户配置
+# 修改此文件以适配你的交易账户限制
+
+account:
+  # 账户可交易的板块
+  # true=可交易, false=不可交易
+  allowed_boards:
+    sh_main: true        # 上海主板 (60xxxx)
+    sz_main: true        # 深圳主板 (00xxxx)
+    sz_gem: true         # 创业板 (30xxxx) - 需开通权限
+    sh_kcb: false        # ✗ 科创板 (688xxx) - 当前账户不可交易
+    bj: false            # 北交所 (8xxxxx)
+
+  # 不可交易的代码前缀
+  blocked_prefixes:
+    - "688"   # 科创板
+    - "689"   # 科创板
+    - "30"    # 创业板
+    - "8"     # 北交所
+    - "4"     # 老三板
+    - "83"    # 北交所
+
+  # 备注
+  notes: "账户未开通科创板权限，也不交易创业板。所有688/689/30开头的股票应排除在推荐、关注池和自选池之外"
+
+# 其他技能配置
+skill:
+  version: "1.0"
+  data_source: "a-share-data"

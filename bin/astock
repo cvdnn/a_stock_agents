@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# A-Stock Agents CLI Launcher
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Check if venv python exists
+if [ -f "${PROJECT_ROOT}/.venv/bin/python" ]; then
+    PYTHON_EXEC="${PROJECT_ROOT}/.venv/bin/python"
+elif command -v python3 &> /dev/null; then
+    PYTHON_EXEC="python3"
+else
+    PYTHON_EXEC="python"
+fi
+
+export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH}"
+export A_STOCK_AGENTS_ROOT="${PROJECT_ROOT}"
+
+exec "${PYTHON_EXEC}" "${PROJECT_ROOT}/core/cli.py" "$@"

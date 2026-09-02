@@ -1,0 +1,21 @@
+# a-share-data 技能配置文件
+# TOKEN 用于 akshare-proxy-patch 绕过东方财富反爬
+# 获取地址：https://ak.cheapproxy.net/dashboard/akshare
+
+proxy_patch:
+  enabled: true                    # 是否启用 proxy patch
+  gateway: "101.201.173.125"       # 代理网关地址（不可修改）
+  auth_token: ""                   # 已迁移到 ~/.AI-Platform/.env (AUTH_TOKEN)
+  retry: 30                         # 重试次数
+  fast: true                        # 启用多线程加速
+  hook_domains:                     # 按路径精确匹配，节省积分
+    - "push2.eastmoney.com/api/qt/clist/get"     # 全市场行情(12~18分)、行业板块(1~4分)
+    - "push2.eastmoney.com/api/qt/stock/get"      # 个股信息(1~2分)
+    - "push2his.eastmoney.com/api/qt/stock/kline/get"  # 日K线/筹码分布(1~2分)
+    - "push2ex.eastmoney.com"                     # 涨跌停池
+    - "datacenter-web.eastmoney.com"              # 龙虎榜、北向资金
+
+python:
+  # 虚拟环境 Python 路径（系统 Python 3.9 有 numpy 版本冲突不可用）
+  # 如使用系统 Python，请确保 Python >= 3.10
+  venv_python: "python3"
