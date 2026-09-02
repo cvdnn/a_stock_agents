@@ -26,46 +26,42 @@
 ## 一、架构全景图
 
 ```mermaid
-flowchart TB
-    subgraph UI ["🤖 AI 交互与接入层 (Multi-Platform AI)"]
-        direction TB
-        User(["👤 终端用户 / AIChat 自然语言交互"])
+flowchart TD
+    subgraph L1 ["第 1 层：AI 交互与多平台接入层 (Multi-Platform AI)"]
+        User["👤 终端用户 / 自然语言 AIChat 交互"]
         User --> Router["⚡ 意图识别与技能路由中枢"]
+        Router --> Agents["🤖 多平台 Agent 接入支持<br/>• Google Antigravity / Gemini CLI (SKILL.md 自动发现)<br/>• Hermes Agent (技能挂载与工具调度流水线)<br/>• OpenAI Codex / Claude Code (CLI 工具执行)<br/>• 自建 Java AI 平台 (Spring AI / LangChain4j / ProcessBuilder)"]
+    end
+
+    subgraph L2 ["第 2 层：统一调度中枢 (A-Stock Core Hub)"]
+        Agents --> CLI["🖥️ CLI 统一入口 (bin/astock --json 跨平台通信)"]
+        CLI <--> Config["📁 动态项目根路径与配置解析 (core/config.py)"]
+    end
+
+    subgraph L3 ["第 3 层：核心量化投研引擎矩阵 (core/)"]
+        E1["📡 1. 行情数据层 (core/data) —— 4级自动降级 / 腾讯毫秒级直连"]
+        E2["📐 2. 指标计算层 (core/indicators) —— 零依赖 MA / MACD / KDJ / 水下二次金叉"]
+        E3["🎯 3. 选股模型层 (core/models) —— 5A多维共振选股 / 截面Rank因子合成"]
+        E4["🛡️ 4. 实战风控层 (core/strategy) —— 最低保本价精确进位 / 盘中三场景动作单"]
+        E5["👥 5. 智能体研判 (core/multi_agent) —— 7大AI分析师多空博弈辩论"]
+        E6["💼 6. 模拟撮合层 (core/paper_trading) —— 多账户模拟盘 / A股T+1撮合回测"]
         
-        Router --> P1["🌐 第三方 AI Agent<br/>(Antigravity / Hermes / Codex)"]
-        Router --> P2["☕ 自建 Java AI 平台<br/>(Spring AI / LangChain4j)"]
+        Config --> E1
+        E1 --> E2
+        E2 --> E3
+        E3 --> E4
+        E4 --> E5
+        E5 --> E6
     end
 
-    subgraph Hub ["⚙️ 统一调度中枢"]
-        P1 -- "SKILL.md / CLI" --> CLI["🖥️ CLI 统一入口 (bin/astock)"]
-        P2 -- "ProcessBuilder (JSON)" --> CLI
-        CLI <--> Config["📁 动态环境与配置 (core/config.py)"]
+    subgraph L4 ["第 4 层：用户专属数据存储 (output/ - 物理隔离)"]
+        E4 & E6 <--> Storage["🔒 output/ 专属数据目录<br/>个人自选股池 · 真实持仓档案 · 诊断研报 · 运行缓存<br/>(支持环境变量 A_STOCK_OUTPUT_DIR 挂载外部独立磁盘，打包时强制安全排除)"]
     end
 
-    subgraph Engines ["📈 核心量化投研引擎矩阵 (core/)"]
-        direction TB
-        E1["📡 行情数据层 (core/data)<br/>4级降级 / 腾讯毫秒直连"]
-        E2["📐 指标计算层 (core/indicators)<br/>零依赖 MA/MACD/KDJ/二次金叉"]
-        E3["🎯 选股模型层 (core/models)<br/>5A多维共振 / 截面Rank合成"]
-        E4["🛡️ 实战风控层 (core/strategy)<br/>保本价精确进位 / 三场景动作"]
-        E5["👥 智能体研判 (core/multi_agent)<br/>7大AI分析师多空博弈辩论"]
-        E6["💼 模拟撮合层 (core/paper_trading)<br/>多账户管理 / A股T+1撮合"]
-    end
-
-    subgraph Storage ["🔒 用户专属数据 (output/ - 物理硬隔离)"]
-        Output["📊 个人股池 / 真实持仓 / 诊断研报 / 运行缓存<br/>(支持环境变量 A_STOCK_OUTPUT_DIR 挂载外部独立磁盘)"]
-    end
-
-    CLI --> E1 & E2
-    CLI --> E3 & E4
-    CLI --> E5 & E6
-    E4 <--> Storage
-    E6 <--> Storage
-
-    style UI fill:#f8fafc,stroke:#3b82f6,stroke-width:1.5px
-    style Hub fill:#fffbeb,stroke:#f59e0b,stroke-width:1.5px
-    style Engines fill:#faf5ff,stroke:#8b5cf6,stroke-width:1.5px
-    style Storage fill:#f0fdf4,stroke:#10b981,stroke-width:1.5px
+    style L1 fill:#f8fafc,stroke:#3b82f6,stroke-width:1.5px
+    style L2 fill:#fffbeb,stroke:#f59e0b,stroke-width:1.5px
+    style L3 fill:#faf5ff,stroke:#8b5cf6,stroke-width:1.5px
+    style L4 fill:#f0fdf4,stroke:#10b981,stroke-width:1.5px
 ```
 
 ---
