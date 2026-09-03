@@ -6,11 +6,25 @@
 """
 import sys, os, json, datetime
 import statistics
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "core"))
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+if str(PROJECT_ROOT / "core" / "data") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "data"))
+if str(PROJECT_ROOT / "core" / "indicators") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "indicators"))
+if str(PROJECT_ROOT / "core" / "models") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "models"))
+
 from data_bridge import DataBridge
 from technical_indicators import calc_all
 from multi_dim_model_v3 import FiveDimScorer, _latest_at, _hist_market
+
 
 # 候选池 (主板蓝筹+行业龙头, 同 screen)
 CANDIDATES = ["600519","000858","600036","601318","600406","002230","002475","601899",
@@ -134,8 +148,9 @@ def main():
     # 汇总
     out = {"run_timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
            "version": "compare", "n": len(rows), "rows": rows}
-    with open(r"C:/Users/cvdnn/coding/a_stock_agents/skills/astock-screener-5a/scripts\compare_v31_v4.json", "w", encoding="utf-8") as f:
+    with open(SCRIPT_DIR / "compare_v31_v4.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
+
     # 打印表
     print(f"{'代码':<7}{'v31':>5}{'v4':>5}{'共振':>4}{'价':>8}{'PE':>6}{'mom5':>6}{'mom20':>6}{'mom60':>7}{'md60':>6}{'<MA60':>6}{'pos':>5}")
     for r in sorted(rows, key=lambda x: -x["v31"]):

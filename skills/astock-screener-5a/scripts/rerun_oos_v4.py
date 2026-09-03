@@ -4,11 +4,24 @@
 产出: v4_backtest_results.json (样本内+样本外+衰减率), 与 SKILL.md v4 表对照
 """
 import sys, os, json, datetime, time
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "core"))
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+if str(PROJECT_ROOT / "core" / "data") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "data"))
+if str(PROJECT_ROOT / "core" / "indicators") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "indicators"))
+if str(PROJECT_ROOT / "core" / "models") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "models"))
 
 from multi_dim_model_v3 import RotationBacktest
 from data_bridge import DataBridge
+
 
 BT_STOCKS = ["600519", "000858", "600036", "300750", "002594", "600887",
              "601899", "002371", "002463", "600584", "603259", "601012"]

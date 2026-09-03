@@ -6,13 +6,25 @@
 用法: python screen_20260813.py [输出后缀]
 """
 import sys, os, json, datetime
+from pathlib import Path
 
 SUFFIX = sys.argv[1] if len(sys.argv) > 1 else "20260813"
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "core"))
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+if str(PROJECT_ROOT / "core" / "data") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "data"))
+if str(PROJECT_ROOT / "core" / "indicators") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "indicators"))
+if str(PROJECT_ROOT / "core" / "models") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "models"))
 
 from multi_dim_model_v3 import StockSelectionV3
+
 
 # 账户交易限制: 排除 688/689(科创) 30(创业) 8/4(北交所/老三板)
 def _is_blocked(code: str) -> bool:

@@ -6,11 +6,30 @@
  3) 短线胜率: 拉未来5日收益, 看每种方法选中的top股胜率
 """
 import sys, json, statistics
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "core"))
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT / "core" / "data") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "data"))
+if str(PROJECT_ROOT / "core" / "models") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "models"))
+if str(PROJECT_ROOT / "core" / "indicators") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "core" / "indicators"))
+
 from data_bridge import DataBridge
 
-DATA = r"C:/Users/cvdnn/coding/a_stock_agents/skills/astock-screener-5a/scripts\compare_v31_v4.json"
+DATA = SCRIPT_DIR / "compare_v31_v4.json"
+if not DATA.exists():
+    print(f"数据文件不存在: {DATA}")
+    print("请先运行: python skills/astock-screener-5a/scripts/compare_v31_v4.py 生成对比数据")
+    sys.exit(0)
+
 rows = json.load(open(DATA, encoding="utf-8"))["rows"]
+
+
 
 def agg(rs):
     if not rs: return {}
