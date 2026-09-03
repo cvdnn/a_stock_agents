@@ -13,7 +13,7 @@
 
 ## 📑 目录
 - [一、架构全景图](#一架构全景图)
-- [二、核心功能与 16 大智能体技能体系](#二核心功能与-16-大智能体技能体系)
+- [二、核心功能与 17 大智能体技能体系（6+1 分层架构）](#二核心功能与-17-大智能体技能体系61-分层架构)
 - [三、环境准备与常规安装](#三环境准备与常规安装)
 - [四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)](#四第三方-ai-平台与工具使用指南-antigravity--hermes--codex-等)
 - [五、自建 Java AI 平台接入指南 (Custom AI Platform)](#五自建-java-ai-平台接入指南-custom-ai-platform)
@@ -31,7 +31,7 @@
 
 ---
 
-## 二、核心功能与 16 大智能体技能体系
+## 二、核心功能与 17 大智能体技能体系（6+1 分层架构）
 
 ### 1. 六大量化与投研核心子系统
 1. **4 级自动降级数据桥接 (`core/data`)**：
@@ -55,26 +55,27 @@
 
 ---
 
-### 2. 16 个标准化 Agent 技能清单
+### 2. 17 个标准化 Agent 技能清单 (6+1 现代分层架构)
 
-| 技能 ID | 技能名称 | 分类 | 核心能力描述 | CLI 快速入口 |
+| 技能 ID | 技能名称 | 分层 | 核心能力描述 | CLI 快速入口 |
 | :--- | :--- | :---: | :--- | :--- |
-| **`a-share-data`** | A股全链路行情数据引擎 | 数据 | 实时行情快照、历史K线、全套技术指标、筹码分布与板块资金流 | `astock data quote <代码>` |
-| **`a-stocks`** | 统一A股全流程投研平台 | 平台 | 4层降级、100分制综合评分、被套解套策略诊断、大盘健康度评估 | `astock evaluate <代码>` |
-| **`5a-stock-rotation`** | 5A多维共振旋转选股 | 选股 | 动量/价值/质量/主线旋转多维评分模型与滚动样本外回测检验 | `astock screen 5a` |
-| **`a-share-dashboard`** | 投研面板与股池管理 | 面板 | 关注池/自选池/持仓池生命周期管理、通达信公式同步、盘中预警 | `astock pool list` |
-| **`a-share-paper-trading`** | 模拟盘与撮合系统 | 交易 | 多账户模拟仓、限价单/市价单撮合、撤单、持仓资金查询与回测 | `astock trade balance` |
-| **`a-share-strategy-mainboard`** | 主板流动性池多波段防御 | 策略 | 主板流动性池趋势回踩（trend_pullback）与波段防守反击决策 | `astock strategy swing` |
-| **`ashare-quant-engine`** | 工业级量化工程引擎 | 量化 | 截面因子提取、舆情半衰期衰减、MAD去极值、凯利仓位与ATR止损 | `astock quant pipeline` |
-| **`ta-multi-agent-analysis`** | 7大AI分析师多空辩论 | 智能体 | 基本面/量价/消息/政策/游资/筹码/风控 7 大智能体辩论与研报 | `astock debate <代码>` |
-| **`tuige-shortline-trading`** | 退哥短线交易规则体系 | 策略 | 涨停回调、连板接力、洗盘突破、失效卖点与仓位纪律规则库 | `astock shortline check` |
-| **`macd-second-golden-cross`** | 水下二次金叉与底背离 | 策略 | 水下二次金叉、双底回踩验底、MACD底背离形态识别与决策清单 | `astock pattern macd <代码>` |
-| **`execution-action-engine`** | 实战反应动作与保本价 | 策略 | 最低保本卖出价精确进位、T0/T1/T2三级止损与三场景即时反应指令 | `astock action plan` |
-| **`a-share-pool-audit`** | 三大股池统一审查 | 股池 | 统一审查股池、重算均线支撑阻力位、清洗过期失效标的 | `astock pool audit` |
-| **`a-stock-reporting`** | 报告持久化规范 | 报告 | 多股联合报告输出路径规范与数据持久化存储结构标准 | `astock report generate` |
-| **`stock-report-html`** | 标准HTML交互报告规范 | 报告 | 亚光白背景、红涨绿跌、1344px居中单文件自包含 HTML 报告样式 | `astock report html` |
-| **`a-stock-session-tips`** | 避坑指南与实战技巧 | 知识 | 早盘竞价复盘、接口被封应对、数据源降级策略与历史经验技巧库 | `astock tips` |
-| **`a-share-model-validation`** | 时序AI模型实证检验 | 验证 | 外部时序 AI 基础模型（如 Kronos/TimesFM）滚动样本外回测规范 | `astock validate-model` |
+| **`astock-data-feed`** | A股全链路行情数据引擎 | L1 数据 | 实时行情快照、历史K线、全套技术指标、筹码分布与板块资金流 | `astock data quote <代码>` |
+| **`astock-platform-evaluate`** | 统一A股全流程投研平台 | L1 平台 | 4层降级、100分制综合评分、被套解套策略诊断、大盘健康度评估 | `astock evaluate <代码>` |
+| **`astock-screener-5a`** | 5A多维共振旋转选股 | L2 选股 | 动量/价值/质量/主线旋转多维评分模型与滚动样本外回测检验 | `astock screen 5a` |
+| **`astock-quant-engine`** | 工业级量化工程引擎 | L2 量化 | 截面因子提取、舆情半衰期衰减、MAD去极值、凯利仓位与ATR止损 | `astock quant pipeline` |
+| **`astock-model-validation`** | 时序AI模型实证检验 | L2 验证 | 外部时序 AI 基础模型（如 Kronos/TimesFM）滚动样本外回测规范 | `astock validate-model` |
+| **`astock-action-execution`** | 实战反应动作与保本价 | L3 执行 | 最低保本卖出价精确进位、T0/T1/T2三级止损与三场景即时反应指令 | `astock action plan` |
+| **`astock-strategy-mainboard`** | 主板流动性池多波段防御 | L3 策略 | 主板流动性池趋势回踩（trend_pullback）与波段防守反击决策 | `astock strategy swing` |
+| **`astock-strategy-tuige`** | 退哥短线交易规则体系 | L3 策略 | 涨停回调、连板接力、洗盘突破、失效卖点与仓位纪律规则库 | `astock shortline check` |
+| **`astock-strategy-macd`** | 水下二次金叉与底背离 | L3 策略 | 水下二次金叉、双底回踩验底、MACD底背离形态识别与决策清单 | `astock pattern macd <代码>` |
+| **`astock-pool-dashboard`** | 投研面板与股池管理 | L4 面板 | 关注池/自选池/持仓池生命周期管理、通达信公式同步、盘中预警 | `astock pool list` |
+| **`astock-pool-audit`** | 三大股池统一审查 | L4 股池 | 统一审查股池、重算均线支撑阻力位、清洗过期失效标的 | `astock pool audit` |
+| **`astock-trade-paper`** | 模拟盘与撮合系统 | L4 交易 | 多账户模拟仓、限价单/市价单撮合、撤单、持仓资金查询与回测 | `astock trade balance` |
+| **`astock-agent-debate`** | 7大AI分析师多空辩论 | L5 协同 | 基本面/量价/消息/政策/游资/筹码/风控 7 大智能体辩论与研报 | `astock debate <代码>` |
+| **`astock-report-html`** | 标准HTML交互报告规范 | L6 展现 | 亚光白背景、红涨绿跌、1344px居中单文件自包含 HTML 报告样式 | `astock report html` |
+| **`astock-report-archive`** | 报告持久化与归档规范 | L6 报告 | 多股联合报告输出路径规范与数据持久化存储结构标准 | `astock report generate` |
+| **`astock-meta-routing`** | 股票任务模型路由规则 | L0 元系统 | flash纯分析 vs flash+execute_code编程/脚本执行路由规约 | `astock tips` |
+| **`astock-knowledge-tips`** | 避坑指南与实战技巧 | L0 知识 | 早盘竞价复盘、接口被封应对、数据源降级策略与历史经验技巧库 | `astock tips` |
 
 ---
 
@@ -160,16 +161,16 @@ Java 平台启动时，直接解析 `config/skills_manifest.json`：
 ```json
 {
   "platform": "Java-AI-Platform-Compatible",
-  "version": "v2",
-  "total_skills": 16,
+  "version": "v3",
+  "total_skills": 17,
   "skills": [
     {
-      "id": "a-share-data",
-      "name": "a-share-data",
+      "id": "astock-data-feed",
+      "name": "astock-data-feed",
       "title": "A股全链路行情与技术指标数据引擎",
       "triggers": ["行情", "查股票", "现价", "K线", "技术指标", "MACD", "KDJ"],
       "cli_command": "astock data quote {code}",
-      "skill_doc": "skills/a-share-data/SKILL.md"
+      "skill_doc": "skills/astock-data-feed/SKILL.md"
     },
     ...
   ]

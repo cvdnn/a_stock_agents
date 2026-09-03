@@ -215,13 +215,14 @@ def run_tests():
         # Test forwarding execution via subprocess
         test_cmd = [
             sys.executable,
-            str(PROJECT_ROOT / "skills" / "a-stocks" / "scripts" / "data_bridge.py"),
+            str(PROJECT_ROOT / "skills" / "astock-platform-evaluate" / "scripts" / "data_bridge.py"),
             "quote",
             "--code",
             "600519"
         ]
         res = subprocess.run(test_cmd, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert res.returncode == 0 and "600519" in res.stdout, f"Forwarder execution failed:\n{res.stderr}"
+
         print(f"  --> PASS (全量 {len(forwarders)} 个薄转发器就绪，CLI 代理调用无缝转接 core/)")
         passed_count += 1
     except Exception as e:

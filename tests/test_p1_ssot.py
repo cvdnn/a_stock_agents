@@ -56,7 +56,7 @@ class TestP1SSOT(unittest.TestCase):
         """Verify subprocess execution through a skill forwarder works seamlessly."""
         cmd = [
             sys.executable,
-            str(ROOT / "skills" / "a-stocks" / "scripts" / "data_bridge.py"),
+            str(ROOT / "skills" / "astock-platform-evaluate" / "scripts" / "data_bridge.py"),
             "quote",
             "--code",
             "600519"
@@ -70,10 +70,11 @@ class TestP1SSOT(unittest.TestCase):
         """Verify fetch_realtime forwarder works and fetches live quote."""
         cmd = [
             sys.executable,
-            str(ROOT / "skills" / "a-share-data" / "scripts" / "fetch_realtime.py"),
+            str(ROOT / "skills" / "astock-data-feed" / "scripts" / "fetch_realtime.py"),
             "--quote",
             "600519"
         ]
+
         res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
         self.assertEqual(res.returncode, 0, f"fetch_realtime forwarder failed:\n{res.stderr}")
         self.assertIn("600519", res.stdout)

@@ -21,16 +21,17 @@
 
 | 用户查询意图 | 推荐激活技能 | 后台调用命令 / CLI |
 | :--- | :--- | :--- |
-| 查询某只股票实时行情、分时、现价 | `a-share-data` | `astock data quote <代码>` |
-| 计算均线、MACD、KDJ、RSI、BOLL等技术指标 | `a-share-data` | `astock data tech <代码>` |
-| 综合诊断个股、给出买卖评级与打分 | `a-stocks` | `astock evaluate <代码>` |
-| 5A旋转选股、主线评分、寻找优质标的 | `5a-stock-rotation` | `astock screen 5a` |
-| 持仓审查、计算最低保本卖出价与盘中三场景预案 | `execution-action-engine` | `astock action plan` |
-| 模拟仓查询资金、下单买入/卖出、撤单 | `a-share-paper-trading` | `astock trade <balance/buy/sell>` |
-| 多智能体7大分析师深度辩论与研报 | `ta-multi-agent-analysis` | `astock debate <代码>` |
-| 退哥短线规则、连板接力、涨停回调、洗盘突破 | `tuige-shortline-trading` | 参考 `tuige-shortline-trading` |
-| 水下二次金叉、MACD底背离形态识别 | `macd-second-golden-cross` | 参考 `macd-second-golden-cross` |
-| 生成高颜值交互式 HTML 投研/复盘报告 | `stock-report-html` | `astock report html` |
+| 查询某只股票实时行情、分时、现价 | `astock-data-feed` | `astock data quote <代码>` |
+| 计算均线、MACD、KDJ、RSI、BOLL等技术指标 | `astock-data-feed` | `astock data tech <代码>` |
+| 综合诊断个股、给出买卖评级与打分 | `astock-platform-evaluate` | `astock evaluate <代码>` |
+| 5A旋转选股、主线评分、寻找优质标的 | `astock-screener-5a` | `astock screen 5a` |
+| 持仓审查、计算最低保本卖出价与盘中三场景预案 | `astock-action-execution` | `astock action plan` |
+| 模拟仓查询资金、下单买入/卖出、撤单 | `astock-trade-paper` | `astock trade <balance/buy/sell>` |
+| 多智能体7大分析师深度辩论与研报 | `astock-agent-debate` | `astock debate <代码>` |
+| 退哥短线规则、连板接力、涨停回调、洗盘突破 | `astock-strategy-tuige` | 参考 `astock-strategy-tuige` |
+| 水下二次金叉、MACD底背离形态识别 | `astock-strategy-macd` | 参考 `astock-strategy-macd` |
+| 生成高颜值交互式 HTML 投研/复盘报告 | `astock-report-html` | `astock report html` |
+
 
 ---
 

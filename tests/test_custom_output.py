@@ -112,14 +112,15 @@ class TestCustomOutputIsolation(unittest.TestCase):
             ("core position_manager list", [python_exec, "core/strategy/position_manager.py", "list"], ["000001", "平安银行"]),
             ("core position_stop_monitor", [python_exec, "core/strategy/position_stop_monitor.py", "--show"], ["000001", "平安银行"]),
             ("core investment_report selected", [python_exec, "core/reporting/investment_report.py", "--pool", "selected"], ["000002", "万科A"]),
-            ("skills pool_manager list", [python_exec, "skills/a-share-dashboard/scripts/pool_manager.py", "list"], ["000002", "万科A"]),
-            ("skills position_manager list", [python_exec, "skills/a-share-dashboard/scripts/position_manager.py", "list"], ["000001", "平安银行"]),
-            ("skills sandbox", [python_exec, "skills/a-share-dashboard/scripts/sandbox.py"], ["000001", "平安银行"]),
-            ("skills investment_report selected", [python_exec, "skills/a-share-dashboard/scripts/investment_report.py", "--pool", "selected"], ["000002", "万科A"]),
-            ("skills position_stop_monitor", [python_exec, "skills/a-share-dashboard/scripts/position_stop_monitor.py", "--show"], ["000001", "平安银行"]),
-            ("skills ta_orchestrator check-pool", [python_exec, "skills/ta-multi-agent-analysis/scripts/ta_orchestrator.py", "--mode", "check-pool"], ["000002", "万科A"]),
-            ("skills pool_audit", [python_exec, "skills/a-share-pool-audit/scripts/pool_audit.py"], ["000063", "中兴通讯"]),
+            ("skills pool_manager list", [python_exec, "skills/astock-pool-dashboard/scripts/pool_manager.py", "list"], ["000002", "万科A"]),
+            ("skills position_manager list", [python_exec, "skills/astock-pool-dashboard/scripts/position_manager.py", "list"], ["000001", "平安银行"]),
+            ("skills sandbox", [python_exec, "skills/astock-pool-dashboard/scripts/sandbox.py"], ["000001", "平安银行"]),
+            ("skills investment_report selected", [python_exec, "skills/astock-pool-dashboard/scripts/investment_report.py", "--pool", "selected"], ["000002", "万科A"]),
+            ("skills position_stop_monitor", [python_exec, "skills/astock-pool-dashboard/scripts/position_stop_monitor.py", "--show"], ["000001", "平安银行"]),
+            ("skills ta_orchestrator check-pool", [python_exec, "skills/astock-agent-debate/scripts/ta_orchestrator.py", "--mode", "check-pool"], ["000002", "万科A"]),
+            ("skills pool_audit", [python_exec, "skills/astock-pool-audit/scripts/pool_audit.py"], ["000063", "中兴通讯"]),
         ]
+
 
         for name, cmd, expected_keywords in scripts_to_verify:
             res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT), env=env)

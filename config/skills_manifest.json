@@ -1,11 +1,11 @@
 {
   "platform": "Java-AI-Platform-Compatible",
   "version": "v3",
-  "total_skills": 16,
+  "total_skills": 17,
   "skills": [
     {
-      "id": "a-share-data",
-      "name": "a-share-data",
+      "id": "astock-data-feed",
+      "name": "astock-data-feed",
       "title": "A股全链路行情与技术指标数据引擎",
       "category": "data",
       "description": "查询A股实时行情快照、历史K线（日/周/月/分时）、复权数据、全套经典技术指标（MA/MACD/KDJ/RSI/BOLL/ATR）、个股事件、筹码分布及行业板块信息。",
@@ -23,12 +23,12 @@
       ],
       "entry_point": "core/data/fetch_realtime.py",
       "cli_command": "astock data quote {code}",
-      "skill_doc": "skills/a-share-data/SKILL.md",
+      "skill_doc": "skills/astock-data-feed/SKILL.md",
       "recommended_model": "flash"
     },
     {
-      "id": "a-stocks",
-      "name": "a-stocks",
+      "id": "astock-platform-evaluate",
+      "name": "astock-platform-evaluate",
       "title": "统一A股全流程投研与量化综合分析平台",
       "category": "platform",
       "description": "提供4层数据降级桥接、零依赖技术指标计算、多因子策略综合打分（100分制）、被套解套策略诊断、大盘健康度评估与HTML分析报告生成。",
@@ -41,14 +41,14 @@
         "大盘健康度",
         "量化分析"
       ],
-      "entry_point": "skills/a-stocks/scripts/a_stocks.py",
+      "entry_point": "core/models/combo_scorer.py",
       "cli_command": "astock evaluate {code}",
-      "skill_doc": "skills/a-stocks/SKILL.md",
+      "skill_doc": "skills/astock-platform-evaluate/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "5a-stock-rotation",
-      "name": "5a-stock-rotation",
+      "id": "astock-screener-5a",
+      "name": "astock-screener-5a",
       "title": "A股五维共振旋转选股与样本外回测引擎",
       "category": "screener",
       "description": "基于量价趋势、基本面过滤、估值性价比、行业轮动与动量共振的5A多维评分模型，支持全市场选股与滚动样本外检验。",
@@ -62,12 +62,12 @@
       ],
       "entry_point": "core/models/multi_dim_model_v3.py",
       "cli_command": "astock screen 5a",
-      "skill_doc": "skills/5a-stock-rotation/SKILL.md",
+      "skill_doc": "skills/astock-screener-5a/SKILL.md",
       "recommended_model": "pro"
     },
     {
-      "id": "a-share-dashboard",
-      "name": "a-share-dashboard",
+      "id": "astock-pool-dashboard",
+      "name": "astock-pool-dashboard",
       "title": "A股全流程投研面板与股池生命周期管理",
       "category": "dashboard",
       "description": "覆盖关注股池/自选股池/持仓池全生命周期管理，支持通达信公式同步、盘中入场监控、持仓止损止盈预警与投研报告生成。",
@@ -80,14 +80,14 @@
         "入场监控",
         "止损预警"
       ],
-      "entry_point": "skills/a-share-dashboard/scripts/pool_manager.py",
+      "entry_point": "core/strategy/pool_manager.py",
       "cli_command": "astock pool list",
-      "skill_doc": "skills/a-share-dashboard/SKILL.md",
+      "skill_doc": "skills/astock-pool-dashboard/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "a-share-paper-trading",
-      "name": "a-share-paper-trading",
+      "id": "astock-trade-paper",
+      "name": "astock-trade-paper",
       "title": "A股模拟盘交易与事件驱动撮合回测系统",
       "category": "paper_trading",
       "description": "支持多账户模拟仓管理、限价单/市价单下单、撤单、持仓与资金查询、T+1交易规则与涨跌停撮合逻辑验证。",
@@ -103,12 +103,12 @@
       ],
       "entry_point": "core/paper_trading/paper_trade_cli.py",
       "cli_command": "astock trade balance",
-      "skill_doc": "skills/a-share-paper-trading/SKILL.md",
+      "skill_doc": "skills/astock-trade-paper/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "a-share-strategy-mainboard",
-      "name": "a-share-strategy-mainboard-multi-swing-defensive",
+      "id": "astock-strategy-mainboard",
+      "name": "astock-strategy-mainboard",
       "title": "主板流动性池多波段防御策略",
       "category": "strategy",
       "description": "在主板高流动性池内按趋势回踩（trend_pullback）与防御波段产出买入候选与持仓卖出信号，防守反击决策。",
@@ -121,12 +121,12 @@
       ],
       "entry_point": "core/strategy/daily_decisions.py",
       "cli_command": "astock strategy swing",
-      "skill_doc": "skills/a-share-strategy-mainboard-multi-swing-defensive/SKILL.md",
+      "skill_doc": "skills/astock-strategy-mainboard/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "ashare-quant-engine",
-      "name": "ashare-quant-engine",
+      "id": "astock-quant-engine",
+      "name": "astock-quant-engine",
       "title": "A股工业级全流程量化工程引擎",
       "category": "quant",
       "description": "截面量价因子提取、非结构化舆情因子半衰期衰减、MAD去极值与Z-score截面Rank合成、目标波动率与分数凯利仓位管理、ATR阶梯止盈止损。",
@@ -140,12 +140,12 @@
       ],
       "entry_point": "core/strategy/risk_position_manager.py",
       "cli_command": "astock quant pipeline",
-      "skill_doc": "skills/ashare-quant-engine/SKILL.md",
+      "skill_doc": "skills/astock-quant-engine/SKILL.md",
       "recommended_model": "pro"
     },
     {
-      "id": "ta-multi-agent-analysis",
-      "name": "ta-multi-agent-analysis",
+      "id": "astock-agent-debate",
+      "name": "astock-agent-debate",
       "title": "7大AI分析师多智能体研判与多空辩论系统",
       "category": "multi_agent",
       "description": "集成基本面、量价、消息、政策、游资、筹码、风险7大专业分析师智能体，进行多轮多空辩论研判并生成决议。",
@@ -158,12 +158,12 @@
       ],
       "entry_point": "core/multi_agent/ta_orchestrator.py",
       "cli_command": "astock debate {code}",
-      "skill_doc": "skills/ta-multi-agent-analysis/SKILL.md",
+      "skill_doc": "skills/astock-agent-debate/SKILL.md",
       "recommended_model": "pro"
     },
     {
-      "id": "tuige-shortline-trading",
-      "name": "tuige-shortline-trading",
+      "id": "astock-strategy-tuige",
+      "name": "astock-strategy-tuige",
       "title": "退哥短线交易规则与场景化决策体系",
       "category": "strategy",
       "description": "基于退哥实战短线交易规则：涨停回调、连板接力、趋势回踩、洗盘结束、失效卖出与仓位纪律场景化规则库。",
@@ -175,14 +175,14 @@
         "短线规则",
         "短线卖点"
       ],
-      "entry_point": "skills/tuige-shortline-trading/SKILL.md",
+      "entry_point": "skills/astock-strategy-tuige/SKILL.md",
       "cli_command": "astock shortline check",
-      "skill_doc": "skills/tuige-shortline-trading/SKILL.md",
+      "skill_doc": "skills/astock-strategy-tuige/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "macd-second-golden-cross",
-      "name": "macd-second-golden-cross",
+      "id": "astock-strategy-macd",
+      "name": "astock-strategy-macd",
       "title": "MACD底背离与零轴下二次金叉决策体系",
       "category": "strategy",
       "description": "实战捕捉水下二次金叉、双底回踩验底、MACD底背离形态，产出三档决策（观察/试错/放弃）与盘中入场清单。",
@@ -194,14 +194,14 @@
         "回踩验底",
         "抄底修复"
       ],
-      "entry_point": "skills/macd-second-golden-cross/SKILL.md",
+      "entry_point": "skills/astock-strategy-macd/SKILL.md",
       "cli_command": "astock pattern macd {code}",
-      "skill_doc": "skills/macd-second-golden-cross/SKILL.md",
+      "skill_doc": "skills/astock-strategy-macd/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "execution-action-engine",
-      "name": "execution-action-engine",
+      "id": "astock-action-execution",
+      "name": "astock-action-execution",
       "title": "实战交易反应动作与精确进位决策引擎",
       "category": "strategy",
       "description": "计算精确最低保本卖出价（考虑印花税、佣金五元起收、过户费进位）、T0/T1/T2三级止损线、冲高/盘整/急跌三场景反应动作清单。",
@@ -215,12 +215,12 @@
       ],
       "entry_point": "core/strategy/execution_action_engine.py",
       "cli_command": "astock action plan",
-      "skill_doc": "docs/A股实战交易反应动作与量化决策手册.md",
+      "skill_doc": "skills/astock-action-execution/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "a-share-pool-audit",
-      "name": "a-share-pool-audit",
+      "id": "astock-pool-audit",
+      "name": "astock-pool-audit",
       "title": "三大股池统一审查与均线位校验",
       "category": "pool",
       "description": "统一审查关注/自选/持仓股池，重算均线支撑阻力位，剔除过期关键位与失效标的。",
@@ -230,14 +230,14 @@
         "清洗自选股",
         "均线重算"
       ],
-      "entry_point": "skills/a-share-pool-audit/scripts/pool_audit.py",
+      "entry_point": "skills/astock-pool-audit/scripts/pool_audit.py",
       "cli_command": "astock pool audit",
-      "skill_doc": "skills/a-share-pool-audit/SKILL.md",
+      "skill_doc": "skills/astock-pool-audit/SKILL.md",
       "recommended_model": "flash"
     },
     {
-      "id": "a-stock-reporting",
-      "name": "a-stock-reporting",
+      "id": "astock-report-archive",
+      "name": "astock-report-archive",
       "title": "A股报告持久化与多股联合报告规范",
       "category": "reporting",
       "description": "规范多股联合报告输出路径、数据持久化存储结构与图表呈现标准。",
@@ -247,14 +247,14 @@
         "报告归档",
         "复盘报告"
       ],
-      "entry_point": "skills/a-stock-reporting/SKILL.md",
+      "entry_point": "skills/astock-report-archive/SKILL.md",
       "cli_command": "astock report generate",
-      "skill_doc": "skills/a-stock-reporting/SKILL.md",
+      "skill_doc": "skills/astock-report-archive/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "stock-report-html",
-      "name": "stock-report-html",
+      "id": "astock-report-html",
+      "name": "astock-report-html",
       "title": "A股标准HTML高颜值交互报告规范",
       "category": "reporting",
       "description": "白色系亚光背景、红涨绿跌、1344px居中、自包含单文件HTML报告模板与交互样式。",
@@ -264,14 +264,14 @@
         "高颜值报表",
         "可视化页面"
       ],
-      "entry_point": "skills/stock-report-html/SKILL.md",
+      "entry_point": "skills/astock-report-html/SKILL.md",
       "cli_command": "astock report html",
-      "skill_doc": "skills/stock-report-html/SKILL.md",
+      "skill_doc": "skills/astock-report-html/SKILL.md",
       "recommended_model": "flash"
     },
     {
-      "id": "a-stock-session-tips",
-      "name": "a-stock-session-tips",
+      "id": "astock-knowledge-tips",
+      "name": "astock-knowledge-tips",
       "title": "实战交易经验与API降级避坑指南",
       "category": "knowledge",
       "description": "记录早盘竞价复盘、API被封应对、数据源降级策略、历史交易教训与经验技巧库。",
@@ -281,14 +281,14 @@
         "接口被封怎么办",
         "实战技巧"
       ],
-      "entry_point": "skills/a-stock-session-tips/SKILL.md",
+      "entry_point": "skills/astock-knowledge-tips/SKILL.md",
       "cli_command": "astock tips",
-      "skill_doc": "skills/a-stock-session-tips/SKILL.md",
+      "skill_doc": "skills/astock-knowledge-tips/SKILL.md",
       "recommended_model": "inherit"
     },
     {
-      "id": "a-share-model-validation",
-      "name": "a-share-model-validation",
+      "id": "astock-model-validation",
+      "name": "astock-model-validation",
       "title": "外部AI时序预测模型实证检验规范",
       "category": "validation",
       "description": "在将外部时序基础模型（如 Kronos/TimesFM）集成前进行样本外滚动回测检验与基准对齐。",
@@ -298,10 +298,27 @@
         "Kronos实证",
         "模型打擂台"
       ],
-      "entry_point": "skills/a-share-model-validation/SKILL.md",
+      "entry_point": "skills/astock-model-validation/SKILL.md",
       "cli_command": "astock validate-model",
-      "skill_doc": "skills/a-share-model-validation/SKILL.md",
+      "skill_doc": "skills/astock-model-validation/SKILL.md",
       "recommended_model": "inherit"
+    },
+    {
+      "id": "astock-meta-routing",
+      "name": "astock-meta-routing",
+      "title": "股票任务模型路由规则与执行规约",
+      "category": "meta",
+      "description": "股票任务模型动态路由规约（flash纯分析 vs flash+execute_code编程/脚本直接执行），规避模型过载。",
+      "triggers": [
+        "模型路由",
+        "flash模型",
+        "编程路由",
+        "执行规约"
+      ],
+      "entry_point": "skills/astock-meta-routing/SKILL.md",
+      "cli_command": "astock tips",
+      "skill_doc": "skills/astock-meta-routing/SKILL.md",
+      "recommended_model": "flash"
     }
   ]
 }
