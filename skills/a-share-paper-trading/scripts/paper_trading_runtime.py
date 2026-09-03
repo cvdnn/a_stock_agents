@@ -1,50 +1,40 @@
-#!/usr/bin/env python3
-"""Runtime defaults and paths for the paper trading service."""
-
+# -*- coding: utf-8 -*-
+"""
+Single Source of Truth (SSOT) forwarding wrapper.
+Delegates to core.paper_trading.paper_trading_runtime.
+"""
 from __future__ import annotations
 
-import os
+import sys
 from pathlib import Path
 
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 18765
-APP_NAME = "a-share-paper-trading"
-DB_FILENAME = "paper_trading.db"
-LOG_FILENAME = "service.log"
-PID_FILENAME = "service.pid"
-LAUNCH_AGENT_LABEL = "ai.openclaw.a-share-paper-trading"
+# Find project root dynamically
+_cur = Path(__file__).resolve().parent
+while _cur.parent != _cur:
+    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+        _ROOT = _cur
+        break
+    _cur = _cur.parent
+else:
+    _ROOT = Path(__file__).resolve().parents[3]
 
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+if str(_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "core"))
 
-def get_app_data_dir() -> Path:
-    custom = os.environ.get("A_SHARE_PAPER_TRADING_HOME")
-    if custom:
-        return Path(custom).expanduser()
-    home = Path.home()
-    if os.name == "posix" and "darwin" in os.uname().sysname.lower():
-        return home / "Library" / "Application Support" / APP_NAME
-    xdg = os.environ.get("XDG_DATA_HOME")
-    if xdg:
-        return Path(xdg).expanduser() / APP_NAME
-    return home / ".local" / "share" / APP_NAME
+import core.paper_trading.paper_trading_runtime as _core_mod
+from core.paper_trading.paper_trading_runtime import *  # noqa: F401, F403
 
+if hasattr(_core_mod, "__all__"):
+    __all__ = _core_mod.__all__
+else:
+    __all__ = [k for k in dir(_core_mod) if not k.startswith("__")]
 
-def get_default_db_path() -> Path:
-    return get_app_data_dir() / DB_FILENAME
-
-
-def get_default_log_path() -> Path:
-    return get_app_data_dir() / LOG_FILENAME
-
-
-def get_default_pid_path() -> Path:
-    return get_app_data_dir() / PID_FILENAME
-
-
-def get_launch_agents_dir() -> Path:
-    return Path.home() / "Library" / "LaunchAgents"
-
-
-def ensure_runtime_dir(path: Path | None = None) -> Path:
-    target = path or get_app_data_dir()
-    target.mkdir(parents=True, exist_ok=True)
-    return target
+if __name__ == "__main__":
+    if hasattr(_core_mod, "main") and callable(getattr(_core_mod, "main")):
+        getattr(_core_mod, "main")()
+    else:
+        import runpy
+        _target_file = _ROOT / "core/paper_trading/paper_trading_runtime.py"
+        runpy.run_path(str(_target_file), run_name="__main__")

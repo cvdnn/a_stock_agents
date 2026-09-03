@@ -39,6 +39,7 @@ from typing import Optional
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 import yaml
 
 try:

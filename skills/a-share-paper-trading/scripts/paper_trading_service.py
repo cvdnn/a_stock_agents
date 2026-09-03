@@ -1,29 +1,40 @@
-#!/usr/bin/env python3
-"""Run the paper trading backend service."""
-
+# -*- coding: utf-8 -*-
+"""
+Single Source of Truth (SSOT) forwarding wrapper.
+Delegates to core.paper_trading.paper_trading_service.
+"""
 from __future__ import annotations
 
-import argparse
+import sys
+from pathlib import Path
 
-from paper_trading.engine import PaperTradingEngine
-from paper_trading.service import run_server
-from paper_trading_runtime import DEFAULT_HOST, DEFAULT_PORT, ensure_runtime_dir, get_default_db_path
+# Find project root dynamically
+_cur = Path(__file__).resolve().parent
+while _cur.parent != _cur:
+    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+        _ROOT = _cur
+        break
+    _cur = _cur.parent
+else:
+    _ROOT = Path(__file__).resolve().parents[3]
 
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+if str(_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "core"))
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Paper trading backend service")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--db-path", default=str(get_default_db_path()))
-    parser.add_argument("--match-interval", type=int, default=5)
-    parser.add_argument("--valuation-interval", type=int, default=10)
-    parser.add_argument("--idle-valuation-interval", type=int, default=300)
-    args = parser.parse_args()
-    ensure_runtime_dir()
-    engine = PaperTradingEngine(db_path=args.db_path)
-    print(f"paper trading service listening on http://{args.host}:{args.port} db={args.db_path}")
-    run_server(args.host, args.port, engine, match_interval=args.match_interval, valuation_interval=args.valuation_interval, idle_valuation_interval=args.idle_valuation_interval)
+import core.paper_trading.paper_trading_service as _core_mod
+from core.paper_trading.paper_trading_service import *  # noqa: F401, F403
 
+if hasattr(_core_mod, "__all__"):
+    __all__ = _core_mod.__all__
+else:
+    __all__ = [k for k in dir(_core_mod) if not k.startswith("__")]
 
 if __name__ == "__main__":
-    main()
+    if hasattr(_core_mod, "main") and callable(getattr(_core_mod, "main")):
+        getattr(_core_mod, "main")()
+    else:
+        import runpy
+        _target_file = _ROOT / "core/paper_trading/paper_trading_service.py"
+        runpy.run_path(str(_target_file), run_name="__main__")

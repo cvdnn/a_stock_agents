@@ -20,25 +20,37 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # ─── 路径配置 (优先级: env > config.yaml > 默认值) ──────
-SKILL_DIR = Path(__file__).resolve().parent.parent
+try:
+    from core.config import PROJECT_ROOT, CONFIG_DIR, SKILLS_DIR, GLOBAL_CONFIG
+except ImportError:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+    CONFIG_DIR = PROJECT_ROOT / "config"
+    SKILLS_DIR = PROJECT_ROOT / "skills"
+    GLOBAL_CONFIG = {}
 
 def _load_path_config() -> Dict[str, str]:
-    """加载路径配置，优先级: 环境变量 > config.yaml > 硬编码默认值"""
+    """加载路径配置，优先级: 环境变量 > config.yaml > 默认值"""
     cfg = {}
 
-    # 1. 尝试加载 config.yaml
-    config_path = SKILL_DIR / "config.yaml"
-    if config_path.exists():
-        try:
-            import yaml
-            data = yaml.safe_load(config_path.read_text())
-            if data:
-                cfg["venv_python"] = data.get("python", {}).get("venv_python", "")
-                cfg["system_python"] = data.get("python", {}).get("system_python", "python3")
-                skill_paths = data.get("skills", {})
-                cfg["a_share_data_dir"] = skill_paths.get("a_share_data", "")
-        except Exception:
-            pass
+    # 1. 尝试从 GLOBAL_CONFIG 或 config.yaml 加载
+    if GLOBAL_CONFIG:
+        python_cfg = GLOBAL_CONFIG.get("python", {})
+        cfg["venv_python"] = python_cfg.get("venv_python", "")
+        cfg["system_python"] = python_cfg.get("system_python", sys.executable or "python3")
+        cfg["a_share_data_dir"] = GLOBAL_CONFIG.get("skills", {}).get("a_share_data", "")
+    else:
+        config_path = CONFIG_DIR / "config.yaml"
+        if config_path.exists():
+            try:
+                import yaml
+                data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+                if data:
+                    cfg["venv_python"] = data.get("python", {}).get("venv_python", "")
+                    cfg["system_python"] = data.get("python", {}).get("system_python", sys.executable or "python3")
+                    skill_paths = data.get("skills", {})
+                    cfg["a_share_data_dir"] = skill_paths.get("a_share_data", "")
+            except Exception:
+                pass
 
     # 2. 环境变量覆盖 (优先级最高)
     env_map = {
@@ -53,12 +65,9 @@ def _load_path_config() -> Dict[str, str]:
 
     # 3. 默认值回退
     if not cfg.get("a_share_data_dir"):
-        # 自动探测 a-share-data skill (优先同级目录，其次 AGY 路径，最后 AI-Platform 路径)
         candidates = [
-            SKILL_DIR.parent / "a-share-data",
-            # Path("skills/a-share-data"),
-            Path("skills/a-share-data"),
-            Path("./.AI-Platform/skills/stocks/a-share-data"),
+            SKILLS_DIR / "a-share-data",
+            PROJECT_ROOT / "skills" / "a-share-data",
         ]
         for candidate in candidates:
             if candidate.is_dir():
@@ -68,15 +77,7 @@ def _load_path_config() -> Dict[str, str]:
             cfg["a_share_data_dir"] = ""
 
     if not cfg.get("venv_python"):
-        # 自动探测 venv: 优先 ASTOCKS_VENV_PY, 其次常见路径
-        candidates = [
-            os.path.expanduser("python3"),
-            "python3",
-        ]
-        for p in candidates:
-            if Path(p).is_file():
-                cfg["venv_python"] = p
-                break
+        cfg["venv_python"] = sys.executable or "python3"
 
     if not cfg.get("system_python"):
         cfg["system_python"] = sys.executable or "python3"

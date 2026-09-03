@@ -36,28 +36,31 @@ from typing import Any, Dict, List, Optional
 
 # ── 路径常量 ──────────────────────────────────────────────────────────────────
 
-SKILL_DIR = Path(__file__).resolve().parent.parent
+try:
+    from core.config import PROJECT_ROOT, SKILLS_DIR, OUTPUT_DIR, OUTPUT_POOLS_DIR
+except ImportError:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+    SKILLS_DIR = PROJECT_ROOT / "skills"
+    OUTPUT_DIR = PROJECT_ROOT / "output"
+    OUTPUT_POOLS_DIR = OUTPUT_DIR / "pools"
 
-# TradingAgents 项目路径（自动检测，优先全量安装的目录）
+# TradingAgents 项目路径（自动检测）
 _TA_PATHS = [
-    Path("/mnt/c/Users/user/coding/TradingAgents/_original_src"),  # 完整管道（agents/graph/llm_clients）
-    Path("/mnt/c/Users/user/coding/TradingAgents"),                # 根项目
-    Path.home() / "TradingAgents-astock",                           # 用户目录
+    PROJECT_ROOT / "TradingAgents",
+    PROJECT_ROOT.parent / "TradingAgents",
+    Path.home() / "TradingAgents",
+    Path.home() / "TradingAgents-astock",
+    Path.home() / ".TradingAgents",
 ]
 TA_DIR = next((p for p in _TA_PATHS if p.exists()), None)
 
 # AI-Platform 技能路径（优先系统全局路径，回退本地 skills/）
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 AI_PLATFORM_SKILLS = Path.home() / ".AI-Platform" / "skills" / "stocks"
 if not AI_PLATFORM_SKILLS.exists():
-    AI_PLATFORM_SKILLS = PROJECT_ROOT / "skills"
+    AI_PLATFORM_SKILLS = SKILLS_DIR
 
-# VENV Python（复用项目 venv 或系统 Python）
-_VENV_CANDIDATES = [
-    Path("python3"),
-    Path("/mnt/c/Users/user/coding/TradingAgents/_original_src/.venv/bin/python3"),
-]
-VENV_PY = next((p for p in _VENV_CANDIDATES if p.exists()), Path(sys.executable))
+# VENV Python
+VENV_PY = Path(sys.executable)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 数据降级策略（替换 TradingAgents 原生数据源）

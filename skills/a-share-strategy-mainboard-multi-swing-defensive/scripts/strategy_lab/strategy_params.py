@@ -1,41 +1,40 @@
-"""Default parameters for mainboard_multi_swing_defensive signal logic."""
-
+# -*- coding: utf-8 -*-
+"""
+Single Source of Truth (SSOT) forwarding wrapper.
+Delegates to core.strategy.strategy_lab.strategy_params.
+"""
 from __future__ import annotations
 
-STRATEGY_NAME = "mainboard_multi_swing_defensive"
+import sys
+from pathlib import Path
 
-TREND_PULLBACK_PARAMS: dict = {
-    "fast": 8,
-    "slow": 20,
-    "pullback_ceiling": 1.008,
-    "rsi_low": 42,
-    "rsi_high": 72,
-    "bull_rsi_low": 42,
-    "bull_rsi_high": 72,
-    "bear_rsi_low": 30,
-    "bear_rsi_high": 60,
-    "exit_rsi": 74,
-    "rsi_period": 14,
-}
+# Find project root dynamically
+_cur = Path(__file__).resolve().parent
+while _cur.parent != _cur:
+    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+        _ROOT = _cur
+        break
+    _cur = _cur.parent
+else:
+    _ROOT = Path(__file__).resolve().parents[3]
 
-ROBUSTNESS_PARAM_GRID: dict = {
-    "fast": [8, 10],
-    "slow": [20, 30],
-    "bull_rsi_low": [40, 42],
-    "bull_rsi_high": [70, 72],
-}
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+if str(_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "core"))
 
-ENTRY_CONSENSUS_MIN_DEFAULT = 0.67
+import core.strategy.strategy_lab.strategy_params as _core_mod
+from core.strategy.strategy_lab.strategy_params import *  # noqa: F401, F403
 
-DEFAULT_ROUNDTRIP_COST_BPS = 45.0
+if hasattr(_core_mod, "__all__"):
+    __all__ = _core_mod.__all__
+else:
+    __all__ = [k for k in dir(_core_mod) if not k.startswith("__")]
 
-TODO_CONFIRM_ITEMS = [
-    "已确认口径: roundtrip_cost_bps=45, entry_consensus_min=0.67",
-    "已确认口径: bull_rsi=[42,72], bear_rsi=[30,60]",
-]
-
-UNIVERSE_TOP_N_DEFAULT = 120
-
-MAX_BUY_CANDIDATES = 5
-
-REFERENCE_INTRADAY_STOP_PCT = 0.07
+if __name__ == "__main__":
+    if hasattr(_core_mod, "main") and callable(getattr(_core_mod, "main")):
+        getattr(_core_mod, "main")()
+    else:
+        import runpy
+        _target_file = _ROOT / "core/strategy/strategy_lab/strategy_params.py"
+        runpy.run_path(str(_target_file), run_name="__main__")

@@ -1,45 +1,40 @@
-"""Indicator helpers."""
-
+# -*- coding: utf-8 -*-
+"""
+Single Source of Truth (SSOT) forwarding wrapper.
+Delegates to core.strategy.strategy_lab.indicators.
+"""
 from __future__ import annotations
 
-import pandas as pd
+import sys
+from pathlib import Path
 
+# Find project root dynamically
+_cur = Path(__file__).resolve().parent
+while _cur.parent != _cur:
+    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+        _ROOT = _cur
+        break
+    _cur = _cur.parent
+else:
+    _ROOT = Path(__file__).resolve().parents[3]
 
-def add_ma(df: pd.DataFrame, periods: list[int]) -> pd.DataFrame:
-    out = df.copy()
-    for period in periods:
-        out[f"ma_{period}"] = out["close"].rolling(period).mean()
-    return out
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+if str(_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "core"))
 
+import core.strategy.strategy_lab.indicators as _core_mod
+from core.strategy.strategy_lab.indicators import *  # noqa: F401, F403
 
-def add_rsi(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
-    out = df.copy()
-    delta = out["close"].diff()
-    gain = delta.where(delta > 0, 0.0).rolling(period).mean()
-    loss = (-delta.where(delta < 0, 0.0)).rolling(period).mean()
-    rs = gain / loss.replace(0, pd.NA)
-    out[f"rsi_{period}"] = 100 - (100 / (1 + rs))
-    return out
+if hasattr(_core_mod, "__all__"):
+    __all__ = _core_mod.__all__
+else:
+    __all__ = [k for k in dir(_core_mod) if not k.startswith("__")]
 
-
-def add_atr(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
-    out = df.copy()
-    prev_close = out["close"].shift(1)
-    true_range = pd.concat(
-        [
-            (out["high"] - out["low"]).abs(),
-            (out["high"] - prev_close).abs(),
-            (out["low"] - prev_close).abs(),
-        ],
-        axis=1,
-    ).max(axis=1)
-    out[f"atr_{period}"] = true_range.rolling(period).mean()
-    out[f"atr_pct_{period}"] = out[f"atr_{period}"] / out["close"]
-    return out
-
-
-def add_breakout_levels(df: pd.DataFrame, lookback: int) -> pd.DataFrame:
-    out = df.copy()
-    out[f"breakout_high_{lookback}"] = out["high"].shift(1).rolling(lookback).max()
-    out[f"breakout_low_{lookback}"] = out["low"].shift(1).rolling(lookback).min()
-    return out
+if __name__ == "__main__":
+    if hasattr(_core_mod, "main") and callable(getattr(_core_mod, "main")):
+        getattr(_core_mod, "main")()
+    else:
+        import runpy
+        _target_file = _ROOT / "core/strategy/strategy_lab/indicators.py"
+        runpy.run_path(str(_target_file), run_name="__main__")

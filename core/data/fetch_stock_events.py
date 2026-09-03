@@ -80,7 +80,11 @@ _STOCK_NAME_CACHE: Dict[str, str] = {}
 _STOCK_NAME_CACHE_TS: float = 0.0
 _STOCK_NAME_CACHE_LOCK = threading.Lock()
 _STOCK_NAME_CACHE_TTL_SECONDS = 12 * 3600
-_STOCK_NAME_CACHE_FILE = Path(__file__).resolve().parent.parent / "cache" / "stock_name_map.json"
+try:
+    from core.config import OUTPUT_CACHE_DIR
+    _STOCK_NAME_CACHE_FILE = OUTPUT_CACHE_DIR / "stock_name_map.json"
+except ImportError:
+    _STOCK_NAME_CACHE_FILE = Path(__file__).resolve().parent.parent / "cache" / "stock_name_map.json"
 
 
 def _load_stock_name_cache_from_disk() -> None:

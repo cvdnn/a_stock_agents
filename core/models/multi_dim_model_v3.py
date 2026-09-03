@@ -105,7 +105,7 @@ class MarketGate:
                 self.sh_above_ma20 = sh_close > sh_ma20
             else:
                 self.sh_above_ma20 = False
-        except:
+        except Exception:
             self.sh_above_ma20 = False
 
         # 2. 大盘健康度 (v2) — 修复: MarketAssessor正确方法为assess_all(), 返回键为total_score
@@ -455,7 +455,7 @@ class StockSelectionV3:
         latest = tech["latest"]
         try:
             combo_r = self.combo.score_full(klines, latest)
-        except:
+        except Exception:
             combo_r = {"total": 0, "rating": "D"}
 
         # Five-dim score
