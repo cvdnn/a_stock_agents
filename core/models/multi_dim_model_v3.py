@@ -48,7 +48,7 @@ def _find_a_stocks_scripts():
         if os.path.isdir(c):
             return c
     # 3) 本机已知位置回退
-    for c in (r"C:\Users\user\AppData\Local\AI-Platform\skills\stocks\a-stocks\scripts",
+    for c in (os.path.expanduser("~/.AI-Platform/skills/stocks/a-stocks/scripts"),
               r"./.AI-Platform/skills/stocks/a-stocks/scripts"):
         if os.path.isdir(c):
             return c

@@ -41,7 +41,10 @@ class MeanReversionStrategy:
         if idx < self.boll_period:
             return {"action": "hold", "reason": "数据不足"}
 
-        from technical_indicators import rsi, boll
+        try:
+            from core.indicators.technical_indicators import rsi, boll
+        except ImportError:
+            from technical_indicators import rsi, boll
 
         closes = [float(k[2]) for k in klines[:idx + 1]]
         rsi_vals = rsi(closes, 14)

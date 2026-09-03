@@ -40,7 +40,7 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
     # 评分明细行
     rows_html = ""
     for dim, info in scores.items():
-        if dim in ("total", "max_total", "rating", "rating_text", "suggested_position"):
+        if not isinstance(info, dict) or "score" not in info or "max" not in info:
             continue
         rows_html += f"""
         <tr>

@@ -23,11 +23,11 @@ def run_tests():
     print("=" * 70)
 
     passed_count = 0
-    total_count = 9
+    total_count = 10
 
 
     # Test 1: Skill Manifest Integrity
-    print("[1/9] 检查技能清单与 SKILL.md 完整性...")
+    print("[1/10] 检查技能清单与 SKILL.md 完整性...")
     try:
         manifest_p = PROJECT_ROOT / "config" / "skills_manifest.json"
         assert manifest_p.exists(), "skills_manifest.json missing"
@@ -44,7 +44,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 2: Data Bridge & Realtime Quote
-    print("[2/9] 测试行情数据层 (DataBridge & 腾讯实时快照)...")
+    print("[2/10] 测试行情数据层 (DataBridge & 腾讯实时快照)...")
     try:
         from core.data.data_bridge import DataBridge
         bridge = DataBridge()
@@ -62,7 +62,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 3: Technical Indicators Calculation
-    print("[3/9] 测试技术指标计算 (MA/MACD/KDJ/RSI/BOLL/ATR/二次金叉)...")
+    print("[3/10] 测试技术指标计算 (MA/MACD/KDJ/RSI/BOLL/ATR/二次金叉)...")
     try:
         from core.indicators.technical_indicators import calc_all, gap_analysis, second_golden_cross
         tech = calc_all(klines)
@@ -77,7 +77,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 4: Execution Action Engine & Breakeven Price Rounding
-    print("[4/9] 测试交易反应动作引擎与精确保本价进位法则...")
+    print("[4/10] 测试交易反应动作引擎与精确保本价进位法则...")
     try:
         from core.strategy.execution_action_engine import ExecutionActionEngine
         # Test breakeven calculation for 1000 shares at 10.00 -> should be 10.02
@@ -99,7 +99,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 5: Multi-Factor & Combo Scorer
-    print("[5/9] 测试多因子评分与量化诊断模型...")
+    print("[5/10] 测试多因子评分与量化诊断模型...")
     try:
         from core.models.combo_scorer import ComboScorer
         scorer = ComboScorer()
@@ -112,7 +112,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 6: Paper Trading System
-    print("[6/9] 测试模拟盘撮合与账户体系...")
+    print("[6/10] 测试模拟盘撮合与账户体系...")
     try:
         from core.config import OUTPUT_CACHE_DIR
         from core.paper_trading.engine import PaperTradingEngine
@@ -130,7 +130,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 7: Output Isolation & Custom Directory Configuration
-    print("[7/9] 测试用户专属 Output 目录隔离与自定义配置动态生效...")
+    print("[7/10] 测试用户专属 Output 目录隔离与自定义配置动态生效...")
     try:
         import subprocess
         from core.config import get_active_paths, OUTPUT_DIR, OUTPUT_POOLS_DIR
@@ -173,7 +173,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 8: Core Modules Smoke Test & Import Health
-    print("[8/9] 检查核心模块全量导入与语法完整性 (Smoke Test)...")
+    print("[8/10] 检查核心模块全量导入与语法完整性 (Smoke Test)...")
     try:
         import importlib
         core_dir = PROJECT_ROOT / "core"
@@ -197,7 +197,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 9: SSOT Thin Forwarders & Delegation
-    print("[9/9] 检查 SSOT 薄转发器与单一真理来源完整性...")
+    print("[9/10] 检查 SSOT 薄转发器与单一真理来源完整性...")
     try:
         import subprocess
         from pathlib import Path
@@ -223,6 +223,30 @@ def run_tests():
         res = subprocess.run(test_cmd, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert res.returncode == 0 and "600519" in res.stdout, f"Forwarder execution failed:\n{res.stderr}"
         print(f"  --> PASS (全量 {len(forwarders)} 个薄转发器就绪，CLI 代理调用无缝转接 core/)")
+        passed_count += 1
+    except Exception as e:
+        print(f"  --> FAIL: {e}")
+
+    # Test 10: Unified CLI Integration
+    print("[10/10] 测试全功能 CLI 一体化调度能力 (screen, trapped, report)...")
+    try:
+        import subprocess
+        # 1. screen
+        cmd_sc = [sys.executable, str(PROJECT_ROOT / "core" / "cli.py"), "screen", "--codes", "600519,000858", "--json"]
+        r_sc = subprocess.run(cmd_sc, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
+        assert r_sc.returncode == 0 and "stage3_scored" in r_sc.stdout, f"screen CLI failed: {r_sc.stderr}"
+
+        # 2. trapped
+        cmd_tr = [sys.executable, str(PROJECT_ROOT / "core" / "cli.py"), "trapped", "600760", "--cost", "43.0", "--shares", "2200", "--json"]
+        r_tr = subprocess.run(cmd_tr, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
+        assert r_tr.returncode == 0 and "kelly_f" in r_tr.stdout, f"trapped CLI failed: {r_tr.stderr}"
+
+        # 3. report
+        cmd_rp = [sys.executable, str(PROJECT_ROOT / "core" / "cli.py"), "report", "600519", "--json"]
+        r_rp = subprocess.run(cmd_rp, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
+        assert r_rp.returncode == 0 and "report_path" in r_rp.stdout, f"report CLI failed: {r_rp.stderr}"
+
+        print("  --> PASS (统一 CLI 成功集成 screen、trapped 与 report，命令行交互与自动化调用完全就绪)")
         passed_count += 1
     except Exception as e:
         print(f"  --> FAIL: {e}")

@@ -113,12 +113,13 @@ def mode_daily_batch(args):
         return {"action": "daily_batch", "error": "ta_analyze.py not found"}
 
     # 检查 .env
-    env_found = any(
-        (Path(p) / ".env").exists()
-        for p in ["/mnt/c/Users/user/coding/TradingAgents",
-                   "/mnt/c/Users/user/coding/TradingAgents/_original_src",
-                   str(Path.home() / "TradingAgents-astock")]
-    )
+    env_candidates = [
+        PROJECT_ROOT / ".env",
+        Path.home() / ".AI-Platform" / ".env",
+        Path.home() / "TradingAgents" / ".env",
+        Path.home() / "TradingAgents-astock" / ".env",
+    ]
+    env_found = any(p.exists() for p in env_candidates)
     if not env_found:
         print("⚠️ 未检测到 LLM API Key (.env)。Phase 2 分析将失败。")
         print("   继续运行 Phase 1 静态评分...")

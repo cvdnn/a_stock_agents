@@ -235,6 +235,85 @@ def cmd_skill_list(args):
     else:
         print("skills_manifest.json not found.")
 
+def cmd_screen(args):
+    from core.models.stock_screener import StockScreener
+    screener = StockScreener()
+    raw_codes = args.codes.split(",") if "," in args.codes else args.codes.split()
+    codes = [c.strip() for c in raw_codes if c.strip()]
+    if not codes:
+        print(json.dumps({"error": "No stock codes provided"}, ensure_ascii=False) if args.json else "Error: No stock codes provided")
+        return
+    res = screener.screen(codes, fetch_cyq=args.cyq)
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+    else:
+        print(f"=== 三层漏斗选股 (输入: {res['total_input']} -> 板块: {res['stage1_board']} -> 技术: {res['stage2_technical']} -> 评分: {res['stage3_scored']}) ===")
+        if res.get("results"):
+            print(f"{'代码':<8} {'名称':<10} {'评级':<4} {'总分':>5} {'现价':>8} {'涨跌幅%':>8} {'PE':>6}")
+            for r in res["results"][:args.limit]:
+                print(f"{r.get('code', ''):<8} {r.get('name', 'N/A'):<10} {r.get('rating', ''):<4} {r.get('total_score', 0):>5} {r.get('price', 0):>8.2f} {r.get('change_pct', 0):>+8.2f}% {r.get('pe', 'N/A')}")
+
+def cmd_trapped(args):
+    from core.data.data_bridge import DataBridge
+    from core.strategy.trapped_position import TrappedPositionAnalyzer
+    bridge = DataBridge()
+    klines = bridge.tencent_kline(args.code, count=120)
+    if not klines or len(klines) < 20:
+        print(json.dumps({"error": f"Insufficient K-line data for {args.code}"}, ensure_ascii=False) if args.json else f"Insufficient K-line data for {args.code}")
+        return
+    analyzer = TrappedPositionAnalyzer(cost_price=args.cost, shares=args.shares, klines=klines)
+    res = analyzer.analyze()
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+    else:
+        diag = res.get("diagnostic", {})
+        dt = res.get("decision_tree", {})
+        print(f"=== 被困持仓量化解套分析: {args.code} ===")
+        print(f"持仓成本: {args.cost:.2f}元 | 持股数: {args.shares} | 现价: {diag.get('current_price', 0):.2f}元 | 浮亏: {diag.get('loss_pct', 0):+.2f}%")
+        print(f"凯利仓位评估: {diag.get('kelly_interpretation', 'N/A')}")
+        print(f"决策树推荐: {dt.get('recommended', 'N/A')} ({dt.get('reason', 'N/A')})")
+        for st in dt.get("strategies", []):
+            print(f"  - {st}")
+
+def cmd_report(args):
+    from core.data.data_bridge import DataBridge
+    from core.indicators.technical_indicators import calc_all, gap_analysis
+    from core.models.combo_scorer import ComboScorer, entry_assessment
+    from core.reporting.report_generator import generate_simple_report
+    from core.config import OUTPUT_REPORTS_DIR
+    from datetime import datetime
+
+    bridge = DataBridge()
+    code = args.code
+    quote = bridge.get_realtime_quote(code)
+    klines = bridge.tencent_kline(code, count=120)
+    if not klines or len(klines) < 26:
+        print(json.dumps({"error": f"Insufficient K-line data for {code}"}, ensure_ascii=False) if args.json else f"Insufficient K-line data for {code}")
+        return
+    tech = calc_all(klines)
+    gaps = gap_analysis(klines)
+    scorer = ComboScorer()
+    scores = scorer.score_full(klines, tech["latest"])
+    entry = entry_assessment(klines, tech["latest"])
+    name = quote.get("name", code) if quote else code
+    data = {
+        "code": code,
+        "name": name,
+        "quote": quote,
+        "scores": scores,
+        "technical_latest": tech["latest"],
+        "entry": entry,
+        "gaps": gaps
+    }
+    out_dir = OUTPUT_REPORTS_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = args.output or str(out_dir / f"aStocks_{code}_{datetime.now():%Y%m%d}.html")
+    generate_simple_report(data, out_path)
+    if args.json:
+        print(json.dumps({"status": "success", "report_path": out_path, "code": code, "name": name}, ensure_ascii=False, indent=2))
+    else:
+        print(f"量化诊断 HTML 报告已成功生成: {out_path}")
+
 def main():
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument("--json", action="store_true", help="Output in JSON format")
@@ -295,6 +374,23 @@ def main():
     skill_sub = p_skill.add_subparsers(dest="skill_cmd")
     skill_sub.add_parser("list", help="List all registered skills", parents=[common_parser])
 
+    # screen
+    p_screen = subparsers.add_parser("screen", help="Three-Layer Funnel Stock Screener", parents=[common_parser])
+    p_screen.add_argument("--codes", default="600519,000858,300750,601318,688981", help="Stock codes separated by comma or space")
+    p_screen.add_argument("--cyq", action="store_true", help="Fetch chip distribution (CYQ)")
+    p_screen.add_argument("--limit", type=int, default=10, help="Maximum results to display")
+
+    # trapped
+    p_trapped = subparsers.add_parser("trapped", help="Trapped Position Quantitative Rescue", parents=[common_parser])
+    p_trapped.add_argument("code", help="Stock code e.g. 600760")
+    p_trapped.add_argument("--cost", type=float, required=True, help="Average holding cost")
+    p_trapped.add_argument("--shares", type=int, required=True, help="Total holding shares")
+
+    # report
+    p_report = subparsers.add_parser("report", help="Generate HTML Diagnostic Report", parents=[common_parser])
+    p_report.add_argument("code", help="Stock code e.g. 600519")
+    p_report.add_argument("--output", default=None, help="Custom output file path")
+
     args = parser.parse_args()
     if args.command == "config":
         if args.config_cmd == "paths":
@@ -332,6 +428,12 @@ def main():
         cmd_evaluate(args)
     elif args.command == "action":
         cmd_action_plan(args)
+    elif args.command == "screen":
+        cmd_screen(args)
+    elif args.command == "trapped":
+        cmd_trapped(args)
+    elif args.command == "report":
+        cmd_report(args)
     elif args.command == "skill":
         if args.skill_cmd == "list":
             cmd_skill_list(args)

@@ -77,7 +77,10 @@ class RiskManager:
 
         # 判断MACD最近变化
         closes_seq = [float(k[2]) for k in klines]
-        from technical_indicators import macd as calc_macd
+        try:
+            from core.indicators.technical_indicators import macd as calc_macd
+        except ImportError:
+            from technical_indicators import macd as calc_macd
         m = calc_macd(closes_seq)
         bars = m["bar"]
 

@@ -34,7 +34,10 @@ class GridTradingStrategy:
 
     def build_grid(self, klines: List[List], total_cash: float = 1000000) -> Dict[str, Any]:
         """构建网格"""
-        from technical_indicators import boll, atr
+        try:
+            from core.indicators.technical_indicators import boll, atr
+        except ImportError:
+            from technical_indicators import boll, atr
 
         closes = [float(k[2]) for k in klines]
         boll_data = boll(closes, self.boll_period, self.boll_k)

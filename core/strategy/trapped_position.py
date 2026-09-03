@@ -25,7 +25,10 @@ class TrappedPositionAnalyzer:
         self.klines = klines
 
         if latest_tech is None and klines:
-            from technical_indicators import calc_all
+            try:
+                from core.indicators.technical_indicators import calc_all
+            except ImportError:
+                from technical_indicators import calc_all
             tech = calc_all(klines)
             self.tech = tech["latest"]
         else:
@@ -233,7 +236,10 @@ if __name__ == "__main__":
     parser.add_argument("--json", action="store_true", default=True)
     args = parser.parse_args()
 
-    from data_bridge import DataBridge
+    try:
+        from core.data.data_bridge import DataBridge
+    except ImportError:
+        from data_bridge import DataBridge
     klines = DataBridge.tencent_kline(args.code, args.count)
 
     if not klines or len(klines) < 26:

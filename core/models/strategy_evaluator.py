@@ -89,7 +89,10 @@ class StrategyEvaluator:
     """持股策略评估器"""
 
     def __init__(self):
-        from data_bridge import DataBridge
+        try:
+            from core.data.data_bridge import DataBridge
+        except ImportError:
+            from data_bridge import DataBridge
         self.bridge = DataBridge()
 
     def evaluate(self, code: str, entries: List[Dict]) -> EvaluationReport:
@@ -98,8 +101,12 @@ class StrategyEvaluator:
 
         entries: [{"date": "2026-06-01", "price": 1250.0, "action": "buy"}, ...]
         """
-        from technical_indicators import calc_all, gap_analysis
-        from combo_scorer import ComboScorer, entry_assessment
+        try:
+            from core.indicators.technical_indicators import calc_all, gap_analysis
+            from core.models.combo_scorer import ComboScorer, entry_assessment
+        except ImportError:
+            from technical_indicators import calc_all, gap_analysis
+            from combo_scorer import ComboScorer, entry_assessment
 
         report = EvaluationReport(stock_code=code)
         evaluated = []

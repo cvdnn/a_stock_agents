@@ -111,7 +111,10 @@ class MultiFactorScorer:
 
         # 波动率: ATR(14)/close * 100
         try:
-            from technical_indicators import atr
+            try:
+                from core.indicators.technical_indicators import atr
+            except ImportError:
+                from technical_indicators import atr
             atr_vals = atr(klines, 14)
             atr_latest = atr_vals[-1] if atr_vals and len(atr_vals) > 0 else 0
             vol = (atr_latest / closes[-1] * 100) if closes[-1] > 0 else 10
@@ -160,7 +163,10 @@ class MultiFactorScorer:
             return 50.0
 
         try:
-            from technical_indicators import atr
+            try:
+                from core.indicators.technical_indicators import atr
+            except ImportError:
+                from technical_indicators import atr
             atr_vals = atr(klines, 14)
             atr_latest = atr_vals[-1] if atr_vals and len(atr_vals) > 0 else 0
         except Exception:

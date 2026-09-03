@@ -5,7 +5,7 @@
 
 配合 AI-Platform cron 使用：
   AI-Platform cron create --name "持仓风控预警" \
-    --script ./.AI-Platform/skills/stocks/a-share-dashboard/scripts/position_stop_monitor.py \
+    --script core/strategy/position_stop_monitor.py \
     --schedule "every 5m" --no-agent --deliver all
 """
 from __future__ import annotations

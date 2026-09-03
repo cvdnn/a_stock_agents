@@ -427,8 +427,7 @@ def phase2_multiagent_analysis(ticker: str, date: str,
             "error": True,
             "message": f"TradingAgents 仅安装了部分模块（{TA_DIR}/tradingagents）。"
                        f"缺失 agents/graph/llm_clients 目录。"
-                       f"完整代码在 _original_src/，请先执行: "
-                       f"cd /mnt/c/Users/user/coding/TradingAgents/_original_src && pip install -e .",
+                       f"请先安装完整 TradingAgents: pip install -e {TA_DIR or 'TradingAgents'}",
         }
 
     # 构建 Python 代码以在子进程中运行
@@ -624,8 +623,10 @@ def phase3_deploy_monitor(ticker: str, entry_price: float, stop_price: float,
         '# MODE = os.environ.get("MONITOR_MODE", "stop")',
         'MODE = "stop"')
 
-    stop_path = Path.home() / ".AI-Platform" / "scripts" / f"ta_monitor_{ticker}.py"
-    stop_path.parent.mkdir(parents=True, exist_ok=True)
+    monitor_dir = OUTPUT_DIR / "monitors"
+    monitor_dir.mkdir(parents=True, exist_ok=True)
+
+    stop_path = monitor_dir / f"ta_monitor_{ticker}.py"
     stop_path.write_text(stop_script)
     result["stop_script_path"] = str(stop_path)
 
@@ -660,7 +661,7 @@ def phase3_deploy_monitor(ticker: str, entry_price: float, stop_price: float,
             '# MODE = os.environ.get("MONITOR_MODE", "stop")',
             'MODE = "entry"')
 
-        entry_path = Path.home() / ".AI-Platform" / "scripts" / f"ta_entry_{ticker}.py"
+        entry_path = monitor_dir / f"ta_entry_{ticker}.py"
         entry_path.write_text(entry_script)
         result["entry_script_path"] = str(entry_path)
 
