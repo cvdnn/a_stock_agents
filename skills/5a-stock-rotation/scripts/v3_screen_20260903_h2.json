@@ -1,0 +1,2820 @@
+{
+  "run_timestamp": "2026-09-03 13:28:55",
+  "version": "v5.0-h2-mainlines",
+  "market_state": "震荡",
+  "market_score": 50,
+  "gate_open": false,
+  "results": [
+    {
+      "code": "000878",
+      "fundamental_filter": {
+        "code": "000878",
+        "passed": true,
+        "risk_flags": [],
+        "warnings": [],
+        "details": {
+          "price": 17.62,
+          "pe": 24.72,
+          "dd_60": -10.42,
+          "dd_120": -24.18,
+          "dd_250": -39.74,
+          "dist_low_250": 28.24
+        },
+        "action_suggest": "正常纳入",
+        "cyclical_exempt": false
+      },
+      "passed_filter": true,
+      "risk_flags": [],
+      "filter_warnings": [],
+      "filter_action": "正常纳入",
+      "gate_status": "CLOSED (上证<MA20, 旋转模型不做多)",
+      "rating": "C",
+      "composite_score": 69.6,
+      "resonance_count": 4,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "观望",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 16.74,
+      "stop_loss_pct": -4.99,
+      "ma15_exit": 16.88,
+      "ma15_exit_pct": -4.2,
+      "take_profit": 18.5,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "门控关闭(上证<MA20)"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 20,
+            "MACD": 14,
+            "KDJ": 12,
+            "RSI": 20,
+            "BOLL": 20
+          },
+          "total": 86,
+          "threshold": 75,
+          "pass": true
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 20,
+            "加速": 12
+          },
+          "total": 59.5,
+          "threshold": 50,
+          "pass": true
+        },
+        "量能": {
+          "sub": {
+            "量价": 10,
+            "换手": 10,
+            "异动": 10,
+            "真实": 6,
+            "趋势": 15
+          },
+          "total": 51,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 25,
+            "箱体": 8,
+            "趋势": 30,
+            "位置": 20
+          },
+          "total": 83,
+          "threshold": 60,
+          "pass": true
+        },
+        "资金": {
+          "sub": {
+            "主力": 10,
+            "连续": 20,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 12
+          },
+          "total": 67,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 17.62,
+      "distance_ma20": 4.63,
+      "mom_20d": 2.32,
+      "mom_60d": 9.58
+    },
+    {
+      "code": "600547",
+      "fundamental_filter": {
+        "code": "600547",
+        "passed": false,
+        "risk_flags": [
+          "近250日长期阴跌 (距年内高点回撤 -42.7% < -40%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 37.37,
+          "pe": 31.47,
+          "dd_60": -3.21,
+          "dd_120": -21.28,
+          "dd_250": -42.75,
+          "dist_low_250": 67.8
+        },
+        "action_suggest": "强制剔除 (近250日长期阴跌 (距年内高点回撤 -42.7% < -40%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近250日长期阴跌 (距年内高点回撤 -42.7% < -40%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近250日长期阴跌 (距年内高点回撤 -42.7% < -40%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近250日长期阴跌 (距年内高点回撤 -42.7% < -40%)))",
+      "composite_score": 67.8,
+      "resonance_count": 5,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近250日长期阴跌 (距年内高点回撤 -42.7% < -40%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 35.5,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 34.73,
+      "ma15_exit_pct": -7.06,
+      "take_profit": 39.24,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "门控关闭(上证<MA20)"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 20,
+            "MACD": 14,
+            "KDJ": 12,
+            "RSI": 20,
+            "BOLL": 20
+          },
+          "total": 86,
+          "threshold": 75,
+          "pass": true
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 25,
+            "加速": 12
+          },
+          "total": 64.5,
+          "threshold": 50,
+          "pass": true
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 15
+          },
+          "total": 57,
+          "threshold": 55,
+          "pass": true
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 25,
+            "箱体": 5,
+            "趋势": 30,
+            "位置": 16
+          },
+          "total": 76,
+          "threshold": 60,
+          "pass": true
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 15,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 12
+          },
+          "total": 52,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 37.37,
+      "distance_ma20": 11.05,
+      "mom_20d": 23.01,
+      "mom_60d": 40.12
+    },
+    {
+      "code": "000977",
+      "fundamental_filter": {
+        "code": "000977",
+        "passed": true,
+        "risk_flags": [],
+        "warnings": [],
+        "details": {
+          "price": 85.01,
+          "pe": 27.34,
+          "dd_60": -11.79,
+          "dd_120": -11.79,
+          "dd_250": -11.79,
+          "dist_low_250": 53.67
+        },
+        "action_suggest": "正常纳入",
+        "cyclical_exempt": false
+      },
+      "passed_filter": true,
+      "risk_flags": [],
+      "filter_warnings": [],
+      "filter_action": "正常纳入",
+      "gate_status": "CLOSED (上证<MA20, 旋转模型不做多)",
+      "rating": "C",
+      "composite_score": 66.4,
+      "resonance_count": 4,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "观望",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 80.76,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 78.87,
+      "ma15_exit_pct": -7.22,
+      "take_profit": 89.26,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "门控关闭(上证<MA20)"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 20,
+            "MACD": 20,
+            "KDJ": 12,
+            "RSI": 20,
+            "BOLL": 20
+          },
+          "total": 92,
+          "threshold": 75,
+          "pass": true
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 25,
+            "加速": 20
+          },
+          "total": 72.5,
+          "threshold": 50,
+          "pass": true
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 15
+          },
+          "total": 57,
+          "threshold": 55,
+          "pass": true
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 25,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 6
+          },
+          "total": 52,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 12
+          },
+          "total": 47,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 85.01,
+      "distance_ma20": 8.47,
+      "mom_20d": 9.0,
+      "mom_60d": 46.97
+    },
+    {
+      "code": "601088",
+      "fundamental_filter": {
+        "code": "601088",
+        "passed": true,
+        "risk_flags": [],
+        "warnings": [],
+        "details": {
+          "price": 47.89,
+          "pe": 19.24,
+          "dd_60": -3.21,
+          "dd_120": -4.51,
+          "dd_250": -4.51,
+          "dist_low_250": 35.94
+        },
+        "action_suggest": "正常纳入",
+        "cyclical_exempt": true
+      },
+      "passed_filter": true,
+      "risk_flags": [],
+      "filter_warnings": [],
+      "filter_action": "正常纳入",
+      "gate_status": "CLOSED (上证<MA20, 旋转模型不做多)",
+      "rating": "C",
+      "composite_score": 64.1,
+      "resonance_count": 5,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "观望",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 45.64,
+      "stop_loss_pct": -4.7,
+      "ma15_exit": 46.96,
+      "ma15_exit_pct": -1.94,
+      "take_profit": 50.28,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.06,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "门控关闭(上证<MA20)"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 20,
+            "MACD": 14,
+            "KDJ": 12,
+            "RSI": 20,
+            "BOLL": 20
+          },
+          "total": 86,
+          "threshold": 75,
+          "pass": true
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 15,
+            "加速": 12
+          },
+          "total": 54.5,
+          "threshold": 50,
+          "pass": true
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 15
+          },
+          "total": 57,
+          "threshold": 55,
+          "pass": true
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 25,
+            "箱体": 12,
+            "趋势": 30,
+            "位置": 6
+          },
+          "total": 73,
+          "threshold": 60,
+          "pass": true
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 5,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 12
+          },
+          "total": 47,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 47.89,
+      "distance_ma20": 3.41,
+      "mom_20d": 8.99,
+      "mom_60d": 3.52
+    },
+    {
+      "code": "600030",
+      "fundamental_filter": {
+        "code": "600030",
+        "passed": true,
+        "risk_flags": [],
+        "warnings": [],
+        "details": {
+          "price": 27.74,
+          "pe": 10.93,
+          "dd_60": -7.16,
+          "dd_120": -7.16,
+          "dd_250": -12.85,
+          "dist_low_250": 18.75
+        },
+        "action_suggest": "正常纳入",
+        "cyclical_exempt": false
+      },
+      "passed_filter": true,
+      "risk_flags": [],
+      "filter_warnings": [],
+      "filter_action": "正常纳入",
+      "gate_status": "CLOSED (上证<MA20, 旋转模型不做多)",
+      "rating": "D",
+      "composite_score": 59.1,
+      "resonance_count": 1,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (评分不足)",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 26.77,
+      "stop_loss_pct": -3.5,
+      "ma15_exit": 27.51,
+      "ma15_exit_pct": -0.83,
+      "take_profit": 29.13,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.43,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "CS降至60以下",
+        "门控关闭(上证<MA20)"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 16,
+            "MACD": 6,
+            "KDJ": 12,
+            "RSI": 20,
+            "BOLL": 20
+          },
+          "total": 74,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 10,
+            "加速": 12
+          },
+          "total": 49.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 10,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 15
+          },
+          "total": 52,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 20,
+            "箱体": 8,
+            "趋势": 5,
+            "位置": 12
+          },
+          "total": 45,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 10,
+            "连续": 15,
+            "换手": 10,
+            "大单": 10,
+            "集中": 15,
+            "北向": 8
+          },
+          "total": 68,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 27.74,
+      "distance_ma20": 0.54,
+      "mom_20d": -0.75,
+      "mom_60d": 8.74
+    },
+    {
+      "code": "600487",
+      "fundamental_filter": {
+        "code": "600487",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -47.9% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -47.9% < -30%)",
+          "近250日长期阴跌 (距年内高点回撤 -47.9% < -40%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 65.05,
+          "pe": 38.32,
+          "dd_60": -47.91,
+          "dd_120": -47.91,
+          "dd_250": -47.91,
+          "dist_low_250": 250.71
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -47.9% < -20%)；近120日大幅阴跌 (距高点回撤 -47.9% < -30%)；近250日长期阴跌 (距年内高点回撤 -47.9% < -40%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -47.9% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -47.9% < -30%)",
+        "近250日长期阴跌 (距年内高点回撤 -47.9% < -40%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -47.9% < -20%)；近120日大幅阴跌 (距高点回撤 -47.9% < -30%)；近250日长期阴跌 (距年内高点回撤 -47.9% < -40%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -47.9% < -20%)；近120日大幅阴跌 (距高点回撤 -47.9% < -30%)；近250日长期阴跌 (距年内高点回撤 -47.9% < -40%)))",
+      "composite_score": 55.8,
+      "resonance_count": 2,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -47.9% < -20%)；近120日大幅阴跌 (距高点回撤 -47.9% < -30%)；近250日长期阴跌 (距年内高点回撤 -47.9% < -40%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 61.8,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 64.87,
+      "ma15_exit_pct": -0.28,
+      "take_profit": 68.3,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 16,
+            "MACD": 14,
+            "KDJ": 12,
+            "RSI": 20,
+            "BOLL": 20
+          },
+          "total": 82,
+          "threshold": 75,
+          "pass": true
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 5,
+            "加速": 5
+          },
+          "total": 37.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 20,
+            "趋势": 5
+          },
+          "total": 55,
+          "threshold": 55,
+          "pass": true
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 20,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 16
+          },
+          "total": 57,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 8
+          },
+          "total": 43,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 65.05,
+      "distance_ma20": 2.73,
+      "mom_20d": 9.29,
+      "mom_60d": -36.31
+    },
+    {
+      "code": "601689",
+      "fundamental_filter": {
+        "code": "601689",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -25.7% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -36.5% < -30%)",
+          "近250日长期阴跌 (距年内高点回撤 -45.0% < -40%)",
+          "处于年内历史新低附近 (距250日低点仅 +8.0% < 10%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 47.52,
+          "pe": 32.94,
+          "dd_60": -25.73,
+          "dd_120": -36.51,
+          "dd_250": -44.99,
+          "dist_low_250": 8.0
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -25.7% < -20%)；近120日大幅阴跌 (距高点回撤 -36.5% < -30%)；近250日长期阴跌 (距年内高点回撤 -45.0% < -40%)；处于年内历史新低附近 (距250日低点仅 +8.0% < 10%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -25.7% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -36.5% < -30%)",
+        "近250日长期阴跌 (距年内高点回撤 -45.0% < -40%)",
+        "处于年内历史新低附近 (距250日低点仅 +8.0% < 10%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -25.7% < -20%)；近120日大幅阴跌 (距高点回撤 -36.5% < -30%)；近250日长期阴跌 (距年内高点回撤 -45.0% < -40%)；处于年内历史新低附近 (距250日低点仅 +8.0% < 10%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -25.7% < -20%)；近120日大幅阴跌 (距高点回撤 -36.5% < -30%)；近250日长期阴跌 (距年内高点回撤 -45.0% < -40%)；处于年内历史新低附近 (距250日低点仅 +8.0% < 10%)))",
+      "composite_score": 53.7,
+      "resonance_count": 2,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -25.7% < -20%)；近120日大幅阴跌 (距高点回撤 -36.5% < -30%)；近250日长期阴跌 (距年内高点回撤 -45.0% < -40%)；处于年内历史新低附近 (距250日低点仅 +8.0% < 10%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 45.14,
+      "stop_loss_pct": -5.01,
+      "ma15_exit": 47.47,
+      "ma15_exit_pct": -0.11,
+      "take_profit": 49.9,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 6,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 42,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 20
+          },
+          "total": 47.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 25,
+            "换手": 10,
+            "异动": 15,
+            "真实": 12,
+            "趋势": 10
+          },
+          "total": 72,
+          "threshold": 55,
+          "pass": true
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 20
+          },
+          "total": 41,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 10,
+            "连续": 20,
+            "换手": 10,
+            "大单": 10,
+            "集中": 15,
+            "北向": 3
+          },
+          "total": 68,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 47.52,
+      "distance_ma20": 1.29,
+      "mom_20d": -5.68,
+      "mom_60d": -22.58
+    },
+    {
+      "code": "601899",
+      "fundamental_filter": {
+        "code": "601899",
+        "passed": true,
+        "risk_flags": [],
+        "warnings": [],
+        "details": {
+          "price": 33.21,
+          "pe": 13.05,
+          "dd_60": -6.37,
+          "dd_120": -8.11,
+          "dd_250": -24.76,
+          "dist_low_250": 65.8
+        },
+        "action_suggest": "正常纳入",
+        "cyclical_exempt": true
+      },
+      "passed_filter": true,
+      "risk_flags": [],
+      "filter_warnings": [],
+      "filter_action": "正常纳入",
+      "gate_status": "CLOSED (上证<MA20, 旋转模型不做多)",
+      "rating": "D",
+      "composite_score": 51.2,
+      "resonance_count": 1,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (评分不足)",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 31.54,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 33.64,
+      "ma15_exit_pct": 1.33,
+      "take_profit": 34.86,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 8,
+            "MACD": 10,
+            "KDJ": 12,
+            "RSI": 20,
+            "BOLL": 10
+          },
+          "total": 60,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 5,
+            "加速": 5
+          },
+          "total": 37.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 30,
+            "位置": 12
+          },
+          "total": 47,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 20,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 12
+          },
+          "total": 62,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 33.2,
+      "distance_ma20": 1.19,
+      "mom_20d": -4.41,
+      "mom_60d": 25.14
+    },
+    {
+      "code": "002050",
+      "fundamental_filter": {
+        "code": "002050",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -26.5% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -35.2% < -30%)",
+          "近250日长期阴跌 (距年内高点回撤 -40.3% < -40%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 36.1,
+          "pe": 38.01,
+          "dd_60": -26.52,
+          "dd_120": -35.21,
+          "dd_250": -40.32,
+          "dist_low_250": 25.43
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -26.5% < -20%)；近120日大幅阴跌 (距高点回撤 -35.2% < -30%)；近250日长期阴跌 (距年内高点回撤 -40.3% < -40%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -26.5% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -35.2% < -30%)",
+        "近250日长期阴跌 (距年内高点回撤 -40.3% < -40%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -26.5% < -20%)；近120日大幅阴跌 (距高点回撤 -35.2% < -30%)；近250日长期阴跌 (距年内高点回撤 -40.3% < -40%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -26.5% < -20%)；近120日大幅阴跌 (距高点回撤 -35.2% < -30%)；近250日长期阴跌 (距年内高点回撤 -40.3% < -40%)))",
+      "composite_score": 50.4,
+      "resonance_count": 2,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -26.5% < -20%)；近120日大幅阴跌 (距高点回撤 -35.2% < -30%)；近250日长期阴跌 (距年内高点回撤 -40.3% < -40%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 34.3,
+      "stop_loss_pct": -4.99,
+      "ma15_exit": 36.76,
+      "ma15_exit_pct": 1.83,
+      "take_profit": 37.91,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.01,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 6,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 42,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 20
+          },
+          "total": 47.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 25,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 57,
+          "threshold": 55,
+          "pass": true
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 8,
+            "趋势": 16,
+            "位置": 20
+          },
+          "total": 44,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 10,
+            "连续": 15,
+            "换手": 10,
+            "大单": 10,
+            "集中": 15,
+            "北向": 3
+          },
+          "total": 63,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 36.1,
+      "distance_ma20": 3.27,
+      "mom_20d": -7.72,
+      "mom_60d": -20.5
+    },
+    {
+      "code": "603259",
+      "fundamental_filter": {
+        "code": "603259",
+        "passed": true,
+        "risk_flags": [],
+        "warnings": [],
+        "details": {
+          "price": 154.64,
+          "pe": 21.39,
+          "dd_60": -10.92,
+          "dd_120": -10.92,
+          "dd_250": -10.92,
+          "dist_low_250": 80.84
+        },
+        "action_suggest": "正常纳入",
+        "cyclical_exempt": false
+      },
+      "passed_filter": true,
+      "risk_flags": [],
+      "filter_warnings": [],
+      "filter_action": "正常纳入",
+      "gate_status": "CLOSED (上证<MA20, 旋转模型不做多)",
+      "rating": "D",
+      "composite_score": 49.4,
+      "resonance_count": 1,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (评分不足)",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 146.91,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 160.09,
+      "ma15_exit_pct": 3.52,
+      "take_profit": 162.37,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 8,
+            "MACD": 10,
+            "KDJ": 12,
+            "RSI": 20,
+            "BOLL": 10
+          },
+          "total": 60,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 10,
+            "加速": 5
+          },
+          "total": 42.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 30,
+            "位置": 6
+          },
+          "total": 41,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 12
+          },
+          "total": 52,
+          "threshold": 45,
+          "pass": true
+        }
+      },
+      "entry_price": 154.64,
+      "distance_ma20": 3.32,
+      "mom_20d": -0.12,
+      "mom_60d": 59.31
+    },
+    {
+      "code": "601138",
+      "fundamental_filter": {
+        "code": "601138",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -20.6% < -20%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 62.9,
+          "pe": 26.61,
+          "dd_60": -20.63,
+          "dd_120": -25.39,
+          "dd_250": -25.39,
+          "dist_low_250": 45.47
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -20.6% < -20%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -20.6% < -20%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -20.6% < -20%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -20.6% < -20%)))",
+      "composite_score": 45.1,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -20.6% < -20%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 59.76,
+      "stop_loss_pct": -5.01,
+      "ma15_exit": 63.26,
+      "ma15_exit_pct": 0.56,
+      "take_profit": 66.06,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 0,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 36,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 20
+          },
+          "total": 47.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 10
+          },
+          "total": 52,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 30,
+            "位置": 16
+          },
+          "total": 51,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 43,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 62.91,
+      "distance_ma20": 1.95,
+      "mom_20d": -7.73,
+      "mom_60d": -8.65
+    },
+    {
+      "code": "600522",
+      "fundamental_filter": {
+        "code": "600522",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -51.8% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -51.8% < -30%)",
+          "近250日长期阴跌 (距年内高点回撤 -51.8% < -40%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 32.67,
+          "pe": 29.96,
+          "dd_60": -51.84,
+          "dd_120": -51.84,
+          "dd_250": -51.84,
+          "dist_low_250": 118.38
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -51.8% < -20%)；近120日大幅阴跌 (距高点回撤 -51.8% < -30%)；近250日长期阴跌 (距年内高点回撤 -51.8% < -40%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -51.8% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -51.8% < -30%)",
+        "近250日长期阴跌 (距年内高点回撤 -51.8% < -40%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -51.8% < -20%)；近120日大幅阴跌 (距高点回撤 -51.8% < -30%)；近250日长期阴跌 (距年内高点回撤 -51.8% < -40%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -51.8% < -20%)；近120日大幅阴跌 (距高点回撤 -51.8% < -30%)；近250日长期阴跌 (距年内高点回撤 -51.8% < -40%)))",
+      "composite_score": 43.4,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -51.8% < -20%)；近120日大幅阴跌 (距高点回撤 -51.8% < -30%)；近250日长期阴跌 (距年内高点回撤 -51.8% < -40%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 31.04,
+      "stop_loss_pct": -4.99,
+      "ma15_exit": 34.1,
+      "ma15_exit_pct": 4.38,
+      "take_profit": 34.3,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 6,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 42,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 5,
+            "加速": 5
+          },
+          "total": 37.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 20,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 16
+          },
+          "total": 57,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 38,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 32.67,
+      "distance_ma20": 3.46,
+      "mom_20d": -2.97,
+      "mom_60d": -33.34
+    },
+    {
+      "code": "600089",
+      "fundamental_filter": {
+        "code": "600089",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -24.5% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -39.5% < -30%)",
+          "近250日长期阴跌 (距年内高点回撤 -43.1% < -40%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 18.73,
+          "pe": 17.78,
+          "dd_60": -24.48,
+          "dd_120": -39.52,
+          "dd_250": -43.1,
+          "dist_low_250": 38.23
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -24.5% < -20%)；近120日大幅阴跌 (距高点回撤 -39.5% < -30%)；近250日长期阴跌 (距年内高点回撤 -43.1% < -40%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -24.5% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -39.5% < -30%)",
+        "近250日长期阴跌 (距年内高点回撤 -43.1% < -40%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -24.5% < -20%)；近120日大幅阴跌 (距高点回撤 -39.5% < -30%)；近250日长期阴跌 (距年内高点回撤 -43.1% < -40%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -24.5% < -20%)；近120日大幅阴跌 (距高点回撤 -39.5% < -30%)；近250日长期阴跌 (距年内高点回撤 -43.1% < -40%)))",
+      "composite_score": 43.2,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -24.5% < -20%)；近120日大幅阴跌 (距高点回撤 -39.5% < -30%)；近250日长期阴跌 (距年内高点回撤 -43.1% < -40%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 17.81,
+      "stop_loss_pct": -4.91,
+      "ma15_exit": 19.65,
+      "ma15_exit_pct": 4.91,
+      "take_profit": 19.67,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.02,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 0,
+            "KDJ": 12,
+            "RSI": 10,
+            "BOLL": 10
+          },
+          "total": 32,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 20
+          },
+          "total": 47.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 8,
+            "趋势": 30,
+            "位置": 20
+          },
+          "total": 58,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 5,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 38,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 18.73,
+      "distance_ma20": 6.68,
+      "mom_20d": -12.19,
+      "mom_60d": -16.35
+    },
+    {
+      "code": "002475",
+      "fundamental_filter": {
+        "code": "002475",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -26.6% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -31.5% < -30%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 55.89,
+          "pe": 24.3,
+          "dd_60": -26.62,
+          "dd_120": -31.54,
+          "dd_250": -31.54,
+          "dist_low_250": 33.61
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -26.6% < -20%)；近120日大幅阴跌 (距高点回撤 -31.5% < -30%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -26.6% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -31.5% < -30%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -26.6% < -20%)；近120日大幅阴跌 (距高点回撤 -31.5% < -30%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -26.6% < -20%)；近120日大幅阴跌 (距高点回撤 -31.5% < -30%)))",
+      "composite_score": 41.2,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -26.6% < -20%)；近120日大幅阴跌 (距高点回撤 -31.5% < -30%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 53.1,
+      "stop_loss_pct": -4.99,
+      "ma15_exit": 56.11,
+      "ma15_exit_pct": 0.39,
+      "take_profit": 58.68,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 6,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 42,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 5,
+            "加速": 12
+          },
+          "total": 44.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 5,
+            "位置": 16
+          },
+          "total": 26,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 15,
+            "北向": 3
+          },
+          "total": 43,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 55.89,
+      "distance_ma20": 0.5,
+      "mom_20d": -1.93,
+      "mom_60d": -13.27
+    },
+    {
+      "code": "002281",
+      "fundamental_filter": {
+        "code": "002281",
+        "passed": false,
+        "risk_flags": [
+          "超高PE风险 (PE=121.9 > 100倍)",
+          "近60日大幅阴跌 (距高点回撤 -39.0% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -39.0% < -30%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 170.23,
+          "pe": 121.89,
+          "dd_60": -38.99,
+          "dd_120": -38.99,
+          "dd_250": -38.99,
+          "dist_low_250": 215.24
+        },
+        "action_suggest": "强制剔除 (超高PE风险 (PE=121.9 > 100倍)；近60日大幅阴跌 (距高点回撤 -39.0% < -20%)；近120日大幅阴跌 (距高点回撤 -39.0% < -30%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "超高PE风险 (PE=121.9 > 100倍)",
+        "近60日大幅阴跌 (距高点回撤 -39.0% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -39.0% < -30%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (超高PE风险 (PE=121.9 > 100倍)；近60日大幅阴跌 (距高点回撤 -39.0% < -20%)；近120日大幅阴跌 (距高点回撤 -39.0% < -30%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (超高PE风险 (PE=121.9 > 100倍)；近60日大幅阴跌 (距高点回撤 -39.0% < -20%)；近120日大幅阴跌 (距高点回撤 -39.0% < -30%)))",
+      "composite_score": 41.0,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (超高PE风险 (PE=121.9 > 100倍)；近60日大幅阴跌 (距高点回撤 -39.0% < -20%)；近120日大幅阴跌 (距高点回撤 -39.0% < -30%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 161.72,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 178.29,
+      "ma15_exit_pct": 4.73,
+      "take_profit": 178.74,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 6,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 42,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 20
+          },
+          "total": 47.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 12
+          },
+          "total": 33,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 5,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 33,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 170.23,
+      "distance_ma20": 5.42,
+      "mom_20d": -11.82,
+      "mom_60d": -17.12
+    },
+    {
+      "code": "600111",
+      "fundamental_filter": {
+        "code": "600111",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -28.2% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -32.7% < -30%)",
+          "处于年内历史新低附近 (距250日低点仅 +6.0% < 10%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 38.9,
+          "pe": 41.69,
+          "dd_60": -28.16,
+          "dd_120": -32.73,
+          "dd_250": -38.68,
+          "dist_low_250": 6.02
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -28.2% < -20%)；近120日大幅阴跌 (距高点回撤 -32.7% < -30%)；处于年内历史新低附近 (距250日低点仅 +6.0% < 10%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -28.2% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -32.7% < -30%)",
+        "处于年内历史新低附近 (距250日低点仅 +6.0% < 10%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -28.2% < -20%)；近120日大幅阴跌 (距高点回撤 -32.7% < -30%)；处于年内历史新低附近 (距250日低点仅 +6.0% < 10%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -28.2% < -20%)；近120日大幅阴跌 (距高点回撤 -32.7% < -30%)；处于年内历史新低附近 (距250日低点仅 +6.0% < 10%)))",
+      "composite_score": 41.0,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -28.2% < -20%)；近120日大幅阴跌 (距高点回撤 -32.7% < -30%)；处于年内历史新低附近 (距250日低点仅 +6.0% < 10%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 36.95,
+      "stop_loss_pct": -5.01,
+      "ma15_exit": 40.61,
+      "ma15_exit_pct": 4.4,
+      "take_profit": 40.84,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 0.99,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 0,
+            "KDJ": 12,
+            "RSI": 10,
+            "BOLL": 10
+          },
+          "total": 32,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 12
+          },
+          "total": 39.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 30,
+            "位置": 20
+          },
+          "total": 55,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 5,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 38,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 38.9,
+      "distance_ma20": 5.33,
+      "mom_20d": -11.71,
+      "mom_60d": -18.14
+    },
+    {
+      "code": "603993",
+      "fundamental_filter": {
+        "code": "603993",
+        "passed": true,
+        "risk_flags": [],
+        "warnings": [],
+        "details": {
+          "price": 18.52,
+          "pe": 14.24,
+          "dd_60": -14.81,
+          "dd_120": -14.81,
+          "dd_250": -35.0,
+          "dist_low_250": 68.15
+        },
+        "action_suggest": "正常纳入",
+        "cyclical_exempt": false
+      },
+      "passed_filter": true,
+      "risk_flags": [],
+      "filter_warnings": [],
+      "filter_action": "正常纳入",
+      "gate_status": "CLOSED (上证<MA20, 旋转模型不做多)",
+      "rating": "D",
+      "composite_score": 40.8,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (评分不足)",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 17.59,
+      "stop_loss_pct": -5.02,
+      "ma15_exit": 18.83,
+      "ma15_exit_pct": 1.67,
+      "take_profit": 19.45,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 0,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 36,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 12
+          },
+          "total": 39.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 8,
+            "趋势": 16,
+            "位置": 16
+          },
+          "total": 40,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 43,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 18.52,
+      "distance_ma20": 2.68,
+      "mom_20d": -11.09,
+      "mom_60d": 6.62
+    },
+    {
+      "code": "600406",
+      "fundamental_filter": {
+        "code": "600406",
+        "passed": true,
+        "risk_flags": [],
+        "warnings": [],
+        "details": {
+          "price": 22.51,
+          "pe": 21.52,
+          "dd_60": -11.17,
+          "dd_120": -24.23,
+          "dd_250": -28.74,
+          "dist_low_250": 10.01
+        },
+        "action_suggest": "正常纳入",
+        "cyclical_exempt": false
+      },
+      "passed_filter": true,
+      "risk_flags": [],
+      "filter_warnings": [],
+      "filter_action": "正常纳入",
+      "gate_status": "CLOSED (上证<MA20, 旋转模型不做多)",
+      "rating": "D",
+      "composite_score": 40.3,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (评分不足)",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 21.66,
+      "stop_loss_pct": -3.78,
+      "ma15_exit": 23.13,
+      "ma15_exit_pct": 2.75,
+      "take_profit": 23.64,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.33,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 0,
+            "KDJ": 12,
+            "RSI": 10,
+            "BOLL": 10
+          },
+          "total": 32,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 12
+          },
+          "total": 39.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 8,
+            "趋势": 16,
+            "位置": 20
+          },
+          "total": 44,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 43,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 22.51,
+      "distance_ma20": 3.6,
+      "mom_20d": -6.67,
+      "mom_60d": 0.59
+    },
+    {
+      "code": "603986",
+      "fundamental_filter": {
+        "code": "603986",
+        "passed": false,
+        "risk_flags": [
+          "高股价风险 (现价 380.30 > 上限 350元)",
+          "近60日大幅阴跌 (距高点回撤 -55.1% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -55.1% < -30%)",
+          "近250日长期阴跌 (距年内高点回撤 -55.1% < -40%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 380.3,
+          "pe": 33.76,
+          "dd_60": -55.08,
+          "dd_120": -55.08,
+          "dd_250": -55.08,
+          "dist_low_250": 162.19
+        },
+        "action_suggest": "强制剔除 (高股价风险 (现价 380.30 > 上限 350元)；近60日大幅阴跌 (距高点回撤 -55.1% < -20%)；近120日大幅阴跌 (距高点回撤 -55.1% < -30%)；近250日长期阴跌 (距年内高点回撤 -55.1% < -40%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "高股价风险 (现价 380.30 > 上限 350元)",
+        "近60日大幅阴跌 (距高点回撤 -55.1% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -55.1% < -30%)",
+        "近250日长期阴跌 (距年内高点回撤 -55.1% < -40%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (高股价风险 (现价 380.30 > 上限 350元)；近60日大幅阴跌 (距高点回撤 -55.1% < -20%)；近120日大幅阴跌 (距高点回撤 -55.1% < -30%)；近250日长期阴跌 (距年内高点回撤 -55.1% < -40%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (高股价风险 (现价 380.30 > 上限 350元)；近60日大幅阴跌 (距高点回撤 -55.1% < -20%)；近120日大幅阴跌 (距高点回撤 -55.1% < -30%)；近250日长期阴跌 (距年内高点回撤 -55.1% < -40%)))",
+      "composite_score": 39.3,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (高股价风险 (现价 380.30 > 上限 350元)；近60日大幅阴跌 (距高点回撤 -55.1% < -20%)；近120日大幅阴跌 (距高点回撤 -55.1% < -30%)；近250日长期阴跌 (距年内高点回撤 -55.1% < -40%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 361.28,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 404.02,
+      "ma15_exit_pct": 6.24,
+      "take_profit": 399.32,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线",
+        "60日动量<−10%"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 6,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 42,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 5
+          },
+          "total": 32.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 16
+          },
+          "total": 37,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 38,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 380.3,
+      "distance_ma20": 6.1,
+      "mom_20d": -8.81,
+      "mom_60d": -21.34
+    },
+    {
+      "code": "002463",
+      "fundamental_filter": {
+        "code": "002463",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -26.9% < -20%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 115.72,
+          "pe": 43.98,
+          "dd_60": -26.85,
+          "dd_120": -26.85,
+          "dd_250": -26.85,
+          "dist_low_250": 113.54
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -26.9% < -20%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -26.9% < -20%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -26.9% < -20%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -26.9% < -20%)))",
+      "composite_score": 38.6,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -26.9% < -20%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 109.93,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 119.43,
+      "ma15_exit_pct": 3.21,
+      "take_profit": 121.51,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 6,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 42,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 5
+          },
+          "total": 32.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 10
+          },
+          "total": 52,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 12
+          },
+          "total": 33,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 5,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 33,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 115.72,
+      "distance_ma20": 3.75,
+      "mom_20d": -8.06,
+      "mom_60d": -8.82
+    },
+    {
+      "code": "600276",
+      "fundamental_filter": {
+        "code": "600276",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -21.7% < -20%)",
+          "处于年内历史新低附近 (距250日低点仅 +0.3% < 10%)"
+        ],
+        "warnings": [],
+        "details": {
+          "price": 45.39,
+          "pe": 38.99,
+          "dd_60": -21.74,
+          "dd_120": -22.64,
+          "dd_250": -38.53,
+          "dist_low_250": 0.29
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -21.7% < -20%)；处于年内历史新低附近 (距250日低点仅 +0.3% < 10%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -21.7% < -20%)",
+        "处于年内历史新低附近 (距250日低点仅 +0.3% < 10%)"
+      ],
+      "filter_warnings": [],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -21.7% < -20%)；处于年内历史新低附近 (距250日低点仅 +0.3% < 10%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -21.7% < -20%)；处于年内历史新低附近 (距250日低点仅 +0.3% < 10%)))",
+      "composite_score": 38.5,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -21.7% < -20%)；处于年内历史新低附近 (距250日低点仅 +0.3% < 10%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 43.12,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 48.4,
+      "ma15_exit_pct": 6.63,
+      "take_profit": 47.66,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 0,
+            "KDJ": 12,
+            "RSI": 6,
+            "BOLL": 10
+          },
+          "total": 28,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 20
+          },
+          "total": 47.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 8,
+            "趋势": 5,
+            "位置": 20
+          },
+          "total": 33,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 5,
+            "连续": 5,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 38,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 45.39,
+      "distance_ma20": 9.02,
+      "mom_20d": -16.9,
+      "mom_60d": -3.38
+    },
+    {
+      "code": "600584",
+      "fundamental_filter": {
+        "code": "600584",
+        "passed": false,
+        "risk_flags": [
+          "近60日大幅阴跌 (距高点回撤 -38.1% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -38.1% < -30%)"
+        ],
+        "warnings": [
+          "估值偏高 (PE=65.0 ∈ (60, 100], 建议仓位减半)"
+        ],
+        "details": {
+          "price": 70.48,
+          "pe": 65.04,
+          "dd_60": -38.1,
+          "dd_120": -38.1,
+          "dd_250": -38.1,
+          "dist_low_250": 104.41
+        },
+        "action_suggest": "强制剔除 (近60日大幅阴跌 (距高点回撤 -38.1% < -20%)；近120日大幅阴跌 (距高点回撤 -38.1% < -30%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "近60日大幅阴跌 (距高点回撤 -38.1% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -38.1% < -30%)"
+      ],
+      "filter_warnings": [
+        "估值偏高 (PE=65.0 ∈ (60, 100], 建议仓位减半)"
+      ],
+      "filter_action": "强制剔除 (近60日大幅阴跌 (距高点回撤 -38.1% < -20%)；近120日大幅阴跌 (距高点回撤 -38.1% < -30%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (近60日大幅阴跌 (距高点回撤 -38.1% < -20%)；近120日大幅阴跌 (距高点回撤 -38.1% < -30%)))",
+      "composite_score": 36.8,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (近60日大幅阴跌 (距高点回撤 -38.1% < -20%)；近120日大幅阴跌 (距高点回撤 -38.1% < -30%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 66.96,
+      "stop_loss_pct": -4.99,
+      "ma15_exit": 76.64,
+      "ma15_exit_pct": 8.74,
+      "take_profit": 74.0,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 0,
+            "KDJ": 12,
+            "RSI": 14,
+            "BOLL": 10
+          },
+          "total": 36,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 5
+          },
+          "total": 32.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 5
+          },
+          "total": 47,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 16
+          },
+          "total": 37,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 5,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 33,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 70.48,
+      "distance_ma20": 8.43,
+      "mom_20d": -9.35,
+      "mom_60d": -1.91
+    },
+    {
+      "code": "002371",
+      "fundamental_filter": {
+        "code": "002371",
+        "passed": false,
+        "risk_flags": [
+          "高股价风险 (现价 650.19 > 上限 350元)",
+          "近60日大幅阴跌 (距高点回撤 -32.8% < -20%)",
+          "近120日大幅阴跌 (距高点回撤 -32.8% < -30%)"
+        ],
+        "warnings": [
+          "估值偏高 (PE=83.0 ∈ (60, 100], 建议仓位减半)"
+        ],
+        "details": {
+          "price": 650.19,
+          "pe": 83.01,
+          "dd_60": -32.78,
+          "dd_120": -32.78,
+          "dd_250": -32.78,
+          "dist_low_250": 88.88
+        },
+        "action_suggest": "强制剔除 (高股价风险 (现价 650.19 > 上限 350元)；近60日大幅阴跌 (距高点回撤 -32.8% < -20%)；近120日大幅阴跌 (距高点回撤 -32.8% < -30%))",
+        "cyclical_exempt": false
+      },
+      "passed_filter": false,
+      "risk_flags": [
+        "高股价风险 (现价 650.19 > 上限 350元)",
+        "近60日大幅阴跌 (距高点回撤 -32.8% < -20%)",
+        "近120日大幅阴跌 (距高点回撤 -32.8% < -30%)"
+      ],
+      "filter_warnings": [
+        "估值偏高 (PE=83.0 ∈ (60, 100], 建议仓位减半)"
+      ],
+      "filter_action": "强制剔除 (高股价风险 (现价 650.19 > 上限 350元)；近60日大幅阴跌 (距高点回撤 -32.8% < -20%)；近120日大幅阴跌 (距高点回撤 -32.8% < -30%))",
+      "rating": "D",
+      "gate_status": "RISK_BLOCKED (强制剔除 (高股价风险 (现价 650.19 > 上限 350元)；近60日大幅阴跌 (距高点回撤 -32.8% < -20%)；近120日大幅阴跌 (距高点回撤 -32.8% < -30%)))",
+      "composite_score": 35.2,
+      "resonance_count": 0,
+      "resonance_pass": false,
+      "market_state": "震荡",
+      "market_score": 50,
+      "market_limit": "50%",
+      "action": "回避 (强制剔除 (高股价风险 (现价 650.19 > 上限 350元)；近60日大幅阴跌 (距高点回撤 -32.8% < -20%)；近120日大幅阴跌 (距高点回撤 -32.8% < -30%)))",
+      "position": "0%",
+      "batches": [],
+      "stop_loss": 617.68,
+      "stop_loss_pct": -5.0,
+      "ma15_exit": 708.72,
+      "ma15_exit_pct": 9.0,
+      "take_profit": 682.7,
+      "take_profit_pct": 5,
+      "trailing_stop_pct": 3,
+      "time_stop_days": 5,
+      "risk_reward": 1.0,
+      "is_limit_up": false,
+      "ultra_short_mode": false,
+      "short_term_notes": [],
+      "sell_signals": [
+        "触发基本面/五大风险强制剔除",
+        "CS降至60以下",
+        "门控关闭(上证<MA20)",
+        "跌破MA15离场线",
+        "跌破10日/20日均线"
+      ],
+      "dimensions": {
+        "技术": {
+          "sub": {
+            "MA": 0,
+            "MACD": 0,
+            "KDJ": 12,
+            "RSI": 10,
+            "BOLL": 0
+          },
+          "total": 22,
+          "threshold": 75,
+          "pass": false
+        },
+        "趋势": {
+          "sub": {
+            "大盘": 15,
+            "情绪": 12.5,
+            "动量": 0,
+            "加速": 5
+          },
+          "total": 32.5,
+          "threshold": 50,
+          "pass": false
+        },
+        "量能": {
+          "sub": {
+            "量价": 15,
+            "换手": 10,
+            "异动": 5,
+            "真实": 12,
+            "趋势": 10
+          },
+          "total": 52,
+          "threshold": 55,
+          "pass": false
+        },
+        "结构": {
+          "sub": {
+            "MA结构": 0,
+            "箱体": 5,
+            "趋势": 16,
+            "位置": 16
+          },
+          "total": 37,
+          "threshold": 60,
+          "pass": false
+        },
+        "资金": {
+          "sub": {
+            "主力": 0,
+            "连续": 10,
+            "换手": 10,
+            "大单": 5,
+            "集中": 10,
+            "北向": 3
+          },
+          "total": 38,
+          "threshold": 45,
+          "pass": false
+        }
+      },
+      "entry_price": 650.19,
+      "distance_ma20": 9.62,
+      "mom_20d": -13.54,
+      "mom_60d": 2.11
+    }
+  ],
+  "errors": []
+}
