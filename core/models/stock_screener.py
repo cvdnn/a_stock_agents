@@ -12,9 +12,14 @@ aStocks 三层漏斗选股流水线 — P1 新建
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from data_bridge import DataBridge
-from technical_indicators import calc_all
-from combo_scorer import ComboScorer, entry_assessment
+try:
+    from core.data.data_bridge import DataBridge
+    from core.indicators.technical_indicators import calc_all
+    from core.models.combo_scorer import ComboScorer, entry_assessment
+except ImportError:
+    from data_bridge import DataBridge
+    from technical_indicators import calc_all
+    from combo_scorer import ComboScorer, entry_assessment
 
 
 class StockScreener:

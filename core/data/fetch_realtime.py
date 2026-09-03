@@ -39,10 +39,17 @@ from typing import Optional
 import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 import yaml
-import akshare as ak
-import efinance as ef
+
+try:
+    import akshare as ak
+except ImportError:
+    ak = None
+
+try:
+    import efinance as ef
+except ImportError:
+    ef = None
 
 
 HEADERS = {
@@ -197,7 +204,7 @@ def get_price(code: str, frequency: str = '1d', count: int = 60) -> pd.DataFrame
         if df is not None and not df.empty:
             return df
         # 最后兜底：akshare 新浪日线（仅1d可用）
-        if frequency == '1d':
+        if frequency == '1d' and ak is not None:
             try:
                 ak_df = ak.stock_zh_a_daily(symbol=normalized, adjust='')
                 if ak_df is not None and not ak_df.empty:

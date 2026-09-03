@@ -46,8 +46,11 @@ _TA_PATHS = [
 ]
 TA_DIR = next((p for p in _TA_PATHS if p.exists()), None)
 
-# AI-Platform 技能路径
-AI-Platform_SKILLS = Path.home() / ".AI-Platform" / "skills" / "stocks"
+# AI-Platform 技能路径（优先系统全局路径，回退本地 skills/）
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+AI_PLATFORM_SKILLS = Path.home() / ".AI-Platform" / "skills" / "stocks"
+if not AI_PLATFORM_SKILLS.exists():
+    AI_PLATFORM_SKILLS = PROJECT_ROOT / "skills"
 
 # VENV Python（复用项目 venv 或系统 Python）
 _VENV_CANDIDATES = [
@@ -60,9 +63,9 @@ VENV_PY = next((p for p in _VENV_CANDIDATES if p.exists()), Path(sys.executable)
 # 数据降级策略（替换 TradingAgents 原生数据源）
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _call_AI-Platform(skill: str, script: str, *args: str, timeout: int = 30) -> Optional[Dict]:
+def _call_ai_platform(skill: str, script: str, *args: str, timeout: int = 30) -> Optional[Dict]:
     """调用 AI-Platform skill 脚本并解析 JSON 输出。"""
-    script_path = AI-Platform_SKILLS / skill / "scripts" / script
+    script_path = AI_PLATFORM_SKILLS / skill / "scripts" / script
     if not script_path.exists():
         return None
     cmd = [str(VENV_PY), str(script_path), "--json", *args]
@@ -150,14 +153,14 @@ def phase1_prescreen(ticker: str, date: str) -> Dict[str, Any]:
     result["realtime"] = _tencent_quote(ticker)
 
     # 2. 技术指标（AI-Platform a-share-data fetch_technical.py，15s超时）
-    tech = _call_AI-Platform("a-share-data", "fetch_technical.py",
+    tech = _call_ai_platform("a-share-data", "fetch_technical.py",
                         ticker, "--freq", "1d", "--count", "120",
                         "--indicators", "MA,MACD,KDJ,RSI,BOLL",
                         timeout=15)
     result["technical"] = tech
 
     # 3. 板块排行（15s超时）
-    boards = _call_AI-Platform("a-share-data", "fetch_realtime.py",
+    boards = _call_ai_platform("a-share-data", "fetch_realtime.py",
                           "--boards-summary", "--boards-limit", "30",
                           timeout=15)
 
@@ -281,7 +284,7 @@ def _calc_trading_combo_score(ticker: str, tech: Dict, boards: Dict) -> Dict:
 # 融合评分 & 股池同步（新增：整合优化 P0+P1）
 # ═══════════════════════════════════════════════════════════════════════════════
 
-POOL_MANAGER = AI-Platform_SKILLS / "a-share-dashboard" / "scripts" / "pool_manager.py"
+POOL_MANAGER = AI_PLATFORM_SKILLS / "a-share-dashboard" / "scripts" / "pool_manager.py"
 
 
 def _consensus_rating(quant_score: Optional[Dict], ta_decision: Optional[Dict]) -> Dict:
@@ -513,7 +516,7 @@ print("__TA_END__")
 # Phase 3: 模拟盘执行 + 监控部署
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_PAPER_CLI = AI-Platform_SKILLS / "a-share-paper-trading" / "scripts" / "paper_trade_cli.py"
+_PAPER_CLI = AI_PLATFORM_SKILLS / "a-share-paper-trading" / "scripts" / "paper_trade_cli.py"
 
 
 def phase3_execute(decision: Dict, ticker: str, paper_account: str = "alpha",

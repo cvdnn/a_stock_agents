@@ -5,9 +5,14 @@ from __future__ import annotations
 
 import argparse
 
-from paper_trading.engine import PaperTradingEngine
-from paper_trading.service import run_server
-from paper_trading_runtime import DEFAULT_HOST, DEFAULT_PORT, ensure_runtime_dir, get_default_db_path
+try:
+    from core.paper_trading.engine import PaperTradingEngine
+    from core.paper_trading.service import run_server
+    from core.paper_trading.paper_trading_runtime import DEFAULT_HOST, DEFAULT_PORT, ensure_runtime_dir, get_default_db_path
+except ImportError:
+    from paper_trading.engine import PaperTradingEngine
+    from paper_trading.service import run_server
+    from paper_trading_runtime import DEFAULT_HOST, DEFAULT_PORT, ensure_runtime_dir, get_default_db_path
 
 
 def main() -> None:

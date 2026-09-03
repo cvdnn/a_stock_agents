@@ -14,18 +14,32 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from paper_trading_runtime import (
-    APP_NAME,
-    DEFAULT_HOST,
-    DEFAULT_PORT,
-    LAUNCH_AGENT_LABEL,
-    ensure_runtime_dir,
-    get_app_data_dir,
-    get_default_db_path,
-    get_default_log_path,
-    get_default_pid_path,
-    get_launch_agents_dir,
-)
+try:
+    from core.paper_trading.paper_trading_runtime import (
+        APP_NAME,
+        DEFAULT_HOST,
+        DEFAULT_PORT,
+        LAUNCH_AGENT_LABEL,
+        ensure_runtime_dir,
+        get_app_data_dir,
+        get_default_db_path,
+        get_default_log_path,
+        get_default_pid_path,
+        get_launch_agents_dir,
+    )
+except ImportError:
+    from paper_trading_runtime import (
+        APP_NAME,
+        DEFAULT_HOST,
+        DEFAULT_PORT,
+        LAUNCH_AGENT_LABEL,
+        ensure_runtime_dir,
+        get_app_data_dir,
+        get_default_db_path,
+        get_default_log_path,
+        get_default_pid_path,
+        get_launch_agents_dir,
+    )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SERVICE_SCRIPT = SCRIPT_DIR / "paper_trading_service.py"

@@ -9,7 +9,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict
 from urllib.parse import parse_qs, urlparse
 
-from .engine import OrderRequest, PaperTradingEngine, is_trading_time
+try:
+    from core.paper_trading.engine import OrderRequest, PaperTradingEngine, is_trading_time
+except ImportError:
+    try:
+        from .engine import OrderRequest, PaperTradingEngine, is_trading_time
+    except ImportError:
+        from engine import OrderRequest, PaperTradingEngine, is_trading_time
 
 
 class MatchingLoop(threading.Thread):

@@ -16,8 +16,12 @@ import json
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
-from technical_indicators import boll, atr, rsi, calc_all, ma
-from data_bridge import DataBridge
+try:
+    from core.indicators.technical_indicators import boll, atr, rsi, calc_all, ma
+    from core.data.data_bridge import DataBridge
+except ImportError:
+    from technical_indicators import boll, atr, rsi, calc_all, ma
+    from data_bridge import DataBridge
 
 
 class VolatilityBreakoutStrategy:

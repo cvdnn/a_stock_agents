@@ -13,10 +13,12 @@ no_agent 模式：无事件时静默退出（不推送空壳信息）。
 """
 
 import json
+import os
 import sys
 import urllib.request
 from datetime import date, datetime
 from pathlib import Path
+from typing import Optional
 
 # ── 编辑区域：每只股票单独配置 ──────────────────────────────────────────────────
 

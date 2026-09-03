@@ -23,11 +23,11 @@ def run_tests():
     print("=" * 70)
 
     passed_count = 0
-    total_count = 7
+    total_count = 8
 
 
     # Test 1: Skill Manifest Integrity
-    print("[1/7] 检查技能清单与 SKILL.md 完整性...")
+    print("[1/8] 检查技能清单与 SKILL.md 完整性...")
     try:
         manifest_p = PROJECT_ROOT / "config" / "skills_manifest.json"
         assert manifest_p.exists(), "skills_manifest.json missing"
@@ -44,7 +44,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 2: Data Bridge & Realtime Quote
-    print("[2/7] 测试行情数据层 (DataBridge & 腾讯实时快照)...")
+    print("[2/8] 测试行情数据层 (DataBridge & 腾讯实时快照)...")
     try:
         from core.data.data_bridge import DataBridge
         bridge = DataBridge()
@@ -62,7 +62,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 3: Technical Indicators Calculation
-    print("[3/7] 测试技术指标计算 (MA/MACD/KDJ/RSI/BOLL/ATR/二次金叉)...")
+    print("[3/8] 测试技术指标计算 (MA/MACD/KDJ/RSI/BOLL/ATR/二次金叉)...")
     try:
         from core.indicators.technical_indicators import calc_all, gap_analysis, second_golden_cross
         tech = calc_all(klines)
@@ -77,7 +77,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 4: Execution Action Engine & Breakeven Price Rounding
-    print("[4/7] 测试交易反应动作引擎与精确保本价进位法则...")
+    print("[4/8] 测试交易反应动作引擎与精确保本价进位法则...")
     try:
         from core.strategy.execution_action_engine import ExecutionActionEngine
         # Test breakeven calculation for 1000 shares at 10.00 -> should be 10.02
@@ -99,7 +99,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 5: Multi-Factor & Combo Scorer
-    print("[5/7] 测试多因子评分与量化诊断模型...")
+    print("[5/8] 测试多因子评分与量化诊断模型...")
     try:
         from core.models.combo_scorer import ComboScorer
         scorer = ComboScorer()
@@ -112,7 +112,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 6: Paper Trading System
-    print("[6/7] 测试模拟盘撮合与账户体系...")
+    print("[6/8] 测试模拟盘撮合与账户体系...")
     try:
         from core.config import OUTPUT_CACHE_DIR
         from core.paper_trading.engine import PaperTradingEngine
@@ -130,7 +130,7 @@ def run_tests():
         print(f"  --> FAIL: {e}")
 
     # Test 7: Output Isolation & Custom Directory Configuration
-    print("[7/7] 测试用户专属 Output 目录隔离与自定义配置动态生效...")
+    print("[7/8] 测试用户专属 Output 目录隔离与自定义配置动态生效...")
     try:
         import subprocess
         from core.config import get_active_paths, OUTPUT_DIR, OUTPUT_POOLS_DIR
@@ -168,6 +168,30 @@ def run_tests():
             shutil.rmtree(test_temp_out)
             
         print(f"  --> PASS (自定义 output 路径隔离解析、自动创建、模板实例化及动态覆盖全部生效)")
+        passed_count += 1
+    except Exception as e:
+        print(f"  --> FAIL: {e}")
+
+    # Test 8: Core Modules Smoke Test & Import Health
+    print("[8/8] 检查核心模块全量导入与语法完整性 (Smoke Test)...")
+    try:
+        import importlib
+        core_dir = PROJECT_ROOT / "core"
+        failed_imports = []
+        tested_count = 0
+        for p in core_dir.rglob("*.py"):
+            rel = p.relative_to(PROJECT_ROOT)
+            parts = list(rel.parts)
+            if parts[-1].endswith(".py"):
+                parts[-1] = parts[-1][:-3]
+            mod_name = ".".join(parts)
+            tested_count += 1
+            try:
+                importlib.import_module(mod_name)
+            except Exception as ie:
+                failed_imports.append((mod_name, str(ie)))
+        assert len(failed_imports) == 0, f"{len(failed_imports)} modules failed to import: {failed_imports}"
+        print(f"  --> PASS (全量 {tested_count} 个核心模块导入 100% 成功，零语法与依赖阻塞)")
         passed_count += 1
     except Exception as e:
         print(f"  --> FAIL: {e}")

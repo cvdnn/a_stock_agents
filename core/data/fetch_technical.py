@@ -22,7 +22,10 @@ import sys
 import numpy as np
 import pandas as pd
 
-from fetch_realtime import get_price, normalize_code
+try:
+    from core.data.fetch_realtime import get_price, normalize_code
+except ImportError:
+    from fetch_realtime import get_price, normalize_code
 
 
 def fetch_kline(code: str, freq: str, count: int) -> pd.DataFrame:

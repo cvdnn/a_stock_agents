@@ -10,7 +10,10 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional
 
-from paper_trading_runtime import DEFAULT_HOST, DEFAULT_PORT
+try:
+    from core.paper_trading.paper_trading_runtime import DEFAULT_HOST, DEFAULT_PORT
+except ImportError:
+    from paper_trading_runtime import DEFAULT_HOST, DEFAULT_PORT
 
 
 def request_json(base_url: str, method: str, path: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

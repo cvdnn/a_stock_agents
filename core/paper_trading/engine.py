@@ -14,7 +14,13 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from .market_data import MarketDataProvider, infer_limit_prices
+try:
+    from core.paper_trading.market_data import MarketDataProvider, infer_limit_prices
+except ImportError:
+    try:
+        from .market_data import MarketDataProvider, infer_limit_prices
+    except ImportError:
+        from market_data import MarketDataProvider, infer_limit_prices
 
 
 def now_ts() -> str:
@@ -526,8 +532,16 @@ class PaperTradingEngine:
         - Full metrics via backtest_metrics.calc_metrics
         - Buy-and-hold benchmark computed inline for excess return
         """
-        from .backtest_strategies import get_strategy
-        from .backtest_metrics import calc_metrics
+        try:
+            from core.paper_trading.backtest_strategies import get_strategy
+            from core.paper_trading.backtest_metrics import calc_metrics
+        except ImportError:
+            try:
+                from .backtest_strategies import get_strategy
+                from .backtest_metrics import calc_metrics
+            except ImportError:
+                from backtest_strategies import get_strategy
+                from backtest_metrics import calc_metrics
 
         params = params or {}
         bars = self.market_data.get_history(symbol, start=start, end=end,

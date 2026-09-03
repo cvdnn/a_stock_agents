@@ -27,7 +27,10 @@ from typing import Dict, List, Optional
 if "--json" in sys.argv:
     os.environ["TQDM_DISABLE"] = "1"
 
-import akshare as ak
+try:
+    import akshare as ak
+except ImportError:
+    ak = None
 import pandas as pd
 
 

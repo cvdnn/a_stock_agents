@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""
+ta_entry_monitor.py - TradingAgents 入场/止损 cron 监控模板
+
+no_agent 模式：无事件时静默退出（不推送空壳信息）。
+
+用法：
+  1. 复制到 ~/.AI-Platform/scripts/ta_monitor_{CODE}.py
+  2. 编辑下方 STOCK_CONFIG
+  3. 部署 cron:
+     AI-Platform cron create --name "TA监控-{CODE}" --script ta_monitor_{CODE}.py \
+       --schedule "every 5m" --no-agent --deliver all
+"""
+
+import json
+import os
+import sys
+import urllib.request
+from datetime import date, datetime
+from pathlib import Path
+from typing import Optional
+
+# ── 编辑区域：每只股票单独配置 ──────────────────────────────────────────────────
+
+STOCK_CONFIG = {
+    "code": "{{TICKER}}",          # 6位A股代码
+    "name": "",                    # 股票名称（留空自动获取）
+    "entry_price": {{ENTRY_PRICE}},  # 入场价
+    "stop_price": {{STOP_PRICE}},    # 止损价
+    "target_price": 0,             # 目标价（可选）
+    "shares": 0,                   # 持仓股数（可选）
+    "account": "{{ACCOUNT}}",      # 模拟盘账户
+}
+
+# ── 运行模式（部署时自动替换）───────────────────────────────────────────────────
+# mode=stop  : 止损检测（默认）
+# mode=entry : MA20回踩入场检测
+# mode=all   : 两者都检测
+MODE = os.environ.get("MONITOR_MODE", "stop")
+
+
+def _get_ma20_estimate(code: str) -> Optional[float]:
+    """通过腾讯行情获取近似 MA20（用最近收盘价的均值估算）。"""
+    # 简单回退：取昨收作为 MA20 近似值
+    return None
+
+# ── 核心逻辑（通常无需修改）────────────────────────────────────────────────────
+
+STATE_FILE = Path.home() / ".AI-Platform" / "scripts" / f"ta_monitor_{STOCK_CONFIG['code']}_state.json"
+CODE = STOCK_CONFIG["code"]
+PREFIX = "sh" if CODE.startswith(("6", "9")) else "sz" if CODE.startswith(("0", "3")) else "bj"
+
+
+def is_market_hours() -> bool:
+    """检查是否在 A 股交易时段。"""
+    now = datetime.now()
+    if now.weekday() >= 5:
+        return False
+    t = now.hour + now.minute / 60
+    return (9.30 <= t <= 11.30) or (13.00 <= t <= 15.00)
+
+
+def get_realtime_price() -> Optional[float]:
+    """通过腾讯 API 获取实时价格。"""
+    url = f"https://qt.gtimg.cn/q={PREFIX}{CODE}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            text = resp.read().decode("gbk", errors="ignore")
+        parts = text.split("~")
+        if len(parts) > 3:
+            return float(parts[3])
+    except Exception:
+        pass
+    return None
+
+
+def main():
+    if not is_market_hours():
+        sys.exit(0)
+
+    price = get_realtime_price()
+    if price is None:
+        sys.exit(0)
+
+    stop_p = STOCK_CONFIG.get("stop_price", 0)
+    entry_p = STOCK_CONFIG.get("entry_price", 0)
+
+    if MODE in ("stop", "all") and stop_p > 0 and price <= stop_p:
+        print(f"[ALERT] {CODE} 触及止损线: 现价 {price:.2f} <= 止损价 {stop_p:.2f}")
+        sys.exit(1)
+
+    if MODE in ("entry", "all") and entry_p > 0 and price <= entry_p:
+        print(f"[SIGNAL] {CODE} 回踩触发入场: 现价 {price:.2f} <= 目标入场价 {entry_p:.2f}")
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

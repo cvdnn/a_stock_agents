@@ -16,9 +16,14 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import pandas as pd
 
-from paper_trading.market_data import MarketDataProvider
-from strategy_lab.strategies import trend_pullback
-from strategy_lab import strategy_params
+try:
+    from core.paper_trading.market_data import MarketDataProvider
+    from core.strategy.strategy_lab.strategies import trend_pullback
+    from core.strategy.strategy_lab import strategy_params
+except ImportError:
+    from paper_trading.market_data import MarketDataProvider
+    from strategy_lab.strategies import trend_pullback
+    from strategy_lab import strategy_params
 
 
 def _parse_holdings(path: Path) -> list[str]:
