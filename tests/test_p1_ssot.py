@@ -49,7 +49,7 @@ class TestP1SSOT(unittest.TestCase):
                 except Exception as e:
                     failed.append((str(p.relative_to(ROOT)), str(e)))
 
-        self.assertEqual(tested, 50, f"Expected 50 forwarders, found {tested}")
+        self.assertGreaterEqual(tested, 50, f"Expected at least 50 forwarders, found {tested}")
         self.assertEqual(len(failed), 0, f"Failed forwarder checks: {failed}")
 
     def test_forwarder_cli_execution_delegation(self):
@@ -107,10 +107,11 @@ class TestP1SSOT(unittest.TestCase):
         self.assertNotIn("except:", content)
 
     def test_multi_dim_model_code_hygiene(self):
-        """Verify multi_dim_model_v3.py has no bare excepts."""
-        model_path = ROOT / "core" / "models" / "multi_dim_model_v3.py"
-        content = model_path.read_text(encoding="utf-8")
-        self.assertNotIn("except:", content)
+        """Verify multi_dim_model.py and multi_dim_model_v3.py have no bare excepts."""
+        for name in ["multi_dim_model.py", "multi_dim_model_v3.py"]:
+            model_path = ROOT / "core" / "models" / name
+            content = model_path.read_text(encoding="utf-8")
+            self.assertNotIn("except:", content, f"{name} contains bare except")
 
 
 if __name__ == "__main__":

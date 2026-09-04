@@ -1,20 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Single Source of Truth (SSOT) deprecation forwarding wrapper.
+Single Source of Truth (SSOT) forwarding wrapper.
 Delegates to core.models.multi_dim_model.
 """
 from __future__ import annotations
 
-import warnings
 import sys
 from pathlib import Path
-
-warnings.warn(
-    "skills/astock-screener-5a/scripts/multi_dim_model_v3.py is deprecated. "
-    "Use multi_dim_model.py instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 # Find project root dynamically
 _cur = Path(__file__).resolve().parent

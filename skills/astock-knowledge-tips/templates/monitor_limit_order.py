@@ -1,41 +1,41 @@
 #!/usr/bin/env python3
 """
-分档限价单监控模板 (tiered limit-order monitor)
+分档限价单监控模板 (Tiered Limit-Order Monitor Template)
 =================================================
-用途: 对单只股票在交易时段内轮询，按入场审查给出的分档价位触发提醒。
-参考实现: 2026-08-04 601138 工业富联 (monitor_601138_limit.py)。
+用途: 对单只股票在交易时段内轮询，按策略模型给出的分档价位触发提醒。
+设计范式: 参数策略对象注入 (Parameter Strategy Injection)
 
-核心特性 (必须保留):
+核心特性:
   1. no_agent cron + 空stdout=静默  → 仅触发时 print 提醒(投递), 未触发 print 一行日志
   2. 状态文件去重 (每信号每日只推一次)
   3. 交易时段门 (09:25~11:30 / 13:00~15:00, 周末跳过)
-  4. 价位用"昨日分档审查"的区间: 回踩低吸区 / 突破价 / 止损 / 第一目标
+  4. 价位使用策略模型给出的区间: 回踩低吸区 / 突破价 / 止损 / 止盈目标
 
-部署:
-  AI-Platform cron create --name "601138限价单监控" \
-    --script monitor_XXXXXX_limit.py \
+部署方式:
+  AI-Platform cron create --name "${CODE}限价单监控" \
+    --script monitor_${CODE}_limit.py \
     --schedule "every 5m" --no-agent --deliver all
-  注意: cron no_agent 脚本需先 cp 到 ~/.AI-Platform/scripts/ 再指定名称。
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.request
 from datetime import datetime, time as dt_time
 from pathlib import Path
 
-# ── 单股配置: 改成目标股票 ──
-CODE = "601138"
-NAME = "工业富联"
-MARKET = "sh"               # sh=沪, sz=深
+# ── 单标的监控参数配置 (请根据实际标的修改或通过环境变量注入) ──
+CODE = os.environ.get("MONITOR_STOCK_CODE", "000001")
+NAME = os.environ.get("MONITOR_STOCK_NAME", "目标股票")
+MARKET = "sh" if CODE.startswith(("60", "68")) else "sz"
 
-# 分档价位 (来自入场审查, 用昨日/早盘数据推得)
-A_ZONE = (57.50, 58.11)   # A档 回踩低吸区 (低, 高)  → 回踩MA10企稳
-B_ZONE = (56.81, 57.00)   # B档 更佳买点             → 回踩今日低点/开盘价
-BREAK_HIGH = 58.72        # C档 突破追入             → 放量站稳今日高点
-STOP_LOSS = 56.81         # 止损                      → 跌破离场/暂停入场
-TARGET = 60.34            # 第一目标                  → 分批止盈
+# 分档价位 (来自入场审查或策略模型输出)
+A_ZONE = (10.00, 10.20)   # A档 回踩低吸区 (低, 高)
+B_ZONE = (9.80, 9.95)     # B档 极限低吸区
+BREAK_HIGH = 10.50        # C档 突破追入价
+STOP_LOSS = 9.70          # 止损离场价
+TARGET = 11.20            # 第一目标止盈价
 
 SCRIPT_DIR = Path.home() / ".AI-Platform" / "scripts"
 STATE_FILE = SCRIPT_DIR / f"monitor_{CODE}_limit_state.json"

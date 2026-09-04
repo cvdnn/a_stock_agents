@@ -60,7 +60,7 @@
         "优质股票推荐",
         "样本外回测"
       ],
-      "entry_point": "core/models/multi_dim_model_v3.py",
+      "entry_point": "core/models/multi_dim_model.py",
       "cli_command": "astock screen 5a",
       "skill_doc": "skills/astock-screener-5a/SKILL.md",
       "recommended_model": "pro"

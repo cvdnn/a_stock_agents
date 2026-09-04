@@ -69,7 +69,7 @@ related_skills: [a-stocks, a-share-data, a-share-strategy-mainboard-multi-swing-
 │  └──────────────────┘    └──────────────┘    └────────────┘ │
 │         │                       │                  │        │
 │  ┌──────┴───────────────────────┴──────────────────┴──────┐ │
-│  │         脚本入口: multi_dim_model_v3.py / screen.py    │ │
+│  │         脚本入口: multi_dim_model.py / screen.py       │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -81,8 +81,9 @@ related_skills: [a-stocks, a-share-data, a-share-strategy-mainboard-multi-swing-
 | 文件 | 说明 |
 |:-----|:-----|
 | `scripts/fundamental_filter.py` | 基本面与五大风险前置过滤引擎 (P0+P1风控) |
-| `scripts/multi_dim_model_v3.py` | 主脚本（截面评估+多股旋转回测+风控一体） |
-| `scripts/screen_20260813.py` | 24股主板候选池截面快照与风险审查 |
+| `scripts/multi_dim_model.py` | 主模型（截面评估+多股旋转回测+风控一体，SSOT） |
+| `scripts/screen.py` | 通用选股扫描流水线（支持配置驱动池与动态传参） |
+| `scripts/strategy_benchmark.py` | 策略基准与样本外(OOS)回测矩阵套件 |
 | `scripts/test_fundamental_filter.py` | 基本面过滤单元测试用例 |
 | `scripts/sh000001_klines.json` | 上证指数K线缓存（旋转门控依赖） |
 
@@ -91,14 +92,18 @@ related_skills: [a-stocks, a-share-data, a-share-strategy-mainboard-multi-swing-
 ## 快速开始
 
 ```bash
-# 1. 运行单元测试
+# 1. 运行基本面过滤单元测试
 py -3 scripts/test_fundamental_filter.py
 
-# 2. 运行截面评估与回测
-py -3 scripts/multi_dim_model_v3.py
+# 2. 运行默认主板池选股扫描
+py -3 scripts/screen.py
 
-# 3. 运行 24 股主板候选池扫描
-py -3 scripts/screen_20260813.py 20260819_v5
+# 3. 指定不同预设主线池扫描
+py -3 scripts/screen.py --pool h2_mainlines
+py -3 scripts/screen.py --pool h2_expand
+
+# 4. 运行策略基准回测
+py -3 scripts/strategy_benchmark.py --quick
 ```
 
 ---

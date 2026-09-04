@@ -64,14 +64,19 @@ tags: [A股, 避坑指南, 实战经验, 数据降级, 早盘复盘, SOP]
 
 ---
 
-## 历史详尽文献与专题索引
+## 核心知识与文献索引
+
+### 1. 现役实战操作活文档 (Living Documentation)
 
 | 专题领域 | 参考文档路径 | 核心内容摘要 |
 | :--- | :--- | :--- |
-| **全量实战经验总库** | `references/historical-session-tips-full.md` | 完整 1396 行实战记录、工作日志与故障复盘 |
-| **量化策略差距补全** | `references/quant-strategy-gap-analysis-20260731.md` | 回测引擎指标、多因子、均值回归、网格等 6 大模块 |
-| **回测引擎逐行审计** | `references/backtest-engine-audit-20260731.md` | 成本模型、前视偏差排查与撮合状态机验证 |
+| **全量实战经验总库** | `references/historical-session-tips-full.md` | 完整实战经验、工作日志与故障复盘索引库 |
+| **早盘竞价复盘规范** | `references/morning-auction-review-sop.md` | 零依赖纯 curl 早盘竞价结构分析与主线评估 SOP |
 | **交易历史对账案例** | `references/trade-history-audit-workflow.md` | 24 笔实战交易真实核算、FIFO vs 加权均价复盘 |
+| **开盘监控跟踪流** | `references/opening-bell-tracking-workflow.md` | 开盘前 30 分钟盯盘动作与应对流程 |
 | **主线数据源直连** | `references/curl-data-sources-main-line.md` | 东财/新浪/腾讯 curl 原始请求与解析指令 |
-| **早盘竞价复盘规范** | `references/morning-auction-review-20260814.md` | 竞价结构判断、炸板与弱转强特征识别 |
-| **5A旋转模型设计** | `references/multi-dim-model-v3-design-20260812.md` | 多股轮动、双层门控、ATR跟踪止盈设计全案 |
+
+### 2. 架构决策与历史审计归档 (Architecture Decision Records)
+
+历史阶段性回测审查、模型 v2/v3 理论设计与缺陷审计已统一迁移归档至 `references/archive/`。
+详见索引目录：[`references/archive/README.md`](references/archive/README.md)。

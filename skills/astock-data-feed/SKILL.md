@@ -596,9 +596,9 @@ AI-Platform cron run <job_id>
 | `references/balance-check.md` | 积分余额查询 CLI + 预检机制 + 省积分建议 |
 | `references/AI-Platform-terminal-tencent-block.md` | 腾讯API直连在 AI-Platform terminal 中返回"bad request"的根因与对策 |
 | `references/tick-limited-coverage.md` | --tick 仅覆盖开盘后前几分钟，早盘分析的替代方案 |
-| `references/许继电气_000400_分析简报_20260717.md` | 许继电气深度调研（基本面+技术面+机构评级+操作框架） |
-| `references/科大讯飞_002230_深度研究报告_20260720.md` | 科大讯飞深度研究报告（基本面+技术+竞争+估值+操作框架） |
-| `templates/monitor_watchdog.py` | 通用 no_agent 监控脚本模板 |\n| `templates/stock-report.html` | A 股报告 HTML 模板 — 白色系·涨红跌绿·时间轴组件。加载 `stock-report-html` 技能获取完整组件文档 |
+| `references/technical-indicators-handbook.md` | A股盘口技术指标完整解析手册（量比/委比/换手率/内外盘/振幅/PE/PB） |
+| `templates/monitor_watchdog.py` | 通用 no_agent 监控脚本模板 |
+| `templates/stock-report.html` | A 股报告 HTML 模板 — 白色系·涨红跌绿·时间轴组件 |
 | `scripts/config.yaml` | 技能配置文件（TOKEN / Python路径等） |
 
 ## 板块排行 + 概念板块关键字扫描（板块复盘常用模式）
