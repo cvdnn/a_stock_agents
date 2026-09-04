@@ -123,10 +123,10 @@ class UnstructuredFactors:
             
             # 时间衰减后的得分
             decayed = cls.apply_decay(score, days_ago, half_life_days)
-            
-            # 权重随时间递减
+
+            # 权重随时间递减（衰减只施加一次，此处作为加权归一化分母）
             w = math.pow(2.0, -days_ago / half_life_days)
-            weighted_scores.append(decayed * w)
+            weighted_scores.append(decayed)
             weights.append(w)
 
         total_weight = sum(weights)
