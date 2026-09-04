@@ -88,13 +88,34 @@ def get_technical(code: str) -> dict:
     return {"error": "技术指标获取失败"}
 
 
+def _load_proxy_auth() -> tuple[str, str]:
+    """从环境读取代理网关与鉴权令牌，避免在源码中硬编码凭据。
+
+    优先级: 环境变量 PROXY_GATEWAY / AUTH_TOKEN → ~/.AI-Platform/.env
+    """
+    gateway = os.environ.get("PROXY_GATEWAY", "101.201.173.125")
+    token = os.environ.get("AUTH_TOKEN", "")
+    if not token:
+        env_path = Path.home() / ".AI-Platform" / ".env"
+        if env_path.exists():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line.startswith("AUTH_TOKEN="):
+                    token = line.split("=", 1)[1].strip().strip("\"'")
+                    break
+    return gateway, token
+
+
 def get_cyq(code: str) -> dict:
     """获取筹码分布"""
+    gateway, auth_token = _load_proxy_auth()
+    if not auth_token:
+        return {"error": "未配置 AUTH_TOKEN，无法获取筹码分布（请设置环境变量 AUTH_TOKEN）"}
     code_py = (
         f"import akshare_proxy_patch; "
-        f"akshare_proxy_patch.install_patch('101.201.173.125', auth_token='202606169K83S6LN', fast=True); "
+        f"akshare_proxy_patch.install_patch({gateway!r}, auth_token={auth_token!r}, fast=True); "
         f"import akshare as ak; "
-        f"df=ak.stock_cyq_em(symbol='{code}'); "
+        f"df=ak.stock_cyq_em(symbol={code!r}); "
         f"l=df.iloc[-1]; "
         f"print(json.dumps({{'date':str(l['日期']),'profit':float(l['获利比例']),"
         f"'avg_cost':float(l['平均成本']),'concentration':float(l['90集中度']),"
