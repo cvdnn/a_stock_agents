@@ -634,7 +634,7 @@ def dif_dead(tech):
     return False
 
 
-def _latest_at(tech_all: dict, day: int) -> dict:
+def _latest_at(tech_all: dict, day: int, closes: list = None) -> dict:
     """从 calc_all 全序列中按 day 索引构造当日的 latest 指标快照 (v4: 回测口径与截面一致)
 
     calc_all 返回的 ma/macd/kdj/rsi/boll/atr 均为逐K线全序列, 此处取第 day 日快照,
@@ -667,7 +667,10 @@ def _latest_at(tech_all: dict, day: int) -> dict:
     atr = tech_all.get("atr")
     if atr is not None and day < len(atr):
         latest["atr"] = round(atr[day], 2)
-    latest["close"] = round(tech_all["latest"]["close"], 2)
+    if closes is not None and day < len(closes):
+        latest["close"] = round(closes[day], 2)
+    else:
+        latest["close"] = round(tech_all["latest"]["close"], 2)
     return latest
 
 
@@ -854,7 +857,7 @@ class RotationBacktest:
                         high_price_risk = (close > self.max_price)
 
                         # 按 day 索引构造当日指标快照 + 当日截取K线
-                        latest_day = _latest_at(sd["tech_all"], day)
+                        latest_day = _latest_at(sd["tech_all"], day, sd["closes"])
                         tech_day = {"macd": {"bar": (sd["tech_all"].get("macd", {}).get("bar", [0])[:day+1])}}
                         kl_day = sd["klines"][:day+1]
                         mk_state, mk_score = _hist_market(sh_close, day)
