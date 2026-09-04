@@ -491,7 +491,7 @@ if __name__ == "__main__":
     elif args.action == "technical":
         result = bridge.get_technical(args.code, args.count)
     elif args.action == "index":
-        result = bridge.index_snapshot()
+        result = index_snapshot()
     elif args.action == "batch":
         codes = args.codes.split(",") if args.codes else []
         result = bridge.fetch_batch_snapshot(codes)
