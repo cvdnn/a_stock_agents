@@ -97,8 +97,11 @@ class MeanReversionStrategy:
 
     def backtest_signals(self, klines: List[List],
                          initial_cash: float = 1000000) -> Dict[str, Any]:
-        """在历史K线上生成全部信号并统计"""
-        from technical_indicators import rsi, boll
+        try:
+            from core.indicators.technical_indicators import rsi, boll
+        except ImportError:
+            from technical_indicators import rsi, boll
+
 
         closes = [float(k[2]) for k in klines]
         rsi_vals = rsi(closes, 14)
@@ -179,7 +182,11 @@ class MeanReversionStrategy:
 
         综合 RSI 位置 + BOLL 位置 + 量价确认
         """
-        from technical_indicators import rsi, boll
+        try:
+            from core.indicators.technical_indicators import rsi, boll
+        except ImportError:
+            from technical_indicators import rsi, boll
+
 
         closes = [float(k[2]) for k in klines]
         rsi_vals = rsi(closes, 14)

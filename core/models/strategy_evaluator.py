@@ -348,8 +348,12 @@ def auto_scan(code: str, interval_days: int = 20, kline_count: int = 250) -> Eva
     自动扫描: 在历史K线上以固定间隔生成假想买入点，评估策略在各时间点的表现。
     不依赖实际持仓记录，适合快速评估策略在特定股票上的历史有效性。
     """
-    from data_bridge import DataBridge
+    try:
+        from core.data.data_bridge import DataBridge
+    except ImportError:
+        from data_bridge import DataBridge
     bridge = DataBridge()
+
     klines = bridge.tencent_kline(code, kline_count)
 
     if not klines or len(klines) < 120:

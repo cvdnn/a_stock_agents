@@ -218,7 +218,11 @@ class GridTradingStrategy:
 
     def score_grid_suitability(self, klines: List[List]) -> Dict[str, Any]:
         """评估股票是否适合网格交易"""
-        from technical_indicators import boll, atr, ma
+        try:
+            from core.indicators.technical_indicators import boll, atr, ma
+        except ImportError:
+            from technical_indicators import boll, atr, ma
+
 
         closes = [float(k[2]) for k in klines]
         boll_data = boll(closes, self.boll_period, self.boll_k)
