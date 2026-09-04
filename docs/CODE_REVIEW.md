@@ -222,6 +222,8 @@
 7. `bin/update.py` 校验 zip 条目路径防穿越。
 8. `paper_trading/engine.py` 卖出先校验后扣仓（或失败回滚）。
 9. `multi_backtest_engine.py` 补涨跌停 + T+1。
+10. `technical_indicators.py` CLI 入口补 `import sys` / `from pathlib import Path`，并把 `from data_bridge import DataBridge` 改为 `from core.data.data_bridge import DataBridge`。
+11. `ta_analyze.py` 定义 `SKILL_DIR`（`AI_PLATFORM_SKILLS / "ta-multi-agent-analysis"`），消除运行时 `NameError`。
 
 **P1 — 数据正确性（结果失真）**
 

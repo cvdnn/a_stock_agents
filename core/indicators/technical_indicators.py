@@ -413,6 +413,14 @@ def second_golden_cross(klines: List[List]) -> Dict[str, Any]:
 # ─── CLI ──────────────────────────────────────────────
 if __name__ == "__main__":
     import argparse
+    import sys
+    from pathlib import Path
+
+    # 直接运行脚本时，将项目根目录加入 sys.path，保证 `core` 包可导入
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
     parser = argparse.ArgumentParser(description="aStocks 技术指标计算")
     parser.add_argument("--input", "-i", help="K线JSON文件路径 ([[date,open,close,high,low,vol],...])")
     parser.add_argument("--code", help="股票代码 (使用腾讯K线直连)")
@@ -426,7 +434,7 @@ if __name__ == "__main__":
     if args.input:
         klines = json.loads(Path(args.input).read_text())
     elif args.code:
-        from data_bridge import DataBridge
+        from core.data.data_bridge import DataBridge
         klines = DataBridge.tencent_kline(args.code, args.count)
 
     if not klines:

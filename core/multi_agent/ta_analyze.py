@@ -59,6 +59,9 @@ AI_PLATFORM_SKILLS = Path.home() / ".AI-Platform" / "skills" / "stocks"
 if not AI_PLATFORM_SKILLS.exists():
     AI_PLATFORM_SKILLS = SKILLS_DIR
 
+# ta-multi-agent-analysis 技能目录（监控模板所在）
+SKILL_DIR = AI_PLATFORM_SKILLS / "ta-multi-agent-analysis"
+
 # VENV Python
 VENV_PY = Path(sys.executable)
 
