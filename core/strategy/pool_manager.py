@@ -31,36 +31,15 @@ SELECTED_PATH = os.path.join(str(POOLS_BASE), "selected_pool.csv")
 WATCH_PATH = os.path.join(str(POOLS_BASE), "watch_pool.csv")
 
 
-# ── CSV 列定义 ──
-SELECTED_FIELDS = ["code","name","added_date","rating","reason","sector","pe","change_pct",
-                     "ma_status","entry_trigger","stop_loss","take_profit","risk_level","market_context","notes",
-                     "ta_decision","ta_analysis_date","ta_report_path","consensus_rating"]
-WATCH_FIELDS = ["code","name","added_date","rating","reason","sector","pe","change_pct","fund_flow","entry_condition","market_context",
-                "ta_analysis_date"]
-
-
-def _ensure_file(path, fields):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    if not os.path.exists(path):
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(fields)
-
-
-def _is_blocked(code: str) -> bool:
-    """判断是否为不可交易的股票（科创板/创业板/北交所等）"""
-    return code.startswith(("688", "689", "30", "8", "4"))
-
-
-def _read_csv(path):
-    rows = []
-    if not os.path.exists(path):
-        return rows
-    with open(path, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            rows.append(row)
-    return rows
+from core.strategy.pool_schema import (
+    SELECTED_FIELDS,
+    WATCH_FIELDS,
+    is_blocked,
+    _is_blocked,
+    ensure_pool_csv as _ensure_file,
+    read_pool_csv as _read_csv,
+    write_pool_csv as _write_csv,
+)
 
 
 def _migrate_csv(path, fields):
@@ -89,11 +68,8 @@ def _migrate_csv(path, fields):
     print(f"  📋 CSV schema 升级: {path.name if hasattr(path, 'name') else os.path.basename(path)} → 新增 {missing}", file=sys.stderr)
 
 
-def _write_csv(path, rows, fields):
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
+
+
 
 
 def cmd_list(args):

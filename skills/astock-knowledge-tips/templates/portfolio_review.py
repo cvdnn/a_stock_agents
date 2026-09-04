@@ -109,7 +109,27 @@ def get_kline_tech(code, market="sh", count=120):
     except Exception:
         return None
 
+from pathlib import Path
+
+# 尝试动态加载 core 模块
+_cur = Path(__file__).resolve().parent
+while _cur.parent != _cur:
+    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+        if str(_cur) not in sys.path:
+            sys.path.insert(0, str(_cur))
+        break
+    _cur = _cur.parent
+
+try:
+    from core.monitor import send_windows_toast as _core_send_toast
+except ImportError:
+    _core_send_toast = None
+
+
 def send_windows_toast(title, message):
+    if _core_send_toast is not None:
+        _core_send_toast(title, message)
+        return
     ps_code = '''
 Add-Type -AssemblyName System.Windows.Forms
 $n = New-Object System.Windows.Forms.NotifyIcon
@@ -127,6 +147,7 @@ $n.Dispose()
                        capture_output=True, timeout=25)
     except Exception:
         pass
+
 
 def analyze_stock(code, name, cost, qty, quote, tech):
     """综合信息 + 技术指标 + 主力动作 + 策略评估"""

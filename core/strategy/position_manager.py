@@ -42,39 +42,19 @@ A_DATA_DIR = str(PROJECT_ROOT / "core" / "data")
 VENV_PY = sys.executable
 
 
-POSITIONS_FIELDS = [
-    "code", "name", "buy_date", "buy_price", "qty",
-    "stop_loss", "take_profit", "sector", "reason", "status",
-    "strategy", "entry_trigger", "expected_days", "risk_level",
-    "ma_status", "market_context", "backtest_result", "notes",
-]
-
-HISTORY_FIELDS = [
-    "code", "name", "buy_date", "sell_date", "buy_price", "sell_price",
-    "qty", "pnl", "pnl_pct", "sector", "reason",
-    "strategy", "entry_trigger", "hold_days", "risk_level", "notes",
-]
+from core.strategy.pool_schema import (
+    POSITIONS_FIELDS,
+    HISTORY_FIELDS,
+    is_blocked,
+    _is_blocked,
+    ensure_pool_csv as _ensure_file,
+    read_pool_csv as _read_csv,
+    write_pool_csv as _write_csv,
+)
 
 
-def _ensure_file(path, fields):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    if not os.path.exists(path):
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(fields)
 
 
-def _read_csv(path):
-    if not os.path.exists(path):
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
-
-
-def _write_csv(path, rows, fields):
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
-        w.writerows(rows)
 
 
 def _get_quote(code):
@@ -165,9 +145,6 @@ def cmd_list(args):
     print("-" * 100)
     print(f"{'合计':>26} {'':>8} {total_cost:>10.0f} {'':>8} {total_value:>10.0f} {'':>8} {total_pnl:>+8.0f} {total_pnl_pct:>+7.2f}%")
 
-
-def _is_blocked(code: str) -> bool:
-    return code.startswith(("688", "689", "30", "8", "4"))
 
 def cmd_open(args):
     """开仓：买入股票"""

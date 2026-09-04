@@ -41,7 +41,30 @@ SCRIPT_DIR = Path.home() / ".AI-Platform" / "scripts"
 STATE_FILE = SCRIPT_DIR / f"monitor_{CODE}_limit_state.json"
 
 
+# 尝试动态加载 core 模块
+_cur = Path(__file__).resolve().parent
+while _cur.parent != _cur:
+    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+        if str(_cur) not in sys.path:
+            sys.path.insert(0, str(_cur))
+        break
+    _cur = _cur.parent
+
+try:
+    from core.monitor import (
+        is_market_hours as _core_is_market_hours,
+        load_state as _core_load_state,
+        save_state as _core_save_state,
+    )
+except ImportError:
+    _core_is_market_hours = None
+    _core_load_state = None
+    _core_save_state = None
+
+
 def is_market_hours() -> bool:
+    if _core_is_market_hours is not None:
+        return _core_is_market_hours(include_auction=True)
     now = datetime.now()
     if now.weekday() >= 5:
         return False
@@ -70,14 +93,20 @@ def get_quote(code: str, market: str) -> dict:
 
 
 def load_state() -> dict:
+    if _core_load_state is not None:
+        return _core_load_state(STATE_FILE, default={"triggered": {}})
     if STATE_FILE.exists():
         return json.loads(STATE_FILE.read_text())
     return {"triggered": {}}
 
 
 def save_state(state: dict):
+    if _core_save_state is not None:
+        _core_save_state(STATE_FILE, state)
+        return
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+
 
 
 def main():

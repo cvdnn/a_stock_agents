@@ -36,29 +36,15 @@ SELECTED_PATH = os.path.join(POOLS_BASE, "selected_pool.csv")
 WATCH_PATH = os.path.join(POOLS_BASE, "watch_pool.csv")
 
 
-SELECTED_FIELDS = ["code", "name", "added_date", "reason", "sector", "rating", "entry_price", "position"]
-WATCH_FIELDS = ["code", "name", "added_date", "reason", "sector", "wait_condition"]
-
-
-def _ensure_file(path, fields):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    if not os.path.exists(path):
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(fields)
-
-
-def _read_csv(path):
-    if not os.path.exists(path):
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
-
-
-def _write_csv(path, rows, fields):
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
-        w.writerows(rows)
+from core.strategy.pool_schema import (
+    SELECTED_FIELDS,
+    WATCH_FIELDS,
+    is_blocked,
+    _is_blocked,
+    ensure_pool_csv as _ensure_file,
+    read_pool_csv as _read_csv,
+    write_pool_csv as _write_csv,
+)
 
 
 # ── 模式1: pytdx 直连 ──
@@ -224,7 +210,7 @@ def cmd_import(args):
 
         if not code:
             continue
-        if code.startswith(('688','689','30','8','4')):
+        if is_blocked(code):
             blocked += 1
             continue
         if code in existing_codes:

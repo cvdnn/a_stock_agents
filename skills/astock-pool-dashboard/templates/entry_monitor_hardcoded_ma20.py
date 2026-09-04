@@ -31,13 +31,39 @@ STOCK_CONFIG = {
 
 STATE_PATH = os.path.expanduser("~/.AI-Platform/scripts/entry_monitor_state.json")
 
+import sys
+from pathlib import Path
+
+# 尝试动态加载 core 模块
+_cur = Path(__file__).resolve().parent
+while _cur.parent != _cur:
+    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+        if str(_cur) not in sys.path:
+            sys.path.insert(0, str(_cur))
+        break
+    _cur = _cur.parent
+
+try:
+    from core.monitor import (
+        is_market_hours as _core_is_market_hours,
+        load_state as _core_load_state,
+        save_state as _core_save_state,
+    )
+except ImportError:
+    _core_is_market_hours = None
+    _core_load_state = None
+    _core_save_state = None
+
 
 def is_market_hours() -> bool:
+    if _core_is_market_hours is not None:
+        return _core_is_market_hours(include_auction=True)
     now = datetime.now()
     if now.weekday() >= 5:
         return False
     t = now.hour * 60 + now.minute
     return (9*60+25 <= t <= 11*60+30) or (13*60 <= t <= 15*60)
+
 
 
 def get_price(code: str) -> dict:
@@ -100,6 +126,8 @@ def check_entry(code: str, quote: dict) -> dict:
 
 
 def load_state():
+    if _core_load_state is not None:
+        return _core_load_state(STATE_PATH, default={})
     if os.path.exists(STATE_PATH):
         with open(STATE_PATH) as f:
             return json.load(f)
@@ -107,9 +135,13 @@ def load_state():
 
 
 def save_state(state):
+    if _core_save_state is not None:
+        _core_save_state(STATE_PATH, state)
+        return
     os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
     with open(STATE_PATH, "w") as f:
         json.dump(state, f, ensure_ascii=False)
+
 
 
 def main():

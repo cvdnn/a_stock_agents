@@ -39,9 +39,7 @@ from core.models.multi_dim_model import StockSelectionModel
 from core.config import OUTPUT_REPORTS_DIR
 
 
-def _is_blocked(code: str) -> bool:
-    """账户权限限制过滤: 排除 688/689(科创), 30(创业), 8/4(北交所/新三板)"""
-    return code.startswith(("688", "689", "30", "8", "4"))
+from core.strategy.pool_schema import is_blocked as _is_blocked
 
 
 def load_stock_pools() -> Dict[str, Any]:

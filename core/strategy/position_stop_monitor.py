@@ -68,30 +68,19 @@ def load_positions_alerts() -> list[dict]:
     return alerts
 
 
-def is_market_hours() -> bool:
-    now = datetime.now()
-    if now.weekday() >= 5:
-        return False
-    t = now.time()
-    if time(9, 30) <= t <= time(11, 30):
-        return True
-    if time(13, 0) <= t <= time(15, 0):
-        return True
-    return False
+from core.monitor import (
+    is_market_hours,
+    load_state as _load_state,
+    save_state as _save_state,
+)
 
 
 def load_state() -> dict:
-    if STATE_FILE.exists():
-        try:
-            return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {"triggered": {}}
+    return _load_state(STATE_FILE)
 
 
 def save_state(state: dict) -> None:
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    _save_state(STATE_FILE, state)
 
 
 def main():

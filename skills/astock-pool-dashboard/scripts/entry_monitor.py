@@ -35,21 +35,18 @@ if str(PROJECT_ROOT / "core") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "core"))
 
 from core.config import OUTPUT_POOLS_DIR, OUTPUT_CACHE_DIR
+from core.monitor import (
+    is_market_hours,
+    load_state as _core_load_state,
+    save_state as _core_save_state,
+)
+
 POOLS_BASE = str(OUTPUT_POOLS_DIR)
 STATE_DIR = str(OUTPUT_CACHE_DIR)
 
 WATCH_PATH = os.path.join(POOLS_BASE, "watch_pool.csv")
 A_SCRIPT = str(PROJECT_ROOT / "core" / "data" / "fetch_realtime.py")
 VENV_PY = sys.executable
-
-
-
-def is_market_hours() -> bool:
-    now = datetime.now()
-    if now.weekday() >= 5:
-        return False
-    t = now.time()
-    return (time(9, 30) <= t <= time(11, 30)) or (time(13, 0) <= t <= time(15, 0))
 
 
 def run(cmd: list[str], timeout=20) -> str:
@@ -147,24 +144,12 @@ def load_watch_pool():
 
 
 def load_state():
-    path = os.path.join(STATE_DIR, "entry_monitor_state.json")
-    if os.path.exists(path):
-        try:
-            with open(path) as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
+    return _core_load_state(os.path.join(STATE_DIR, "entry_monitor_state.json"), default={})
 
 
 def save_state(state):
-    path = os.path.join(STATE_DIR, "entry_monitor_state.json")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(state, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+    _core_save_state(os.path.join(STATE_DIR, "entry_monitor_state.json"), state)
+
 
 
 

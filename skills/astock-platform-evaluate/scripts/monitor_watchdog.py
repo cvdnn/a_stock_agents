@@ -66,6 +66,26 @@ RETAIL_WARNINGS = [
 # ═══════════════════════════════════════════════
 #  核心逻辑
 # ═══════════════════════════════════════════════
+# Find project root dynamically
+_cur = Path(__file__).resolve().parent
+while _cur.parent != _cur:
+    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+        _ROOT = _cur
+        break
+    _cur = _cur.parent
+else:
+    _ROOT = Path(__file__).resolve().parents[3]
+
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+if str(_ROOT / "core") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "core"))
+
+from core.monitor import (
+    is_market_hours as _core_is_market_hours,
+    load_state as _core_load_state,
+    save_state as _core_save_state,
+)
 
 STATE_FILE = Path.home() / ".AI-Platform/scripts/stock_monitor_state.json"
 
@@ -74,15 +94,7 @@ def is_market_hours():
     """判断是否A股交易时间"""
     if os.environ.get("FORCE_RUN_MONITOR") == "1":
         return True
-    now = datetime.now()
-    if now.weekday() >= 5:
-        return False
-    t = now.time()
-    morning_start = datetime.strptime("09:30", "%H:%M").time()
-    morning_end = datetime.strptime("11:30", "%H:%M").time()
-    afternoon_start = datetime.strptime("13:00", "%H:%M").time()
-    afternoon_end = datetime.strptime("15:00", "%H:%M").time()
-    return (morning_start <= t <= morning_end) or (afternoon_start <= t <= afternoon_end)
+    return _core_is_market_hours()
 
 
 def tencent_batch_quote(codes):
@@ -118,20 +130,15 @@ def tencent_batch_quote(codes):
 
 
 def load_state():
-    if STATE_FILE.exists():
-        try:
-            return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {"last_warning_date": "", "breakeven_activated": {}, "tp1_triggered": {}}
+    return _core_load_state(
+        STATE_FILE,
+        default={"last_warning_date": "", "breakeven_activated": {}, "tp1_triggered": {}},
+    )
 
 
 def save_state(state):
-    try:
-        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception:
-        pass
+    _core_save_state(STATE_FILE, state)
+
 
 
 def main():

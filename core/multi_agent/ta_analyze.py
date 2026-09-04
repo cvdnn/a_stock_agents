@@ -134,9 +134,7 @@ except Exception as e:
 # Phase 1: 量化评分预筛
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _is_blocked(code: str) -> bool:
-    """检查股票是否在不可交易板块（科创板/创业板/北交所）。"""
-    return code.startswith(("688", "689", "30", "8", "4"))
+from core.strategy.pool_schema import is_blocked as _is_blocked
 
 
 def phase1_prescreen(ticker: str, date: str) -> Dict[str, Any]:
