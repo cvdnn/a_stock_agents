@@ -79,7 +79,7 @@ GET http://{gateway}:47001/api/token/{token}
 
 实测验证（2026-07-15）：
 ```bash
-curl -s "http://101.201.173.125:47001/api/token/202606169K83S6LN"
+curl -s "http://101.201.173.125:47001/api/token/{AUTH_TOKEN}"
 # → {"balance":10996}
 ```
 

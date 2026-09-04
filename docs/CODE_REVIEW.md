@@ -211,19 +211,19 @@
 
 ## 六、建议修复优先级（P0 → P3）
 
-**P0 — 立即修复（崩溃 / 算错钱 / 泄密 / 可被攻击）**
+**P0 — 立即修复（崩溃 / 算错钱 / 泄密 / 可被攻击）** [✅ 全部 11 项已修复并通过全量验证]
 
-1. `execution_action_engine.py` 字段名统一：`vol_ratio→(补数据源或删除分支)`、`outer_ratio→o_ratio`、`turnover→turnover_pct`、`rsi14→rsi`、`atr14→atr`、`macd_dif/`macd_dea→dif/dea`。
-2. `data_bridge.py:492` 改为模块级 `index_snapshot()` 或补类方法。
-3. `combo_scorer.py` 补 `import sys`。
-4. `multi_dim_model.py:670` 改为取 `day` 日收盘价。
-5. `unstructured_factors.py` 移除重复衰减（只保留一次）。
-6. `investment_report.py` 移除硬编码令牌，改环境变量。
-7. `bin/update.py` 校验 zip 条目路径防穿越。
-8. `paper_trading/engine.py` 卖出先校验后扣仓（或失败回滚）。
-9. `multi_backtest_engine.py` 补涨跌停 + T+1。
-10. `technical_indicators.py` CLI 入口补 `import sys` / `from pathlib import Path`，并把 `from data_bridge import DataBridge` 改为 `from core.data.data_bridge import DataBridge`。
-11. `ta_analyze.py` 定义 `SKILL_DIR`（`AI_PLATFORM_SKILLS / "ta-multi-agent-analysis"`），消除运行时 `NameError`。
+1. [✅ 已修复] `execution_action_engine.py` 字段名统一：`vol_ratio` 补全、`outer_ratio→o_ratio`、`turnover→turnover_pct`、`rsi14→rsi`、`atr14→atr`、`macd_dif/macd_dea→dif/dea`（提交 `ea6f56a`）。
+2. [✅ 已修复] `data_bridge.py:492` 改为模块级 `index_snapshot()`（提交 `edfa8ad`）。
+3. [✅ 已修复] `combo_scorer.py` 补 `import sys`，并规范 CLI 命名空间导入与路径（提交 `af1ee27` 及优化）。
+4. [✅ 已修复] `multi_dim_model.py:670` 改为取 `day` 日收盘价，消除未来函数（提交 `f575a59`）。
+5. [✅ 已修复] `unstructured_factors.py` 移除重复衰减，采用单次加权归一（提交 `44c6bed`）。
+6. [✅ 已修复] `investment_report.py` 移除硬编码令牌改环境变量（提交 `f07c269`）；并对参考文档示例脱敏。
+7. [✅ 已修复] `bin/update.py` 校验 zip 条目路径防穿越（提交 `259ecc4`）。
+8. [✅ 已修复] `paper_trading/engine.py` 卖出前置汇总校验可卖数量后扣仓（提交 `e85187a`）。
+9. [✅ 已修复] `multi_backtest_engine.py` 补 10%/20%/30% 涨跌停封板拦截与 T+1 状态机约束（提交 `3015a80`）。
+10. [✅ 已修复] `technical_indicators.py` CLI 入口补 `import sys` / `Path` 与绝对导入（提交 `6dd457e`）。
+11. [✅ 已修复] `ta_analyze.py` 显式定义 `SKILL_DIR`，消除运行时 `NameError`（提交 `6dd457e`）。
 
 **P1 — 数据正确性（结果失真）**
 

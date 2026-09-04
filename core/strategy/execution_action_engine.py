@@ -7,7 +7,7 @@ A股实战交易反应动作与意图决策中枢 (Execution & Intent Action Eng
   1. 自然语言意图智能评估与路由 (IntentEvaluator)
   2. 五类下跌场景化精准诊断与战术应对矩阵 (DownsideReactionMatrix)
   3. 6 大核心交易反应动作与微观订单生成 (ExecutionActionEngine)
-  4. 摩擦税费最低保本精确计算 (万0.85) 与 ATR 波动率自适应风控
+  4. 摩擦税费最低保本精确计算 (动态费率配置/默认万2.5) 与 ATR 波动率自适应风控
 """
 
 import re

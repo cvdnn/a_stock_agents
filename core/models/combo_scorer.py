@@ -360,6 +360,13 @@ def entry_assessment(klines: List[List], latest: Dict) -> Dict[str, Any]:
 # ─── CLI ──────────────────────────────────────────────
 if __name__ == "__main__":
     import argparse
+    from pathlib import Path
+
+    # 直接运行脚本时，将项目根目录加入 sys.path，保证 `core` 包可导入
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
     parser = argparse.ArgumentParser(description="aStocks 策略评分")
     parser.add_argument("code", help="股票代码")
     parser.add_argument("--klines-file", help="K线JSON文件路径")
@@ -372,9 +379,9 @@ if __name__ == "__main__":
 
     # 获取K线数据
     if args.klines_file:
-        klines = json.loads(open(args.klines_file).read())
+        klines = json.loads(Path(args.klines_file).read_text(encoding="utf-8"))
     else:
-        from data_bridge import DataBridge
+        from core.data.data_bridge import DataBridge
         klines = DataBridge.tencent_kline(args.code, args.count)
 
     if not klines or len(klines) < 26:
@@ -382,7 +389,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # 计算技术指标
-    from technical_indicators import calc_all
+    from core.indicators.technical_indicators import calc_all
     tech = calc_all(klines)
 
     # 评分
