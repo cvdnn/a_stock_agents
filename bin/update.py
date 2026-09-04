@@ -61,6 +61,12 @@ def apply_update_from_zip(zip_path: Path, backup_dir: Path) -> bool:
     
     try:
         with zipfile.ZipFile(zip_path, "r") as z:
+            # Zip Slip 防护：逐个校验条目，禁止绝对路径与路径穿越
+            temp_root = temp_dir.resolve()
+            for member in z.infolist():
+                member_path = (temp_dir / member.filename).resolve()
+                if not str(member_path).startswith(str(temp_root) + os.sep) and member_path != temp_root:
+                    raise ValueError(f"非法压缩条目(路径穿越): {member.filename}")
             z.extractall(temp_dir)
             
         src_root = temp_dir / "a_stock_agents" if (temp_dir / "a_stock_agents").exists() else temp_dir
