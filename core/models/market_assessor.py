@@ -17,11 +17,19 @@ class MarketAssessor:
     """大盘健康度评估"""
 
     @staticmethod
-    def assess_trend(index_data: Dict) -> Tuple[int, int, str]:
-        """趋势维度 (满分30) — 基于上证指数MA20方向"""
+    def assess_trend(index_data: Dict, klines: Optional[List[List]] = None) -> Tuple[int, int, str]:
+        """趋势维度 (满分30) — 基于上证指数MA20与短线方向"""
         sh_data = None
         for name, info in index_data.items():
-            if "上证" in name or "000001" in info.get("code", ""):
+            code = str(info.get("code", "")).lower()
+            stock_name = str(info.get("name", ""))
+            key = str(name).lower()
+            is_sh_name = "上证" in name or "上证" in stock_name
+            is_sh_code = any(
+                c in ("sh000001", "000001.sh", "000001.ss") or (c.startswith("sh") and "000001" in c)
+                for c in (code, key)
+            )
+            if is_sh_name or is_sh_code:
                 sh_data = info
                 break
 
@@ -29,12 +37,27 @@ class MarketAssessor:
             return 15, 30, "无法获取上证指数数据，默认中性"
 
         chg_pct = sh_data.get("change_pct", 0)
+
+        # 若传入K线，精确计算 MA20 趋势
+        if klines and len(klines) >= 20:
+            closes = [float(k[2]) for k in klines]
+            ma20 = sum(closes[-20:]) / 20.0
+            prev_ma20 = sum(closes[-21:-1]) / 20.0 if len(closes) >= 21 else ma20
+            latest_close = closes[-1]
+            if latest_close > ma20 and ma20 >= prev_ma20:
+                return 30, 30, "MA20向上+收盘>MA20 ✅"
+            elif latest_close < ma20 and ma20 < prev_ma20:
+                return 0, 30, "MA20向下+收盘<MA20 ⚠️"
+            else:
+                return 15, 30, "MA20走平或震荡，中性"
+
+        # 降级：基于上证指数短线涨跌幅
         if chg_pct > 0.5:
-            return 30, 30, "MA20向上+收盘>MA20 ✅"
+            return 30, 30, "上证涨幅>0.5%，短线趋势偏强 ✅"
         elif chg_pct > -0.5:
-            return 15, 30, "MA20走平，中性"
+            return 15, 30, "上证涨跌在[-0.5%, 0.5%]，震荡走平"
         else:
-            return 0, 30, "MA20向下 ⚠️"
+            return 0, 30, "上证跌幅<-0.5%，短线趋势偏弱 ⚠️"
 
     @staticmethod
     def assess_sentiment(quotes: list) -> Tuple[int, int, str]:
@@ -62,12 +85,30 @@ class MarketAssessor:
 
     @staticmethod
     def assess_volume(quotes: list) -> Tuple[int, int, str]:
-        """量能维度 (满分20) — 全市场成交额"""
+        """量能维度 (满分20) — 全市场/核心指数成交额评估"""
         if not quotes:
-            return 10, 20, "数据不足"
+            return 10, 20, "量能数据不足，默认中性"
 
-        # 粗略估算：不能直接从腾讯单个股票获取全市场成交额，用代表性判断
-        return 15, 20, "量能中规中矩（需全市场数据精算）"
+        total_amount = 0.0
+        for q in quotes:
+            amt = q.get("amount", 0) or (q.get("amount_wan", 0) * 10000)
+            if amt:
+                total_amount += float(amt)
+
+        # 换算为亿元
+        total_amount_yi = total_amount / 1e8 if total_amount > 1e6 else total_amount / 1e4
+
+        if total_amount_yi > 0:
+            if total_amount_yi >= 10000:
+                return 20, 20, f"成交额约{total_amount_yi:.0f}亿 (破万亿)，量能充沛 ⭐"
+            elif total_amount_yi >= 8000:
+                return 15, 20, f"成交额约{total_amount_yi:.0f}亿 (超8000亿)，量能温和"
+            elif total_amount_yi >= 6000:
+                return 10, 20, f"成交额约{total_amount_yi:.0f}亿，存量博弈偏弱"
+            else:
+                return 5, 20, f"成交额约{total_amount_yi:.0f}亿 (<6000亿)，地量萎缩 ⚠️"
+
+        return 12, 20, "量能数据不足，取中性基准 (降级)"
 
     @staticmethod
     def assess_structure(board_data: Dict) -> Tuple[int, int, str]:
@@ -77,7 +118,14 @@ class MarketAssessor:
 
         # 从板块排行中数涨幅>2%的板块数
         boards = board_data.get("data", [])
-        strong_boards = sum(1 for b in boards if float(b.get("changePct", 0)) > 2)
+        strong_boards = 0
+        for b in boards:
+            try:
+                chg = float(b.get("changePct", 0) or 0)
+                if chg > 2.0:
+                    strong_boards += 1
+            except (ValueError, TypeError):
+                continue
 
         if strong_boards >= 5:
             return 15, 15, f"{strong_boards}个板块涨幅>2%，结构良好 ⭐"
@@ -87,10 +135,27 @@ class MarketAssessor:
             return 5, 15, "无强势板块，结构偏弱"
 
     @staticmethod
-    def assess_capital() -> Tuple[int, int, str]:
-        """资金维度 (满分15) — 北向资金"""
-        # 北向资金需proxy-patch，此处用中性值
-        return 10, 15, "北向资金数据需proxy-patch获取"
+    def assess_capital(capital_data: Optional[Dict] = None) -> Tuple[int, int, str]:
+        """资金维度 (满分15) — 北向与主力资金流向"""
+        if capital_data and isinstance(capital_data, dict):
+            net_inflow = capital_data.get("net_inflow")
+            if net_inflow is None:
+                net_inflow = capital_data.get("净流入(亿)", capital_data.get("净买额(亿)"))
+            if net_inflow is not None:
+                try:
+                    val = float(net_inflow)
+                    if val > 30:
+                        return 15, 15, f"资金大幅净流入 ({val:.1f}亿) ⭐"
+                    elif val > 0:
+                        return 12, 15, f"资金温和净流入 ({val:.1f}亿)"
+                    elif val > -30:
+                        return 8, 15, f"资金小幅净流出 ({val:.1f}亿)"
+                    else:
+                        return 4, 15, f"资金大幅净流出 ({val:.1f}亿) ⚠️"
+                except (ValueError, TypeError):
+                    pass
+
+        return 8, 15, "无实时资金流数据，取中性基准 (降级)"
 
     def assess_all(self) -> Dict[str, Any]:
         """运行全维度评估"""

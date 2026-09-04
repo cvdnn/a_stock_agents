@@ -52,7 +52,10 @@ class StockScreener:
         board_map = {}
         for b in board_data:
             name = b.get("boardName", b.get("name", ""))
-            chg = float(b.get("changePct", 0))
+            try:
+                chg = float(b.get("changePct", 0) or 0)
+            except (ValueError, TypeError):
+                chg = 0.0
             board_map[name] = chg
 
         for q in quotes:
@@ -194,8 +197,8 @@ class StockScreener:
                 "entry": entry,
             })
 
-        # 按总分排序
-        results.sort(key=lambda x: x["scores"]["total"], reverse=True)
+        # 按归一化百分制总分排序 (确保缺失cyq/fund的标的与完整标的尺度公平可比)
+        results.sort(key=lambda x: x["scores"].get("normalized_score", x["scores"].get("total", 0)), reverse=True)
         return results
 
     # ═══════════════════════════════════════════════════

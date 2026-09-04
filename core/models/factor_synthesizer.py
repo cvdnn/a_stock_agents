@@ -8,6 +8,7 @@ A-Share Quant Engine - Factor Synthesizer (多因子合成与截面排序器)
 """
 
 import math
+import statistics
 from typing import Dict, List, Any, Optional, Tuple
 
 
@@ -106,7 +107,12 @@ class FactorSynthesizer:
             return {}
 
         symbols = list(universe_factors.keys())
-        weights = custom_weights if custom_weights else cls.DEFAULT_WEIGHTS
+        raw_weights = custom_weights if custom_weights else cls.DEFAULT_WEIGHTS
+        total_w = sum(raw_weights.values())
+        if total_w > 0:
+            weights = {k: v / total_w for k, v in raw_weights.items()}
+        else:
+            weights = cls.DEFAULT_WEIGHTS
 
         # 1. 逐个因子进行截面去极值和 Z-Score
         standardized_factors: Dict[str, Dict[str, float]] = {s: {} for s in symbols}
@@ -116,7 +122,21 @@ class FactorSynthesizer:
                 continue
             
             direction = cls.FACTOR_DIRECTIONS.get(factor_name, 1)
-            raw_vals = [universe_factors[s].get(factor_name, 0.0) for s in symbols]
+            # 收集该因子的有效非空值
+            valid_vals = [
+                universe_factors[s][factor_name]
+                for s in symbols
+                if factor_name in universe_factors[s] and universe_factors[s][factor_name] is not None
+            ]
+            
+            # 使用有效值的中位数作为中性填补值，避免填0在偏离时被放大为极端异常Z值
+            fill_val = statistics.median(valid_vals) if valid_vals else 0.0
+            raw_vals = [
+                universe_factors[s][factor_name]
+                if (factor_name in universe_factors[s] and universe_factors[s][factor_name] is not None)
+                else fill_val
+                for s in symbols
+            ]
             
             # MAD 去极值
             winsorized = cls._mad_winsorize(raw_vals)

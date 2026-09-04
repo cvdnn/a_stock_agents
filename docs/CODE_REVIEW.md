@@ -134,7 +134,7 @@
 
 | 位置 | 问题 |
 |---|---|
-| `risk_manager.py:109` | `dif < max(dif for _ in [0])` 等价于 `dif < dif`，恒为假，顶背离检测是死代码 |
+| `risk_manager.py:100,109` | 顶背离死代码（恒为假）；MACD 红柱缩短条件 `<=` 倒挂且未判红柱 `> 0` |
 | `risk_manager.py:20-34` | 三级止损 T0 硬编码 `-5%`（docstring），与 README/配置文件「T0 警戒 -3%」口径不一致 |
 | `grid_trading_strategy.py` | 网格动作分配 `"buy" if i < grid_count/2 else "sell"` 与网格价位语义无耦合，低档位未必映射到买 |
 | `position_manager.py:60-83` | `_get_quote` 双层 `except Exception: pass`，行情失败静默返回 `{}` |
@@ -225,9 +225,17 @@
 10. [✅ 已修复] `technical_indicators.py` CLI 入口补 `import sys` / `Path` 与绝对导入（提交 `6dd457e`）。
 11. [✅ 已修复] `ta_analyze.py` 显式定义 `SKILL_DIR`，消除运行时 `NameError`（提交 `6dd457e`）。
 
-**P1 — 数据正确性（结果失真）**
+**P1 — 数据正确性（结果失真）** [✅ 全部 9 项已修复并通过全量验证]
 
-- `fetch_realtime.py` 沪市标识修复；`fetch_history_fallback.py` 补 `EM_PERFORMANCE_URL`；`market_assessor` 补真实量能/资金数据或降级为三维；`gap_analysis` 向下缺口方向修复；`combo_scorer` 资金流量纲换算与归一化；`multi_factor_scorer` 评分区间单调化；`factor_synthesizer` 缺失因子处理。
+1. [✅ 已修复] `fetch_realtime.py` 沪市标识修复：修正 `parts[0] == "1"` 恒假逻辑，结合 `_sh` / `_bj` 标识及 600/688/900 代码规则准确分配市场前缀。
+2. [✅ 已修复] `fetch_history_fallback.py` 补齐常量：定义 `EM_PERFORMANCE_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get"`，消除交易日历调用抛 `NameError`。
+3. [✅ 已修复] `market_assessor.py` 指数匹配与动态评估：修复 `"000001"` 误匹配平安银行（增加严格 `sh` 标识与命名强校验），`assess_trend` 增加 MA20 趋势计算；`assess_volume` 依据成交额动态分档；`assess_capital` 支持资金流向动态评分与降级基准。
+4. [✅ 已修复] `technical_indicators.py` 缺口与评级修复：`gap_analysis` 向下跳空回补修正为 `today_high >= yesterday_close`；修复 7+ 条件判 B、5-6 条件判 A 的评级语义反转；增强 `ma`/`rsi` 短序列防护。
+5. [✅ 已修复] `combo_scorer.py` 资金流量纲与归一化：`score_fund_flow` 准确换算“万”与“亿”，消除 5000万 误判为 5000亿 满分故障；在缺失 `cyq` 或 `fund_flow` 时动态调减有效满分并计算百分制 `normalized_score`。
+6. [✅ 已修复] `stock_screener.py` 健壮性与归一化排序：`changePct` 转 float 增加 None/空串保护；选股候选列表改按百分制 `normalized_score` 排序，确保缺失筹码标的与完整标的公平可比。
+7. [✅ 已修复] `multi_factor_scorer.py` 评分区间单调化：消除 `trend_score` 的区间重叠，采用清晰互斥且单调的上涨日占比区间映射。
+8. [✅ 已修复] `factor_synthesizer.py` 缺失因子与权重规范：`custom_weights` 自动归一化使权重和为 1.0；缺失因子改用截面中位数（Median）填充，避免经 Z-score 产生极端伪异常值。
+9. [✅ 已修复] `risk_manager.py` 顶背离死代码与红柱缩短修复：将 `dif < max(dif for _ in [0])` 恒假死代码修复为基于阶段新高与前期 DIF 峰值对比的顶背离检测；修复 MACD 红柱连续 3 日缩短条件（修正 `<=` 倒挂并限定红柱 `> 0` 且单调递减）。
 
 **P2 — 健壮性治理**
 

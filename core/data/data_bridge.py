@@ -159,6 +159,8 @@ class DataBridge:
                 "high": round(float(parts[33]), 2) if parts[33] else price,
                 "low": round(float(parts[34]), 2) if parts[34] else price,
                 "volume_hands": int(float(parts[6])) if parts[6] else 0,
+                "amount": float(parts[37]) * 10000 if len(parts) > 37 and parts[37] else 0,
+                "amount_wan": float(parts[37]) if len(parts) > 37 and parts[37] else 0,
                 "vol_ratio": round(float(parts[49]), 2) if len(parts) > 49 and parts[49] else 1.0,
                 "turnover_pct": round(float(parts[38]), 2) if parts[38] else 0,
                 "pe": round(float(parts[39]), 2) if parts[39] and parts[39] != "0" else 0,

@@ -8,6 +8,7 @@ aStocks 三合一组合策略评分引擎 (trading-combo)
 """
 
 import json
+import re
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -170,24 +171,67 @@ class ComboScorer:
         return min(score, 15), "; ".join(reasons)
 
     @staticmethod
-    def score_fund_flow(fund_data: Optional[Dict]) -> Tuple[int, str]:
+    def score_fund_flow(fund_data: Optional[Any]) -> Tuple[int, str]:
         """资金流向评分 (满分15)"""
         if not fund_data:
             return 8, "资金流数据不可用，默认中性"
-        # fund_data from fetch_realtime.py --fund-flow
-        text = str(fund_data)
-        if "主力净流入" in text:
-            try:
-                inflow = float(text.split("主力净流入")[1].split()[0].replace("亿", "").replace("万", ""))
-                if inflow > 0.5:
-                    return 15, "主力大幅净流入 ⭐⭐⭐"
-                elif inflow > 0:
-                    return 12, "主力小幅净流入"
-                else:
-                    return 5, "主力净流出"
-            except (ValueError, IndexError):
-                pass
-        return 8, "资金流数据需解析"
+
+        inflow_yi = None
+
+        # 1. 结构化 dict / list 处理
+        if isinstance(fund_data, list) and fund_data:
+            fund_data = fund_data[0]
+
+        if isinstance(fund_data, dict):
+            for k in ("main_net_inflow", "主力净流入", "主力净流入-净额", "net_inflow"):
+                if k in fund_data:
+                    v = fund_data[k]
+                    if isinstance(v, (int, float)):
+                        if abs(v) >= 1e7:
+                            inflow_yi = v / 1e8
+                        elif abs(v) >= 1e3:
+                            inflow_yi = v / 1e4
+                        else:
+                            inflow_yi = float(v)
+                        break
+                    elif isinstance(v, str):
+                        m = re.search(r"([-+]?\d+(?:\.\d+)?)\s*(亿|万)?", v)
+                        if m:
+                            num = float(m.group(1))
+                            unit = m.group(2)
+                            inflow_yi = num if unit == "亿" else (num / 10000.0 if unit == "万" else num)
+                            break
+
+        # 2. 文本解析处理 (如 CLI 输出格式)
+        if inflow_yi is None:
+            text = str(fund_data)
+            if "主力净流入" in text:
+                try:
+                    raw = text.split("主力净流入")[1].split()[0].strip(":： \t\"',")
+                    m = re.search(r"([-+]?\d+(?:\.\d+)?)\s*(亿|万)?", raw)
+                    if m:
+                        num = float(m.group(1))
+                        unit = m.group(2)
+                        if unit == "亿":
+                            inflow_yi = num
+                        elif unit == "万":
+                            inflow_yi = num / 10000.0
+                        else:
+                            inflow_yi = num if abs(num) < 100 else num / 10000.0
+                except (ValueError, IndexError):
+                    pass
+
+        if inflow_yi is not None:
+            if inflow_yi > 0.5:
+                return 15, f"主力大幅净流入 ({inflow_yi:.2f}亿) ⭐⭐⭐"
+            elif inflow_yi > 0:
+                return 12, f"主力小幅净流入 ({inflow_yi:.2f}亿)"
+            elif inflow_yi > -0.5:
+                return 8, f"主力小幅净流出 ({inflow_yi:.2f}亿)"
+            else:
+                return 5, f"主力大幅净流出 ({inflow_yi:.2f}亿)"
+
+        return 8, "资金流数据需解析，默认中性"
 
     @staticmethod
     def score_pe(pe_value: Optional[float], is_short: bool = False) -> Tuple[int, str]:
@@ -269,16 +313,22 @@ class ComboScorer:
             "scored_without_cyq_fund": (cyq_data is None and fund_data is None),
         }
 
-        # 如果缺少 cyq 和 fund_flow，退回70分制
-        if cyq_data is None and fund_data is None:
-            effective_max = 70
-            adjusted_total = total - cyq_score - fund_score
-        else:
-            effective_max = 100
-            adjusted_total = total
+        # 动态有效满分与剔除缺失项的中性分
+        effective_max = 100
+        adjusted_total = total
+
+        if cyq_data is None:
+            effective_max -= 15
+            adjusted_total -= cyq_score
+        if fund_data is None:
+            effective_max -= 15
+            adjusted_total -= fund_score
+
+        # 归一化为百分制得分
+        normalized_score = round(adjusted_total / effective_max * 100, 1) if effective_max > 0 else float(total)
 
         # 评级 (基于有效满分归一化)
-        ratio = adjusted_total / effective_max
+        ratio = adjusted_total / effective_max if effective_max > 0 else 0.0
         if ratio >= 0.80:
             rating, rating_text, position = "A", "强烈推荐 ⭐⭐⭐⭐", "30-40%"
         elif ratio >= 0.70:
@@ -289,6 +339,8 @@ class ComboScorer:
             rating, rating_text, position = "D", "回避 ⭐", "放弃"
 
         scores["effective_max"] = effective_max
+        scores["adjusted_total"] = adjusted_total
+        scores["normalized_score"] = normalized_score
         scores["rating"] = rating
         scores["rating_text"] = rating_text
         scores["suggested_position"] = position

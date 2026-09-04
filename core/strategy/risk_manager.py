@@ -94,20 +94,23 @@ class RiskManager:
         if dif < 0:
             signals.append("🔴 DIF跌破零轴 → 清仓信号")
 
-        # MACD红柱连续缩短
+        # MACD红柱连续缩短 (需全部为红柱 > 0 且柱高单调递减)
         if len(bars) >= 4:
             recent = bars[-4:]
-            if all(recent[i] <= recent[i + 1] for i in range(len(recent) - 1)):
+            if all(b > 0 for b in recent) and all(recent[i] >= recent[i + 1] for i in range(len(recent) - 1)) and recent[0] > recent[-1]:
                 signals.append("🟠 MACD红柱连续3日缩短 → 减仓信号")
 
         # 顶背离提示
         if len(klines) >= 40:
             recent_highs = [float(k[3]) for k in klines[-30:]]
             max_price = max(recent_highs)
-            max_price_dif = dif
-            # 简化检测: 价格创新高但DIF未新高
-            if close >= max_price * 0.95 and dif < max(dif for _ in [0]):
-                signals.append("⚠️ 可能顶背离 → 减仓观察")
+            difs = m.get("dif", [])
+            if len(difs) >= 30:
+                recent_difs = difs[-30:]
+                prev_max_dif = max(recent_difs[:-5]) if len(recent_difs) > 5 else max(recent_difs)
+                # 价格接近或创阶段新高，但 DIF 明显落后于前期高点（形成顶背离）
+                if close >= max_price * 0.98 and dif < prev_max_dif and prev_max_dif > 0:
+                    signals.append("⚠️ 可能顶背离 → 减仓观察")
 
         # 股价跌破布林带中轨
         boll_mid = latest.get("boll_mid", 0)

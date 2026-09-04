@@ -36,6 +36,8 @@ def _sma(data: List[float], n: int, m: int = 1) -> List[float]:
 
 def ma(data: List[float], n: int) -> List[float]:
     """简单移动平均"""
+    if len(data) < n or n <= 0:
+        return [0.0] * len(data) if data else []
     result = [0.0] * (n - 1)
     window = data[:n]
     s = sum(window)
@@ -103,6 +105,8 @@ def kdj(klines: List[List], n: int = 9, k_n: int = 3, d_n: int = 3) -> Dict[str,
 
 def rsi(closes: List[float], n: int = 14) -> List[float]:
     """计算 RSI"""
+    if len(closes) <= n or n <= 0:
+        return [50.0] * len(closes) if closes else []
     ups, downs = [], []
     for i in range(1, len(closes)):
         d = closes[i] - closes[i - 1]
@@ -266,9 +270,10 @@ def gap_analysis(klines: List[List]) -> Dict[str, Any]:
         gap_pct = gap_val / yesterday_close * 100
 
         if abs(gap_pct) >= 0.5:
-            today_low = float(klines[i][4])
-            filled = today_low < yesterday_close
             direction = "up" if gap_pct > 0 else "down"
+            today_high = float(klines[i][3])
+            today_low = float(klines[i][4])
+            filled = (today_low <= yesterday_close) if direction == "up" else (today_high >= yesterday_close)
             gaps.append({
                 "date": klines[i][0],
                 "direction": direction,
@@ -387,10 +392,10 @@ def second_golden_cross(klines: List[List]) -> Dict[str, Any]:
 
     passed = sum(1 for _, ok in checks if ok)
     if passed >= 7:
-        verdict = "B"
+        verdict = "A"
         msg = "可试错出手 — 7+条件满足"
     elif passed >= 5:
-        verdict = "A"
+        verdict = "B"
         msg = "上观察名单 — 5-6条件满足，等确认"
     else:
         verdict = "C"

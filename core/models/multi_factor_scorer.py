@@ -133,15 +133,15 @@ class MultiFactorScorer:
         else:
             vol_score = 0.0
 
-        # 趋势稳定性评分
-        if 0.5 <= up_ratio <= 0.65:
-            trend_score = 100.0  # 温和上涨
-        elif 0.4 <= up_ratio <= 0.7:
-            trend_score = 70.0
-        elif 0.3 <= up_ratio <= 0.8:
-            trend_score = 40.0
+        # 趋势稳定性评分：按上涨日占比区间明确划分（单调且互斥，消除重叠模糊）
+        if 0.50 <= up_ratio <= 0.65:
+            trend_score = 100.0  # 温和稳健上涨
+        elif (0.40 <= up_ratio < 0.50) or (0.65 < up_ratio <= 0.70):
+            trend_score = 70.0   # 偏稳或略显亢奋
+        elif (0.30 <= up_ratio < 0.40) or (0.70 < up_ratio <= 0.80):
+            trend_score = 40.0   # 震荡偏弱或过热
         else:
-            trend_score = 20.0
+            trend_score = 20.0   # 极度过热或持续阴跌
 
         quality = vol_score * 0.6 + trend_score * 0.4
 

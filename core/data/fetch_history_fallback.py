@@ -41,6 +41,7 @@ EM_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
 EM_COMPANY_URL = "https://emweb.eastmoney.com/PC_HSF10/CompanySurvey/CompanySurveyAjax"
 EM_BOARD_CONCEPT_URL = "https://push2.eastmoney.com/api/qt/clist/get"
 EM_BOARD_INDUSTRY_URL = "https://push2.eastmoney.com/api/qt/clist/get"
+EM_PERFORMANCE_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get"
 
 # 新浪全市场股票
 SINA_STOCK_LIST_COUNT = "http://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeStockCount"

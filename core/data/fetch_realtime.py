@@ -866,9 +866,15 @@ def _parse_tencent_quote(line: str) -> Optional[dict]:
             return None
         prev_close = float(parts[4]) if parts[4] else 0
         change_pct = round((price - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0
-        market_prefix = "sh" if parts[0] == "1" else "sz"
+        raw_code = parts[2].strip()
+        if "_sh" in parts[0] or raw_code.startswith(("6", "688", "900")):
+            market_prefix = "sh"
+        elif "_bj" in parts[0] or raw_code.startswith(("4", "8", "920")):
+            market_prefix = "bj"
+        else:
+            market_prefix = "sz"
         return {
-            "code": f"{market_prefix}{parts[2]}",
+            "code": f"{market_prefix}{raw_code}",
             "name": parts[1],
             "price": price,
             "prev_close": prev_close,
