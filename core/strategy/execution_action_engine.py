@@ -122,7 +122,7 @@ class DownsideReactionMatrix:
         price = float(quote.get("price", 0.0))
         change_pct = float(quote.get("change_pct", 0.0))
         vol_ratio = float(quote.get("vol_ratio", 1.0))
-        outer_ratio = float(quote.get("outer_ratio", 50.0))
+        outer_ratio = float(quote.get("o_ratio", 50.0))
         
         ma5 = float(tech.get("ma5", price))
         ma10 = float(tech.get("ma10", price))
@@ -130,8 +130,8 @@ class DownsideReactionMatrix:
         ma60 = float(tech.get("ma60", price))
         bias20 = ((price - ma20) / ma20 * 100.0) if ma20 > 0 else 0.0
         kdj_j = float(tech.get("kdj_j", 50.0))
-        rsi14 = float(tech.get("rsi14", 50.0))
-        atr14 = float(tech.get("atr14", price * 0.03))
+        rsi14 = float(tech.get("rsi", 50.0))
+        atr14 = float(tech.get("atr", price * 0.03))
 
         rating = str(model_score.get("rating", "B")) if model_score else "B"
         shares = int(holding.get("shares", 1000)) if holding else 1000
@@ -315,8 +315,8 @@ class ExecutionActionEngine:
         low_p = float(quote.get("low", price))
         change_pct = float(quote.get("change_pct", 0.0))
         vol_ratio = float(quote.get("vol_ratio", 1.0))
-        outer_ratio = float(quote.get("outer_ratio", 50.0))
-        turnover = float(quote.get("turnover", 0.0))
+        outer_ratio = float(quote.get("o_ratio", 50.0))
+        turnover = float(quote.get("turnover_pct", 0.0))
 
         ma5 = float(tech.get("ma5", price))
         ma10 = float(tech.get("ma10", price))
@@ -324,10 +324,10 @@ class ExecutionActionEngine:
         ma60 = float(tech.get("ma60", price))
         bias20 = ((price - ma20) / ma20 * 100.0) if ma20 > 0 else 0.0
         kdj_j = float(tech.get("kdj_j", 50.0))
-        rsi14 = float(tech.get("rsi14", 50.0))
-        atr14 = float(tech.get("atr14", price * 0.03))
-        macd_dif = float(tech.get("macd_dif", 0.0))
-        macd_dea = float(tech.get("macd_dea", 0.0))
+        rsi14 = float(tech.get("rsi", 50.0))
+        atr14 = float(tech.get("atr", price * 0.03))
+        macd_dif = float(tech.get("dif", 0.0))
+        macd_dea = float(tech.get("dea", 0.0))
 
         is_held = holding is not None and holding.get("shares", 0) > 0
         cost = float(holding.get("cost", 0.0)) if is_held else 0.0
