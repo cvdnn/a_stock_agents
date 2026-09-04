@@ -8,6 +8,7 @@ aStocks 三合一组合策略评分引擎 (trading-combo)
 """
 
 import json
+import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 
