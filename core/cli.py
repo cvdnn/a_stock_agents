@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Unified CLI for a_stock_agents.
-Supports command-line execution for human users, scripts, and Java AI Platform sub-processes.
+Supports command-line execution for human users, scripts, and external UI/API sub-processes.
 """
 
 import sys

@@ -3,11 +3,11 @@
 [![Version](https://img.shields.io/badge/Version-v3-blue.svg)](#)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-green.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-blue.svg)](#)
-[![AI Integration](https://img.shields.io/badge/AI%20Platforms-Antigravity%20%7C%20Hermes%20%7C%20Codex%20%7C%20Java%20AI-orange.svg)](#)
+[![AI Integration](https://img.shields.io/badge/AI%20Platforms-Antigravity%20%7C%20Hermes%20%7C%20Codex%20%7C%20Claude%20Code-orange.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](#)
 
 **A-Stock Agents** 是一套高内聚、自包含、生产就绪的 **A股全流程量化投研、多智能体协同研判与实战反应决策系统**。
-专为独立服务器部署、量化实战交易、**主流第三方 AI Agent 平台（Google Antigravity、Hermes Agent、OpenAI Codex、Claude Code）** 以及 **自建 Java AI 平台（基于 Spring AI / LangChain4j / 自定义 Agent）** 提供开箱即用的量化分析、风控执行与自然语言 AIChat 交互能力。
+专为独立服务器部署、量化实战交易以及**主流 AI Agent 平台（Google Antigravity、Hermes Agent、OpenAI Codex、Claude Code 等）**提供开箱即用的量化分析、风控执行与自然语言 AIChat 交互能力。
 
 ---
 
@@ -16,10 +16,9 @@
 - [二、核心功能与 17 大智能体技能体系（6+1 分层架构）](#二核心功能与-17-大智能体技能体系61-分层架构)
 - [三、环境准备与常规安装](#三环境准备与常规安装)
 - [四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)](#四第三方-ai-平台与工具使用指南-antigravity--hermes--codex-等)
-- [五、自建 Java AI 平台接入指南 (Custom AI Platform)](#五自建-java-ai-平台接入指南-custom-ai-platform)
-- [六、CLI 实战命令速查与使用说明](#六cli-实战命令速查与使用说明)
-- [七、用户专属数据隔离 (output/)、安全打包与热更新](#七用户专属数据隔离-output-安全打包与热更新)
-- [八、免责声明](#八免责声明)
+- [五、CLI 实战命令速查与使用说明](#五cli-实战命令速查与使用说明)
+- [六、用户专属数据隔离 (output/)、安全打包与热更新](#六用户专属数据隔离-output-安全打包与热更新)
+- [七、免责声明](#七免责声明)
 
 ---
 
@@ -139,105 +138,14 @@ python verify.py
 - **Sub-Agent 协同派发**：
   - 主 Agent 可派发 `ta-multi-agent-analysis` 等子任务，直接复用项目内的 7 大分析师辩论框架。
 
----
-
-## 五、自建 Java AI 平台接入指南 (Custom AI Platform)
-
-自建 Java AI 平台（如基于 Spring AI、LangChain4j 或自定义 Agent 架构）接入标准化三步流程：
-
-```
-+-------------------------------------------------------------------------+
-|                  Java AI 平台接入 A-Stock Agents 三步法                   |
-+-------------------------------------------------------------------------+
-|  步骤 1: 扫描并导入 config/skills_manifest.json 注册 Tool 元数据         |
-|  步骤 2: Java 后端通过 ProcessBuilder 执行 ./bin/astock <cmd> --json   |
-|  步骤 3: 注入 prompts/java_aichat_system_prompt.md 作为 AIChat 系统提示词 |
-+-------------------------------------------------------------------------+
-```
-
-### 步骤 1：读取技能清单与元数据注册
-Java 平台启动时，直接解析 `config/skills_manifest.json`：
-
-```json
-{
-  "platform": "Java-AI-Platform-Compatible",
-  "version": "v3",
-  "total_skills": 17,
-  "skills": [
-    {
-      "id": "astock-data-feed",
-      "name": "astock-data-feed",
-      "title": "A股全链路行情与技术指标数据引擎",
-      "triggers": ["行情", "查股票", "现价", "K线", "技术指标", "MACD", "KDJ"],
-      "cli_command": "astock data quote {code}",
-      "skill_doc": "skills/astock-data-feed/SKILL.md"
-    },
-    ...
-  ]
-}
-```
-
-### 步骤 2：Java ProcessBuilder 工具执行器实现
-Java 后端通过子进程调用 CLI，以 JSON 格式无缝交互：
-
-```java
-package com.ai.platform.tools;
-
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-
-public class AStockTool {
-    private final String projectRoot;
-
-    public AStockTool(String projectRoot) {
-        this.projectRoot = projectRoot;
-    }
-
-    /**
-     * 执行 A-Stock Agents CLI 命令并返回 JSON 字符串
-     * @param subCommands 子命令数组，例如 ["data", "quote", "600519"]
-     * @return 标准 JSON 格式字符串
-     */
-    public String execute(List<String> subCommands) throws Exception {
-        String cliPath = projectRoot + (isWindows() ? "/bin/astock.cmd" : "/bin/astock");
-        
-        List<String> fullCmd = new ArrayList<>();
-        fullCmd.add(cliPath);
-        fullCmd.addAll(subCommands);
-        fullCmd.add("--json"); // 强制 JSON 格式输出
-
-        ProcessBuilder pb = new ProcessBuilder(fullCmd);
-        pb.directory(new File(projectRoot));
-        pb.environment().put("A_STOCK_AGENTS_ROOT", projectRoot);
-        pb.redirectErrorStream(false);
-
-        Process process = pb.start();
-        String jsonOutput = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        int exitCode = process.waitFor();
-
-        if (exitCode != 0) {
-            String errorOutput = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
-            throw new RuntimeException("CLI execution failed: " + errorOutput);
-        }
-        return jsonOutput.trim();
-    }
-
-    private boolean isWindows() {
-        return System.getProperty("os.name").toLowerCase().contains("win");
-    }
-}
-```
-
-### 步骤 3：AIChat 系统提示词无缝注入
-将 [`prompts/java_aichat_system_prompt.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/prompts/java_aichat_system_prompt.md) 设置为 AIChat 对话的 System Message，大模型即可具备：
-1. **自然语言自动意图路由**：根据用户输入自动提取股票代码并映射到对应技能。
-2. **强制实战风控输出**：输出建议时自动核算保本价、三级止损线（-3% / -5% / -8%）与三场景即时反应动作。
+#### D. AIChat 对话系统提示词 (通用)
+- 将 [`prompts/aichat_system_prompt.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/prompts/aichat_system_prompt.md) 设置为 AIChat 对话的 System Message，大模型即可具备：
+  1. **自然语言自动意图路由**：根据用户输入自动提取股票代码并映射到对应技能。
+  2. **强制实战风控输出**：输出建议时自动核算保本价、三级止损线（-3% / -5% / -8%）与三场景即时反应动作。
 
 ---
 
-## 六、CLI 实战命令速查与使用说明
+## 五、CLI 实战命令速查与使用说明
 
 所有 CLI 命令均原生支持 `--json` 参数，便于程序解析。
 
@@ -275,7 +183,7 @@ public class AStockTool {
 
 ---
 
-## 七、用户专属数据隔离 (output/)、安全打包与热更新
+## 六、用户专属数据隔离 (output/)、安全打包与热更新
 
 ### 1. 专属数据目录规范 (`output/`)
 为了防止个人持仓、交易记录和私人报告在项目版本打包或共享时发生数据泄露，系统设计了 **`output/` 专属目录隔离机制**：
@@ -327,7 +235,7 @@ python bin/update.py --rollback backup_20260902_174003
 
 ---
 
-## 八、免责声明
+## 七、免责声明
 
 1. 本项目所提供的所有量化算法、技术指标、5A 选股模型、实战决策建议及多智能体研判结论，**仅供金融投研学习、量化策略研究与技术验证使用，不构成任何实质性投资建议或交易推荐**。
 2. 证券市场有风险，投资决策需建立在独立思考与专业判断之上。用户依据本项目提供的数据、策略或模型进行的任何实盘交易操作，其盈亏风险由使用者自行完全承担。

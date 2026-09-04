@@ -106,6 +106,6 @@ astock action plan
 # 2. 评估指定单只持仓标的（成本 15.00，持仓 1000 股）
 astock action plan --code 600519 --cost 1500.0 --shares 100
 
-# 3. 输出 JSON 格式供 Java AI 平台或前端面板接入
+# 3. 输出 JSON 格式供前端面板或外部程序接入
 astock action plan --json
 ```
