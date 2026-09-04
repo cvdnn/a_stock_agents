@@ -72,6 +72,29 @@ class MultiBacktestEngine:
         self.slippage = slippage_rate if slippage_rate is not None else slippage
         self.commission_rate = commission_rate
 
+    @staticmethod
+    def _limit_prices(symbol: str, prev_close: float) -> Tuple[float, float]:
+        """返回 (涨停价, 跌停价)，按板块涨跌幅限制计算。
+
+        - 科创板 688xxx/689xxx、创业板 300xxx/301xxx: 20%
+        - 北交所 8xxxxx/4xxxxx/92xxxx: 30%
+        - 主板及其他: 10%
+        （ST 5% 因数据源无 ST 标识，暂按主板 10% 处理）
+        """
+        if not prev_close or prev_close <= 0:
+            return (float("inf"), 0.0)
+        code = str(symbol)
+        if code.startswith(("688", "689", "300", "301", "302")):
+            pct = 0.20
+        elif code.startswith(("8", "4", "92")):
+            pct = 0.30
+        else:
+            pct = 0.10
+        return (
+            round(prev_close * (1 + pct), 2),
+            round(prev_close * (1 - pct), 2),
+        )
+
     def run(
         self,
         num_days: int = 250,
@@ -114,6 +137,8 @@ class MultiBacktestEngine:
         for day_idx, current_date in enumerate(test_dates):
             daily_prices: Dict[str, float] = {}
             daily_atrs: Dict[str, float] = {}
+            daily_limit_up: Dict[str, float] = {}
+            daily_limit_down: Dict[str, float] = {}
             current_klines_window: Dict[str, List[Dict[str, Any]]] = {}
 
             for sym, klines in kline_data.items():
@@ -124,6 +149,12 @@ class MultiBacktestEngine:
                     atr_val, _ = PVFactors.calculate_atr(sub_k, 14)
                     daily_atrs[sym] = atr_val
                     current_klines_window[sym] = sub_k
+                    # 涨跌停价基于前一交易日收盘价计算
+                    prev_close = sub_k[-2]["close"] if len(sub_k) >= 2 else None
+                    if prev_close:
+                        lu, ld = self._limit_prices(sym, prev_close)
+                        daily_limit_up[sym] = lu
+                        daily_limit_down[sym] = ld
 
             # ---------------------------------------------------------
             # 策略信号分发 (自定义策略模式 或 默认多因子合成轮动)
@@ -140,6 +171,9 @@ class MultiBacktestEngine:
                     sym = sig.get("code")
                     act = sig.get("action")
                     if act == "buy" and sym in daily_prices:
+                        # 涨停封板无法买入
+                        if sym in daily_limit_up and daily_prices[sym] >= daily_limit_up[sym] - 1e-9:
+                            continue
                         p = daily_prices[sym] * (1.0 + self.slippage)
                         cur_eq = account.get_total_equity(daily_prices)
                         target_pct = sig.get("target_pct", 1.0 / max(1, self.top_k))
@@ -149,6 +183,9 @@ class MultiBacktestEngine:
                             atr_v = daily_atrs.get(sym, p * 0.03)
                             account.buy(sym, shares, p, current_date, atr_v)
                     elif act == "sell" and sym in account.positions:
+                        # 跌停封板无法卖出
+                        if sym in daily_limit_down and daily_prices[sym] <= daily_limit_down[sym] + 1e-9:
+                            continue
                         pos = account.positions[sym]
                         p = daily_prices[sym] * (1.0 - self.slippage)
                         account.sell(sym, pos["shares"], p, current_date, reason="strategy_signal")
@@ -165,6 +202,9 @@ class MultiBacktestEngine:
                     cur_atr = daily_atrs.get(sym, cur_p * 0.03)
 
                     actions = RiskEngine.evaluate_position_risk(pos, cur_p, cur_atr, current_date)
+                    # 跌停封板无法卖出
+                    if sym in daily_limit_down and cur_p <= daily_limit_down[sym] + 1e-9:
+                        continue
                     for act in actions:
                         sell_shares = act["shares"]
                         sell_price = act["price"] * (1.0 - self.slippage)  # 计入滑点
@@ -206,6 +246,9 @@ class MultiBacktestEngine:
 
                         p = daily_prices.get(sym, 0.0)
                         if p <= 0:
+                            continue
+                        # 涨停封板无法买入
+                        if sym in daily_limit_up and p >= daily_limit_up[sym] - 1e-9:
                             continue
                         atr_v = daily_atrs.get(sym, p * 0.03)
 
