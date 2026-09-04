@@ -792,6 +792,10 @@ class PaperTradingEngine:
                 "SELECT * FROM position_lots WHERE account_id = ? AND symbol = ? AND remaining_qty > 0 AND acquired_date < ? ORDER BY acquired_date ASC, created_at ASC",
                 (order["account_id"], order["symbol"], trade_date()),
             ).fetchall()
+            total_sellable = sum(int(lot["remaining_qty"]) for lot in sellable_lots)
+            if total_sellable < qty:
+                conn.execute("UPDATE orders SET status = 'rejected', note = ?, updated_at = ? WHERE order_id = ?", ("insufficient sellable qty at fill time", ts, order["order_id"]))
+                return
             remaining = qty
             for lot in sellable_lots:
                 if remaining <= 0:
@@ -799,9 +803,6 @@ class PaperTradingEngine:
                 take_qty = min(remaining, int(lot["remaining_qty"]))
                 conn.execute("UPDATE position_lots SET remaining_qty = remaining_qty - ? WHERE lot_id = ?", (take_qty, lot["lot_id"]))
                 remaining -= take_qty
-            if remaining > 0:
-                conn.execute("UPDATE orders SET status = 'rejected', note = ?, updated_at = ? WHERE order_id = ?", ("insufficient sellable qty at fill time", ts, order["order_id"]))
-                return
             conn.execute("UPDATE accounts SET cash = cash + ?, updated_at = ? WHERE account_id = ?", (amount - commission - tax, ts, order["account_id"]))
         conn.execute(
             "INSERT INTO trades(trade_id, order_id, account_id, symbol, side, price, qty, amount, commission, tax, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
