@@ -73,6 +73,7 @@ class BacktestEngine:
         except Exception:
             pass
 
+        bt_cfg = cfg.get("backtest", {}) if isinstance(cfg, dict) else {}
         self.initial_cash = initial_cash if initial_cash is not None else bt_cfg.get("initial_cash", 1000000)
         self.commission_rate = commission_rate if commission_rate is not None else (bt_cfg.get("commission_rate") or m_cfg.get("commission_rate", 0.00025))
         self.min_commission = (bt_cfg.get("min_commission") if "min_commission" in bt_cfg else m_cfg.get("min_commission", 5.0))

@@ -120,6 +120,33 @@ class TestModelsSuite(unittest.TestCase):
         self.assertEqual(report.stock_code, "600519")
         self.assertEqual(report.grade, "优秀")
 
+    def test_market_assessor_dimensions(self):
+        from core.models.market_assessor import MarketAssessor
+        assessor = MarketAssessor()
+        
+        # Test trend assessment
+        idx_up = {"sh": {"name": "上证指数", "code": "000001", "change_pct": 0.8}}
+        score, max_s, reason = assessor.assess_trend(idx_up)
+        self.assertEqual(score, 30)
+        self.assertEqual(max_s, 30)
+
+        idx_flat = {"sh": {"name": "上证指数", "code": "000001", "change_pct": 0.1}}
+        score, max_s, reason = assessor.assess_trend(idx_flat)
+        self.assertEqual(score, 15)
+
+        # Test sentiment
+        quotes = [{"change_pct": 1.2}, {"change_pct": 0.5}, {"change_pct": -0.3}]
+        s_score, s_max, s_reason = assessor.assess_sentiment(quotes)
+        self.assertGreater(s_score, 0)
+        self.assertEqual(s_max, 20)
+
+        # Test structure
+        boards = {"data": [{"groupLabel": "白酒", "changePct": 2.5}, {"groupLabel": "芯片", "changePct": 2.1}]}
+        st_score, st_max, st_reason = assessor.assess_structure(boards)
+        self.assertGreaterEqual(st_score, 10)
+        self.assertEqual(st_max, 15)
+
 
 if __name__ == "__main__":
     unittest.main()
+

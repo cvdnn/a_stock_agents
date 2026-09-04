@@ -120,11 +120,16 @@ class MarketGate:
         # 2. 大盘健康度 (v2) — 修复: MarketAssessor正确方法为assess_all(), 返回键为total_score
         #    原代码误用 assess()+total 会抛AttributeError被except吞掉, 导致健康度恒为fallback 50 (震荡)
         try:
-            from market_assessor import MarketAssessor
+            from core.models.market_assessor import MarketAssessor
             mk = MarketAssessor().assess_all()
             self.health_score = mk.get("total_score", mk.get("total", 50))
         except Exception:
-            self.health_score = 50
+            try:
+                from market_assessor import MarketAssessor
+                mk = MarketAssessor().assess_all()
+                self.health_score = mk.get("total_score", mk.get("total", 50))
+            except Exception:
+                self.health_score = 50
 
         # 3. 状态判定: 门控+健康度双重
         if self.health_score >= 85 and self.sh_above_ma20:

@@ -113,6 +113,35 @@ class TestP1SSOT(unittest.TestCase):
             content = model_path.read_text(encoding="utf-8")
             self.assertNotIn("except:", content, f"{name} contains bare except")
 
+    def test_market_assessor_forwarder(self):
+        """Verify market_assessor forwarder imports and delegates to core.models.market_assessor."""
+        fwd_path = ROOT / "skills" / "astock-platform-evaluate" / "scripts" / "market_assessor.py"
+        content = fwd_path.read_text(encoding="utf-8")
+        self.assertIn("Single Source of Truth (SSOT)", content)
+        self.assertIn("core.models.market_assessor", content)
+
+        # Verify importing through forwarder
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("fwd_market_assessor", str(fwd_path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        self.assertTrue(hasattr(mod, "MarketAssessor"))
+
+    def test_backtest_engine_forwarder(self):
+        """Verify backtest_engine forwarder imports and delegates to core.paper_trading.a_stocks_backtest."""
+        fwd_path = ROOT / "skills" / "astock-platform-evaluate" / "scripts" / "backtest_engine.py"
+        content = fwd_path.read_text(encoding="utf-8")
+        self.assertIn("Single Source of Truth (SSOT)", content)
+        self.assertIn("core.paper_trading.a_stocks_backtest", content)
+
+        # Verify importing through forwarder
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("fwd_backtest_engine", str(fwd_path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        self.assertTrue(hasattr(mod, "BacktestEngine"))
+
 
 if __name__ == "__main__":
     unittest.main()
+
