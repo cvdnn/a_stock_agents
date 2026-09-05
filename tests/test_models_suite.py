@@ -316,7 +316,9 @@ class TestModelsSuite(unittest.TestCase):
         """Verify skills/astock-screener-5a/scripts/multi_dim_model.py exports SSOT symbols without wildcard."""
         import importlib.util
 
-        script_path = ROOT / "skills" / "astock-screener-5a" / "scripts" / "multi_dim_model.py"
+        script_path = ROOT / ".agents" / "skills" / "astock-screener-5a" / "scripts" / "multi_dim_model.py"
+        if not script_path.exists():
+            script_path = ROOT / "skills" / "astock-screener-5a" / "scripts" / "multi_dim_model.py"
         self.assertTrue(script_path.exists())
 
         spec = importlib.util.spec_from_file_location("skill_multi_dim_model", str(script_path))

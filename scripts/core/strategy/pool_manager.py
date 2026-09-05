@@ -18,6 +18,12 @@ from pathlib import Path
 
 # ── 路径与环境自适应 ──
 SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT = SCRIPT_DIR.parent.parent.parent
+SCRIPTS_DIR = ROOT / "scripts"
+for p in [ROOT, SCRIPTS_DIR, SCRIPTS_DIR / "core", SCRIPT_DIR]:
+    if p.exists() and str(p) not in sys.path:
+        sys.path.insert(0, str(p))
+
 from core.config import PROJECT_ROOT, OUTPUT_POOLS_DIR
 POOLS_BASE = OUTPUT_POOLS_DIR
 

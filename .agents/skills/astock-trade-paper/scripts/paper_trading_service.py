@@ -11,17 +11,16 @@ from pathlib import Path
 # Find project root dynamically
 _cur = Path(__file__).resolve().parent
 while _cur.parent != _cur:
-    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+    if (_cur / "pyproject.toml").exists() or (_cur / "AGENTS.md").exists():
         _ROOT = _cur
         break
     _cur = _cur.parent
 else:
     _ROOT = Path(__file__).resolve().parents[3]
 
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
-if str(_ROOT / "core") not in sys.path:
-    sys.path.insert(0, str(_ROOT / "core"))
+for _p in [_ROOT, _ROOT / "scripts", _ROOT / "scripts" / "core", _ROOT / "core"]:
+    if _p.exists() and str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 import core.paper_trading.paper_trading_service as _core_mod
 from core.paper_trading.paper_trading_service import *  # noqa: F401, F403
@@ -36,5 +35,5 @@ if __name__ == "__main__":
         getattr(_core_mod, "main")()
     else:
         import runpy
-        _target_file = _ROOT / "core/paper_trading/paper_trading_service.py"
+        _target_file = (_ROOT / "scripts" / "core" if (_ROOT / "scripts" / "core").exists() else _ROOT / "core") / "paper_trading/paper_trading_service.py"
         runpy.run_path(str(_target_file), run_name="__main__")

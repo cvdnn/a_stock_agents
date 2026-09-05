@@ -10,6 +10,7 @@ from datetime import datetime
 from core.config import (
     OUTPUT_REPORTS_DIR,
     PROJECT_ROOT,
+    SKILLS_DIR,
     get_logger,
 )
 
@@ -144,7 +145,7 @@ def cmd_config_market(args):
 
 def cmd_skill_list(args):
     """列出注册的 Skills"""
-    skills_dir = PROJECT_ROOT / "skills"
+    skills_dir = SKILLS_DIR if SKILLS_DIR.exists() else (PROJECT_ROOT / ".agents" / "skills")
     if not skills_dir.exists():
         print("未找到 skills 目录")
         return

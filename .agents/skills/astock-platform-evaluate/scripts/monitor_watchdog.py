@@ -83,17 +83,16 @@ RETAIL_WARNINGS = [
 # Find project root dynamically
 _cur = Path(__file__).resolve().parent
 while _cur.parent != _cur:
-    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
+    if (_cur / "pyproject.toml").exists() or (_cur / "AGENTS.md").exists():
         _ROOT = _cur
         break
     _cur = _cur.parent
 else:
     _ROOT = Path(__file__).resolve().parents[3]
 
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
-if str(_ROOT / "core") not in sys.path:
-    sys.path.insert(0, str(_ROOT / "core"))
+for _p in [_ROOT, _ROOT / "scripts", _ROOT / "scripts" / "core", _ROOT / "core"]:
+    if _p.exists() and str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from core.monitor import (
     is_market_hours as _core_is_market_hours,

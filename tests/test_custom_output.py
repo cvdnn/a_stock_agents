@@ -64,7 +64,9 @@ class TestCustomOutputIsolation(unittest.TestCase):
             "import sys\n"
             "from pathlib import Path\n"
             "ROOT = Path('.').resolve()\n"
-            "sys.path.insert(0, str(ROOT))\n"
+            "for p in [ROOT, ROOT / 'scripts', ROOT / 'scripts' / 'core']:\n"
+            "    if p.exists() and str(p) not in sys.path:\n"
+            "        sys.path.insert(0, str(p))\n"
             "from core.config import get_active_paths, OUTPUT_DIR, OUTPUT_POOLS_DIR, IS_CUSTOM_OUTPUT\n"
             "paths = get_active_paths()\n"
             "assert paths['is_custom_output'] is True, 'Expected is_custom_output to be True'\n"
@@ -105,20 +107,31 @@ class TestCustomOutputIsolation(unittest.TestCase):
         env["A_STOCK_OUTPUT_DIR"] = str(self.test_custom_dir)
         python_exec = sys.executable
 
+        def _resolve(rel_path: str) -> str:
+            if rel_path.startswith("core/"):
+                cand = ROOT / "scripts" / rel_path
+                if cand.exists():
+                    return str(cand)
+            elif rel_path.startswith("skills/"):
+                cand = ROOT / ".agents" / rel_path
+                if cand.exists():
+                    return str(cand)
+            return str(ROOT / rel_path)
+
         scripts_to_verify = [
-            ("core.cli position list", [python_exec, "core/cli.py", "position", "list"], ["000001", "平安银行"]),
-            ("core.cli pool list", [python_exec, "core/cli.py", "pool", "list"], ["000002", "万科A"]),
-            ("core pool_manager list", [python_exec, "core/strategy/pool_manager.py", "list"], ["000002", "万科A"]),
-            ("core position_manager list", [python_exec, "core/strategy/position_manager.py", "list"], ["000001", "平安银行"]),
-            ("core position_stop_monitor", [python_exec, "core/strategy/position_stop_monitor.py", "--show"], ["000001", "平安银行"]),
-            ("core investment_report selected", [python_exec, "core/reporting/investment_report.py", "--pool", "selected"], ["000002", "万科A"]),
-            ("skills pool_manager list", [python_exec, "skills/astock-pool-dashboard/scripts/pool_manager.py", "list"], ["000002", "万科A"]),
-            ("skills position_manager list", [python_exec, "skills/astock-pool-dashboard/scripts/position_manager.py", "list"], ["000001", "平安银行"]),
-            ("skills sandbox", [python_exec, "skills/astock-pool-dashboard/scripts/sandbox.py"], ["000001", "平安银行"]),
-            ("skills investment_report selected", [python_exec, "skills/astock-pool-dashboard/scripts/investment_report.py", "--pool", "selected"], ["000002", "万科A"]),
-            ("skills position_stop_monitor", [python_exec, "skills/astock-pool-dashboard/scripts/position_stop_monitor.py", "--show"], ["000001", "平安银行"]),
-            ("skills ta_orchestrator check-pool", [python_exec, "skills/astock-agent-debate/scripts/ta_orchestrator.py", "--mode", "check-pool"], ["000002", "万科A"]),
-            ("skills pool_audit", [python_exec, "skills/astock-pool-audit/scripts/pool_audit.py"], ["000063", "中兴通讯"]),
+            ("core.cli position list", [python_exec, _resolve("core/cli.py"), "position", "list"], ["000001", "平安银行"]),
+            ("core.cli pool list", [python_exec, _resolve("core/cli.py"), "pool", "list"], ["000002", "万科A"]),
+            ("core pool_manager list", [python_exec, _resolve("core/strategy/pool_manager.py"), "list"], ["000002", "万科A"]),
+            ("core position_manager list", [python_exec, _resolve("core/strategy/position_manager.py"), "list"], ["000001", "平安银行"]),
+            ("core position_stop_monitor", [python_exec, _resolve("core/strategy/position_stop_monitor.py"), "--show"], ["000001", "平安银行"]),
+            ("core investment_report selected", [python_exec, _resolve("core/reporting/investment_report.py"), "--pool", "selected"], ["000002", "万科A"]),
+            ("skills pool_manager list", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/pool_manager.py"), "list"], ["000002", "万科A"]),
+            ("skills position_manager list", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/position_manager.py"), "list"], ["000001", "平安银行"]),
+            ("skills sandbox", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/sandbox.py")], ["000001", "平安银行"]),
+            ("skills investment_report selected", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/investment_report.py"), "--pool", "selected"], ["000002", "万科A"]),
+            ("skills position_stop_monitor", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/position_stop_monitor.py"), "--show"], ["000001", "平安银行"]),
+            ("skills ta_orchestrator check-pool", [python_exec, _resolve("skills/astock-agent-debate/scripts/ta_orchestrator.py"), "--mode", "check-pool"], ["000002", "万科A"]),
+            ("skills pool_audit", [python_exec, _resolve("skills/astock-pool-audit/scripts/pool_audit.py")], ["000063", "中兴通讯"]),
         ]
 
 
@@ -140,7 +153,8 @@ class TestCustomOutputIsolation(unittest.TestCase):
         env["A_STOCK_OUTPUT_DIR"] = str(self.test_custom_dir)
 
         # Initialize and add stock in custom output dir
-        cmd = [sys.executable, "core/strategy/pool_manager.py", "add", "--pool", "selected", "--code", "600000", "--name", "浦发银行", "--reason", "测试隔离", "--sector", "银行"]
+        pm_script = ROOT / "scripts" / "core" / "strategy" / "pool_manager.py" if (ROOT / "scripts" / "core" / "strategy" / "pool_manager.py").exists() else ROOT / "core" / "strategy" / "pool_manager.py"
+        cmd = [sys.executable, str(pm_script), "add", "--pool", "selected", "--code", "600000", "--name", "浦发银行", "--reason", "测试隔离", "--sector", "银行"]
         res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT), env=env)
         self.assertEqual(res.returncode, 0, f"Add to custom pool failed:\n{res.stderr}")
 

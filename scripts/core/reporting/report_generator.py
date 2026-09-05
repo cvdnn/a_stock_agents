@@ -18,8 +18,8 @@ from core.config import PROJECT_ROOT, OUTPUT_REPORTS_DIR
 def _resolve_template_path() -> Path:
     """自适应查找并解析 HTML 报告模板路径"""
     candidate_paths = [
-        PROJECT_ROOT / "skills" / "astock-data-feed" / "templates" / "stock-report.html",
         PROJECT_ROOT / ".agents" / "skills" / "astock-data-feed" / "templates" / "stock-report.html",
+        PROJECT_ROOT / "skills" / "astock-data-feed" / "templates" / "stock-report.html",
         PROJECT_ROOT / "skills" / "a-share-data" / "templates" / "stock-report.html",
     ]
     for p in candidate_paths:

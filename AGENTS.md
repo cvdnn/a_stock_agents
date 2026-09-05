@@ -19,15 +19,15 @@
 | :--- | :--- | :--- |
 | **Linux / macOS** | `./bin/astock <subcommand> --json` | `./bin/astock data quote 600519 --json` |
 | **Windows (CMD/PowerShell)** | `.\bin\astock.cmd <subcommand> --json` | `.\bin\astock.cmd data quote 600519 --json` |
-| **全平台通用 Python 回退** | `python core/cli.py <subcommand> --json` | `python core/cli.py data quote 600519 --json` |
+| **全平台通用 Python 回退** | `python scripts/core/cli.py <subcommand> --json` | `python scripts/core/cli.py data quote 600519 --json` |
 
 ---
 
 ## 🧭 17 项就地技能全景清单与意图路由 (Skills Manifest)
 
-当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** [`skills/<skill_id>/SKILL.md`](file:///Users/handy/workon/a_stock_agents/skills) 或 [`config/skills_manifest.json`](file:///Users/handy/workon/a_stock_agents/config/skills_manifest.json)。
+当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** [`.agents/skills/<skill_id>/SKILL.md`](file:///Users/handy/workon/a_stock_agents/.agents/skills) 或 [`config/skills_manifest.json`](file:///Users/handy/workon/a_stock_agents/config/skills_manifest.json)。
 
-| 技能 ID (`skills/`) | 适用场景与触发词 | 统一 CLI 调用入口 | 核心能力描述 |
+| 技能 ID (`.agents/skills/`) | 适用场景与触发词 | 统一 CLI 调用入口 | 核心能力描述 |
 | :--- | :--- | :--- | :--- |
 | **`astock-data-feed`** | 行情、现价、K线、筹码分布、技术指标、板块资金 | `astock data quote <代码> --json`<br>`astock data tech <代码> --json` | 4级降级实时行情与日K线，全套经典技术指标与筹码模型 |
 | **`astock-platform-evaluate`** | 全流程分析、股票诊断、综合打分、大盘健康度 | `astock evaluate <代码> --json` | 100分制量化打分、解套决策树与大盘健康度综合研判 |

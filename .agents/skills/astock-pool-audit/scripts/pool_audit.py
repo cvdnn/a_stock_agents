@@ -40,11 +40,16 @@ def main():
     import sys
     from pathlib import Path
     script_dir = Path(__file__).resolve().parent
-    project_root = script_dir.parent.parent.parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-    if str(project_root / "core") not in sys.path:
-        sys.path.insert(0, str(project_root / "core"))
+    def _find_project_root() -> Path:
+        for p in [script_dir] + list(script_dir.parents):
+            if (p / "pyproject.toml").exists() or (p / "AGENTS.md").exists():
+                return p
+        return script_dir.parents[3] if len(script_dir.parents) > 3 else script_dir.parents[2]
+
+    project_root = _find_project_root()
+    for _p in [project_root, project_root / "scripts", project_root / "scripts" / "core", project_root / "core"]:
+        if _p.exists() and str(_p) not in sys.path:
+            sys.path.insert(0, str(_p))
 
     from core.config import OUTPUT_POOLS_DIR
     default_data = str(OUTPUT_POOLS_DIR)

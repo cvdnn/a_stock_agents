@@ -88,18 +88,22 @@ class TestCommandsSuite(unittest.TestCase):
         self.assertEqual(args.cash, 200000.0)
 
     def test_cli_version_via_subprocess(self):
-        """Run core/cli.py version via subprocess."""
-        cmd = [sys.executable, str(ROOT / "core" / "cli.py"), "version"]
+        """Run cli.py version via subprocess."""
+        cli_path = ROOT / "scripts" / "core" / "cli.py" if (ROOT / "scripts" / "core" / "cli.py").exists() else ROOT / "core" / "cli.py"
+        cmd = [sys.executable, str(cli_path), "version"]
         res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
-        self.assertEqual(res.returncode, 0, f"core/cli.py version failed:\n{res.stderr}")
+        self.assertEqual(res.returncode, 0, f"cli.py version failed:\n{res.stderr}")
         self.assertIn("A-Stock Agents", res.stdout)
         self.assertIn("3.0.0", res.stdout)
 
     def test_a_stocks_forwarder_via_subprocess(self):
         """Run a_stocks.py forwarder --help via subprocess."""
+        astock_script = ROOT / ".agents" / "skills" / "astock-platform-evaluate" / "scripts" / "a_stocks.py"
+        if not astock_script.exists():
+            astock_script = ROOT / "skills" / "astock-platform-evaluate" / "scripts" / "a_stocks.py"
         cmd = [
             sys.executable,
-            str(ROOT / "skills" / "astock-platform-evaluate" / "scripts" / "a_stocks.py"),
+            str(astock_script),
             "--help"
         ]
         res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
@@ -109,22 +113,15 @@ class TestCommandsSuite(unittest.TestCase):
 
     def test_skills_forwarders_import_cleanly(self):
         """Verify skills forwarders delegate to core modules."""
-        skills_dir = ROOT / "skills"
-        core_dir = ROOT / "core"
+        skills_dir = ROOT / ".agents" / "skills" if (ROOT / ".agents" / "skills").exists() else ROOT / "skills"
+        core_dir = ROOT / "scripts" / "core" if (ROOT / "scripts" / "core").exists() else ROOT / "core"
 
-        core_map = {}
-        for p in core_dir.rglob("*.py"):
-            if p.name != "__init__.py":
-                rel = p.relative_to(ROOT)
-                parts = list(rel.parts)
-                parts[-1] = parts[-1][:-3]
-                dot_path = ".".join(parts)
-                core_map[p.name] = dot_path
+        core_names = {p.name for p in core_dir.rglob("*.py") if p.name != "__init__.py"}
 
         tested = 0
         failed = []
         for p in skills_dir.rglob("*.py"):
-            if p.name in core_map and p.name != "__init__.py" and "templates" not in p.parts:
+            if p.name in core_names and p.name != "__init__.py" and "templates" not in p.parts:
                 tested += 1
                 try:
                     text = p.read_text(encoding="utf-8")

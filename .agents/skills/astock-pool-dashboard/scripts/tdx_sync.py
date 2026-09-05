@@ -23,11 +23,16 @@ from pathlib import Path
 
 # ── 路径与环境自适应 ──
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-if str(PROJECT_ROOT / "core") not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+def _find_project_root() -> Path:
+    for p in [SCRIPT_DIR] + list(SCRIPT_DIR.parents):
+        if (p / "pyproject.toml").exists() or (p / "AGENTS.md").exists():
+            return p
+    return SCRIPT_DIR.parents[3] if len(SCRIPT_DIR.parents) > 3 else SCRIPT_DIR.parents[2]
+
+PROJECT_ROOT = _find_project_root()
+for _p in [PROJECT_ROOT, PROJECT_ROOT / "scripts", PROJECT_ROOT / "scripts" / "core", PROJECT_ROOT / "core"]:
+    if _p.exists() and str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 from core.config import OUTPUT_POOLS_DIR
 POOLS_BASE = str(OUTPUT_POOLS_DIR)

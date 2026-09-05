@@ -20,7 +20,7 @@ skills:
   - 板块资金
   entry_point: core/data/fetch_realtime.py
   cli_command: astock data quote {code}
-  skill_doc: skills/astock-data-feed/SKILL.md
+  skill_doc: .agents/skills/astock-data-feed/SKILL.md
   recommended_model: flash
 - id: astock-platform-evaluate
   name: astock-platform-evaluate
@@ -37,7 +37,7 @@ skills:
   - 量化分析
   entry_point: core/models/combo_scorer.py
   cli_command: astock evaluate {code}
-  skill_doc: skills/astock-platform-evaluate/SKILL.md
+  skill_doc: .agents/skills/astock-platform-evaluate/SKILL.md
   recommended_model: inherit
 - id: astock-screener-5a
   name: astock-screener-5a
@@ -53,7 +53,7 @@ skills:
   - 样本外回测
   entry_point: core/models/multi_dim_model.py
   cli_command: astock screen 5a
-  skill_doc: skills/astock-screener-5a/SKILL.md
+  skill_doc: .agents/skills/astock-screener-5a/SKILL.md
   recommended_model: pro
 - id: astock-pool-dashboard
   name: astock-pool-dashboard
@@ -70,7 +70,7 @@ skills:
   - 止损预警
   entry_point: core/strategy/pool_manager.py
   cli_command: astock pool list
-  skill_doc: skills/astock-pool-dashboard/SKILL.md
+  skill_doc: .agents/skills/astock-pool-dashboard/SKILL.md
   recommended_model: inherit
 - id: astock-trade-paper
   name: astock-trade-paper
@@ -88,7 +88,7 @@ skills:
   - 回测验证
   entry_point: core/paper_trading/paper_trade_cli.py
   cli_command: astock trade balance
-  skill_doc: skills/astock-trade-paper/SKILL.md
+  skill_doc: .agents/skills/astock-trade-paper/SKILL.md
   recommended_model: inherit
 - id: astock-strategy-mainboard
   name: astock-strategy-mainboard
@@ -103,7 +103,7 @@ skills:
   - 离场信号
   entry_point: core/strategy/daily_decisions.py
   cli_command: astock strategy swing
-  skill_doc: skills/astock-strategy-mainboard/SKILL.md
+  skill_doc: .agents/skills/astock-strategy-mainboard/SKILL.md
   recommended_model: inherit
 - id: astock-quant-engine
   name: astock-quant-engine
@@ -119,7 +119,7 @@ skills:
   - 量化流水线
   entry_point: core/strategy/risk_position_manager.py
   cli_command: astock quant pipeline
-  skill_doc: skills/astock-quant-engine/SKILL.md
+  skill_doc: .agents/skills/astock-quant-engine/SKILL.md
   recommended_model: pro
 - id: astock-agent-debate
   name: astock-agent-debate
@@ -134,7 +134,7 @@ skills:
   - 多维度辩论
   entry_point: core/multi_agent/ta_orchestrator.py
   cli_command: astock debate {code}
-  skill_doc: skills/astock-agent-debate/SKILL.md
+  skill_doc: .agents/skills/astock-agent-debate/SKILL.md
   recommended_model: pro
 - id: astock-strategy-tuige
   name: astock-strategy-tuige
@@ -148,9 +148,9 @@ skills:
   - 洗盘结束
   - 短线规则
   - 短线卖点
-  entry_point: skills/astock-strategy-tuige/SKILL.md
+  entry_point: .agents/skills/astock-strategy-tuige/SKILL.md
   cli_command: astock shortline check
-  skill_doc: skills/astock-strategy-tuige/SKILL.md
+  skill_doc: .agents/skills/astock-strategy-tuige/SKILL.md
   recommended_model: inherit
 - id: astock-strategy-macd
   name: astock-strategy-macd
@@ -164,9 +164,9 @@ skills:
   - 第一脚第二脚
   - 回踩验底
   - 抄底修复
-  entry_point: skills/astock-strategy-macd/SKILL.md
+  entry_point: .agents/skills/astock-strategy-macd/SKILL.md
   cli_command: astock pattern macd {code}
-  skill_doc: skills/astock-strategy-macd/SKILL.md
+  skill_doc: .agents/skills/astock-strategy-macd/SKILL.md
   recommended_model: inherit
 - id: astock-action-execution
   name: astock-action-execution
@@ -182,7 +182,7 @@ skills:
   - 三场景动作
   entry_point: core/strategy/execution_action_engine.py
   cli_command: astock action plan
-  skill_doc: skills/astock-action-execution/SKILL.md
+  skill_doc: .agents/skills/astock-action-execution/SKILL.md
   recommended_model: inherit
 - id: astock-pool-audit
   name: astock-pool-audit
@@ -194,9 +194,9 @@ skills:
   - 股池审计
   - 清洗自选股
   - 均线重算
-  entry_point: skills/astock-pool-audit/scripts/pool_audit.py
+  entry_point: .agents/skills/astock-pool-audit/scripts/pool_audit.py
   cli_command: astock pool audit
-  skill_doc: skills/astock-pool-audit/SKILL.md
+  skill_doc: .agents/skills/astock-pool-audit/SKILL.md
   recommended_model: flash
 - id: astock-report-archive
   name: astock-report-archive
@@ -208,9 +208,9 @@ skills:
   - 多股报告
   - 报告归档
   - 复盘报告
-  entry_point: skills/astock-report-archive/SKILL.md
+  entry_point: .agents/skills/astock-report-archive/SKILL.md
   cli_command: astock report generate
-  skill_doc: skills/astock-report-archive/SKILL.md
+  skill_doc: .agents/skills/astock-report-archive/SKILL.md
   recommended_model: inherit
 - id: astock-report-html
   name: astock-report-html
@@ -222,9 +222,9 @@ skills:
   - 报告样式
   - 高颜值报表
   - 可视化页面
-  entry_point: skills/astock-report-html/SKILL.md
+  entry_point: .agents/skills/astock-report-html/SKILL.md
   cli_command: astock report html
-  skill_doc: skills/astock-report-html/SKILL.md
+  skill_doc: .agents/skills/astock-report-html/SKILL.md
   recommended_model: flash
 - id: astock-knowledge-tips
   name: astock-knowledge-tips
@@ -236,9 +236,9 @@ skills:
   - 交易经验
   - 接口被封怎么办
   - 实战技巧
-  entry_point: skills/astock-knowledge-tips/SKILL.md
+  entry_point: .agents/skills/astock-knowledge-tips/SKILL.md
   cli_command: astock tips
-  skill_doc: skills/astock-knowledge-tips/SKILL.md
+  skill_doc: .agents/skills/astock-knowledge-tips/SKILL.md
   recommended_model: inherit
 - id: astock-model-validation
   name: astock-model-validation
@@ -250,9 +250,9 @@ skills:
   - 时序模型验证
   - Kronos实证
   - 模型打擂台
-  entry_point: skills/astock-model-validation/SKILL.md
+  entry_point: .agents/skills/astock-model-validation/SKILL.md
   cli_command: astock validate-model
-  skill_doc: skills/astock-model-validation/SKILL.md
+  skill_doc: .agents/skills/astock-model-validation/SKILL.md
   recommended_model: inherit
 - id: astock-meta-routing
   name: astock-meta-routing
@@ -264,7 +264,7 @@ skills:
   - flash模型
   - 编程路由
   - 执行规约
-  entry_point: skills/astock-meta-routing/SKILL.md
+  entry_point: .agents/skills/astock-meta-routing/SKILL.md
   cli_command: astock tips
-  skill_doc: skills/astock-meta-routing/SKILL.md
+  skill_doc: .agents/skills/astock-meta-routing/SKILL.md
   recommended_model: flash

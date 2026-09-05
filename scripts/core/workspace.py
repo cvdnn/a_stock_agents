@@ -39,12 +39,6 @@ def setup_workspace_mount() -> Tuple[bool, str]:
 
     # 1. If .agents/skills is already a physical directory with skills
     if agents_skills.exists() and agents_skills.is_dir() and not agents_skills.is_symlink():
-        # Ensure root backward-compatibility symlink exists
-        if not root_skills.exists():
-            try:
-                root_skills.symlink_to(".agents/skills", target_is_directory=True)
-            except Exception:
-                pass
         return True, ".agents/skills is physical primary entity"
 
     # 2. Legacy fallback: if root_skills exists physically, map .agents/skills to it

@@ -25,11 +25,11 @@
 
 ## 二、测试套件分层架构图
 
-当前测试套件采用与 `core/` 架构完全对齐的六大领域分层：
+当前测试套件采用与 `scripts/core/` 架构完全对齐的六大领域分层：
 
 | 测试套件文件 | 覆盖子系统 / 模块 | 核心回归验证范围 |
 |---|---|---|
-| [`test_commands_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_commands_suite.py) | `core/commands/` & `core/cli.py` | 32 个模块化子命令注册、参数解析分发、向后兼容性与 `skills/` forwarder 委托转发 |
+| [`test_commands_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_commands_suite.py) | `scripts/core/commands/` & `scripts/core/cli.py` | 32 个模块化子命令注册、参数解析分发、SSOT forwarder 委托转发 |
 | [`test_data_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_data_suite.py) | `core/data/` & `core/config.py` | `QuoteDict` 代码为主键多别名索引、防注入白名单、市场前缀推导、费率常量 SSOT |
 | [`test_indicators.py`](file:///Users/handy/workon/a_stock_agents/tests/test_indicators.py) | `core/indicators/` | 技术指标计算（MA/MACD/KDJ/RSI/BOLL/ATR）、缺口回补方向判断、短序列边界保护 |
 | [`test_models_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_models_suite.py) | `core/models/` | 单调趋势评分、缺失维度百分制归一化、板块 TOP10 布尔匹配、中位数填补、指数区分 |
@@ -66,5 +66,5 @@ pytest tests/test_paper_trading_suite.py -v
 
 ### 3. 查看测试覆盖率报告（需 pytest-cov）
 ```bash
-pytest --cov=core --cov=bin tests/
+pytest --cov=scripts/core --cov=bin tests/
 ```
