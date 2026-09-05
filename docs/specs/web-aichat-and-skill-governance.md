@@ -193,11 +193,11 @@ class SkillMeta(BaseModel):
 本项目采用循序渐进的交付策略，分为三个明确阶段：
 
 ### 📌 第一阶段：服务底座与 Agent 编排核心 (Backend & Runtime Foundation)
-- [ ] 在项目根目录下建立 `server/` 独立工程模块；
-- [ ] 集成 FastAPI 基础服务架构，提供健康检查与配置读取；
-- [ ] 实现轻量级 LLM Provider 统一适配层（支持 OpenAI 规范接口、DeepSeek、Gemini、Claude、本地 Ollama）；
-- [ ] 实现支持 SSE 流式打字机与 Tool Calling 调度的 Agent ReAct 运行时；
-- [ ] 实现基于 SQLite 的本地会话历史与多轮对话状态存储。
+- [x] 在项目根目录下建立 `server/` 独立工程模块；
+- [x] 集成 FastAPI 基础服务架构，提供健康检查与配置读取；
+- [x] 实现轻量级 LLM Provider 统一适配层（支持 OpenAI 规范接口、DeepSeek、Gemini、Claude、本地 Ollama）；
+- [x] 实现支持 SSE 流式打字机与 Tool Calling 调度的 Agent ReAct 运行时；
+- [x] 实现基于 SQLite 的本地会话历史与多轮对话状态存储。
 
 ### 📌 第二阶段：Skill 治理控制子系统 (Skill Governance Implementation)
 - [ ] 基于 `config/skills_manifest.json` 建立 `core/governance/skill_registry.py`；

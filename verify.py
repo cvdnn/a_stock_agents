@@ -11,10 +11,10 @@ import json
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-if str(PROJECT_ROOT / "core") not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+for p in [PROJECT_ROOT, SCRIPTS_DIR, SCRIPTS_DIR / "core", PROJECT_ROOT / "core"]:
+    if p.exists() and str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 def run_tests():
     print("=" * 70)
@@ -176,11 +176,12 @@ def run_tests():
     print("[8/10] 检查核心模块全量导入与语法完整性 (Smoke Test)...")
     try:
         import importlib
-        core_dir = PROJECT_ROOT / "core"
+        core_dir = PROJECT_ROOT / "scripts" / "core" if (PROJECT_ROOT / "scripts" / "core").exists() else PROJECT_ROOT / "core"
+        base_dir = PROJECT_ROOT / "scripts" if (PROJECT_ROOT / "scripts" / "core").exists() else PROJECT_ROOT
         failed_imports = []
         tested_count = 0
         for p in core_dir.rglob("*.py"):
-            rel = p.relative_to(PROJECT_ROOT)
+            rel = p.relative_to(base_dir)
             parts = list(rel.parts)
             if parts[-1].endswith(".py"):
                 parts[-1] = parts[-1][:-3]
@@ -201,8 +202,8 @@ def run_tests():
     try:
         import subprocess
         from pathlib import Path
-        skills_dir = PROJECT_ROOT / "skills"
-        core_dir = PROJECT_ROOT / "core"
+        skills_dir = PROJECT_ROOT / ".agents" / "skills" if (PROJECT_ROOT / ".agents" / "skills").exists() else PROJECT_ROOT / "skills"
+        core_dir = PROJECT_ROOT / "scripts" / "core" if (PROJECT_ROOT / "scripts" / "core").exists() else PROJECT_ROOT / "core"
         core_map = {p.name for p in core_dir.rglob("*.py") if p.name != "__init__.py"}
         forwarders = []
         for p in skills_dir.rglob("*.py"):
@@ -215,7 +216,7 @@ def run_tests():
         # Test forwarding execution via subprocess
         test_cmd = [
             sys.executable,
-            str(PROJECT_ROOT / "skills" / "astock-platform-evaluate" / "scripts" / "data_bridge.py"),
+            str(skills_dir / "astock-platform-evaluate" / "scripts" / "data_bridge.py"),
             "quote",
             "--code",
             "600519"
@@ -232,18 +233,19 @@ def run_tests():
     print("[10/10] 测试全功能 CLI 一体化调度能力 (screen, trapped, report)...")
     try:
         import subprocess
+        cli_script = PROJECT_ROOT / "scripts" / "core" / "cli.py" if (PROJECT_ROOT / "scripts" / "core" / "cli.py").exists() else PROJECT_ROOT / "core" / "cli.py"
         # 1. screen
-        cmd_sc = [sys.executable, str(PROJECT_ROOT / "core" / "cli.py"), "screen", "--codes", "600519,000858", "--json"]
+        cmd_sc = [sys.executable, str(cli_script), "screen", "--codes", "600519,000858", "--json"]
         r_sc = subprocess.run(cmd_sc, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert r_sc.returncode == 0 and "stage3_scored" in r_sc.stdout, f"screen CLI failed: {r_sc.stderr}"
 
         # 2. trapped
-        cmd_tr = [sys.executable, str(PROJECT_ROOT / "core" / "cli.py"), "trapped", "600760", "--cost", "43.0", "--shares", "2200", "--json"]
+        cmd_tr = [sys.executable, str(cli_script), "trapped", "600760", "--cost", "43.0", "--shares", "2200", "--json"]
         r_tr = subprocess.run(cmd_tr, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert r_tr.returncode == 0 and "kelly_f" in r_tr.stdout, f"trapped CLI failed: {r_tr.stderr}"
 
         # 3. report
-        cmd_rp = [sys.executable, str(PROJECT_ROOT / "core" / "cli.py"), "report", "600519", "--json"]
+        cmd_rp = [sys.executable, str(cli_script), "report", "600519", "--json"]
         r_rp = subprocess.run(cmd_rp, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert r_rp.returncode == 0 and "report_path" in r_rp.stdout, f"report CLI failed: {r_rp.stderr}"
 
@@ -269,7 +271,7 @@ def run_tests():
 
         # 3. 技能文档私有路径纯净度审计
         dirty_keywords = ["/mnt/c", "AI-Platform", "TradingAgents"]
-        skills_p = PROJECT_ROOT / "skills"
+        skills_p = PROJECT_ROOT / ".agents" / "skills" if (PROJECT_ROOT / ".agents" / "skills").exists() else PROJECT_ROOT / "skills"
         dirty_found = []
         for d in skills_p.iterdir():
             if d.is_dir():
@@ -282,7 +284,8 @@ def run_tests():
         assert len(dirty_found) == 0, f"Dirty paths found in SKILL.md: {dirty_found}"
 
         # 4. debate 命令闭环验证
-        cmd_db = [sys.executable, str(PROJECT_ROOT / "core" / "cli.py"), "debate", "600519", "--json"]
+        cli_script = PROJECT_ROOT / "scripts" / "core" / "cli.py" if (PROJECT_ROOT / "scripts" / "core" / "cli.py").exists() else PROJECT_ROOT / "core" / "cli.py"
+        cmd_db = [sys.executable, str(cli_script), "debate", "600519", "--json"]
         r_db = subprocess.run(cmd_db, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert r_db.returncode == 0 and "consensus" in r_db.stdout and "analysts" in r_db.stdout, f"debate CLI failed: {r_db.stderr}"
 

@@ -14,7 +14,13 @@ else
     PYTHON_EXEC="python"
 fi
 
-export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH}"
+export PYTHONPATH="${PROJECT_ROOT}/scripts:${PROJECT_ROOT}:${PYTHONPATH}"
 export A_STOCK_AGENTS_ROOT="${PROJECT_ROOT}"
 
-exec "${PYTHON_EXEC}" "${PROJECT_ROOT}/core/cli.py" "$@"
+if [ -f "${PROJECT_ROOT}/scripts/core/cli.py" ]; then
+    CLI_PATH="${PROJECT_ROOT}/scripts/core/cli.py"
+else
+    CLI_PATH="${PROJECT_ROOT}/core/cli.py"
+fi
+
+exec "${PYTHON_EXEC}" "${CLI_PATH}" "$@"
