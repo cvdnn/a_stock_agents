@@ -71,6 +71,7 @@ from core.commands import (
     cmd_screen,
     cmd_skill_list,
     cmd_trapped,
+    cmd_trade_dispatch,
     cmd_vol_breakout,
 )
 
@@ -109,6 +110,7 @@ __all__ = [
     "cmd_config_market",
     "cmd_skill_list",
     "cmd_report",
+    "cmd_trade_dispatch",
 ]
 
 
@@ -334,6 +336,74 @@ def build_parser() -> argparse.ArgumentParser:
     p_srv_status = srv_sub.add_parser("status", help="检查服务运行状态", parents=[common_parser])
     p_srv_status.add_argument("--url", default="http://127.0.0.1:8000", help="服务基础地址")
 
+    # trade
+    p_trade = subparsers.add_parser("trade", help="A股模拟盘交易与资金持仓管理", parents=[common_parser])
+    trade_sub = p_trade.add_subparsers(dest="trade_cmd")
+
+    p_tr_bal = trade_sub.add_parser("balance", help="查询账户资产与可用资金余额", parents=[common_parser])
+    p_tr_bal.add_argument("account_id", nargs="?", default=None, help="账户ID (默认自动使用默认账户)")
+
+    trade_sub.add_parser("accounts", help="查看所有模拟盘账户", parents=[common_parser])
+    trade_sub.add_parser("list-accounts", help="查看所有模拟盘账户 (别名)", parents=[common_parser])
+
+    p_tr_create = trade_sub.add_parser("create-account", help="创建新模拟盘账户", parents=[common_parser])
+    p_tr_create.add_argument("account_id", help="账户ID (如 alpha)")
+    p_tr_create.add_argument("--cash", type=float, default=1000000.0, help="初始资金 (默认 1000000)")
+
+    p_tr_reset = trade_sub.add_parser("reset-account", help="重置账户资金与持仓", parents=[common_parser])
+    p_tr_reset.add_argument("account_id", help="账户ID")
+    p_tr_reset.add_argument("--cash", type=float, default=None, help="重置后初始资金")
+
+    p_tr_def = trade_sub.add_parser("set-default", help="设置默认操作账户", parents=[common_parser])
+    p_tr_def.add_argument("account_id", help="账户ID")
+
+    p_tr_pos = trade_sub.add_parser("positions", help="查看模拟盘持仓", parents=[common_parser])
+    p_tr_pos.add_argument("account_id", nargs="?", default=None, help="账户ID (可选)")
+
+    p_tr_ord = trade_sub.add_parser("orders", help="查看委托订单", parents=[common_parser])
+    p_tr_ord.add_argument("account_id", nargs="?", default=None, help="账户ID (可选)")
+    p_tr_ord.add_argument("--status", choices=["open", "filled", "cancelled", "expired", "rejected"], default=None, help="订单状态过滤")
+
+    p_tr_trades = trade_sub.add_parser("trades", help="查看成交记录", parents=[common_parser])
+    p_tr_trades.add_argument("account_id", nargs="?", default=None, help="账户ID (可选)")
+
+    p_tr_buy = trade_sub.add_parser("buy", help="模拟限价或市价买入", parents=[common_parser])
+    p_tr_buy.add_argument("arg1", help="标的代码(如 600519) 或 账户ID")
+    p_tr_buy.add_argument("arg2", help="买入股数 或 标的代码")
+    p_tr_buy.add_argument("arg3", nargs="?", default=None, help="买入股数 (当第一个参数为账户ID时)")
+    p_tr_buy.add_argument("--account-id", "--account", dest="account_id", default=None, help="指定操作账户")
+    p_tr_buy.add_argument("--price", type=float, default=None, help="委托限价")
+    p_tr_buy.add_argument("--market", action="store_true", help="市价委托")
+    p_tr_buy.add_argument("--note", default="", help="交易备注")
+
+    p_tr_sell = trade_sub.add_parser("sell", help="模拟限价或市价卖出", parents=[common_parser])
+    p_tr_sell.add_argument("arg1", help="标的代码(如 600519) 或 账户ID")
+    p_tr_sell.add_argument("arg2", help="卖出股数 或 标的代码")
+    p_tr_sell.add_argument("arg3", nargs="?", default=None, help="卖出股数 (当第一个参数为账户ID时)")
+    p_tr_sell.add_argument("--account-id", "--account", dest="account_id", default=None, help="指定操作账户")
+    p_tr_sell.add_argument("--price", type=float, default=None, help="委托限价")
+    p_tr_sell.add_argument("--market", action="store_true", help="市价委托")
+    p_tr_sell.add_argument("--note", default="", help="交易备注")
+
+    p_tr_cancel = trade_sub.add_parser("cancel", help="撤销未成交订单", parents=[common_parser])
+    p_tr_cancel.add_argument("order_id", help="订单号")
+
+    p_tr_add = trade_sub.add_parser("add-cash", help="账户入金", parents=[common_parser])
+    p_tr_add.add_argument("arg1", help="金额 或 账户ID")
+    p_tr_add.add_argument("arg2", nargs="?", default=None, help="金额 (当第一个参数为账户ID时)")
+    p_tr_add.add_argument("--account-id", "--account", dest="account_id", default=None, help="指定操作账户")
+    p_tr_add.add_argument("--note", default="入金", help="入金备注")
+
+    p_tr_deduct = trade_sub.add_parser("deduct-cash", help="账户出金", parents=[common_parser])
+    p_tr_deduct.add_argument("arg1", help="金额 或 账户ID")
+    p_tr_deduct.add_argument("arg2", nargs="?", default=None, help="金额 (当第一个参数为账户ID时)")
+    p_tr_deduct.add_argument("--account-id", "--account", dest="account_id", default=None, help="指定操作账户")
+    p_tr_deduct.add_argument("--note", default="出金", help="出金备注")
+
+    trade_sub.add_parser("status", help="检查模拟盘后台服务状态", parents=[common_parser])
+    trade_sub.add_parser("start", help="启动模拟盘后台撮合服务", parents=[common_parser])
+    trade_sub.add_parser("stop", help="停止模拟盘后台撮合服务", parents=[common_parser])
+
     # version
     subparsers.add_parser("version", help="显示平台版本信息", parents=[common_parser])
 
@@ -459,8 +529,8 @@ def main():
                     print(json.dumps(err, ensure_ascii=False, indent=2))
                 else:
                     print(f"❌ 无法连接到服务: {base_url} ({e})")
-        else:
-            parser.print_help()
+    elif cmd == "trade":
+        cmd_trade_dispatch(args, parser)
     elif cmd == "version":
         if getattr(args, "json", False):
             print(json.dumps({"platform": "A-Stock Agents", "version": VERSION, "status": "active"}, ensure_ascii=False, indent=2))

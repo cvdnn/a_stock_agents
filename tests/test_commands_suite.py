@@ -46,7 +46,7 @@ class TestCommandsSuite(unittest.TestCase):
             "events", "cyq", "balance", "evaluate", "backtest", "multi-backtest",
             "multi-factor", "portfolio-risk", "mean-reversion", "grid",
             "vol-breakout", "action", "intent", "downside", "report",
-            "config", "pool", "position", "data", "skill", "version"
+            "config", "pool", "position", "data", "skill", "trade", "version"
         ]
 
         registered_commands = set(subparser_action.choices.keys())

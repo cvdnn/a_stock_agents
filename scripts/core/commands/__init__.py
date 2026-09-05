@@ -45,6 +45,9 @@ from core.commands.portfolio_cmds import (
     cmd_report,
     cmd_skill_list,
 )
+from core.commands.trade_cmds import (
+    cmd_trade_dispatch,
+)
 
 __all__ = [
     "cmd_data_quote",
@@ -79,4 +82,5 @@ __all__ = [
     "cmd_report",
     "cmd_pool_dispatch",
     "cmd_pos_dispatch",
+    "cmd_trade_dispatch",
 ]
