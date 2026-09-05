@@ -363,8 +363,9 @@ flowchart TB
 | **代码审查规范** | [`docs/guidelines/code-review.md`](docs/guidelines/code-review.md) | 代码质量基准、安全红线与审查报告 |
 | **回归测试指南** | [`docs/guidelines/testing-guide.md`](docs/guidelines/testing-guide.md) | TDD 测试先行与临时用例即测即删铁律 |
 | **命名与设计范式** | [`docs/guidelines/naming-conventions.md`](docs/guidelines/naming-conventions.md) | 源码/文档规范与模型演进四大范式 (SSOT) |
-| **网关架构设计** | [`docs/design/token-gateway.md`](docs/design/token-gateway.md) | Token 链路安全网关与本地审计 Agent 架构 |
-| **Web系统演进设计** | [`docs/design/web-aichat-and-skill-governance.md`](docs/design/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理设计规范 |
+| **网关架构设计** | [`docs/specs/token-gateway.md`](docs/specs/token-gateway.md) | Token 链路安全网关与本地审计 Agent 架构 |
+| **Web系统演进设计** | [`docs/specs/web-aichat-and-skill-governance.md`](docs/specs/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理设计规范 |
+| **券商费率配置规范** | [`docs/specs/broker-commission-configurable-design.md`](docs/specs/broker-commission-configurable-design.md) | 券商佣金及费率参数配置化与首次使用提示设计规范 |
 | **实战交易反应动作** | [`docs/trading/execution-manual.md`](docs/trading/execution-manual.md) | 六大实战反应动作与三场景即时动作单 |
 | **最低保本价精算** | [`docs/trading/breakeven-rules.md`](docs/trading/breakeven-rules.md) | 覆盖印花税/佣金/过户费并向上进位至分位 |
 | **算法全生命周期治理** | [`docs/guidelines/algorithm-governance.md`](docs/guidelines/algorithm-governance.md) | 44项算法全景清单、四道质量门禁规范与ALCM治理方案 |

@@ -136,7 +136,7 @@ sequenceDiagram
    - 文档内第一行一级标题（`# Title`）采用清晰规范的中文原名，兼顾链接健壮性与中文母语阅读体验。
 3. **消除版本号与临时状态侵入**：
    - 严禁出现 `_v1`, `_v2`, `_new`, `_final` 等临时后缀。
-   - 唯有归档于 `docs/design/specs/` 的不可变历史架构决策（ADR / RFC），强制采用 `YYYY-MM-DD-<slug>.md` 格式。
+   - 所有架构决策（ADR / RFC）与技术规格说明统一归档于 `docs/specs/`，遵循语义明确的标准 `kebab-case` 命名（如 `broker-commission-configurable-design.md`、`token-gateway.md`、`web-aichat-and-skill-governance.md`）。
 
 ### 2. 标准领域分层结构 (Standard Directory Taxonomy)
 
@@ -147,11 +147,12 @@ docs/
 ├── guidelines/                   # [工程规范] 开发流程、质量标准与规范准则
 │   ├── code-review.md            # 代码审查标准与红线清单
 │   ├── testing-guide.md          # 回归测试架构与规约
+│   ├── algorithm-governance.md   # 算法全生命周期治理规范 (ALCM)
 │   └── naming-conventions.md     # 本规范文档 (SSOT)
-├── design/                       # [架构设计] 系统设计方案与不可变规格
+├── specs/                        # [设计规格与架构] 架构设计方案与功能规格说明 (ADR/RFC)
 │   ├── token-gateway.md          # Token 链路安全网关与审计架构
-│   └── specs/                    # 历史 ADR/RFC 规格 (YYYY-MM-DD-*.md)
-│       └── 2026-09-02-broker-commission-configurable-design.md
+│   ├── web-aichat-and-skill-governance.md # 独立 Web AIChatUI 与 Skill 治理系统架构设计
+│   └── broker-commission-configurable-design.md # 券商佣金及费率参数配置化设计规范 (ADR)
 ├── trading/                      # [量化实战] 策略执行手册与数学规则
 │   ├── execution-manual.md       # 实战交易反应动作与执行层手册
 │   └── breakeven-rules.md        # 最低保本价精算与向上进位算法规则

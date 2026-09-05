@@ -119,7 +119,7 @@ a_stock_agents/
 │   ├── index.md             # 全景知识库导图 (本文件)
 │   ├── quickstart.md        # 快速上手向导
 │   ├── guidelines/          # 工程质量、代码审查与命名规范指南
-│   ├── design/              # 架构设计方案与 specs/ 历史 ADR 规格
+│   ├── specs/               # 架构设计方案与功能规格说明 (ADR/RFC)
 │   ├── trading/             # 实战交易动作手册与保本计算数学规则
 │   └── images/              # 架构图等静态资源
 ├── cache/ & backups/        # 本地缓存与快照备份
@@ -258,9 +258,10 @@ flowchart LR
 | **工程规范** | [`guidelines/code-review.md`](guidelines/code-review.md) | 代码审查基准、红线清单、质量缺陷与防御模式 |
 | **工程规范** | [`guidelines/testing-guide.md`](guidelines/testing-guide.md) | 回归测试架构、TDD 流程规约与用例生命周期管理 |
 | **工程规范** | [`guidelines/naming-conventions.md`](guidelines/naming-conventions.md) | 源码物理命名、模型演进四大范式与文档命名规约 (SSOT) |
-| **架构设计** | [`design/token-gateway.md`](design/token-gateway.md) | Token 链路安全网关、敏感凭据脱敏与本地审计 Agent 架构 |
-| **架构设计** | [`design/web-aichat-and-skill-governance.md`](design/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理系统架构设计 |
-| **架构设计** | [`design/specs/`](design/specs/) | 不可变历史架构决策与功能规格说明 (ADR/RFC) |
+| **工程规范** | [`guidelines/algorithm-governance.md`](guidelines/algorithm-governance.md) | 44项算法全景清单、四道质量门禁规范与ALCM治理方案 |
+| **设计规格与架构** | [`specs/token-gateway.md`](specs/token-gateway.md) | Token 链路安全网关、敏感凭据脱敏与本地审计 Agent 架构 |
+| **设计规格与架构** | [`specs/web-aichat-and-skill-governance.md`](specs/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理系统架构设计 |
+| **设计规格与架构** | [`specs/broker-commission-configurable-design.md`](specs/broker-commission-configurable-design.md) | 券商佣金及费率参数配置化与首次使用提示设计规范 (ADR) |
 | **量化实战** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律 |
 | **量化实战** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 |
 | **静态资产** | [`images/architecture.png`](images/architecture.png) | 系统架构全景图高清原图 |
