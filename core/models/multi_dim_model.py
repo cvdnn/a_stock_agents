@@ -28,7 +28,13 @@ v3诚实声明:
     MA15单仓衰减率仅28.8%(存在过拟合), 但2仓分散衰减率87.1%(稳健)
   - v3.1新增: 样本外验证已实现(60/40 split), 3仓分散衰减率98.6%(几乎无衰减)
 """
-import sys, os, json, math
+import json
+
+import os
+
+from core.config import get_logger
+
+logger = get_logger("core.models.multi_dim_model")
 
 __version__ = "5.0.0"
 __all__ = [
@@ -39,30 +45,6 @@ __all__ = [
     "RotationBacktest",
 ]
 
-# 动态定位a-stocks scripts目录 — 工具无关: 兼容 AI-Platform(skills/stocks/) 与 gemini(config/skills/) 两种布局
-# 布局1 AI-Platform: <...>/skills/stocks/5a-stock-rotation/scripts  → 父容器 stocks/ 下 a-stocks
-# 布局2 gemini: <...>/config/skills/5a-stock-rotation/scripts → 父容器 config/skills/ 下 a-stocks
-_SKILL_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
-def _find_a_stocks_scripts():
-    # 1) 环境变量显式指定 (最高优先)
-    c = os.environ.get("A_STOCKS_SCRIPTS_DIR")
-    if c and os.path.isdir(c):
-        return c
-    # 2) 向上两级到"父容器"(stocks/ 或 config/skills/), 其下 a-stocks/scripts
-    cands = [
-        os.path.join(os.path.dirname(os.path.dirname(_SKILL_SCRIPTS_DIR)), "a-stocks", "scripts"),
-        os.path.join(os.path.dirname(_SKILL_SCRIPTS_DIR), "a-stocks", "scripts"),
-    ]
-    for c in cands:
-        if os.path.isdir(c):
-            return c
-    # 3) 本机已知位置回退
-    for c in (os.path.expanduser("~/.AI-Platform/skills/stocks/a-stocks/scripts"),
-              r"./.AI-Platform/skills/stocks/a-stocks/scripts"):
-        if os.path.isdir(c):
-            return c
-    return None
-_A_STOCKS_SCRIPTS = _find_a_stocks_scripts()
 try:
     from core.data.data_bridge import DataBridge
     from core.indicators.technical_indicators import calc_all
@@ -79,6 +61,14 @@ except ImportError:
 # Part 1: 五维评分引擎 (沿用v2, 修复+增强)
 # ============================================================
 
+try:
+    from core.config import get_logger
+    logger = get_logger("core.models.multi_dim_model")
+except ImportError:
+    import logging
+    logger = logging.getLogger("core.models.multi_dim_model")
+
+
 class MarketGate:
     """市场门控 — 融合旋转模型(上证>MA20) + v2(健康度分数)"""
     
@@ -87,6 +77,7 @@ class MarketGate:
         self.sh_above_ma20 = False
         self.health_score = 50
         self.state = "震荡"
+        self._assessed = False
         
         # 状态配置 (v2继承 + 旋转模型门控)
         self.STATE_CONFIG = {
@@ -95,6 +86,7 @@ class MarketGate:
             "震荡": {"仓位上限": 0.50, "单标的": 0.20, "共振": 3, "技术门槛": 75},
             "空头": {"仓位上限": 0.20, "单标的": 0.10, "共振": 4, "技术门槛": 85},
         }
+        self.config = self.STATE_CONFIG["震荡"]
 
     def assess(self):
         """评估市场门控状态 (旋转模型: 上证>MA20 + v2: 健康度)"""
@@ -114,7 +106,8 @@ class MarketGate:
                 self.sh_above_ma20 = sh_close > sh_ma20
             else:
                 self.sh_above_ma20 = False
-        except Exception:
+        except Exception as exc:
+            logger.debug(f"Failed assessing sh000001 MA20: {exc}")
             self.sh_above_ma20 = False
 
         # 2. 大盘健康度 (v2) — 修复: MarketAssessor正确方法为assess_all(), 返回键为total_score
@@ -123,12 +116,13 @@ class MarketGate:
             from core.models.market_assessor import MarketAssessor
             mk = MarketAssessor().assess_all()
             self.health_score = mk.get("total_score", mk.get("total", 50))
-        except Exception:
+        except Exception as exc1:
             try:
                 from market_assessor import MarketAssessor
                 mk = MarketAssessor().assess_all()
                 self.health_score = mk.get("total_score", mk.get("total", 50))
-            except Exception:
+            except Exception as exc2:
+                logger.debug(f"Failed assess_all MarketAssessor: {exc1}, fallback: {exc2}")
                 self.health_score = 50
 
         # 3. 状态判定: 门控+健康度双重
@@ -142,6 +136,7 @@ class MarketGate:
             self.state = "空头"
 
         self.config = self.STATE_CONFIG.get(self.state, self.STATE_CONFIG["震荡"])
+        self._assessed = True
         return self.state
 
     @property
@@ -268,7 +263,8 @@ class FiveDimScorer:
         elif price_up and not vol_up and vol_ratio<0.8: vp_s = 20
         elif not price_up and vol_up: vp_s = 5
         else: vp_s = 10
-        vol_change = abs((vol_5/sum(volumes[-25:-20])-1)*100) if len(volumes)>=25 and sum(volumes[-25:-20])>0 else 0
+        vol_change_signed = ((vol_5 / sum(volumes[-25:-20]) - 1) * 100) if len(volumes) >= 25 and sum(volumes[-25:-20]) > 0 else 0.0
+        vol_change = abs(vol_change_signed)
         if 3<=vol_change<=8: turn_s = 20
         elif 1<=vol_change<=3: turn_s = 15
         elif vol_change>8: turn_s = 10
@@ -373,10 +369,11 @@ class FiveDimScorer:
             elif cv<0.6: conc_s = 7
             else: conc_s = 3
         else: conc_s = 8
-        if 0<=vol_change<=50: turn_fund_s = 12
-        elif vol_change>50: turn_fund_s = 10
-        elif vol_change>=-20: turn_fund_s = 8
+        if 0 <= vol_change_signed <= 50: turn_fund_s = 12
+        elif vol_change_signed > 50: turn_fund_s = 10
+        elif vol_change_signed >= -20: turn_fund_s = 8
         else: turn_fund_s = 4
+
         fund_total = main_s + consec_s + turn_fund_s + big_s + conc_s + north_s
 
         # 加权CS
@@ -434,10 +431,13 @@ class StockSelectionV3:
     def evaluate(self, code, quote_data=None, finance_data=None):
         result = {"code": code}
 
-        # Market gate
+        # Market gate: ensure assessed
+        if not getattr(self.gate, "_assessed", False):
+            self.gate.assess()
+
         market_state = self.gate.state
         market_score = self.gate.health_score
-        market_config = self.gate.config
+        market_config = getattr(self.gate, "config", self.gate.STATE_CONFIG.get(market_state, self.gate.STATE_CONFIG["震荡"]))
         gate_open = self.gate.gate_open
 
         # Fetch data
@@ -479,7 +479,10 @@ class StockSelectionV3:
         resonance = s["resonance"]
         close = float(klines[-1][2])
 
-        # Rating with gate + resonance + fundamental filter
+        # Rating with gate + resonance + fundamental filter + dynamic STATE_CONFIG
+        req_resonance = market_config.get("共振", 3)
+        req_tech_score = market_config.get("技术门槛", 75)
+
         if not filter_res["passed"]:
             # 基本面/五大风险未通过: 强制判定为 D (回避)
             result["rating"] = "D"
@@ -487,7 +490,7 @@ class StockSelectionV3:
         elif not gate_open:
             # 门控关闭: 所有降一级
             result["gate_status"] = "CLOSED (上证<MA20, 旋转模型不做多)"
-            if cs >= 75 and resonance >= 4:
+            if cs >= max(75, req_tech_score) and resonance >= max(4, req_resonance):
                 result["rating"] = "B"
             elif cs >= 60:
                 result["rating"] = "C"
@@ -495,9 +498,9 @@ class StockSelectionV3:
                 result["rating"] = "D"
         else:
             result["gate_status"] = "OPEN (上证>MA20)"
-            if cs >= 75 and resonance >= 4:
+            if cs >= req_tech_score and resonance >= req_resonance:
                 result["rating"] = "A"
-            elif cs >= 60 and resonance >= 3:
+            elif cs >= max(50, req_tech_score - 15) and resonance >= max(2, req_resonance - 1):
                 result["rating"] = "B"
             elif cs >= 50:
                 result["rating"] = "C"
@@ -571,9 +574,9 @@ class StockSelectionV3:
 
         # 短线交易制度与特殊信号 (涨跌停、T+1、超短线模式)
         short_term_notes = []
-        # 涨跌停判定 (当日涨幅 >= 9.8% 或 19.8%)
-        open_p = float(klines[-1][1])
-        day_chg = (close / open_p - 1) * 100 if open_p > 0 else 0
+        # 涨跌停判定 (基于前一交易日收盘价涨幅 >= 9.5% 或 19.5%)
+        prev_close = float(klines[-2][2]) if len(klines) >= 2 else float(klines[-1][1])
+        day_chg = (close / prev_close - 1) * 100 if prev_close > 0 else 0
         limit_threshold = 19.5 if is_20pct_board else 9.5
         if day_chg >= limit_threshold:
             result["is_limit_up"] = True
@@ -608,7 +611,7 @@ class StockSelectionV3:
             sells.append("MACD死叉")
         if close < latest.get("ma20", close) and close < latest.get("ma10", close):
             sells.append("跌破10日/20日均线")
-        if (close - float(klines[-1][1])) / close * 100 < -5:
+        if prev_close > 0 and ((close - prev_close) / prev_close * 100) < -5:
             sells.append("单日跌>5%")
         if s["mom_60d"] < -10:
             sells.append("60日动量<−10%")
@@ -770,8 +773,8 @@ class RotationBacktest:
         try:
             from core.config import get_market_config
             m_cfg = get_market_config()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(f"RotationBacktest fallback to default market config: {exc}")
         self.initial_cash = initial_cash
         self.commission_rate = commission_rate if commission_rate is not None else m_cfg.get("commission_rate", 0.00025)
         self.min_commission = min_commission if min_commission is not None else m_cfg.get("min_commission", 5.0)
@@ -821,7 +824,7 @@ class RotationBacktest:
         market_held_days = 0   # 有任何持仓的天数(≤1 per day, 多仓也不累加)
         market_up_days = 0     # 大盘上涨天数
         portfolio_up_days = 0  # 持仓总市值上涨天数(按总市值涨跌,非单仓位)
-        prev_equity = self.initial_cash
+
 
         for day in range(20, n_days):
             # 1. Gate: 上证>MA20
@@ -921,20 +924,24 @@ class RotationBacktest:
                     to_exit.append((code, "跟踪止盈3%"))
                     continue
 
+                # 寻找持仓外的更强候选 (排除自身及其他持仓，防止自身与自身对比)
+                candidate_scores = {c: s for c, s in scores.items() if c not in positions}
+                current_score = scores[code]["score"] if code in scores else pos.get("score", 0)
+
                 # Time stop: 5日未达+5%
                 if day - pos.get("entry_day", 0) >= 5:
                     if close < pos["entry_price"] * 1.05:
                         # Check if better stock available
-                        if len(scores) > 0:
-                            best_new = max(scores.values(), key=lambda x: x["score"])
-                            if best_new["score"] > pos.get("score", 0) + self.rotation_threshold:
+                        if candidate_scores:
+                            best_new = max(candidate_scores.values(), key=lambda x: x["score"])
+                            if best_new["score"] > current_score + self.rotation_threshold:
                                 to_exit.append((code, "时间止盈+更强主线"))
 
                 # Rotation: 出现高出15分的新主线
-                if len(scores) > 0:
-                    best_new = max(scores.values(), key=lambda x: x["score"])
-                    if best_new["score"] > pos.get("score", 0) + self.rotation_threshold:
-                        to_exit.append((code, f"旋转:新主线+{best_new['score']-pos.get('score',0):.0f}分"))
+                if candidate_scores:
+                    best_new = max(candidate_scores.values(), key=lambda x: x["score"])
+                    if best_new["score"] > current_score + self.rotation_threshold:
+                        to_exit.append((code, f"旋转:新主线+{best_new['score']-current_score:.0f}分"))
 
             # Execute exits
             for code, reason in to_exit:
@@ -991,7 +998,6 @@ class RotationBacktest:
                 if day < len(sd["closes"]):
                     total_value += pos["qty"] * sd["closes"][day]
             equity_curve.append({"day": day, "equity": round(total_value, 2)})
-            prev_equity = total_value
 
         # Close all positions at end
         for code, pos in positions.items():

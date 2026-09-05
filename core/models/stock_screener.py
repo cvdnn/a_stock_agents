@@ -33,14 +33,17 @@ class StockScreener:
     #  第一层: 板块级筛选
     # ═══════════════════════════════════════════════════
 
-    def filter_sector(self, codes: List[str], min_board_chg: float = 0.5) -> List[Dict]:
+    def filter_sector(self, codes: List[Any], min_board_chg: float = 0.5) -> List[Dict]:
         """
         从候选代码中筛出所属板块当日涨幅 > min_board_chg 的标的
         返回每只股票的板块信息
         """
         results = []
-        # 批量获取行情
-        quotes = self.bridge.fetch_batch_snapshot(codes) if codes else []
+        # 批量获取行情 (若传入的本身为行情字典列表则直接复用)
+        if codes and isinstance(codes[0], dict) and "code" in codes[0]:
+            quotes = codes
+        else:
+            quotes = self.bridge.fetch_batch_snapshot(codes) if codes else []
         if not quotes:
             return results
 
@@ -48,31 +51,36 @@ class StockScreener:
         boards = self.bridge.get_board_summary(limit=30)
         board_data = boards.get("data", []) if boards else []
 
-        # 构建板块名→涨跌幅映射
+        # 构建板块名→涨跌幅映射及TOP10板块集合
         board_map = {}
-        for b in board_data:
+        top10_board_names = set()
+        for idx, b in enumerate(board_data):
             name = b.get("boardName", b.get("name", ""))
             try:
                 chg = float(b.get("changePct", 0) or 0)
             except (ValueError, TypeError):
                 chg = 0.0
             board_map[name] = chg
+            if idx < 10 and name:
+                top10_board_names.add(name)
 
         for q in quotes:
             code = q.get("code", "")
             name = q.get("name", "")
 
-            # 获取行业信息（单个查询）
-            sector = self.bridge.get_sector_info(code)
-            sector_name = ""
-            if sector:
-                if isinstance(sector, dict):
-                    sector_name = sector.get("industry", sector.get("sector", ""))
-                elif isinstance(sector, str):
-                    sector_name = sector
+            # 获取行业信息 (优先直接从传入字典提取，其次调用 bridge)
+            sector_name = q.get("sector", "")
+            if not sector_name:
+                sector = self.bridge.get_sector_info(code)
+                if sector:
+                    if isinstance(sector, dict):
+                        sector_name = sector.get("industry", sector.get("sector", ""))
+                    elif isinstance(sector, str):
+                        sector_name = sector
 
             board_chg = board_map.get(sector_name, 0)
             passed = board_chg >= min_board_chg
+            is_top10 = sector_name in top10_board_names
 
             results.append({
                 "code": code,
@@ -82,6 +90,7 @@ class StockScreener:
                 "pe": q.get("pe", 0),
                 "sector": sector_name,
                 "board_chg": board_chg,
+                "board_top10": is_top10,
                 "passed_layer1": passed,
             })
 
@@ -176,7 +185,7 @@ class StockScreener:
             scores = self.scorer.score_full(
                 klines, tech_latest,
                 board_chg=c.get("board_chg", 0),
-                board_top10=c.get("board_chg", 0) > 1,
+                board_top10=c.get("board_top10", False),
                 cyq_data=cyq_data,
                 pe_value=pe_value,
             )

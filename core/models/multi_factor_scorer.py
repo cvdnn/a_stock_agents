@@ -12,6 +12,26 @@ import json
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.config import DEFAULT_RATING_THRESHOLDS, get_logger
+
+logger = get_logger("core.models.multi_factor_scorer")
+
+try:
+    from core.indicators.technical_indicators import atr
+except ImportError:
+    try:
+        from technical_indicators import atr
+    except ImportError:
+        atr = None
+
+try:
+    from core.models.combo_scorer import ComboScorer
+except ImportError:
+    try:
+        from combo_scorer import ComboScorer
+    except ImportError:
+        ComboScorer = None
+
 
 class MultiFactorScorer:
     """多因子选股评分器"""
@@ -19,7 +39,9 @@ class MultiFactorScorer:
     def __init__(self):
         pass
 
+
     # ═══════════════════════════════════════════════════
+
     #  动量因子
     # ═══════════════════════════════════════════════════
 
@@ -110,15 +132,16 @@ class MultiFactorScorer:
         up_ratio = up_days / (len(closes) - 1)
 
         # 波动率: ATR(14)/close * 100
+        vol = 10.0
         try:
-            try:
-                from core.indicators.technical_indicators import atr
-            except ImportError:
-                from technical_indicators import atr
-            atr_vals = atr(klines, 14)
+            target_atr = atr
+            if target_atr is None:
+                from core.indicators.technical_indicators import atr as target_atr
+            atr_vals = target_atr(klines, 14)
             atr_latest = atr_vals[-1] if atr_vals and len(atr_vals) > 0 else 0
             vol = (atr_latest / closes[-1] * 100) if closes[-1] > 0 else 10
-        except Exception:
+        except Exception as exc:
+            logger.debug(f"quality_factor atr calculation failed: {exc}")
             vol = 10.0
 
         # 波动率评分: 越低越好
@@ -163,14 +186,15 @@ class MultiFactorScorer:
             return 50.0
 
         try:
-            try:
-                from core.indicators.technical_indicators import atr
-            except ImportError:
-                from technical_indicators import atr
-            atr_vals = atr(klines, 14)
+            target_atr = atr
+            if target_atr is None:
+                from core.indicators.technical_indicators import atr as target_atr
+            atr_vals = target_atr(klines, 14)
             atr_latest = atr_vals[-1] if atr_vals and len(atr_vals) > 0 else 0
-        except Exception:
+        except Exception as exc:
+            logger.debug(f"volatility_factor atr calculation failed: {exc}")
             return 50.0
+
 
         vol = atr_latest / closes[-1] * 100
 
@@ -233,28 +257,16 @@ class MultiFactorScorer:
         - 质量因子: 10%
         - 波动率因子: 10%
         """
-        # combo 评分
-        try:
-            from combo_scorer import ComboScorer
-            scorer = ComboScorer()
-            combo_result = scorer.score_full(klines, latest)
-            combo_raw = combo_result.get("total", 50)
-        except Exception:
-            combo_raw = 50
-
-        # 动量因子
-        mom_20_raw, mom_20_score = self.momentum_factor(klines, 20)
-        mom_60_raw, mom_60_score = self.momentum_factor_60d(klines)
+        factors = self._compute_factors(klines, latest, pe_value, pb_value)
+        combo_raw = factors["combo_score"]
+        mom_20_raw = factors["momentum_20d"]["raw"]
+        mom_20_score = factors["momentum_20d"]["score"]
+        mom_60_raw = factors["momentum_60d"]["raw"]
+        mom_60_score = factors["momentum_60d"]["score"]
         momentum_score = (mom_20_score + mom_60_score) / 2
-
-        # 价值因子
-        value_raw = self.value_factor(pe_value, pb_value)
-
-        # 质量因子
-        quality_raw = self.quality_factor(klines, pe_value)
-
-        # 波动率因子
-        vol_raw = self.volatility_factor(klines)
+        value_raw = factors["value"]
+        quality_raw = factors["quality"]
+        vol_raw = factors["volatility"]
 
         # 归一化(单只股票用绝对评分0-100)
         combo_norm = combo_raw  # 已是0-100
@@ -274,15 +286,19 @@ class MultiFactorScorer:
                      value_norm * w_value + quality_norm * w_quality +
                      volatility_norm * w_volatility)
 
-        # 评级
-        if composite >= 80:
+        # 评级 (外置到 DEFAULT_RATING_THRESHOLDS)
+        r_a = DEFAULT_RATING_THRESHOLDS.get("A", 80.0)
+        r_b = DEFAULT_RATING_THRESHOLDS.get("B", 65.0)
+        r_c = DEFAULT_RATING_THRESHOLDS.get("C", 50.0)
+        if composite >= r_a:
             rating, rating_text = "A", "多因子优秀 ⭐⭐⭐⭐"
-        elif composite >= 65:
+        elif composite >= r_b:
             rating, rating_text = "B", "多因子良好 ⭐⭐⭐"
-        elif composite >= 50:
+        elif composite >= r_c:
             rating, rating_text = "C", "多因子中性 ⭐⭐"
         else:
             rating, rating_text = "D", "多因子偏弱 ⭐"
+
 
         # 亮点与风险提示
         highlights = []
@@ -339,13 +355,18 @@ class MultiFactorScorer:
         }
         """
         # combo 评分
+        combo_raw = 50.0
         try:
-            from combo_scorer import ComboScorer
-            scorer = ComboScorer()
+            target_cls = ComboScorer
+            if target_cls is None:
+                from core.models.combo_scorer import ComboScorer as target_cls
+            scorer = target_cls()
             combo_result = scorer.score_full(klines, latest)
-            combo_raw = combo_result.get("total", 50)
-        except Exception:
-            combo_raw = 50
+            combo_raw = float(combo_result.get("total", 50))
+        except Exception as exc:
+            logger.debug(f"_compute_factors ComboScorer failed: {exc}")
+            combo_raw = 50.0
+
 
         mom_20_raw, mom_20_score = self.momentum_factor(klines, 20)
         mom_60_raw, mom_60_score = self.momentum_factor_60d(klines)

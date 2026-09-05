@@ -154,7 +154,7 @@ def calc_metrics(
 
     # Max drawdown
     max_dd_pct, peak_idx, trough_idx = _max_drawdown_detail(equity_curve)
-    calmar = _safe_div(abs(annual_return), abs(max_dd_pct)) if max_dd_pct > 1e-9 else 0.0
+    calmar = _safe_div(annual_return, max_dd_pct) if max_dd_pct > 1e-9 else 0.0
 
     # Drawdown duration
     dd_duration = _max_drawdown_duration(equity_curve)
@@ -166,13 +166,20 @@ def calc_metrics(
     win_rate = _safe_div(len(wins), len(sell_profits)) * 100.0 if sell_profits else 0.0
     avg_win = _mean(wins) if wins else 0.0
     avg_loss = abs(_mean(losses)) if losses else 0.0
-    profit_factor = _safe_div(avg_win * len(wins), avg_loss * len(losses)) if losses and avg_loss > 0 else 0.0
+    total_win = sum(wins)
+    total_loss = sum(abs(p) for p in losses)
+    if total_loss > 1e-9:
+        profit_factor = _safe_div(total_win, total_loss)
+    elif total_win > 0:
+        profit_factor = 999.0
+    else:
+        profit_factor = 0.0
     max_consec_loss = _max_consecutive_losses(sell_profits)
 
     # Turnover (total trade volume / initial / years)
     years = _safe_div(days, TRADING_DAYS_PER_YEAR) if days > 0 else 1.0
     total_trade_amount = sum(t.get("amount", 0.0) for t in trades)
-    turnover = _safe_div(total_trade_amount, initial_cash) / years if years > 0 else 0.0
+    turnover = _safe_div(_safe_div(total_trade_amount, initial_cash), years) if years > 0 else 0.0
 
     # Average holding days (between buy and sell)
     buy_dates: List[str] = []

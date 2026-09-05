@@ -47,14 +47,47 @@ class IntentEvaluator:
         ]
     }
 
-    STOCK_CODE_PATTERN = re.compile(r'\b(00\d{4}|30\d{4}|60\d{4}|68\d{4})\b')
+    STOCK_CODE_PATTERN = re.compile(r'\b(00\d{4}|30\d{4}|60\d{4}|68\d{4}|8\d{5}|4\d{5}|92\d{4})\b')
     KNOWN_NAMES = {
         '许继电气': '000400', '科大讯飞': '002230', '中航沈飞': '600760',
         '福晶科技': '002222', '长电科技': '600584', '瑞芯微': '603893',
         '紫金矿业': '601899', '恒瑞医药': '600276', '中国中车': '601766',
         '沪电股份': '002463', '工业富联': '601138', '贵州茅台': '600519',
-        '宁德时代': '300750', '北方华创': '002371', '药明康德': '603259'
+        '宁德时代': '300750', '北方华创': '002371', '药明康德': '603259',
+        '上证指数': 'sh000001', '深证成指': 'sz399001', '创业板指': 'sz399006',
+        '沪深300': 'sh000300', '科创50': 'sh000688', '中证500': 'sh000905',
     }
+    _custom_names: Dict[str, str] = {}
+
+    @classmethod
+    def register_known_names(cls, mapping: Dict[str, str]):
+        """注册或更新动态股票名称与代码映射"""
+        cls._custom_names.update(mapping)
+
+    @classmethod
+    def get_known_names(cls) -> Dict[str, str]:
+        """获取全量已知股票名称字典（内置标的 + 动态注册 + 股票池/持仓自动发现）"""
+        merged = dict(cls.KNOWN_NAMES)
+        merged.update(cls._custom_names)
+
+        # 尝试自动从本地持仓及自选股池加载名称
+        try:
+            from core.config import OUTPUT_POOLS_DIR
+            import csv
+            for fn in ["positions.csv", "selected_pool.csv", "watch_pool.csv"]:
+                p = OUTPUT_POOLS_DIR / fn
+                if p.exists():
+                    with open(p, "r", encoding="utf-8") as f:
+                        reader = csv.DictReader(f)
+                        for r in reader:
+                            c = r.get("code", "").strip()
+                            n = r.get("name", "").strip()
+                            if c and n and n not in merged:
+                                merged[n] = c
+        except Exception:
+            pass
+
+        return merged
 
     @classmethod
     def parse_user_query(cls, text: str) -> Dict[str, Any]:
@@ -62,11 +95,13 @@ class IntentEvaluator:
         解析用户自然语言输入
         """
         detected_codes = cls.STOCK_CODE_PATTERN.findall(text)
-        detected_names = [name for name, code in cls.KNOWN_NAMES.items() if name in text]
+        all_names = cls.get_known_names()
+        detected_names = [name for name in all_names if name in text]
         for name in detected_names:
-            code = cls.KNOWN_NAMES[name]
+            code = all_names[name]
             if code not in detected_codes:
                 detected_codes.append(code)
+
 
         # 意图打分匹配
         intent_scores = {k: 0 for k in cls.INTENT_PATTERNS}

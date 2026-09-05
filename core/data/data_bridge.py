@@ -13,21 +13,86 @@ aStocks 数据桥接层 — 4级降级数据获取
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# ─── 路径配置 (优先级: env > config.yaml > 默认值) ──────
 try:
-    from core.config import PROJECT_ROOT, CONFIG_DIR, SKILLS_DIR, GLOBAL_CONFIG
+    from core.config import PROJECT_ROOT, CONFIG_DIR, SKILLS_DIR, GLOBAL_CONFIG, get_logger
+    logger = get_logger("core.data.data_bridge")
 except ImportError:
+    import logging
     PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
     CONFIG_DIR = PROJECT_ROOT / "config"
     SKILLS_DIR = PROJECT_ROOT / "skills"
     GLOBAL_CONFIG = {}
+    logger = logging.getLogger("core.data.data_bridge")
 
+
+def _validate_stock_code(code: str) -> str:
+    """白名单校验股票代码，只允许 1-10 位字母数字，防范命令注入。"""
+    if not code or not isinstance(code, str):
+        raise ValueError(f"Invalid stock code: {code}")
+    clean = code.strip()
+    if not re.match(r"^[a-zA-Z0-9]{1,10}$", clean):
+        raise ValueError(f"Stock code contains illegal characters: {code}")
+    return clean
+
+
+class QuoteDict(dict):
+    """行情字典容器：主键为唯一 symbol (如 sh600519), 同时支持 600519、贵州茅台 等别名透明检索。"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._alias_map: Dict[str, str] = {}
+
+    def add(self, item: Dict[str, Any]):
+        """便捷添加行情字典项，自动以 code_raw (或 code) 为主键，并注册代码与名称别名。"""
+        code = item.get("code", "")
+        code_raw = item.get("code_raw", "")
+        name = item.get("name", "")
+        if not code_raw and code:
+            code_raw = code.replace("sh", "").replace("sz", "").replace("bj", "").split(".")[0]
+        primary_key = code_raw or code
+        if primary_key:
+            self[primary_key] = item
+            if code and code != primary_key:
+                self.register_alias(code, primary_key)
+            if name:
+                self.register_alias(name, primary_key)
+
+    def register_alias(self, alias: str, primary_key: str):
+        if alias and alias != primary_key:
+            self._alias_map[alias] = primary_key
+
+    def __getitem__(self, key: str):
+        if super().__contains__(key):
+            return super().__getitem__(key)
+        target = self._alias_map.get(key)
+        if target and super().__contains__(target):
+            return super().__getitem__(target)
+        key_clean = str(key).strip().lower()
+        target = self._alias_map.get(key_clean)
+        if target and super().__contains__(target):
+            return super().__getitem__(target)
+        raise KeyError(key)
+
+    def get(self, key: str, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __contains__(self, key: object) -> bool:
+        if super().__contains__(key):
+            return True
+        key_str = str(key).strip().lower()
+        return key in self._alias_map or key_str in self._alias_map
+
+
+# ─── 路径配置 (优先级: env > config.yaml > 默认值) ──────
 def _load_path_config() -> Dict[str, str]:
     """加载路径配置，优先级: 环境变量 > config.yaml > 默认值"""
     cfg = {}
@@ -49,8 +114,8 @@ def _load_path_config() -> Dict[str, str]:
                     cfg["system_python"] = data.get("python", {}).get("system_python", sys.executable or "python3")
                     skill_paths = data.get("skills", {})
                     cfg["a_share_data_dir"] = skill_paths.get("a_share_data", "")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(f"Failed loading config.yaml: {exc}")
 
     # 2. 环境变量覆盖 (优先级最高)
     env_map = {
@@ -104,9 +169,22 @@ class DataBridge:
                 try:
                     import yaml
                     return yaml.safe_load(path.read_text()) or {}
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug(f"Failed loading A_SHARE_SCRIPTS config: {exc}")
         return {}
+
+    @staticmethod
+    def infer_market_prefix(code: str) -> str:
+        """推断市场前缀 (sh/sz/bj) — 委托至 core.config (SSOT)"""
+        from core.config import infer_market_prefix as _infer
+        return _infer(code)
+
+    @staticmethod
+    def normalize_symbol(code: str, with_prefix: bool = True) -> str:
+        """标准化股票代码为带前缀或纯数字格式，如 sh600519 或 600519 — 委托至 core.config (SSOT)"""
+        from core.config import normalize_symbol as _norm
+        return _norm(code, with_prefix=with_prefix)
+
 
     # ═══════════════════════════════════════════════════
     #  L1: 腾讯 qt.gtimg.cn 直连 — 零依赖，任何Python环境
@@ -114,7 +192,9 @@ class DataBridge:
 
     @staticmethod
     def tencent_quote(codes: List[str]) -> Dict[str, Dict]:
-        """批量获取腾讯实时行情，返回 {name: {price, change_pct, pe, ...}}"""
+        """批量获取腾讯实时行情，返回 QuoteDict (主键为唯一带前缀代码，支持纯代码/名称等别名检索)"""
+        if not codes:
+            return QuoteDict()
         codes_param = ",".join(codes)
         url = f"https://qt.gtimg.cn/q={codes_param}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -122,10 +202,10 @@ class DataBridge:
             resp = urllib.request.urlopen(req, timeout=10)
             text = resp.read().decode("gbk")
         except Exception as e:
-            print(f"[L1] 腾讯行情直连失败: {e}", file=sys.stderr)
-            return {}
+            logger.warning(f"[L1] 腾讯行情直连失败: {e}")
+            return QuoteDict()
 
-        results = {}
+        results = QuoteDict()
         for line in text.strip().split("\n"):
             if "~" not in line:
                 continue
@@ -134,7 +214,7 @@ class DataBridge:
                 continue
 
             code_raw = parts[0].split("=")[0].split("_")[-1] if "_" in parts[0] else parts[0].split("=")[0]
-            code = code_raw.replace("sh", "").replace("sz", "")
+            code = code_raw.replace("sh", "").replace("sz", "").replace("bj", "")
             name = parts[1]
             try:
                 price = float(parts[3])
@@ -148,7 +228,7 @@ class DataBridge:
             inner = float(parts[8]) if parts[8] else 0
             o_ratio = (outer / (outer + inner) * 100) if (outer + inner) > 0 else 50
 
-            results[name] = {
+            item = {
                 "code": code,
                 "name": name,
                 "price": round(price, 2),
@@ -169,6 +249,10 @@ class DataBridge:
                 "o_ratio": round(o_ratio, 1),
                 "time": parts[30] if len(parts) > 30 else "",
             }
+            primary_key = code_raw
+            results[primary_key] = item
+            results.register_alias(code, primary_key)
+            results.register_alias(name, primary_key)
         return results
 
     @staticmethod
@@ -182,17 +266,16 @@ class DataBridge:
         """获取腾讯前复权日K线（零依赖）
         返回: [[date, open, close, high, low, volume], ...]
         """
-        prefix = "sh" if code.startswith("6") else "sz"
-        url = f"http://ifzq.gtimg.cn/appstock/app/fqkline/get?param={prefix}{code},day,,,{count},qfq"
+        norm = DataBridge.normalize_symbol(code)
+        url = f"http://ifzq.gtimg.cn/appstock/app/fqkline/get?param={norm},day,,,{count},qfq"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         try:
             resp = urllib.request.urlopen(req, timeout=10)
             data = json.loads(resp.read().decode("utf-8"))
-            key = f"{prefix}{code}"
-            if key in data.get("data", {}):
-                return data["data"][key].get("qfqday", [])
+            if norm in data.get("data", {}):
+                return data["data"][norm].get("qfqday", [])
         except Exception as e:
-            print(f"[L1] 腾讯K线获取失败 ({code}): {e}", file=sys.stderr)
+            logger.warning(f"[L1] 腾讯K线获取失败 ({code}): {e}")
         return []
 
     # ═══════════════════════════════════════════════════
@@ -223,20 +306,24 @@ class DataBridge:
                 except json.JSONDecodeError:
                     return {"text": result.stdout}
         except (subprocess.TimeoutExpired, Exception) as e:
-            print(f"[L2/L3] 脚本调用失败 ({script_name}): {e}", file=sys.stderr)
+            logger.debug(f"[L2/L3] 脚本调用失败 ({script_name}): {e}")
         return None
 
     def get_realtime_quote(self, code: str) -> Optional[Dict]:
         """获取单只股票实时行情 — 自动降级"""
-        # L1: 腾讯直连
-        c = str(code).strip().lower().replace("sh", "").replace("sz", "").replace("bj", "")
-        prefix = "sh" if str(code).lower().startswith("sh") or c.startswith(("6", "5", "9")) else ("bj" if str(code).lower().startswith("bj") or c.startswith(("8", "4", "92")) else "sz")
-        result = self.tencent_quote([f"{prefix}{c}"])
+        try:
+            clean_code = _validate_stock_code(code)
+        except ValueError as exc:
+            logger.warning(f"Invalid stock code in get_realtime_quote: {exc}")
+            return None
+
+        norm = self.normalize_symbol(clean_code)
+        result = self.tencent_quote([norm])
         if result:
-            return list(result.values())[0] if result else None
+            return result.get(norm) or result.get(clean_code) or list(result.values())[0]
 
         # L2: a-share-data 脚本
-        return self._run_script("fetch_realtime.py", f"--quote {code} --json")
+        return self._run_script("fetch_realtime.py", f"--quote {clean_code} --json")
 
     def get_kline(self, code: str, start: str, end: str) -> Optional[Dict]:
         """获取K线数据 — 自动降级"""
@@ -252,7 +339,8 @@ class DataBridge:
             }
 
         # L2: a-share-data 脚本
-        return self._run_script("fetch_history.py", f"--kline {code} --start {start} --end {end} --freq d --json")
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_history.py", f"--kline {clean} --start {start} --end {end} --freq d --json")
 
     def get_technical(self, code: str, count: int = 120) -> Optional[Dict]:
         """获取技术指标 — 优先 L1 原地计算"""
@@ -264,11 +352,13 @@ class DataBridge:
             return {"source": "tencent_direct+local_calc", "code": code, **result}
 
         # L2: a-share-data 脚本
-        return self._run_script("fetch_technical.py", f"{code} --freq 1d --count {count} --indicators MA,MACD,KDJ,RSI,BOLL --json")
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_technical.py", f"{clean} --freq 1d --count {count} --indicators MA,MACD,KDJ,RSI,BOLL --json")
 
     def get_sector_info(self, code: str) -> Optional[Dict]:
         """获取行业信息"""
-        return self._run_script("fetch_sector_info.py", f"--no-concepts --json {code}")
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_sector_info.py", f"--no-concepts --json {clean}")
 
     def get_board_summary(self, limit: int = 20) -> Optional[Dict]:
         """获取板块排行"""
@@ -276,7 +366,8 @@ class DataBridge:
 
     def get_fund_flow(self, code: str, days: int = 5) -> Optional[Dict]:
         """获取资金流向"""
-        return self._run_script("fetch_realtime.py", f"--fund-flow {code} --days {days} --json")
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_realtime.py", f"--fund-flow {clean} --days {days} --json")
 
     # ═══════════════════════════════════════════════════
     #  P0 新增：筹码分布、个股事件、积分余额、A+H
@@ -286,8 +377,14 @@ class DataBridge:
         """获取筹码分布(CYQ) — 需 proxy-patch 模式
         返回: {profit_ratio, avg_cost, concentration_90, concentration_70, ...}
         """
+        try:
+            clean_code = _validate_stock_code(code)
+        except ValueError as exc:
+            logger.warning(f"Invalid stock code for CYQ: {exc}")
+            return None
+
         result = self._run_script("fetch_patched.py",
-                                   f"fetch_realtime.py --cyq {code} --json",
+                                   f"fetch_realtime.py --cyq {clean_code} --json",
                                    use_patch=True, timeout=30)
         if result:
             return result
@@ -296,17 +393,21 @@ class DataBridge:
         if not A_SHARE_SCRIPTS:
             return None
         import subprocess
-        cmd = [python, "-c", f"""
-import sys
-sys.path.insert(0, '{A_SHARE_SCRIPTS}')
-from _init_patch import patched_akshare as ak
-try:
-    df = ak.stock_cyq_em(symbol='{code}')
-    import json
-    print(json.dumps(df.tail(3).to_dict('records'), ensure_ascii=False))
-except Exception as e:
-    print(json.dumps({{'error': str(e)}}))
-"""]
+        cmd = [
+            python, "-c",
+            "import sys\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "from _init_patch import patched_akshare as ak\n"
+            "try:\n"
+            "    df = ak.stock_cyq_em(symbol=sys.argv[2])\n"
+            "    import json\n"
+            "    print(json.dumps(df.tail(3).to_dict('records'), ensure_ascii=False))\n"
+            "except Exception as e:\n"
+            "    import json\n"
+            "    print(json.dumps({'error': str(e)}))\n",
+            str(A_SHARE_SCRIPTS),
+            clean_code,
+        ]
         try:
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if r.returncode == 0 and r.stdout:
@@ -314,7 +415,7 @@ except Exception as e:
                 if isinstance(data, list) and data:
                     latest = data[-1]
                     return {
-                        "code": code,
+                        "code": clean_code,
                         "profit_ratio": latest.get("获利比例", 0),
                         "avg_cost": latest.get("平均成本", 0),
                         "cost_90_low": latest.get("90成本-低", 0),
@@ -325,14 +426,15 @@ except Exception as e:
                         "concentration_70": latest.get("70集中度", 0),
                     }
         except Exception as e:
-            print(f"[P0] CYQ获取失败 ({code}): {e}", file=sys.stderr)
+            logger.warning(f"[P0] CYQ获取失败 ({clean_code}): {e}")
         return None
 
     def get_stock_events(self, code: str, name: str = "", limit: int = 20) -> Optional[Dict]:
         """获取个股事件"""
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
         name_arg = f"--name {name}" if name else ""
         return self._run_script("fetch_stock_events.py",
-                                f"--code {code} {name_arg} --limit {limit} --json",
+                                f"--code {clean} {name_arg} --limit {limit} --json",
                                 use_patch=True, timeout=30)
 
     def get_ah_stocks(self) -> Optional[Dict]:
@@ -358,11 +460,10 @@ except Exception as e:
 
     def get_tencent_pe(self, code: str) -> Optional[float]:
         """从腾讯行情获取PE (零依赖)"""
-        c = str(code).strip().lower().replace("sh", "").replace("sz", "").replace("bj", "")
-        prefix = "sh" if str(code).lower().startswith("sh") or c.startswith(("6", "5", "9")) else ("bj" if str(code).lower().startswith("bj") or c.startswith(("8", "4", "92")) else "sz")
-        result = self.tencent_quote([f"{prefix}{c}"])
+        norm = self.normalize_symbol(code)
+        result = self.tencent_quote([norm])
         if result:
-            data = list(result.values())[0]
+            data = result.get(norm) or list(result.values())[0]
             pe = data.get("pe", 0)
             return pe if pe and pe > 0 else None
         return None
@@ -376,10 +477,16 @@ except Exception as e:
             source: 数据来源层级
         }
         """
-        result = {"code": code, "source": "L1_tencent"}
+        try:
+            clean_code = _validate_stock_code(code)
+        except ValueError as exc:
+            logger.warning(f"Invalid stock code for fundamentals: {exc}")
+            return {"code": code, "source": "invalid_code", "pe": None, "market_cap": 0, "turnover_pct": 0}
+
+        result = {"code": clean_code, "source": "L1_tencent"}
 
         # L1: PE/市值/换手率 (腾讯直连，零依赖)
-        quote = self.get_realtime_quote(code)
+        quote = self.get_realtime_quote(clean_code)
         if quote:
             pe = quote.get("pe", 0)
             result["pe"] = pe if pe and pe > 0 else None
@@ -390,25 +497,27 @@ except Exception as e:
         try:
             import subprocess
             python = SYSTEM_PY
-            cmd = [python, "-c", f"""
-import json
-try:
-    import efinance as ef
-    info = ef.stock.get_base_info('{code}')
-    if info is not None:
-        row = info.iloc[0].to_dict() if hasattr(info, 'iloc') else info
-        print(json.dumps({{k: str(v) for k, v in row.items()}}, ensure_ascii=False))
-    else:
-        print(json.dumps({{}}))
-except Exception as e:
-    print(json.dumps({{'error': str(e)}}))
-"""]
+            cmd = [
+                python, "-c",
+                "import sys, json\n"
+                "try:\n"
+                "    import efinance as ef\n"
+                "    code = sys.argv[1]\n"
+                "    info = ef.stock.get_base_info(code)\n"
+                "    if info is not None:\n"
+                "        row = info.iloc[0].to_dict() if hasattr(info, 'iloc') else info\n"
+                "        print(json.dumps({k: str(v) for k, v in row.items()}, ensure_ascii=False))\n"
+                "    else:\n"
+                "        print(json.dumps({}))\n"
+                "except Exception as e:\n"
+                "    print(json.dumps({'error': str(e)}))\n",
+                clean_code,
+            ]
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
             if r.returncode == 0 and r.stdout:
                 efinfo = json.loads(r.stdout)
                 if efinfo and "error" not in efinfo:
                     result["source"] = "L4_efinance"
-                    # 映射常见字段
                     for ef_key, our_key in [
                         ("市盈率-动态", "pe_dynamic"),
                         ("市净率", "pb"),
@@ -418,8 +527,8 @@ except Exception as e:
                     ]:
                         if ef_key in efinfo:
                             result[our_key] = efinfo[ef_key]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug(f"efinance fundamentals fallback failed: {exc}")
 
         return result
 
@@ -442,27 +551,35 @@ except Exception as e:
 
         return result
 
-    def fetch_batch_snapshot(self, codes: List[str]) -> List[Dict]:
+    def fetch_batch_snapshot(self, codes: List[Any]) -> List[Dict]:
         """批量获取实时行情"""
-        prefix_codes = [f"sh{c}" if c.startswith("6") else f"sz{c}" for c in codes]
+        clean_codes = [c.get("code", "") if isinstance(c, dict) else str(c) for c in codes]
+        prefix_codes = [self.normalize_symbol(c) for c in clean_codes if c]
         results = self.tencent_quote(prefix_codes)
         output = []
-        for c in codes:
-            for name, data in results.items():
-                if data.get("code") == c:
-                    output.append(data)
-                    break
+        for c in clean_codes:
+            if not c:
+                continue
+            norm = self.normalize_symbol(c)
+            clean = c.replace("sh", "").replace("sz", "").replace("bj", "")
+            data = results.get(norm) or results.get(clean) or results.get(c)
+            if data:
+                output.append(data)
         return output
 
 
 # ─── 便捷函数 ─────────────────────────────────────────
+
+infer_market_prefix = DataBridge.infer_market_prefix
+normalize_symbol = DataBridge.normalize_symbol
+
 
 def get_bridge() -> DataBridge:
     return DataBridge()
 
 
 def batch_quote(codes: List[str]) -> Dict[str, Dict]:
-    codes_with_prefix = [f"sh{c}" if c.startswith("6") else f"sz{c}" for c in codes]
+    codes_with_prefix = [DataBridge.normalize_symbol(c) for c in codes]
     return DataBridge.tencent_quote(codes_with_prefix)
 
 

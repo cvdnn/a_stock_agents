@@ -5,6 +5,7 @@ aStocks HTML 报告生成器
 输出: 白色亚光背景 · 涨红跌绿 · 960px居中 · 自包含单文件
 """
 
+import html as html_lib
 import json
 import sys
 import os
@@ -25,28 +26,35 @@ TEMPLATE_PATH = PROJECT_ROOT / "skills" / "a-share-data" / "templates" / "stock-
 
 def generate_simple_report(data: dict, output_path: str = None) -> str:
     """生成简单HTML报告（不使用模板的快速版）"""
-    code = data.get("code", "unknown")
-    name = data.get("name", code)
+    raw_code = data.get("code", "unknown")
+    raw_name = data.get("name", raw_code)
+    code = html_lib.escape(str(raw_code))
+    name = html_lib.escape(str(raw_name))
     scores = data.get("scores", {})
     tech = data.get("technical_latest", {})
     entry = data.get("entry", {})
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    rating = scores.get("rating", "N/A")
-    rating_text = scores.get("rating_text", "")
+    raw_rating = str(scores.get("rating", "N/A"))
+    rating = html_lib.escape(raw_rating)
+    rating_text = html_lib.escape(str(scores.get("rating_text", "")))
     total = scores.get("total", 0)
     max_total = scores.get("max_total", 100)
 
-    # 评分明细行
+    # 评分明细行 (进行 HTML 转义防注入)
     rows_html = ""
     for dim, info in scores.items():
         if not isinstance(info, dict) or "score" not in info or "max" not in info:
             continue
+        dim_esc = html_lib.escape(str(dim))
+        reason_esc = html_lib.escape(str(info.get("reason", "")))
+        score_val = info.get('score', 0)
+        max_val = info.get('max', 0)
         rows_html += f"""
         <tr>
-          <td>{dim}</td>
-          <td>{info['score']}/{info['max']}</td>
-          <td>{info['reason']}</td>
+          <td>{dim_esc}</td>
+          <td>{score_val}/{max_val}</td>
+          <td>{reason_esc}</td>
         </tr>"""
 
     # 涨跌色
@@ -54,9 +62,10 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
     chg_color = "#d0312d" if chg_pct >= 0 else "#219653"
     chg_sign = "+" if chg_pct >= 0 else ""
 
-    price = data.get("quote", {}).get("price", tech.get("close", "N/A")) if data.get("quote") else tech.get("close", "N/A")
+    price_val = data.get("quote", {}).get("price", tech.get("close", "N/A")) if data.get("quote") else tech.get("close", "N/A")
+    price = html_lib.escape(str(price_val))
 
-    html = f"""<!DOCTYPE html>
+    html_out = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -178,10 +187,10 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
 </html>"""
 
     if output_path:
-        Path(output_path).write_text(html)
+        Path(output_path).write_text(html_out)
         print(f"报告已保存: {output_path}")
 
-    return html
+    return html_out
 
 
 if __name__ == "__main__":

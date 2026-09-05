@@ -17,29 +17,37 @@ class RiskManager:
     # ═══════════════════════════════════════════════════
 
     @staticmethod
-    def calc_stop_losses(entry_price: float, latest: Dict) -> Dict[str, Any]:
+    def calc_stop_losses(entry_price: float, latest: Dict, t0_loss_pct: float = 0.05) -> Dict[str, Any]:
         """
-        计算三级止损位
+        计算三级止损与风控警戒位
 
-        T0: 日内止损 (入场价 -5%)
-        T1: MA10 下方2% (减半仓)
-        T2: MA20 下方2% (清仓)
+        T0 警戒线: 盘中预警与禁止加仓 (入场价 -3%)
+        T0 强止损: 日内强平/即时清仓 (默认入场价 -5%，可配置)
+        T1 减仓线: MA10 下方2% (收盘跌破减半仓)
+        T2 绝杀线: MA20 下方2% (收盘跌破清仓)
         """
         ma10 = latest.get("ma10", entry_price * 0.95)
         ma20 = latest.get("ma20", entry_price * 0.92)
         atr = latest.get("atr", entry_price * 0.02)
 
-        t0 = round(entry_price * 0.95, 2)
+        t0_warn = round(entry_price * 0.97, 2)
+        t0 = round(entry_price * (1 - t0_loss_pct), 2)
         t1 = round(ma10 * 0.98, 2)
         t2 = round(ma20 * 0.98, 2)
 
         return {
             "entry_price": entry_price,
+            "t0_warning": {
+                "price": t0_warn,
+                "loss_pct": round((entry_price - t0_warn) / entry_price * 100, 1),
+                "action": "盘中预警/禁加仓",
+                "trigger": "触及T0警戒线 (-3%)",
+            },
             "t0_intraday": {
                 "price": t0,
                 "loss_pct": round((entry_price - t0) / entry_price * 100, 1),
                 "action": "即时清仓",
-                "trigger": "日内跌幅 > 5%",
+                "trigger": f"日内跌幅 > {t0_loss_pct * 100:.0f}%",
             },
             "t1_ma10": {
                 "price": t1,

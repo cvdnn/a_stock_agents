@@ -62,27 +62,41 @@ def is_after_close(dt: Optional[datetime] = None) -> bool:
     return now.time() > time_type(15, 0)
 
 
+from core.config import (
+    DEFAULT_COMMISSION_RATE,
+    DEFAULT_MIN_COMMISSION,
+    DEFAULT_TAX_RATE_SELL,
+    DEFAULT_TRANSFER_FEE_RATE,
+    MARKET_PREFIX_SH,
+    get_logger,
+    get_market_config,
+    infer_market_prefix,
+)
+
+logger = get_logger("core.paper_trading.engine")
+
+
 def _is_shanghai_symbol(symbol: Optional[str]) -> bool:
     if not symbol:
         return False
-    value = str(symbol).strip().lower()
-    return value.startswith("sh") or value.startswith("6")
+    return infer_market_prefix(symbol) == MARKET_PREFIX_SH
 
 
 def calc_transfer_fee(amount: float, symbol: Optional[str] = None) -> float:
     if not _is_shanghai_symbol(symbol):
         return 0.0
-    return round(amount * 0.00001, 2)
+    return round(amount * DEFAULT_TRANSFER_FEE_RATE, 2)
 
-
-from core.config import get_market_config
 
 # Market rates (dynamically sourced from core.config)
 def _get_market_rates():
     m = get_market_config()
-    return m.get("commission_rate", 0.00025), m.get("min_commission", 5.0), m.get("tax_rate_sell", 0.0005)
+    return (
+        m.get("commission_rate", DEFAULT_COMMISSION_RATE),
+        m.get("min_commission", DEFAULT_MIN_COMMISSION),
+        m.get("tax_rate_sell", DEFAULT_TAX_RATE_SELL),
+    )
 
-DEFAULT_COMMISSION_RATE = 0.00025  # 万分之2.5
 DEFAULT_STAMP_TAX_RATE = 0.0005   # 0.05%
 
 
@@ -690,15 +704,18 @@ class PaperTradingEngine:
                 return False
             if max(float(quote.open), float(quote.high), float(quote.low), float(quote.price)) <= 0:
                 return False
-        except Exception:
+        except Exception as exc:
+            logger.debug(f"_is_quote_tradable price check failed: {exc}")
             return False
         if not getattr(quote, "timestamp", None):
             return False
         try:
             quote_date = str(quote.timestamp).split(" ")[0]
-        except Exception:
+        except Exception as exc:
+            logger.debug(f"_is_quote_tradable date check failed: {exc}")
             return False
         return quote_date == trade_date()
+
 
     def _should_fill(self, order: sqlite3.Row, last_price: float) -> bool:
         if order["order_type"] == "market":
@@ -751,8 +768,10 @@ class PaperTradingEngine:
         last_checked = order["last_checked_at"] or order["created_at"]
         try:
             last_checked_dt = pd.to_datetime(last_checked)
-        except Exception:
+        except Exception as exc:
+            logger.debug(f"_get_fill_price last_checked_dt fallback: {exc}")
             last_checked_dt = pd.Timestamp.now() - pd.Timedelta(minutes=5)
+
         bars = self.market_data.get_intraday_bars(order["symbol"], freq="1m", count=240)
         if not bars.empty:
             recent = bars[bars["time"] >= last_checked_dt.floor("min")]

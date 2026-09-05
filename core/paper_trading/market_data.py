@@ -17,6 +17,13 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+try:
+    from core.config import get_logger
+    logger = get_logger("core.paper_trading.market_data")
+except ImportError:
+    import logging
+    logger = logging.getLogger("core.paper_trading.market_data")
+
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -228,9 +235,19 @@ def _parse_tencent_quote(line: str) -> Optional[dict]:
             return None
         prev_close = float(parts[4]) if parts[4] else 0
         change_pct = round((price - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0
-        market_prefix = "sh" if parts[0] == "1" else "sz"
+        raw_code = parts[2]
+        if "v_sh" in line or line.startswith("sh") or raw_code.startswith(("6", "5", "9")):
+            market_prefix = "sh"
+        elif "v_bj" in line or line.startswith("bj") or raw_code.startswith(("8", "4", "92")):
+            market_prefix = "bj"
+        else:
+            market_prefix = "sz"
+
+        limit_up = float(parts[47]) if len(parts) > 47 and parts[47] and float(parts[47]) > 0 else None
+        limit_down = float(parts[48]) if len(parts) > 48 and parts[48] and float(parts[48]) > 0 else None
+
         return {
-            "code": f"{market_prefix}{parts[2]}",
+            "code": f"{market_prefix}{raw_code}",
             "name": parts[1],
             "price": price,
             "prev_close": prev_close,
@@ -241,10 +258,11 @@ def _parse_tencent_quote(line: str) -> Optional[dict]:
             "high": float(parts[33]) if parts[33] else 0,
             "low": float(parts[34]) if parts[34] else 0,
             "market_cap": float(parts[45]) if len(parts) > 45 and parts[45] else 0,
-            "limit_up": float(parts[47]) if parts[47] else 0,
-            "limit_down": float(parts[48]) if len(parts) > 48 and parts[48] else 0,
+            "limit_up": limit_up,
+            "limit_down": limit_down,
         }
-    except Exception:
+    except Exception as exc:
+        logger.debug(f"Failed parsing quote line: {exc}")
         return None
 
 

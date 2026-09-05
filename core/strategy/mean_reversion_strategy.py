@@ -14,13 +14,31 @@ import json
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.config import (
+    DEFAULT_RSI_OVERBOUGHT,
+    DEFAULT_RSI_OVERSOLD,
+    DEFAULT_STOP_LOSS_PCT,
+    get_logger,
+)
+
+logger = get_logger("core.strategy.mean_reversion")
+
+try:
+    from core.indicators.technical_indicators import boll, rsi
+except ImportError:
+    try:
+        from technical_indicators import boll, rsi
+    except ImportError:
+        boll, rsi = None, None
+
 
 class MeanReversionStrategy:
     """均值回归策略"""
 
-    def __init__(self, rsi_oversold: float = 30, rsi_overbought: float = 70,
+    def __init__(self, rsi_oversold: float = DEFAULT_RSI_OVERSOLD,
+                 rsi_overbought: float = DEFAULT_RSI_OVERBOUGHT,
                  boll_period: int = 20, boll_k: float = 2.0,
-                 stop_loss_pct: float = 0.05):
+                 stop_loss_pct: float = DEFAULT_STOP_LOSS_PCT):
         """
         Args:
             rsi_oversold: RSI超卖阈值
@@ -41,10 +59,6 @@ class MeanReversionStrategy:
         if idx < self.boll_period:
             return {"action": "hold", "reason": "数据不足"}
 
-        try:
-            from core.indicators.technical_indicators import rsi, boll
-        except ImportError:
-            from technical_indicators import rsi, boll
 
         closes = [float(k[2]) for k in klines[:idx + 1]]
         rsi_vals = rsi(closes, 14)
@@ -97,13 +111,8 @@ class MeanReversionStrategy:
 
     def backtest_signals(self, klines: List[List],
                          initial_cash: float = 1000000) -> Dict[str, Any]:
-        try:
-            from core.indicators.technical_indicators import rsi, boll
-        except ImportError:
-            from technical_indicators import rsi, boll
-
-
         closes = [float(k[2]) for k in klines]
+
         rsi_vals = rsi(closes, 14)
         boll_data = boll(closes, self.boll_period, self.boll_k)
 

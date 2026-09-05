@@ -94,12 +94,24 @@ def write_pool_csv(
 
     兼容 (path, rows, fields) 与 (path, fields, rows) 两种传参习惯。
     """
-    if isinstance(rows, (list, tuple)) and (not rows or isinstance(rows[0], str)):
-        actual_fields = list(rows)
-        actual_rows = fields if isinstance(fields, (list, tuple)) else []
+    rows_is_dicts = isinstance(rows, (list, tuple)) and any(isinstance(r, dict) for r in rows)
+    fields_is_dicts = isinstance(fields, (list, tuple)) and any(isinstance(r, dict) for r in fields)
+
+    rows_is_str_list = isinstance(rows, (list, tuple)) and bool(rows) and all(isinstance(r, str) for r in rows)
+    fields_is_str_list = isinstance(fields, (list, tuple)) and bool(fields) and all(isinstance(f, str) for f in fields)
+
+    if fields_is_dicts or (rows_is_str_list and not rows_is_dicts and not fields_is_str_list):
+        # 传参习惯为 (path, fields, rows)
+        actual_fields = list(rows) if isinstance(rows, (list, tuple)) else []
+        actual_rows = list(fields) if isinstance(fields, (list, tuple)) else []
     else:
-        actual_rows = rows if isinstance(rows, (list, tuple)) else []
+        # 标准传参顺序为 (path, rows, fields)
+        actual_rows = list(rows) if isinstance(rows, (list, tuple)) else []
         actual_fields = list(fields) if isinstance(fields, (list, tuple)) else []
+
+    # 若未指定 fields 但有 rows，自动提取字段
+    if not actual_fields and actual_rows and isinstance(actual_rows[0], dict):
+        actual_fields = list(actual_rows[0].keys())
 
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)

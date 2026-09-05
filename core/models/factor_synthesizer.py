@@ -81,18 +81,20 @@ class FactorSynthesizer:
         return [max(lower_bound, min(upper_bound, x)) for x in values]
 
     @staticmethod
-    def _zscore(values: List[float]) -> List[float]:
-        """截面 Z-Score 标准化"""
+    def _zscore(values: List[float], ddof: int = 1) -> List[float]:
+        """截面 Z-Score 标准化 (默认 ddof=1 样本标准差，兼容总体标准差 ddof=0)"""
         if not values or len(values) < 2:
             return [0.0] * len(values)
         
         m = sum(values) / len(values)
-        variance = sum((x - m) ** 2 for x in values) / (len(values) - 1)
+        denom = max(1, len(values) - ddof)
+        variance = sum((x - m) ** 2 for x in values) / denom
         std = math.sqrt(variance)
         if std == 0:
             return [0.0] * len(values)
         
         return [(x - m) / std for x in values]
+
 
     @classmethod
     def synthesize_universe(

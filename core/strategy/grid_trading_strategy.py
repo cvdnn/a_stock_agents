@@ -70,7 +70,7 @@ class GridTradingStrategy:
             grid_levels.append({
                 "level": i,
                 "price": round(price, 2),
-                "action": "buy" if i < grid_count / 2 else "sell",
+                "action": "buy" if price < boll_mid else "sell",
                 "quantity": qty,
             })
 

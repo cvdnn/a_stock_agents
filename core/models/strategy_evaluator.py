@@ -113,18 +113,17 @@ class StrategyEvaluator:
 
         scorer = ComboScorer()
 
+        # 获取历史K线 (前200根，提至循环外单次获取，避免每条entry重复请求)
+        klines = self.bridge.tencent_kline(code, 200)
+        if not klines or len(klines) < 60:
+            return report
+
         for entry in entries:
             entry_date = entry.get("date", "")
             entry_price = float(entry.get("price", 0))
             action = entry.get("action", "buy")
 
             if not entry_date or entry_price <= 0:
-                continue
-
-            # 获取截止该日期的历史K线 (前120根)
-            klines = self.bridge.tencent_kline(code, 200)
-
-            if not klines or len(klines) < 60:
                 continue
 
             # 找到 entry_date 在 K线中的位置

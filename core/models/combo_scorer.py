@@ -2,7 +2,7 @@
 aStocks 三合一组合策略评分引擎 (trading-combo)
 
 100分制多维评分:
-  均线结构(25) + MACD状态(20) + 量价关系(15) + 筹码集中度(15) + 资金流向(15) + 板块共振(10)
+  均线结构(25) + MACD状态(20) + 量价关系(15) + 筹码集中度(15) + 资金流向(15) + 板块共振(5) + PE估值(5) = 100分
 
 独立运行，不依赖 TACN/TradingAgents 项目。
 """
@@ -12,18 +12,33 @@ import re
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.config import (
+    DEFAULT_MA_BUFFER_PCT,
+    DEFAULT_STOP_LOSS_PCT,
+    get_logger,
+)
+
+logger = get_logger("core.models.combo_scorer")
+
 
 class ComboScorer:
     """三合一策略评分器"""
 
     @staticmethod
-    def score_ma_structure(klines: List[List], latest: Dict) -> Tuple[int, str]:
+    def score_ma_structure(klines: Optional[List[List]] = None, latest: Optional[Dict] = None) -> Tuple[int, str]:
         """均线结构评分 (满分25)"""
-        ma5 = latest.get("ma5", 0)
-        ma10 = latest.get("ma10", 0)
-        ma20 = latest.get("ma20", 0)
-        ma60 = latest.get("ma60", 0)
-        close = latest.get("close", 0)
+        # 兼容 (klines, latest) 或仅传 (latest)
+        if latest is None and isinstance(klines, dict):
+            target = klines
+        else:
+            target = latest or {}
+
+        ma5 = target.get("ma5", 0)
+        ma10 = target.get("ma10", 0)
+        ma20 = target.get("ma20", 0)
+        ma60 = target.get("ma60", 0)
+        close = target.get("close", 0)
+
 
         if all(v > 0 for v in [ma5, ma10, ma20, ma60]) and ma5 > ma10 > ma20 > ma60:
             if close > ma5:
@@ -390,13 +405,13 @@ def entry_assessment(klines: List[List], latest: Dict) -> Dict[str, Any]:
     if close > ma20:
         trigger.append(f"价格站上MA20 ({pct_ma20:+.1f}%) ✅")
 
-    # 止损位
+    # 止损位 (结合 MA20 趋势防守位与入场硬止损位)
+    stop_loss_b = round(close * (1 - DEFAULT_STOP_LOSS_PCT), 2)  # 入场价-5%
     if ma20 > 0:
-        stop_loss_a = round(ma20 * 0.98, 2)  # MA20下方2%
-        stop_loss_b = round(close * 0.95, 2)  # 入场价-5%
+        stop_loss_a = round(ma20 * (1 - DEFAULT_MA_BUFFER_PCT), 2)  # MA20下方2%
         stop_loss = stop_loss_a
     else:
-        stop_loss = round(close * 0.95, 2)
+        stop_loss = stop_loss_b
 
     return {
         "pct_from_ma20": round(pct_ma20, 2),
@@ -404,9 +419,12 @@ def entry_assessment(klines: List[List], latest: Dict) -> Dict[str, Any]:
         "distance_text": distance_text,
         "triggers": trigger,
         "stop_loss": stop_loss,
+        "stop_loss_ma20": stop_loss_a if ma20 > 0 else None,
+        "stop_loss_fixed": stop_loss_b,
         "stop_loss_pct": round((close - stop_loss) / close * 100, 2) if close > 0 else 0,
         "atr": round(atr, 4),
     }
+
 
 
 # ─── CLI ──────────────────────────────────────────────

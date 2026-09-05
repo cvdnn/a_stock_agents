@@ -237,13 +237,34 @@
 8. [✅ 已修复] `factor_synthesizer.py` 缺失因子与权重规范：`custom_weights` 自动归一化使权重和为 1.0；缺失因子改用截面中位数（Median）填充，避免经 Z-score 产生极端伪异常值。
 9. [✅ 已修复] `risk_manager.py` 顶背离死代码与红柱缩短修复：将 `dif < max(dif for _ in [0])` 恒假死代码修复为基于阶段新高与前期 DIF 峰值对比的顶背离检测；修复 MACD 红柱连续 3 日缩短条件（修正 `<=` 倒挂并限定红柱 `> 0` 且单调递减）。
 
-**P2 — 健壮性治理**
+**P2 — 健壮性治理** [✅ 全部 10 项已修复并通过全量验证]
 
-- 全局清理 `except Exception: pass`，改为分级日志 + 可降级异常；`python -c` 注入加 `code` 白名单校验；统一字段默认值与 `None` 防护；统一版本号来源。
+1. [✅ 已修复] `python -c` 命令注入防御与 `code` 白名单校验：在 `data_bridge.py` 增加 `_validate_stock_code(code)` 字母数字正则白名单过滤，彻底消除 `get_cyq` / `get_fundamentals` 通过 f-string 拼接执行任意系统命令的注入面；同时改用 `sys.argv` 参数化传递。
+2. [✅ 已修复] 统一版本号唯一权威源 (SSOT = `3.0.0`)：`core/config.py` 定义 `VERSION = "3.0.0"`，`core/cli.py` 统一读取引用 `VERSION`，消除 `2.0.0` / `v3` / `3.0.0` 漂移并与 `pyproject.toml` 对齐。
+3. [✅ 已修复] 行情主键与重名覆盖修复 (`QuoteDict`)：`data_bridge.py` 弃用股票名作为字典主键，引入 `QuoteDict` 以唯一代码（如 `600519` / `sh600519`）为主键，并通过别名表透明支持按纯数字代码、前缀代码与中文名称多口径高速检索；抽象公共 `infer_market_prefix` 与 `normalize_symbol` 函数消除冗余。
+4. [✅ 已修复] 行情解析与边界修复：`market_data.py` 修复 `parts[0] == "1"` 恒假逻辑，结合代码前缀与行情行特征准确分配 `sh`/`sz`/`bj`；修复 `limit_up`/`limit_down` 为 0 时误判涨跌停的问题（空值统一赋予 `None`）。
+5. [✅ 已修复] 股票池 CSV 写入参数倒置保护：`pool_schema.py:write_pool_csv` 增强传参类型探测，彻底修复空数据行列表 `rows=[]` 被误判为 `fields` 表头导致文件损坏的缺陷，兼容新老顺序。
+6. [✅ 已修复] 行业 TOP10 板块语义对齐：`stock_screener.py` 提取板块排行实际前 10 名集合，修复将 `board_chg > 1` 涨跌幅代理成 TOP10 的逻辑，准确赋予 `board_top10: bool`。
+7. [✅ 已修复] 门控自评估与决策参数动态接入：`multi_dim_model.py` 在 `evaluate()` 中自动检测门控评估状态并按需触发 `gate.assess()` 防止漏调；接入 `STATE_CONFIG` 阈值控制技术与共振准入门槛；涨跌停与单日跌幅改用 `prev_close` 前收盘价基准；换股轮动候选集排除当前持仓自身并对比同日最新得分。
+8. [✅ 已修复] 网格挂单与布林中轴价格水平耦合：`grid_trading_strategy.py` 修复以序号二分网格动作的缺陷，严格改为依据价格相对 `boll_mid` 关系（`price < boll_mid` 买入，反之卖出）。
+9. [✅ 已修复] HTML 报告 XSS 漏洞防御：`report_generator.py` 对标的代码、股票名称、评级文本、维度说明等动态字段引入 `html_lib.escape` 严格过滤转义，防止恶意内容 XSS 注入。
+10. [✅ 已修复] 回测与全局健壮性治理：`backtest_metrics.py` 对 Calmar 负收益符号保护、100% 胜率（无亏损）`profit_factor` 边界保护、换手率多层除零安全保护；全局引入 `get_logger` 分级日志工具函数，彻底清理 `except Exception: pass` 静默吞掉异常行为。
 
-**P3 — 可维护性**
+**P3 — 可维护性** [✅ 全部 12 项已完成并通过全量验证]
 
-- 抽出公共市场前缀/费用常量到 `config`；`cli.py` 子命令拆分为模块；引入 logging；外置魔法数字；统一导入风格与类型注解。
+1. [✅ 已修复] **市场前缀与代码规范化公共函数抽取 (SSOT)**：在 `core/config.py` 中定义 `MARKET_PREFIX_SH="sh"`, `MARKET_PREFIX_SZ="sz"`, `MARKET_PREFIX_BJ="bj"` 及 `DEFAULT_BENCHMARK="sh000001"`，抽出 `infer_market_prefix` 与 `normalize_symbol` 作为单点真实源，并支持北交所最新 `920xxx` 规则；各业务模块统一委托引用。
+2. [✅ 已修复] **交易费率与全局魔法数字外置**：在 `core/config.py` 中集中外置费率常量（印花税 `0.0005`、佣金 `0.00025`、过户费 `0.00001`、最低佣金 `5.0`）及模型评分/风控阈值（评级分界 `A:80/B:65/C:50`、默认止损 `0.05`、警戒线 `0.03`、均线缓冲 `0.02`、乖离率 `8.0`、RSI `30/70`），彻底消除散落硬编码。
+3. [✅ 已修复] **`cli.py` 1365 行大单体架构拆分**：新建 `core/commands/` 模块化子命令系统（包含 `data_cmds.py`, `model_cmds.py`, `strategy_cmds.py`, `backtest_cmds.py`, `portfolio_cmds.py`），`core/cli.py` 精简至约 300 行且保持 100% 向后兼容；全部 32 个子命令及参数解析测试全绿通过。
+4. [✅ 已修复] **全库分级日志与静默异常消除**：全库接入 `core.config.get_logger` 分级日志，对 `data_bridge`, `paper_trading/engine`, `multi_factor_scorer`, `position_manager` 中散落的 `except Exception: pass` 补充调试/告警日志记录，消除排障盲区。
+5. [✅ 已修复] **`combo_scorer.py` 规范化**：修复 `score_ma_structure` 未使用参数与签名兼容性；修正 docstring 权重说明（均线 25 + MACD 20 + 量价 15 + 筹码 15 + 资金 15 + 板块 5 + PE 5 = 100 分）；将计算后未使用的 `stop_loss_b` 接入双重止损防守体系。
+6. [✅ 已修复] **`multi_dim_model.py` 代码清理与不可达分支修复**：清理一行多导入与未用库；彻底移除 dead scripts locator 代码（`_find_a_stocks_scripts` / `_A_STOCKS_SCRIPTS`）及死变量 `prev_equity`；将成交量变动修复为有符号百分比变动（`vol_change_signed`），使资金维度 `elif vol_change >= -20` 成为有效且可达的分支。
+7. [✅ 已修复] **`multi_dim_model_v3.py` 星号导入消除**：移除 `from ... import *` 模糊导入，显式声明 `__all__` 并保持友好弃用提示。
+8. [✅ 已修复] **`factor_synthesizer.py` 标准差与方向口径透明化**：`_zscore` 增加 `ddof=1`（样本标准差）参数化支持，对齐统计学无偏估计口径，并在注释中完整阐明因子方向与默认合成权重池关系。
+9. [✅ 已修复] **`mean_reversion_strategy.py` 模块级导入统一**：将函数内局部反复的 `try...except ImportError` 提升至模块顶层，默认止损与 RSI 阈值动态接入 `core.config`。
+10. [✅ 已修复] **`execution_action_engine.py` 动态股票池识别与北交所扩展**：股票代码正则扩展支持北交所 `(8\d{5}|4\d{5}|92\d{4})` 代码；`KNOWN_NAMES` 接入 `get_known_names()` 自动动态扫描本地股票池与持仓中的股票名称，并提供 `register_known_names()` 扩展机制。
+11. [✅ 已修复] **`position_manager.py` 业务逻辑与 CLI 展示解耦**：将开仓、平仓、持仓查询、盈亏计算抽离为纯数据服务函数（`get_open_positions`, `open_position`, `close_position`, `update_position`, `calculate_pnl_summary`, `check_stop_triggers`），`cmd_*` 仅负责展示和交互。
+12. [✅ 已修复] **P3 专项自动化测试套件构建**：新增 `tests/test_p3_maintainability.py`（9 项专项测试），全量验证通过（全库 107 项测试 100% 全部通过）。
+
 
 ---
 

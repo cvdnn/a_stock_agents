@@ -8,9 +8,91 @@ Version naming rule: v2, v3, v4...
 import os
 import sys
 import yaml
+import logging
 from pathlib import Path
 
-VERSION = "v3"
+VERSION = "3.0.0"
+
+
+def get_logger(name: str = "a_stock") -> logging.Logger:
+    """获取带统一配置的分级日志器。
+
+    可通过环境变量 ASTOCK_LOG_LEVEL 控制级别 (DEBUG, INFO, WARNING, ERROR)，默认为 WARNING。
+    """
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        level_name = os.environ.get("ASTOCK_LOG_LEVEL", "WARNING").upper()
+        level = getattr(logging, level_name, logging.WARNING)
+        logger.setLevel(level)
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setLevel(level)
+        formatter = logging.Formatter(
+            fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    return logger
+
+
+_config_logger = get_logger("core.config")
+
+# ═══════════════════════════════════════════════════
+#  Market Prefixes & Normalization (SSOT)
+# ═══════════════════════════════════════════════════
+
+MARKET_PREFIX_SH = "sh"
+MARKET_PREFIX_SZ = "sz"
+MARKET_PREFIX_BJ = "bj"
+DEFAULT_BENCHMARK = "sh000001"
+
+# Standard Market Fee & Trading Defaults
+DEFAULT_TAX_RATE_SELL = 0.0005        # 印花税 (卖出单边万5)
+DEFAULT_COMMISSION_RATE = 0.00025     # 佣金率 (万2.5)
+DEFAULT_TRANSFER_FEE_RATE = 0.00001   # 过户费 (万0.1)
+DEFAULT_MIN_COMMISSION = 5.0          # 最低起收佣金 (5元)
+
+# Outsource Magic Numbers & Standard Thresholds
+DEFAULT_RATING_THRESHOLDS = {
+    "A": 80.0,
+    "B": 65.0,
+    "C": 50.0,
+}
+DEFAULT_STOP_LOSS_PCT = 0.05          # 默认日内硬止损 -5%
+DEFAULT_WARN_LOSS_PCT = 0.03          # 默认T0警戒线 -3%
+DEFAULT_MA_BUFFER_PCT = 0.02          # 均线支撑/防守缓冲 2%
+DEFAULT_BIAS_THRESHOLD = 8.0          # 乖离率偏离警戒线 8%
+DEFAULT_RSI_OVERSOLD = 30.0           # RSI 超卖反弹线
+DEFAULT_RSI_OVERBOUGHT = 70.0         # RSI 超买风险线
+
+
+def infer_market_prefix(code: str) -> str:
+    """推断市场前缀 (sh/sz/bj) — 单点真实源 (SSOT)"""
+    s = str(code).strip().lower()
+    if s.startswith("sh") or s.endswith((".sh", ".ss")):
+        return MARKET_PREFIX_SH
+    if s.startswith("bj") or s.endswith(".bj"):
+        return MARKET_PREFIX_BJ
+    if s.startswith("sz") or s.endswith(".sz"):
+        return MARKET_PREFIX_SZ
+    clean = s.replace("sh", "").replace("sz", "").replace("bj", "").split(".")[0]
+    if clean.startswith(("8", "4", "92")):
+        return MARKET_PREFIX_BJ
+    elif clean.startswith(("6", "5", "9")):
+        return MARKET_PREFIX_SH
+    else:
+        return MARKET_PREFIX_SZ
+
+
+
+def normalize_symbol(code: str, with_prefix: bool = True) -> str:
+    """标准化股票代码为带前缀或纯数字格式，如 sh600519 或 600519"""
+    clean = str(code).strip().lower().replace("sh", "").replace("sz", "").replace("bj", "").split(".")[0]
+    if not with_prefix:
+        return clean
+    prefix = infer_market_prefix(code)
+    return f"{prefix}{clean}"
+
 
 # 1. Resolve Project Root
 if os.environ.get("A_STOCK_AGENTS_ROOT"):
@@ -32,8 +114,8 @@ def _load_dotenv():
                         v = v.strip().strip('"').strip("'")
                         if k and k not in os.environ:
                             os.environ[k] = v
-        except Exception:
-            pass
+        except Exception as exc:
+            _config_logger.debug(f"Failed to load .env: {exc}")
 
 _load_dotenv()
 
@@ -179,24 +261,24 @@ def init_output_templates(target_pools_dir: Path = None):
                     try:
                         shutil.copy2(src_example, target_example)
                         break
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        _config_logger.debug(f"Failed copying example {src_example}: {exc}")
 
         # 2. Initialize target CSV file if missing
         if not target_file.exists():
             if target_example.exists():
                 try:
                     shutil.copy2(target_example, target_file)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    _config_logger.debug(f"Failed copying {target_example} to {target_file}: {exc}")
             # Fallback: create empty CSV with standard headers
             if not target_file.exists():
                 try:
                     with open(target_file, "w", newline="", encoding="utf-8") as f:
                         writer = csv.writer(f)
                         writer.writerow(headers)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    _config_logger.warning(f"Failed initializing default CSV {target_file}: {exc}")
 
 init_output_templates()
 
