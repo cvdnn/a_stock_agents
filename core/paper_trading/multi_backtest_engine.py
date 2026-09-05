@@ -32,20 +32,11 @@ from core.strategy.risk_position_manager import (
     RiskEngine,
 )
 
-DEFAULT_UNIVERSE = [
-    "600519",  # 贵州茅台 (白酒消费)
-    "000858",  # 五粮液 (白酒消费)
-    "300750",  # 宁德时代 (新能源/创业板)
-    "601318",  # 中国平安 (大金融保险)
-    "600036",  # 招商银行 (大金融银行)
-    "600760",  # 中航沈飞 (高端制造/国防军工)
-    "002594",  # 比亚迪 (新能源汽车)
-    "688981",  # 中芯国际 (半导体/科创板)
-    "600276",  # 恒瑞医药 (创新药)
-    "002475",  # 立讯精密 (消费电子)
-    "601899",  # 紫金矿业 (资源有色)
-    "000333",  # 美的集团 (家电制造)
-]
+try:
+    from core.config import get_pool_stocks
+    DEFAULT_UNIVERSE = get_pool_stocks("mainboard_24") or get_pool_stocks("h2_consensus")
+except Exception:
+    DEFAULT_UNIVERSE = []
 
 
 class MultiBacktestEngine:
@@ -83,10 +74,13 @@ class MultiBacktestEngine:
         """
         if not prev_close or prev_close <= 0:
             return (float("inf"), 0.0)
-        code = str(symbol)
-        if code.startswith(("688", "689", "300", "301", "302")):
+        raw = str(symbol).strip()
+        digits = "".join(c for c in raw if c.isdigit())
+        core_code = digits[-6:] if len(digits) >= 6 else digits
+
+        if core_code.startswith(("688", "689", "30")):
             pct = 0.20
-        elif code.startswith(("8", "4", "92")):
+        elif core_code.startswith(("8", "4", "92")):
             pct = 0.30
         else:
             pct = 0.10

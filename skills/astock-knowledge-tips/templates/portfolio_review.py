@@ -26,10 +26,9 @@ POSITIONS_CSV = os.path.expanduser("~/AppData/Local/AI-Platform/skills/stocks/a-
 sys.path.insert(0, SCRIPTS_DIR)
 from technical_indicators import calc_all  # noqa: E402
 
-# ── 持仓止损纪律 (当日早盘审查确定, 每只持仓一个) ──
+# ── 持仓止损纪律 (优先从 positions.csv 的 stop_loss 字段自动读取，亦支持覆盖) ──
 STOP_LEVELS = {
-    "600276": 53.00,
-    "601899": 31.50,
+    # "代码": 止损价 (如 "600036": 33.50)
 }
 
 def fetch_via_urllib(url):
@@ -149,13 +148,13 @@ $n.Dispose()
         pass
 
 
-def analyze_stock(code, name, cost, qty, quote, tech):
+def analyze_stock(code, name, cost, qty, quote, tech, custom_stop=None):
     """综合信息 + 技术指标 + 主力动作 + 策略评估"""
     lines = []
     price = quote["price"]
     pnl = (price - cost) * qty
     pnl_pct = (price - cost) / cost * 100
-    stop = STOP_LEVELS.get(code)
+    stop = custom_stop or STOP_LEVELS.get(code)
     dist_stop = (price - stop) / stop * 100 if stop else None
 
     # 主力动作推断
@@ -217,10 +216,16 @@ def main():
         with open(POSITIONS_CSV, encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 try:
-                    positions.append({
+                    pos_item = {
                         "code": r["code"], "name": r["name"],
                         "cost": float(r["buy_price"]), "qty": int(r["qty"]),
-                    })
+                    }
+                    if r.get("stop_loss"):
+                        try:
+                            pos_item["stop_loss"] = float(r["stop_loss"])
+                        except ValueError:
+                            pass
+                    positions.append(pos_item)
                 except (ValueError, KeyError):
                     continue
     if not positions:
@@ -241,7 +246,7 @@ def main():
         if not q:
             continue
         tech = get_kline_tech(p["code"], market)
-        lines.extend(analyze_stock(p["code"], p["name"], p["cost"], p["qty"], q, tech))
+        lines.extend(analyze_stock(p["code"], p["name"], p["cost"], p["qty"], q, tech, p.get("stop_loss")))
         lines.append("")
 
     # 大盘

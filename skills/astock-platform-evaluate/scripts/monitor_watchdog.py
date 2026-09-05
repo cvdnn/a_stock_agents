@@ -21,36 +21,50 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # ═══════════════════════════════════════════════
-#  配置区 — 对齐 2026-08-24 量化审查基准
+#  持仓配置区 — 纯粹从 positions.csv 自动加载，杜绝代码中写死个人持仓
 # ═══════════════════════════════════════════════
 
-HOLDINGS = [
-    {
-        "code": "600276",
-        "name": "恒瑞医药",
-        "cost": 54.3071,
-        "shares": 2000,
-        "mode": "trapped_rebound",        # 被套反弹减仓模式
-        "stop_loss_t0": 44.46,            # T0 日内强平线 (-5.0%)
-        "rebound_reduce_t1": 48.71,       # T1 超卖反抽第一减仓线 (MA5/1ATR)
-        "rebound_reduce_t2": 52.72,       # T2 主力阻力位清仓线 (MA20)
-        "hard_stop": 43.95,               # Quant Engine 截面硬止损
-        "tp1_target": 49.07,              # 反弹阶梯目标 1
-    },
-    {
-        "code": "601899",
-        "name": "紫金矿业",
-        "cost": 32.5042,
-        "shares": 2000,
-        "mode": "trend_profit_lock",      # 趋势主升与锁利模式
-        "trailing_stop": 33.50,           # 移动止盈防守线 (保护+3.0%利润)
-        "breakeven_price": 32.5289,       # 保本跳变锁定价 (覆盖双边税费)
-        "hard_stop": 32.47,               # 硬止损警戒线 (MA20下方)
-        "tp1_target": 36.27,              # 阶梯止盈第一档 (+5.0% 减1/3)
-        "tp2_target": 37.99,              # 阶梯止盈第二档 (+10.0% 减1/3)
-    },
-]
+def load_holdings():
+    """从本地持仓 CSV 动态加载持仓配置，若无则返回空列表"""
+    try:
+        from core.config import OUTPUT_POOLS_DIR
+        pos_file = OUTPUT_POOLS_DIR / "positions.csv"
+        if pos_file.exists():
+            import csv
+            loaded = []
+            with open(pos_file, "r", encoding="utf-8") as f:
+                for r in csv.DictReader(f):
+                    c = r.get("code", "").strip()
+                    if not c:
+                        continue
+                    cost = float(r.get("buy_price") or 0)
+                    qty = int(float(r.get("qty") or 100))
+                    stop = float(r.get("stop_loss") or (cost * 0.95 if cost > 0 else 0))
+                    tp = float(r.get("take_profit") or (cost * 1.05 if cost > 0 else 0))
+                    is_trapped = (cost > stop and stop > 0)
+                    loaded.append({
+                        "code": c,
+                        "name": r.get("name", c),
+                        "cost": cost,
+                        "shares": qty,
+                        "mode": "trapped_rebound" if is_trapped else "trend_profit_lock",
+                        "stop_loss_t0": round(cost * 0.95, 2),
+                        "rebound_reduce_t1": round(cost * 0.98, 2),
+                        "rebound_reduce_t2": round(cost * 1.02, 2),
+                        "hard_stop": stop,
+                        "tp1_target": tp,
+                        "tp2_target": round(tp * 1.05, 2),
+                        "trailing_stop": round(cost * 1.03, 2),
+                        "breakeven_price": round(cost * 1.003, 2),
+                    })
+            if loaded:
+                return loaded
+    except Exception:
+        pass
+    return []
 
+
+HOLDINGS = load_holdings()
 AVAILABLE_CASH = 100000.0  # 可用资金
 
 # 警示语库
@@ -58,7 +72,7 @@ RETAIL_WARNINGS = [
     "严格执行 A-Share Quant Engine 纪律：盈利超+5%必须上移保本线，绝不让盈利变亏损！",
     "深套标的每一次脉冲反抽都是减仓契机，严禁在左侧盲目加仓摊平成本！",
     "不要因为涨了就去追，不要因为跌了就恐慌割肉 — 一切以量化关键位为准！",
-    "顺周期多头品种依托均线持股，未触及移动止盈线（33.50）前保持定力！",
+    "顺周期多头品种依托均线持股，未触及移动止盈防守线前保持定力！",
     "可用资金是战略流动性，不是用来给弱势股'抄底'的！",
     "记住你是你投资组合的风控官，执行力是量化策略唯一的生命线！",
 ]
@@ -142,12 +156,22 @@ def save_state(state):
 
 
 def main():
+    if not HOLDINGS:
+        print("ℹ️ 本地未配置持仓标的 (positions.csv 为空或不存在)，监控处于就绪状态。")
+        print("   提示: 请使用 'core/cli.py position add' 录入持仓后启动监控。")
+        return
+
     if not is_market_hours():
         print("⏸ 当前为非交易时间，监控处于待机状态 (可用 FORCE_RUN_MONITOR=1 调试)")
         return
 
-    # 批量获取行情
-    codes = [f"sh{h['code']}" if h['code'].startswith("6") else f"sz{h['code']}" for h in HOLDINGS]
+    # 批量获取行情 (规范化前缀)
+    try:
+        from core.config import normalize_symbol
+        codes = [normalize_symbol(h['code'], with_prefix=True) for h in HOLDINGS]
+    except Exception:
+        codes = [f"sh{h['code']}" if h['code'].startswith("6") else f"sz{h['code']}" for h in HOLDINGS]
+
     quotes = tencent_batch_quote(codes)
 
     if not quotes:

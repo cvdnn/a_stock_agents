@@ -87,17 +87,49 @@ def cmd_portfolio_risk(args):
     """组合层级风险管理与集中度控制"""
     from core.data.data_bridge import DataBridge
     from core.strategy.portfolio_risk_manager import PortfolioRiskManager
+    from core.config import OUTPUT_POOLS_DIR
 
     holdings_path = getattr(args, "holdings", None)
+    holdings = []
     if holdings_path and os.path.exists(holdings_path):
         with open(holdings_path, encoding="utf-8") as f:
             holdings = json.load(f)
     else:
-        holdings = [
-            {"code": "600519", "weight": 0.20, "sector": "白酒", "industry": "食品饮料"},
-            {"code": "601899", "weight": 0.15, "sector": "有色", "industry": "贵金属"},
-            {"code": "600276", "weight": 0.15, "sector": "医药", "industry": "生物医药"},
-        ]
+        # 优先尝试从本地用户持仓 CSV 动态加载
+        pos_csv = OUTPUT_POOLS_DIR / "positions.csv"
+        if pos_csv.exists():
+            try:
+                import csv
+                with open(pos_csv, "r", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    total_val = 0.0
+                    items = []
+                    for r in reader:
+                        c = r.get("code", "").strip()
+                        if not c:
+                            continue
+                        bp = float(r.get("buy_price") or 0)
+                        qty = float(r.get("qty") or 0)
+                        val = bp * qty
+                        sec = r.get("sector") or "其他"
+                        items.append({"code": c, "val": val, "sector": sec, "industry": sec})
+                        total_val += val
+                    if total_val > 0:
+                        for it in items:
+                            holdings.append({
+                                "code": it["code"],
+                                "weight": round(it["val"] / total_val, 4),
+                                "sector": it["sector"],
+                                "industry": it["industry"]
+                            })
+            except Exception:
+                holdings = []
+
+    if not holdings:
+        print("⚠️ 未检测到有效持仓数据。请通过以下方式之一执行组合风控：")
+        print("  1. 记录持仓: python core/cli.py position buy <CODE> <NAME> <PRICE> <QTY>")
+        print("  2. 指定文件: python core/cli.py portfolio-risk --holdings /path/to/holdings.json")
+        return
 
     bridge = DataBridge()
     klines_map = {}
@@ -128,15 +160,47 @@ def cmd_action_plan(args):
     from core.indicators.technical_indicators import calc_all
     from core.models.combo_scorer import ComboScorer
     from core.strategy.execution_action_engine import ExecutionActionEngine
+    from core.config import OUTPUT_POOLS_DIR
 
-    bridge = DataBridge()
-    code = getattr(args, "code", None) or "600519"
-    cost = getattr(args, "cost", None) or 1200.0
-    shares = getattr(args, "shares", None) or 100
+    code = getattr(args, "opt_code", None) or getattr(args, "code", None)
+    cost = getattr(args, "cost", None)
+    shares = getattr(args, "shares", None)
     count = getattr(args, "count", 120)
 
-    q = bridge.get_realtime_quote(code) or {"price": cost, "open": cost, "high": cost, "low": cost, "change_pct": 0.0}
+    # 若未传股票代码，尝试从本地持仓自选检查唯一持仓
+    if not code:
+        pos_csv = OUTPUT_POOLS_DIR / "positions.csv"
+        if pos_csv.exists():
+            try:
+                import csv
+                with open(pos_csv, "r", encoding="utf-8") as f:
+                    positions = [r for r in csv.DictReader(f) if r.get("code", "").strip()]
+                    if len(positions) == 1:
+                        p = positions[0]
+                        code = p["code"].strip()
+                        if cost is None and p.get("buy_price"):
+                            cost = float(p["buy_price"])
+                        if shares is None and p.get("qty"):
+                            shares = int(float(p["qty"]))
+                        print(f"  ℹ️ 未指定标的代码，自动选取本地唯一持仓标的: {code} ({p.get('name', '')})")
+            except Exception:
+                pass
+
+    if not code:
+        print("❌ 错误: 请指定股票代码。")
+        print("  用法: python core/cli.py action <CODE> [--cost COST] [--shares SHARES]")
+        print("  示例: python core/cli.py action 600036 --cost 35.5 --shares 1000")
+        return
+
+    bridge = DataBridge()
+    q = bridge.get_realtime_quote(code) or {"price": cost or 10.0, "open": cost or 10.0, "high": cost or 10.0, "low": cost or 10.0, "change_pct": 0.0}
     name = q.get("name", code)
+    curr_price = float(q.get("price", cost or 10.0))
+    if cost is None:
+        cost = curr_price
+    if shares is None:
+        shares = 100
+
     klines = bridge.tencent_kline(code, count=count)
     tech_all = calc_all(klines) if (klines and len(klines) >= 26) else {}
     tech = tech_all.get("latest", {}) if tech_all else {}

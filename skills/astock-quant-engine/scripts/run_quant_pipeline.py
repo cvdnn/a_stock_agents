@@ -18,21 +18,17 @@ from factor_synthesizer import FactorSynthesizer
 from risk_position_manager import PositionSizer, RiskEngine
 from backtest_engine import BacktestEngine
 
-# 预置 A 股代表性多风格核心样本池 (包含白马消费、新能源、半导体、大金融、高端制造、医药等)
-DEFAULT_UNIVERSE = [
-    "600519",  # 贵州茅台 (白酒消费)
-    "000858",  # 五粮液 (白酒消费)
-    "300750",  # 宁德时代 (新能源/创业板)
-    "601318",  # 中国平安 (大金融保险)
-    "600036",  # 招商银行 (大金融银行)
-    "600760",  # 中航沈飞 (高端制造/国防军工)
-    "002594",  # 比亚迪 (新能源汽车)
-    "688981",  # 中芯国际 (半导体/科创板)
-    "600276",  # 恒瑞医药 (创新药)
-    "002475",  # 立讯精密 (消费电子)
-    "601899",  # 紫金矿业 (资源有色)
-    "000333",  # 美的集团 (家电制造)
-]
+try:
+    from core.config import get_pool_stocks
+    DEFAULT_UNIVERSE = get_pool_stocks("mainboard_24")
+except Exception:
+    DEFAULT_UNIVERSE = []
+
+if not DEFAULT_UNIVERSE:
+    DEFAULT_UNIVERSE = [
+        "600519", "000858", "300750", "601318", "600036", "600760",
+        "002594", "688981", "600276", "002475", "601899", "000333",
+    ]
 
 
 def cmd_scan(args):
@@ -120,7 +116,11 @@ def cmd_backtest(args):
     """运行多标的历史事件驱动回测"""
     days = args.days
     top_k = args.top
-    symbols = DEFAULT_UNIVERSE
+    symbols = (
+        [s.strip() for s in args.universe.split(",") if s.strip()]
+        if getattr(args, "universe", None)
+        else DEFAULT_UNIVERSE
+    )
 
     print(f"\n=======================================================")
     print(f"  A-Share Quant Engine - 历史事件驱动回测引擎")
@@ -215,6 +215,7 @@ def main():
 
     # backtest
     bt_p = subparsers.add_parser("backtest", help="历史多标的事件驱动回测")
+    bt_p.add_argument("--universe", type=str, default="", help="标的池代码列表，逗号分隔")
     bt_p.add_argument("--days", type=int, default=250, help="回测天数")
     bt_p.add_argument("--top", type=int, default=4, help="最大持股数")
 

@@ -161,6 +161,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_screen = subparsers.add_parser("screen", help="三层漏斗选股", parents=[common_parser])
     p_screen.add_argument("codes", nargs="?", default="", help="标的代码列表 (逗号分隔)")
     p_screen.add_argument("--codes", dest="opt_codes", default=None, help="标的代码列表选项传参")
+    p_screen.add_argument("--pool", default=None, help="候选股票池名称 (来自 stock_pools.yaml, 如 mainboard_24, h2_mainlines)")
     p_screen.add_argument("--cyq", action="store_true", help="拉取筹码分布")
     p_screen.add_argument("--limit", type=int, default=10, help="最多展示数量")
 

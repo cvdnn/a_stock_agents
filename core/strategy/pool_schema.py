@@ -12,17 +12,32 @@ from __future__ import annotations
 import csv
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
+
+try:
+    from core.config import GLOBAL_CONFIG
+except ImportError:
+    GLOBAL_CONFIG = {}
 
 
 # ── 1. 标的权限规则 ──
-def is_blocked(code: str) -> bool:
+def is_blocked(
+    code: str,
+    allow_chinext: Optional[bool] = None,
+    allow_star: Optional[bool] = None,
+    allow_bse: Optional[bool] = None,
+    allow_all: Optional[bool] = None,
+) -> bool:
     """判断是否为受权限限制或不可交易的标的。
-    
-    默认阻断:
-      - 688xxx, 689xxx (科创板)
-      - 30xxxx, 301xxx (创业板)
-      - 8xxxxx, 4xxxxx, 92xxxx (北交所 / 新三板)
+
+    支持通过参数、环境变量或 config.yaml 动态开启交易板块权限:
+      - allow_all / ASTOCKS_ALLOW_ALL_BOARDS: 放行所有板块
+      - allow_chinext / ASTOCKS_ALLOW_CHINEXT / trading.allow_chinext: 放行创业板 (30xxxx)
+      - allow_star / ASTOCKS_ALLOW_STAR / trading.allow_star: 放行科创板 (688xxx, 689xxx)
+      - allow_bse / ASTOCKS_ALLOW_BSE / trading.allow_bse: 放行北交所 (8xxxxx, 4xxxxx, 92xxxx)
+
+    默认行为 (未指定权限时):
+      为保障默认主板策略的安全，未配置时默认阻断双创板与北交所标的。
     """
     raw = str(code).strip()
     digits = "".join(c for c in raw if c.isdigit())
@@ -31,7 +46,51 @@ def is_blocked(code: str) -> bool:
     else:
         core_code = digits
 
-    return core_code.startswith(("688", "689", "30", "8", "4", "92"))
+    if not core_code:
+        return True
+
+    # 1. 放行全板块检查
+    if allow_all is None:
+        env_val = os.environ.get("ASTOCKS_ALLOW_ALL_BOARDS", "").lower()
+        if env_val in ("1", "true", "yes"):
+            allow_all = True
+        else:
+            allow_all = bool(GLOBAL_CONFIG.get("trading", {}).get("allow_all_boards", False))
+
+    if allow_all:
+        return False
+
+    # 2. 检查创业板权限
+    if core_code.startswith("30"):
+        if allow_chinext is None:
+            env_val = os.environ.get("ASTOCKS_ALLOW_CHINEXT", "").lower()
+            if env_val in ("1", "true", "yes"):
+                allow_chinext = True
+            else:
+                allow_chinext = bool(GLOBAL_CONFIG.get("trading", {}).get("allow_chinext", False))
+        return not bool(allow_chinext)
+
+    # 3. 检查科创板权限
+    if core_code.startswith(("688", "689")):
+        if allow_star is None:
+            env_val = os.environ.get("ASTOCKS_ALLOW_STAR", "").lower()
+            if env_val in ("1", "true", "yes"):
+                allow_star = True
+            else:
+                allow_star = bool(GLOBAL_CONFIG.get("trading", {}).get("allow_star", False))
+        return not bool(allow_star)
+
+    # 4. 检查北交所权限
+    if core_code.startswith(("8", "4", "92")):
+        if allow_bse is None:
+            env_val = os.environ.get("ASTOCKS_ALLOW_BSE", "").lower()
+            if env_val in ("1", "true", "yes"):
+                allow_bse = True
+            else:
+                allow_bse = bool(GLOBAL_CONFIG.get("trading", {}).get("allow_bse", False))
+        return not bool(allow_bse)
+
+    return False
 
 
 # 兼容既有命名

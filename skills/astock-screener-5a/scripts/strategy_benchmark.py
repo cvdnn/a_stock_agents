@@ -35,13 +35,19 @@ if str(PROJECT_ROOT / "core" / "models") not in sys.path:
 
 from core.models.multi_dim_model import RotationBacktest
 from core.data.data_bridge import DataBridge
-from core.config import OUTPUT_BACKTEST_DIR
+from core.config import OUTPUT_BACKTEST_DIR, get_pool_stocks
 
-# 标准回测基准股票池 (代表主板与双创各赛道代表股)
-DEFAULT_BT_STOCKS = [
-    "600519", "000858", "600036", "300750", "002594", "600887",
-    "601899", "002371", "002463", "600584", "603259", "601012"
-]
+# 标准回测基准股票池 (优先从 stock_pools.yaml 加载)
+try:
+    DEFAULT_BT_STOCKS = get_pool_stocks("mainboard_24")
+except Exception:
+    DEFAULT_BT_STOCKS = []
+
+if not DEFAULT_BT_STOCKS:
+    DEFAULT_BT_STOCKS = [
+        "600519", "000858", "600036", "300750", "002594", "600887",
+        "601899", "002371", "002463", "600584", "603259", "601012"
+    ]
 
 DEFAULT_CONFIGS = [
     ("MA10", 1, "配置A+MA10 (旋转模型基准)"),

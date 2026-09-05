@@ -199,14 +199,16 @@ def cmd_deploy_monitor(args):
 def cmd_screen(args):
     """三层漏斗选股 (板块环境 → 技术过滤 → 综合打分)"""
     from core.models.stock_screener import StockScreener
+    from core.config import get_pool_stocks
 
-    raw_codes = getattr(args, "codes", "")
+    raw_codes = getattr(args, "opt_codes", None) or getattr(args, "codes", "")
     if isinstance(raw_codes, list):
         codes = raw_codes
     elif raw_codes:
         codes = [c.strip() for c in raw_codes.replace(" ", ",").split(",") if c.strip()]
     else:
-        codes = ["600519", "000858", "601318", "600036", "601899"]
+        pool_name = getattr(args, "pool", None)
+        codes = get_pool_stocks(pool_name)
 
     screener = StockScreener()
     result = screener.screen(codes, fetch_cyq=getattr(args, "cyq", False))

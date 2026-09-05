@@ -49,13 +49,8 @@ class IntentEvaluator:
 
     STOCK_CODE_PATTERN = re.compile(r'\b(00\d{4}|30\d{4}|60\d{4}|68\d{4}|8\d{5}|4\d{5}|92\d{4})\b')
     KNOWN_NAMES = {
-        '许继电气': '000400', '科大讯飞': '002230', '中航沈飞': '600760',
-        '福晶科技': '002222', '长电科技': '600584', '瑞芯微': '603893',
-        '紫金矿业': '601899', '恒瑞医药': '600276', '中国中车': '601766',
-        '沪电股份': '002463', '工业富联': '601138', '贵州茅台': '600519',
-        '宁德时代': '300750', '北方华创': '002371', '药明康德': '603259',
-        '上证指数': 'sh000001', '深证成指': 'sz399001', '创业板指': 'sz399006',
-        '沪深300': 'sh000300', '科创50': 'sh000688', '中证500': 'sh000905',
+        '上证指数': 'sh000001', '大盘': 'sh000001', '深证成指': 'sz399001',
+        '创业板指': 'sz399006', '沪深300': 'sh000300', '科创50': 'sh000688', '中证500': 'sh000905',
     }
     _custom_names: Dict[str, str] = {}
 
@@ -66,11 +61,27 @@ class IntentEvaluator:
 
     @classmethod
     def get_known_names(cls) -> Dict[str, str]:
-        """获取全量已知股票名称字典（内置标的 + 动态注册 + 股票池/持仓自动发现）"""
+        """获取全量已知股票名称字典（内置指数基准 + 统一股票池发现 + 本地持仓/自选池自动发现 + 动态注册）"""
         merged = dict(cls.KNOWN_NAMES)
-        merged.update(cls._custom_names)
 
-        # 尝试自动从本地持仓及自选股池加载名称
+        # 1. 尝试从 config/stock_pools.yaml 自动加载标的及其中文名称
+        try:
+            from core.config import CONFIG_DIR, PROJECT_ROOT
+            cfg_files = [CONFIG_DIR / "stock_pools.yaml", PROJECT_ROOT / "config" / "stock_pools.yaml"]
+            for cf in cfg_files:
+                if cf.exists():
+                    with open(cf, "r", encoding="utf-8") as f:
+                        for line in f:
+                            m = re.search(r'[-:]\s*["\']?([0368]\d{5})["\']?\s*#\s*([^\s(（]+)', line)
+                            if m:
+                                code, name = m.group(1).strip(), m.group(2).strip()
+                                if name and code and name not in merged:
+                                    merged[name] = code
+                    break
+        except Exception:
+            pass
+
+        # 2. 尝试自动从本地持仓及自选股池加载名称
         try:
             from core.config import OUTPUT_POOLS_DIR
             import csv
@@ -86,6 +97,9 @@ class IntentEvaluator:
                                 merged[n] = c
         except Exception:
             pass
+
+        # 3. 合并运行时动态注册的名称
+        merged.update(cls._custom_names)
 
         return merged
 
@@ -154,6 +168,9 @@ class DownsideReactionMatrix:
         """
         评估下跌性质并生成战术应对
         """
+        if isinstance(tech, dict) and "latest" in tech and isinstance(tech["latest"], dict):
+            tech = tech["latest"]
+
         price = float(quote.get("price", 0.0))
         change_pct = float(quote.get("change_pct", 0.0))
         vol_ratio = float(quote.get("vol_ratio", 1.0))
@@ -262,6 +279,10 @@ class ExecutionActionEngine:
     全量实战交易反应中枢 (集成意图路由与下跌矩阵)
     """
 
+    get_known_names = IntentEvaluator.get_known_names
+    register_known_names = IntentEvaluator.register_known_names
+    parse_user_query = IntentEvaluator.parse_user_query
+
     @classmethod
     def calc_min_breakeven_price(cls, cost: float, shares: int = 1000, market_cfg: Optional[Dict[str, Any]] = None) -> float:
         """
@@ -343,6 +364,9 @@ class ExecutionActionEngine:
         """
         needs_prompt, prompt_msg = check_market_config_prompt()
         config_prompt = prompt_msg if needs_prompt else None
+
+        if isinstance(tech, dict) and "latest" in tech and isinstance(tech["latest"], dict):
+            tech = tech["latest"]
 
         price = float(quote.get("price", 0.0))
         open_p = float(quote.get("open", price))

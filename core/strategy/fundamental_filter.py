@@ -14,17 +14,21 @@ A股五大风险与基本面过滤层 (Fundamental & Risk Filter Layer)
 
 from typing import Dict, List, Optional, Tuple, Any
 
+try:
+    from core.config import DEFAULT_CYCLICAL_SECTORS
+except ImportError:
+    DEFAULT_CYCLICAL_SECTORS = {
+        "有色金属", "煤炭", "石油", "石化", "石油石化", "基础化工", "化学原料",
+        "钢铁", "电力", "公用事业", "航运", "港口", "海运", "稀土", "贵金属",
+        "工业金属", "小金属", "煤炭开采",
+    }
+
 
 class FundamentalFilter:
     """基本面与五大风险前置过滤引擎 (P0 + P1 级风控)"""
 
-    # 默认行业/周期股豁免白名单 (可按需动态扩展)
-    DEFAULT_CYCLICAL_WHITELIST = {
-        "601899",  # 紫金矿业 (有色金属)
-        "601088",  # 中国神华 (煤炭)
-        "600028",  # 中国石化 (石油)
-        "600900",  # 长江电力 (电力)
-    }
+    # 默认行业/周期股豁免白名单 (默认不硬编码任何个股，优先由行业属性动态判定或由配置注入)
+    DEFAULT_CYCLICAL_WHITELIST = set()
 
     def __init__(
         self,
@@ -37,6 +41,7 @@ class FundamentalFilter:
         enable_growth_filter: bool = True,
         enable_downtrend_filter: bool = True,
         cyclical_whitelist: Optional[set] = None,
+        cyclical_sectors: Optional[set] = None,
     ):
         self.max_price = max_price
         self.max_pe = max_pe
@@ -46,7 +51,8 @@ class FundamentalFilter:
         self.enable_profit_filter = enable_profit_filter
         self.enable_growth_filter = enable_growth_filter
         self.enable_downtrend_filter = enable_downtrend_filter
-        self.cyclical_whitelist = cyclical_whitelist or self.DEFAULT_CYCLICAL_WHITELIST
+        self.cyclical_whitelist = set(cyclical_whitelist) if cyclical_whitelist is not None else set(self.DEFAULT_CYCLICAL_WHITELIST)
+        self.cyclical_sectors = set(cyclical_sectors) if cyclical_sectors is not None else set(DEFAULT_CYCLICAL_SECTORS)
 
     def inspect(
         self,
@@ -59,9 +65,9 @@ class FundamentalFilter:
         对标的执行全维度基本面与风险点审查
 
         Args:
-            code: 股票代码 (如 "600519")
+            code: 6位A股股票代码
             klines: 历史日K线 [[date, open, close, high, low, vol], ...]
-            quote: 实时行情数据 (包含 price, pe, turnover_pct, market_cap 等)
+            quote: 实时行情数据 (包含 price, pe, turnover_pct, market_cap, sector, industry 等)
             finance: 财务数据 (包含 net_profit, deduct_profit, profit_yoy, revenue_yoy 等)
 
         Returns:
@@ -70,7 +76,24 @@ class FundamentalFilter:
         risk_flags = []
         warnings = []
         details = {}
-        is_cyclical_exempt = code in self.cyclical_whitelist
+
+        # 周期股豁免判定：代码在白名单中 或 所属行业在周期行业列表中
+        sector = ""
+        industry = ""
+        if quote:
+            sector = str(quote.get("sector") or quote.get("industry") or "")
+            industry = str(quote.get("industry") or "")
+        if finance and not sector:
+            sector = str(finance.get("sector") or finance.get("industry") or "")
+            industry = str(finance.get("industry") or "")
+
+        is_sector_cyclical = False
+        for t in [sector, industry]:
+            if t and any(cs in t for cs in self.cyclical_sectors):
+                is_sector_cyclical = True
+                break
+
+        is_cyclical_exempt = (code in self.cyclical_whitelist) or is_sector_cyclical
 
         if not klines or len(klines) < 10:
             return {

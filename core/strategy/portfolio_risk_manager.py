@@ -656,6 +656,14 @@ class PortfolioRiskManager:
 # ======================================================================
 if __name__ == "__main__":
     import argparse
+    import sys
+    from pathlib import Path
+
+    _root = Path(__file__).resolve().parent.parent.parent
+    if str(_root) not in sys.path:
+        sys.path.insert(0, str(_root))
+    if str(_root / "core") not in sys.path:
+        sys.path.insert(0, str(_root / "core"))
 
     parser = argparse.ArgumentParser(description="组合风险管理")
     parser.add_argument("--holdings", help="持仓JSON文件路径")
@@ -663,18 +671,38 @@ if __name__ == "__main__":
     parser.add_argument("--json", action="store_true", default=True)
     args = parser.parse_args()
 
-    from data_bridge import DataBridge
+    try:
+        from core.data.data_bridge import DataBridge
+    except ImportError:
+        from data_bridge import DataBridge
 
+    holdings = []
     if args.holdings:
-        with open(args.holdings, "r") as f:
+        with open(args.holdings, "r", encoding="utf-8") as f:
             holdings = json.loads(f.read())
     else:
-        # 默认示例
-        holdings = [
-            {"code": "600519", "weight": 0.15, "sector": "白酒", "industry": "食品饮料"},
-            {"code": "000400", "weight": 0.10, "sector": "电气设备", "industry": "电力设备"},
-            {"code": "002230", "weight": 0.08, "sector": "AI", "industry": "计算机"},
-        ]
+        try:
+            from core.config import OUTPUT_POOLS_DIR
+            pos_file = OUTPUT_POOLS_DIR / "positions.csv"
+            if pos_file.exists():
+                from core.strategy.pool_schema import read_pool_csv
+                rows = read_pool_csv(pos_file)
+                total_pos = len([r for r in rows if r.get("code")])
+                for r in rows:
+                    if r.get("code"):
+                        holdings.append({
+                            "code": r["code"],
+                            "weight": round(1.0 / total_pos, 2) if total_pos > 0 else 0.1,
+                            "sector": r.get("sector", ""),
+                            "industry": r.get("industry", ""),
+                        })
+        except Exception:
+            pass
+
+    if not holdings:
+        print("错误: 未指定持仓文件 (--holdings)，且本地未找到有效的持仓记录 (positions.csv)。", file=sys.stderr)
+        print("提示: 请使用 --holdings <path_to_json> 指定持仓，或通过 'core/cli.py position add' 录入持仓。", file=sys.stderr)
+        sys.exit(1)
 
     klines_map = {}
     bridge = DataBridge()

@@ -65,6 +65,13 @@ DEFAULT_BIAS_THRESHOLD = 8.0          # 乖离率偏离警戒线 8%
 DEFAULT_RSI_OVERSOLD = 30.0           # RSI 超卖反弹线
 DEFAULT_RSI_OVERBOUGHT = 70.0         # RSI 超买风险线
 
+# 常见周期性行业板块 (用于基本面周期估值豁免等业务逻辑)
+DEFAULT_CYCLICAL_SECTORS = {
+    "有色金属", "煤炭", "石油", "石化", "石油石化", "基础化工", "化学原料",
+    "钢铁", "电力", "公用事业", "航运", "港口", "海运", "稀土", "贵金属",
+    "工业金属", "小金属", "煤炭开采",
+}
+
 
 def infer_market_prefix(code: str) -> str:
     """推断市场前缀 (sh/sz/bj) — 单点真实源 (SSOT)"""
@@ -364,5 +371,37 @@ def check_market_config_prompt() -> tuple:
         )
         return True, msg
     return False, ""
+
+
+def load_stock_pools() -> dict:
+    """从统一声明式配置文件 config/stock_pools.yaml 加载股票池定义 (SSOT)。"""
+    cfg_paths = [
+        CONFIG_DIR / "stock_pools.yaml",
+        PROJECT_ROOT / "config" / "stock_pools.yaml",
+    ]
+    for p in cfg_paths:
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    return yaml.safe_load(f) or {}
+            except Exception as e:
+                _config_logger.warning(f"读取股票池配置失败 {p}: {e}")
+    return {}
+
+
+def get_pool_stocks(pool_name: str = None) -> list:
+    """获取指定股票池的代码列表。若未指定或不存在，则按默认池加载。"""
+    pools_cfg = load_stock_pools()
+    default_name = pools_cfg.get("default_pool", "mainboard_24")
+    target_name = pool_name or default_name
+    pools_dict = pools_cfg.get("pools", {})
+    if target_name in pools_dict:
+        return [str(s).strip() for s in pools_dict[target_name].get("stocks", []) if str(s).strip()]
+    if default_name in pools_dict:
+        return [str(s).strip() for s in pools_dict[default_name].get("stocks", []) if str(s).strip()]
+    for p in pools_dict.values():
+        if isinstance(p, dict) and "stocks" in p:
+            return [str(s).strip() for s in p.get("stocks", []) if str(s).strip()]
+    return []
 
 

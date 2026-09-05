@@ -69,11 +69,13 @@ class ScreenerPipeline:
         max_pe: float = 100.0,
         suffix: Optional[str] = None,
         export_dir: Optional[Path] = None,
+        allow_all_boards: bool = False,
     ):
         self.pool_name = pool_name
         self.custom_stocks = custom_stocks
         self.suffix = suffix
         self.export_dir = export_dir or OUTPUT_REPORTS_DIR
+        self.allow_all_boards = allow_all_boards
         self.model = StockSelectionModel(max_price=max_price, max_pe=max_pe)
         self.candidates = self._resolve_candidates()
 
@@ -84,11 +86,14 @@ class ScreenerPipeline:
         pools_dict = pools_cfg.get("pools", {})
         if self.pool_name in pools_dict:
             raw_stocks = pools_dict[self.pool_name].get("stocks", [])
-            return [s for s in raw_stocks if not _is_blocked(s)]
-        print(f"  ⚠️ 未找到名为 '{self.pool_name}' 的股票池，回退至 mainboard_24")
+            return [s for s in raw_stocks if not _is_blocked(s, allow_all=self.allow_all_boards)]
+        print(f"  ⚠️ 未找到名为 '{self.pool_name}' 的股票池，尝试从已有股票池回退")
         if "mainboard_24" in pools_dict:
-            return pools_dict["mainboard_24"].get("stocks", [])
-        return ["600519", "000858", "600036", "601318", "601899", "600276"]
+            return [s for s in pools_dict["mainboard_24"].get("stocks", []) if not _is_blocked(s, allow_all=self.allow_all_boards)]
+        for p in pools_dict.values():
+            if isinstance(p, dict) and "stocks" in p:
+                return [s for s in p.get("stocks", []) if not _is_blocked(s, allow_all=self.allow_all_boards)]
+        return []
 
     def run(self) -> Dict[str, Any]:
         print("=" * 110)
@@ -185,6 +190,7 @@ def main():
     parser.add_argument("--stocks", "-s", help="临时指定逗号分隔的A股代码列表 (覆盖预设池)")
     parser.add_argument("--suffix", help="输出文件后缀标识 (默认自动时间戳)")
     parser.add_argument("--list-pools", action="store_true", help="列出配置文件中已定义的所有股票池")
+    parser.add_argument("--allow-all-boards", action="store_true", help="允许跨板块选股 (放行创业板、科创板与北交所标的)")
     args = parser.parse_args()
 
     if args.list_pools:
@@ -200,6 +206,7 @@ def main():
         pool_name=args.pool,
         custom_stocks=custom_stocks,
         suffix=args.suffix,
+        allow_all_boards=args.allow_all_boards,
     )
     pipeline.run()
 

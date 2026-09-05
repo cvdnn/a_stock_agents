@@ -5,23 +5,24 @@
         no_agent=true, script=<文件名>.py, schedule='*/30 9-11,13-15 * * 1-5'
 验证: 先手动 python 跑一次看弹窗, 再 cronjob run + cronjob list 看 last_status。
 零第三方依赖(curl/urllib + 标准库)。"""
+import os
 import re
 import subprocess
 import sys
 import urllib.request
 
-# ===== 配置区(每只持仓股一条; 关键位来自当日早盘审查) =====
-CODES = ["sh600276", "sh601899", "sh000001"]  # 股票(带sh/sz前缀) + 大盘
+# ===== 配置区 (用户自定义持仓与关键位; 关键位来自早盘审查) =====
+# 示例格式: 带 sh/sz 前缀的个股代码 + 大盘基准
+CODES = [c.strip() for c in os.environ.get("REMINDER_CODES", "sh000001").split(",") if c.strip()]
 LEVELS = {
-    "sh600276": {"name": "恒瑞医药", "stop": 53.00, "ma20": 54.05, "ma10": 53.80},
-    "sh601899": {"name": "紫金矿业", "stop": 31.50, "ma20": 32.44, "ma10": 33.58},
+    # 示例: "sh600000": {"name": "浦发银行", "stop": 9.50, "ma20": 10.05, "ma10": 9.90},
 }
-EXTRA = ["sh600547", "sh603259"]  # 板块参照股(可选)
-STRATEGY = "策略: 防守持有不加仓 | 反抽减仓区减仓 | 破止损执行"  # 策略行(写死)
+EXTRA = []  # 板块参照股 (可选)
+STRATEGY = os.environ.get("REMINDER_STRATEGY", "策略: 防守持有不加仓 | 反抽减仓区减仓 | 破止损严格执行")
 
-# 减仓区/加仓位等自定义触发: code -> (lo, hi, 文案) 或 (price, 方向, 文案)
+# 减仓区/加仓位等自定义触发: code -> [(lo, hi, 文案)]
 ZONES = {
-    "sh601899": [(32.44, 33.00, "反抽减仓区(32.4-33.0)"), (33.60, None, "站上33.6可加仓")],
+    # 示例: "sh600000": [(10.20, 10.50, "反抽减仓区(10.2-10.5)"), (10.80, None, "站上10.8可加仓")],
 }
 
 
