@@ -256,6 +256,77 @@ class TestModelsSuite(unittest.TestCase):
         self.assertEqual(report.stock_code, "600519")
         self.assertEqual(report.grade, "优秀")
 
+    def test_dynamic_deprecation_import_redirection(self):
+        """Verify PEP 562 dynamic import of multi_dim_model_v3 redirects with DeprecationWarning."""
+        import warnings
+        import core.models
+
+        # Clear cache if present
+        sys.modules.pop("core.models.multi_dim_model_v3", None)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always", DeprecationWarning)
+            # Access dynamic attribute via getattr
+            mod = getattr(core.models, "multi_dim_model_v3")
+
+            dep_warnings = [item for item in w if issubclass(item.category, DeprecationWarning)]
+            self.assertGreaterEqual(len(dep_warnings), 1)
+            self.assertIn("v3.1.0", str(dep_warnings[-1].message))
+            self.assertIn("multi_dim_model", str(dep_warnings[-1].message))
+
+        for sym in ["MarketGate", "FiveDimScorer", "StockSelectionModel", "StockSelectionV3", "RotationBacktest"]:
+            self.assertTrue(hasattr(mod, sym))
+
+    def test_model_registry_and_aliases(self):
+        """Verify ModelRegistry lookup, aliases, and deprecated alias warning."""
+        from core.models.registry import ModelRegistry, get_model, list_models
+        import warnings
+
+        # 1. Canonical lookup
+        from core.models.multi_dim_model import StockSelectionModel
+        model = get_model("multi_dim", enable_filter=False)
+        self.assertIsNotNone(model)
+        self.assertIsInstance(model, StockSelectionModel)
+
+        # 2. Standard aliases
+        model_5a = get_model("5a", enable_filter=False)
+        self.assertIsInstance(model_5a, StockSelectionModel)
+
+        # 3. Deprecated alias should issue warning
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always", DeprecationWarning)
+            dep_model = get_model("multi_dim_v3", enable_filter=False)
+            self.assertIsInstance(dep_model, StockSelectionModel)
+            dep_warnings = [item for item in w if issubclass(item.category, DeprecationWarning)]
+            self.assertGreaterEqual(len(dep_warnings), 1)
+            self.assertIn("deprecated", str(dep_warnings[-1].message).lower())
+
+        # 4. List models
+        registered = list_models()
+        model_names = [m["name"] for m in registered]
+        self.assertIn("multi_dim", model_names)
+        self.assertIn("combo_scorer", model_names)
+        self.assertIn("multi_factor_scorer", model_names)
+
+        # 5. Non-existent model raises KeyError
+        with self.assertRaises(KeyError):
+            get_model("non_existent_model_xyz")
+
+    def test_skills_multi_dim_model_runner(self):
+        """Verify skills/astock-screener-5a/scripts/multi_dim_model.py exports SSOT symbols without wildcard."""
+        import importlib.util
+
+        script_path = ROOT / "skills" / "astock-screener-5a" / "scripts" / "multi_dim_model.py"
+        self.assertTrue(script_path.exists())
+
+        spec = importlib.util.spec_from_file_location("skill_multi_dim_model", str(script_path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        for sym in ["MarketGate", "FiveDimScorer", "StockSelectionModel", "StockSelectionV3", "RotationBacktest"]:
+            self.assertTrue(hasattr(mod, sym))
+            self.assertIn(sym, mod.__all__)
+
 
 if __name__ == "__main__":
     unittest.main()

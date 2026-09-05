@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Single Source of Truth (SSOT) forwarding wrapper.
-Delegates to core.models.multi_dim_model.
+Single Source of Truth (SSOT) forwarding runner for 5A Multi-dimensional Model.
+Delegates directly to core.models.multi_dim_model.
+NOTE: For standard screening pipelines and custom pool scans, prefer `screen.py`.
 """
 from __future__ import annotations
 
@@ -24,12 +25,21 @@ if str(_ROOT / "core") not in sys.path:
     sys.path.insert(0, str(_ROOT / "core"))
 
 import core.models.multi_dim_model as _core_mod
-from core.models.multi_dim_model import *  # noqa: F401, F403
+from core.models.multi_dim_model import (
+    FiveDimScorer,
+    MarketGate,
+    RotationBacktest,
+    StockSelectionModel,
+    StockSelectionV3,
+)
 
-if hasattr(_core_mod, "__all__"):
-    __all__ = _core_mod.__all__
-else:
-    __all__ = [k for k in dir(_core_mod) if not k.startswith("__")]
+__all__ = [
+    "MarketGate",
+    "FiveDimScorer",
+    "StockSelectionModel",
+    "StockSelectionV3",
+    "RotationBacktest",
+]
 
 if __name__ == "__main__":
     if hasattr(_core_mod, "main") and callable(getattr(_core_mod, "main")):

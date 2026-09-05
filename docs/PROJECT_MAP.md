@@ -78,9 +78,10 @@ a_stock_agents/
 │   │   ├── technical_indicators.py # MA/MACD/KDJ/RSI/BOLL/ATR/缺口/二次金叉
 │   │   └── pv_factors.py        # 量价因子
 │   ├── models/              # 选股与多因子模型
+│   │   ├── registry.py          # ★ 模型注册中心与工厂 (ModelRegistry，统一管理模型、别名与生命周期)
+│   │   ├── multi_dim_model.py   # 5A多维共振选股 (SSOT，带版本号物理文件已完全退役)
 │   │   ├── combo_scorer.py      # 100分制综合打分
 │   │   ├── multi_factor_scorer.py # 多因子Alpha评分
-│   │   ├── multi_dim_model.py / multi_dim_model_v3.py # 5A多维选股
 │   │   ├── stock_screener.py    # 三层漏斗选股
 │   │   ├── market_assessor.py   # 大盘健康度评估
 │   │   ├── strategy_evaluator.py # 策略评估
