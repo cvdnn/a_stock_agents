@@ -114,8 +114,14 @@ a_stock_agents/
 ├── prompts/                 # AI提示词
 ├── config/                  # 配置文件
 ├── output/                  # 用户专属数据（隔离，不随包发布）
-├── tests/                   # 测试套件
-├── docs/                    # 文档与架构图
+├── tests/                   # 测试套件 (10大领域回归测试)
+├── docs/                    # 项目技术文档体系 (标准 kebab-case 分层)
+│   ├── index.md             # 全景知识库导图 (本文件)
+│   ├── quickstart.md        # 快速上手向导
+│   ├── guidelines/          # 工程质量、代码审查与命名规范指南
+│   ├── design/              # 架构设计方案与 specs/ 历史 ADR 规格
+│   ├── trading/             # 实战交易动作手册与保本计算数学规则
+│   └── images/              # 架构图等静态资源
 ├── cache/ & backups/        # 本地缓存与快照备份
 ├── pyproject.toml           # 打包元数据（entry: astock = core.cli:main）
 ├── requirements.txt         # 核心依赖
@@ -241,3 +247,20 @@ flowchart LR
 5. **多平台接入**：原生支持 Google Antigravity、Hermes、OpenAI Codex、Claude Code 等项目级就地调用；AIChat 通过 `prompts/aichat_system_prompt.md` 提供自然语言意图路由。
 6. **三级风控止损**：T0 警戒 -3% / T1 减仓 -5% / T2 绝杀 -8%，配套三场景（冲高/震荡/急跌）即时动作单。
 7. **回归测试与质量防线**：遵循「功能修改测试先行」与「临时优化用例即测即删」铁律，10 大领域回归测试套件（`tests/`）对齐核心架构，杜绝网络波动依赖，基线测试 100% 幂等绿灯。
+
+---
+
+## 八、技术文档体系速查 (Documentation Index)
+
+| 分类 | 规范文档路径 | 核心内容与定位 |
+|---|---|---|
+| **入门与向导** | [`quickstart.md`](quickstart.md) | 环境安装、依赖配置、一键自检与 CLI 快速演示 |
+| **工程规范** | [`guidelines/code-review.md`](guidelines/code-review.md) | 代码审查基准、红线清单、质量缺陷与防御模式 |
+| **工程规范** | [`guidelines/testing-guide.md`](guidelines/testing-guide.md) | 回归测试架构、TDD 流程规约与用例生命周期管理 |
+| **工程规范** | [`guidelines/naming-conventions.md`](guidelines/naming-conventions.md) | 源码物理命名、模型演进四大范式与文档命名规约 (SSOT) |
+| **架构设计** | [`design/token-gateway.md`](design/token-gateway.md) | Token 链路安全网关、敏感凭据脱敏与本地审计 Agent 架构 |
+| **架构设计** | [`design/specs/`](design/specs/) | 不可变历史架构决策与功能规格说明 (ADR/RFC) |
+| **量化实战** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律 |
+| **量化实战** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 |
+| **静态资产** | [`images/architecture.png`](images/architecture.png) | 系统架构全景图高清原图 |
+

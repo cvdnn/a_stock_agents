@@ -20,7 +20,7 @@
 | 因子打分器 | `factor_scorer_new.py` | `factor_synthesizer.py` | 表达核心职责，而非相对修改状态 |
 | 临时测试脚本 | `test_temp.py`, `test_v2.py` | `test_models_suite.py` | 归入标准化测试套件，禁止散落一次性测试 |
 | 批量扫描执行器 | `screen_20260903_h2.py` | `screen.py --pool h2_expand` | 采用通用执行器 + 声明式配置/传参 |
-| 架构决策文档 | `model_design_new.md` | `ADR-20260812-multi-dim-design.md` | 唯有不可变的 ADR / RFC 文档允许包含创建日期 |
+| 架构决策文档 | `model_design_new.md` | `specs/2026-08-12-multi-dim-design.md` | 唯有不可变的 ADR / RFC 规格文档允许包含创建日期，统一归入 `specs/` |
 
 ### 2. 跨层防影子镜像原则 (Anti-Shadowing Pattern)
 * **架构定位差异**：
@@ -120,3 +120,42 @@ sequenceDiagram
    - 在父包 `__init__.py` 中实现 `__getattr__` 拦截历史导入，实现零破坏向下兼容。
 3. **阶段 3：永久停用与迁移指引（Sunset Hard Stop）**
    - 跨越主版本号后（如进入 4.0），废弃别名正式关闭，抛出清晰的说明文档链接或替代方案指引。
+
+---
+
+## 四、文档体系命名与目录组织规范 (Documentation Conventions)
+
+为保障工程文档的长期整洁、可检索性与跨平台兼容性，`docs/` 目录严格遵循以下标准：
+
+### 1. 命名铁律
+1. **全小写短横线 (kebab-case)**：
+   - 所有新建 Markdown 文档必须采用英文全小写短横线命名（例如 `code-review.md`、`execution-manual.md`）。
+   - 严禁全大写（`UPPER_SNAKE_CASE`）、下划线（`snake_case`）或中文作为文件名，规避 Windows/macOS/Linux 大小写敏感性陷阱及 URL 编码转义异常。
+2. **英文 Slug + 中文大标题 (Bilingual Pattern)**：
+   - 物理文件名使用语义明确的英文 slug（如 `breakeven-rules.md`）；
+   - 文档内第一行一级标题（`# Title`）采用清晰规范的中文原名，兼顾链接健壮性与中文母语阅读体验。
+3. **消除版本号与临时状态侵入**：
+   - 严禁出现 `_v1`, `_v2`, `_new`, `_final` 等临时后缀。
+   - 唯有归档于 `docs/design/specs/` 的不可变历史架构决策（ADR / RFC），强制采用 `YYYY-MM-DD-<slug>.md` 格式。
+
+### 2. 标准领域分层结构 (Standard Directory Taxonomy)
+
+```text
+docs/
+├── index.md                      # [根级索引] 全景速查图谱与知识导航
+├── quickstart.md                 # [根级入口] 快速上手与环境自检向导
+├── guidelines/                   # [工程规范] 开发流程、质量标准与规范准则
+│   ├── code-review.md            # 代码审查标准与红线清单
+│   ├── testing-guide.md          # 回归测试架构与规约
+│   └── naming-conventions.md     # 本规范文档 (SSOT)
+├── design/                       # [架构设计] 系统设计方案与不可变规格
+│   ├── token-gateway.md          # Token 链路安全网关与审计架构
+│   └── specs/                    # 历史 ADR/RFC 规格 (YYYY-MM-DD-*.md)
+│       └── 2026-09-02-broker-commission-configurable-design.md
+├── trading/                      # [量化实战] 策略执行手册与数学规则
+│   ├── execution-manual.md       # 实战交易反应动作与执行层手册
+│   └── breakeven-rules.md        # 最低保本价精算与向上进位算法规则
+└── images/                       # [静态资产] 架构全景图与流程示意图
+    └── architecture.png
+```
+

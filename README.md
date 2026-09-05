@@ -18,7 +18,8 @@
 - [四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)](#四第三方-ai-平台与工具使用指南-antigravity--hermes--codex-等)
 - [五、CLI 实战命令速查与使用说明](#五cli-实战命令速查与使用说明)
 - [六、用户专属数据隔离 (output/)、安全打包与热更新](#六用户专属数据隔离-output-安全打包与热更新)
-- [七、免责声明](#七免责声明)
+- [七、项目技术文档体系](#七项目技术文档体系)
+- [八、免责声明](#八免责声明)
 
 ---
 
@@ -235,7 +236,24 @@ python bin/update.py --rollback backup_20260902_174003
 
 ---
 
-## 七、免责声明
+## 七、项目技术文档体系
+
+本项目全量文档统一遵循**领域分层**与 **`kebab-case` 小写短横线**标准化命名规范：
+
+| 领域分类 | 入口文件 | 核心说明 |
+|---|---|---|
+| **知识速查全景** | [`docs/index.md`](docs/index.md) | 系统导图、6大引擎与 17 技能架构速查 |
+| **快速上手向导** | [`docs/quickstart.md`](docs/quickstart.md) | 环境安装、依赖配置、自检与核心命令演示 |
+| **代码审查规范** | [`docs/guidelines/code-review.md`](docs/guidelines/code-review.md) | 代码质量基准、安全红线与审查报告 |
+| **回归测试指南** | [`docs/guidelines/testing-guide.md`](docs/guidelines/testing-guide.md) | TDD 测试先行与临时用例即测即删铁律 |
+| **命名与设计范式** | [`docs/guidelines/naming-conventions.md`](docs/guidelines/naming-conventions.md) | 源码/文档规范与模型演进四大范式 (SSOT) |
+| **网关架构设计** | [`docs/design/token-gateway.md`](docs/design/token-gateway.md) | Token 链路安全网关与本地审计 Agent 架构 |
+| **实战交易反应动作** | [`docs/trading/execution-manual.md`](docs/trading/execution-manual.md) | 六大实战反应动作与三场景即时动作单 |
+| **最低保本价精算** | [`docs/trading/breakeven-rules.md`](docs/trading/breakeven-rules.md) | 覆盖印花税/佣金/过户费并向上进位至分位 |
+
+---
+
+## 八、免责声明
 
 1. 本项目所提供的所有量化算法、技术指标、5A 选股模型、实战决策建议及多智能体研判结论，**仅供金融投研学习、量化策略研究与技术验证使用，不构成任何实质性投资建议或交易推荐**。
 2. 证券市场有风险，投资决策需建立在独立思考与专业判断之上。用户依据本项目提供的数据、策略或模型进行的任何实盘交易操作，其盈亏风险由使用者自行完全承担。

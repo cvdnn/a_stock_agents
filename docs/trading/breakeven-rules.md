@@ -89,4 +89,4 @@ def calc_min_breakeven_price(cost: float, shares: int) -> float:
 1. **HTML 报告生成规范**：`stock-report-html` 10 列持仓全景表中的「最低卖出价」；
 2. **交易执行引擎**：`execution_action_engine.py` 中的 `calc_min_breakeven_price`；
 3. **持仓监控与风控策略**：`a-stock-session-tips` 中的持仓重算与保本跳变判定；
-4. **交易决策手册**：`A股实战交易反应动作与量化决策手册.md`。
+4. **交易决策手册**：[`execution-manual.md`](execution-manual.md)。
