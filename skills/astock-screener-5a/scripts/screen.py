@@ -63,43 +63,74 @@ class ScreenerPipeline:
 
     def __init__(
         self,
-        pool_name: str = "mainboard_24",
+        pool_name: Optional[str] = None,
         custom_stocks: Optional[List[str]] = None,
         max_price: float = 350.0,
         max_pe: float = 100.0,
         suffix: Optional[str] = None,
         export_dir: Optional[Path] = None,
         allow_all_boards: bool = False,
+        dynamic_mode: Optional[str] = None,
     ):
-        self.pool_name = pool_name
+        self.pool_name = pool_name if (pool_name and pool_name != "mainboard_24") else None
         self.custom_stocks = custom_stocks
         self.suffix = suffix
         self.export_dir = export_dir or OUTPUT_REPORTS_DIR
         self.allow_all_boards = allow_all_boards
+        self.dynamic_mode = dynamic_mode or ("hot_sectors" if not self.pool_name and not self.custom_stocks else None)
         self.model = StockSelectionModel(max_price=max_price, max_pe=max_pe)
+        self.dynamic_meta: Dict[str, Any] = {}
+        self.pool_desc: str = ""
         self.candidates = self._resolve_candidates()
 
     def _resolve_candidates(self) -> List[str]:
         if self.custom_stocks:
+            self.pool_desc = f"自定义临时标的 ({len(self.custom_stocks)} 只)"
             return [c.strip() for c in self.custom_stocks if c.strip()]
+
+        # 1. 如果显式指定了离线静态基准池（且未指定 dynamic_mode）
+        if self.pool_name and not self.dynamic_mode:
+            pools_cfg = load_stock_pools()
+            pools_dict = pools_cfg.get("pools", {})
+            if self.pool_name in pools_dict:
+                raw_stocks = pools_dict[self.pool_name].get("stocks", [])
+                p_title = pools_dict[self.pool_name].get("name", self.pool_name)
+                self.pool_desc = f"静态基准对照池: {p_title} ({self.pool_name})"
+                return [s for s in raw_stocks if not _is_blocked(s, allow_all=self.allow_all_boards)]
+            print(f"  ⚠️ 未找到名为 '{self.pool_name}' 的基准股票池，尝试动态推断")
+
+        # 2. 核心主流程：通过 DynamicUniverseEngine 动态评估推断形成当日标的池
+        try:
+            from core.strategy.dynamic_universe import DynamicUniverseEngine
+            dyn_engine = DynamicUniverseEngine()
+            actual_mode = self.dynamic_mode or "hot_sectors"
+            dyn_res = dyn_engine.generate_dynamic_universe(
+                mode=actual_mode,
+                size=30,
+                allow_all_boards=self.allow_all_boards,
+            )
+            self.dynamic_meta = dyn_res
+            self.pool_desc = f"动态推断宇宙 [{actual_mode}]: {dyn_res.get('rationale', '')}"
+            if dyn_res.get("stocks"):
+                return dyn_res["stocks"]
+        except Exception as e:
+            print(f"  ⚠️ 动态推断引擎执行异常，安全降级回退: {e}")
+
+        # 3. 降级兜底：离线基准测试对照池
         pools_cfg = load_stock_pools()
         pools_dict = pools_cfg.get("pools", {})
-        if self.pool_name in pools_dict:
-            raw_stocks = pools_dict[self.pool_name].get("stocks", [])
-            return [s for s in raw_stocks if not _is_blocked(s, allow_all=self.allow_all_boards)]
-        print(f"  ⚠️ 未找到名为 '{self.pool_name}' 的股票池，尝试从已有股票池回退")
-        if "mainboard_24" in pools_dict:
-            return [s for s in pools_dict["mainboard_24"].get("stocks", []) if not _is_blocked(s, allow_all=self.allow_all_boards)]
-        for p in pools_dict.values():
-            if isinstance(p, dict) and "stocks" in p:
-                return [s for s in p.get("stocks", []) if not _is_blocked(s, allow_all=self.allow_all_boards)]
+        fallback_key = "mainboard_24" if "mainboard_24" in pools_dict else list(pools_dict.keys())[0] if pools_dict else None
+        if fallback_key and fallback_key in pools_dict:
+            self.pool_desc = f"离线测试基准对照池 (降级兜底): {fallback_key}"
+            return [s for s in pools_dict[fallback_key].get("stocks", []) if not _is_blocked(s, allow_all=self.allow_all_boards)]
         return []
 
     def run(self) -> Dict[str, Any]:
         print("=" * 110)
         print("  5a-stock-rotation — 五维共振旋转选股引擎 v5.0 (通用扫描流水线)")
-        print(f"  标的池: {self.pool_name} ({len(self.candidates)} 只有效标的)")
-        print(f"  运行时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"  标的池模式: {self.pool_desc}")
+        print(f"  候选数量  : {len(self.candidates)} 只有效标的")
+        print(f"  运行时间  : {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 110)
 
         # 1. 评估大盘门控 (Market Gate)
@@ -185,20 +216,21 @@ class ScreenerPipeline:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="5a-stock-rotation 通用选股扫描执行器")
-    parser.add_argument("--pool", "-p", default="mainboard_24", help="指定预设股票池名称 (默认: mainboard_24)")
-    parser.add_argument("--stocks", "-s", help="临时指定逗号分隔的A股代码列表 (覆盖预设池)")
+    parser = argparse.ArgumentParser(description="5a-stock-rotation 通用选股扫描执行器 (支持全市场动态主线推断与离线基准测试)")
+    parser.add_argument("--dynamic", "-d", nargs="?", const="hot_sectors", default=None, help="启用市场信息与时效规律动态推断形成标的池 (模式: hot_sectors, liquidity, watchlist, balanced)")
+    parser.add_argument("--pool", "-p", default=None, help="指定离线基准测试股票池 (如: mainboard_24, cross_board_growth)")
+    parser.add_argument("--stocks", "-s", help="临时指定逗号分隔的A股代码列表 (覆盖其他模式)")
     parser.add_argument("--suffix", help="输出文件后缀标识 (默认自动时间戳)")
-    parser.add_argument("--list-pools", action="store_true", help="列出配置文件中已定义的所有股票池")
+    parser.add_argument("--list-pools", action="store_true", help="列出配置文件中已定义的所有基准测试股票池")
     parser.add_argument("--allow-all-boards", action="store_true", help="允许跨板块选股 (放行创业板、科创板与北交所标的)")
     args = parser.parse_args()
 
     if args.list_pools:
         cfg = load_stock_pools()
         pools = cfg.get("pools", {})
-        print("\n已配置的股票池:")
+        print("\n已配置的离线基准对照股票池:")
         for k, v in pools.items():
-            print(f"  - {k:<15} : {v.get('name')} ({len(v.get('stocks', []))}只) - {v.get('description')}")
+            print(f"  - {k:<18} : {v.get('name')} ({len(v.get('stocks', []))}只) - {v.get('description')}")
         return
 
     custom_stocks = args.stocks.split(",") if args.stocks else None
@@ -207,6 +239,7 @@ def main():
         custom_stocks=custom_stocks,
         suffix=args.suffix,
         allow_all_boards=args.allow_all_boards,
+        dynamic_mode=args.dynamic,
     )
     pipeline.run()
 

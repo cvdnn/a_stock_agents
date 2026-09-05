@@ -200,18 +200,37 @@ def cmd_screen(args):
     """三层漏斗选股 (板块环境 → 技术过滤 → 综合打分)"""
     from core.models.stock_screener import StockScreener
     from core.config import get_pool_stocks
+    from core.strategy.dynamic_universe import DynamicUniverseEngine
 
     raw_codes = getattr(args, "opt_codes", None) or getattr(args, "codes", "")
+    dynamic_mode = getattr(args, "dynamic", None)
+    pool_name = getattr(args, "pool", None)
+    allow_all_boards = getattr(args, "allow_all_boards", False)
+    mode_desc = ""
+
     if isinstance(raw_codes, list):
         codes = raw_codes
+        mode_desc = f"临时指定代码 ({len(codes)} 只)"
     elif raw_codes:
         codes = [c.strip() for c in raw_codes.replace(" ", ",").split(",") if c.strip()]
-    else:
-        pool_name = getattr(args, "pool", None)
+        mode_desc = f"临时指定代码 ({len(codes)} 只)"
+    elif pool_name and not dynamic_mode:
         codes = get_pool_stocks(pool_name)
+        mode_desc = f"基准对照池: {pool_name} ({len(codes)} 只)"
+    else:
+        actual_mode = dynamic_mode or "hot_sectors"
+        dyn_engine = DynamicUniverseEngine()
+        dyn_res = dyn_engine.generate_dynamic_universe(
+            mode=actual_mode,
+            size=max(getattr(args, "limit", 30) or 30, 20),
+            allow_all_boards=allow_all_boards,
+        )
+        codes = dyn_res.get("stocks", [])
+        mode_desc = f"动态推断宇宙 [{actual_mode}]: {dyn_res.get('rationale', '')}"
 
     screener = StockScreener()
     result = screener.screen(codes, fetch_cyq=getattr(args, "cyq", False))
+    result["pool_mode_desc"] = mode_desc
 
     if getattr(args, "json", False) or getattr(args, "output", "") == "json":
         clean = {k: v for k, v in result.items() if k != "results"}
@@ -221,6 +240,7 @@ def cmd_screen(args):
         ]
         print(json.dumps(clean, ensure_ascii=False, indent=2))
     else:
+        print(f"[{mode_desc}]")
         print(f"选股漏斗: 输入 {result['total_input']} 只 → 行业过滤 {result['stage1_board']} 只 "
               f"→ 技术初筛 {result['stage2_technical']} 只 → 综合优选 {result['stage3_scored']} 只\n")
         if result.get("results"):

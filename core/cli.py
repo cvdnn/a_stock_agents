@@ -158,10 +158,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("deploy-monitor", help="查看监控部署指南", parents=[common_parser])
 
     # screen
-    p_screen = subparsers.add_parser("screen", help="三层漏斗选股", parents=[common_parser])
+    p_screen = subparsers.add_parser("screen", help="三层漏斗选股 (默认基于市场实时主线动态推断)", parents=[common_parser])
     p_screen.add_argument("codes", nargs="?", default="", help="标的代码列表 (逗号分隔)")
     p_screen.add_argument("--codes", dest="opt_codes", default=None, help="标的代码列表选项传参")
-    p_screen.add_argument("--pool", default=None, help="候选股票池名称 (来自 stock_pools.yaml, 如 mainboard_24, h2_mainlines)")
+    p_screen.add_argument("--dynamic", "-d", nargs="?", const="hot_sectors", default=None, help="启用市场信息与时效规律动态推断形成标的池 (可选: hot_sectors, liquidity, watchlist, balanced)")
+    p_screen.add_argument("--pool", default=None, help="指定离线基准测试对照池 (来自 stock_pools.yaml, 如 mainboard_24)")
+    p_screen.add_argument("--allow-all-boards", action="store_true", help="允许跨板块选股 (放行创业板、科创板与北交所标的)")
     p_screen.add_argument("--cyq", action="store_true", help="拉取筹码分布")
     p_screen.add_argument("--limit", type=int, default=10, help="最多展示数量")
 

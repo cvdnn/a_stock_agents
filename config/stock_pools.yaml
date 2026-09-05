@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
-# A-Stock Agents 股票候选池声明式配置
-# 遵循“机制与策略分离”设计范式，解耦业务扫描脚本与标的池定义
+# A-Stock Agents 离线策略基准参照样本库 (Offline Strategy Benchmark Reference Pools)
+#
+# ⚠️ 重要定位与原则声明:
+# 1. 本配置仅供算法基准测试 (Benchmark)、回测对照与离线断网降级使用，绝非任何实盘静态投资推荐；
+# 2. 系统实盘选股与策略全面由 DynamicUniverseEngine 根据实时板块动量、成交额流动性与市场信息动态推断评估形成；
+# 3. 杜绝因固化股票池造成静态推荐违背市场时效性与时空演变规律。
 
-version: "1.0"
+version: "2.0"
 default_pool: "mainboard_24"
 
 pools:
   mainboard_24:
-    name: "主板蓝筹候选池"
-    description: "沪深主板大市值蓝筹与各行业白马龙头 (24只)"
-    category: "bluechip"
+    name: "主板蓝筹测试对照基准"
+    description: "沪深主板大市值蓝筹与各行业白马龙头对照样本 (24只，仅供基准回测)"
+    category: "benchmark_bluechip"
     stocks:
       - "600519"  # 贵州茅台 (白酒龙头)
       - "000858"  # 五粮液 (白酒)
@@ -37,9 +41,9 @@ pools:
       - "601088"  # 中国神华 (煤炭高股息)
 
   h2_mainlines:
-    name: "2026下半年机构共识主线"
-    description: "涵盖AI算力硬件、光通信、有色涨价、创新药、高端制造与牛市旗手 (23只)"
-    category: "growth_momentum"
+    name: "核心成长赛道基准样本"
+    description: "涵盖算力硬件、光通信、有色、创新药与制造龙头对照集 (仅供策略对比，非实时推荐)"
+    category: "benchmark_growth"
     stocks:
       # AI算力硬件与光通信
       - "601138"  # 工业富联 (AI服务器/算力)
@@ -70,9 +74,9 @@ pools:
       - "600030"  # 中信证券 (牛市旗手券商)
 
   h2_expand:
-    name: "低位主线补涨池"
-    description: "高估值主线分化时的低位补涨标的 (煤炭/大金融/公用事业/交运等)"
-    category: "value_rotation"
+    name: "周期与红利基准样本"
+    description: "煤炭/大金融/公用事业/交运等传统周期与红利基准对照集 (仅供基准回测)"
+    category: "benchmark_value"
     stocks:
       # 资源/煤炭补涨
       - "601600"  # 中国铝业 (电解铝)

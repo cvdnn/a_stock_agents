@@ -131,6 +131,8 @@ def _load_path_config() -> Dict[str, str]:
     # 3. 默认值回退
     if not cfg.get("a_share_data_dir"):
         candidates = [
+            SKILLS_DIR / "astock-data-feed",
+            PROJECT_ROOT / "skills" / "astock-data-feed",
             SKILLS_DIR / "a-share-data",
             PROJECT_ROOT / "skills" / "a-share-data",
         ]
@@ -283,20 +285,25 @@ class DataBridge:
     # ═══════════════════════════════════════════════════
 
     @staticmethod
-    def _run_script(script_name: str, args: str, timeout: int = 30, use_patch: bool = True) -> Optional[Dict]:
-        """调用 a-share-data 的脚本 (需 A_SHARE_DATA_DIR 已配置)"""
-        if not A_SHARE_SCRIPTS:
-            return None
-        script_path = A_SHARE_SCRIPTS / script_name
-        if not script_path.exists():
+    def _run_script(script_name: str, args: str, timeout: int = 30, use_patch: bool = False) -> Optional[Dict]:
+        """调用数据获取脚本 (支持 a-share-data/astock-data-feed 以及 core/data 本地实现)"""
+        script_path = None
+        if A_SHARE_SCRIPTS and (A_SHARE_SCRIPTS / script_name).exists():
+            script_path = A_SHARE_SCRIPTS / script_name
+        else:
+            local_candidate = Path(__file__).resolve().parent / script_name
+            if local_candidate.exists():
+                script_path = local_candidate
+
+        if not script_path or not script_path.exists():
             return None
 
         import subprocess
-        if use_patch and (A_SHARE_SCRIPTS / "fetch_patched.py").exists():
-            python = VENV_PY if Path(VENV_PY).is_file() else SYSTEM_PY
+        python = VENV_PY if Path(VENV_PY).is_file() else SYSTEM_PY
+        if use_patch and A_SHARE_SCRIPTS and (A_SHARE_SCRIPTS / "fetch_patched.py").exists():
             cmd = [python, str(A_SHARE_SCRIPTS / "fetch_patched.py"), script_name] + args.split()
         else:
-            cmd = [SYSTEM_PY, str(script_path)] + args.split()
+            cmd = [python, str(script_path)] + args.split()
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -363,6 +370,25 @@ class DataBridge:
     def get_board_summary(self, limit: int = 20) -> Optional[Dict]:
         """获取板块排行"""
         return self._run_script("fetch_realtime.py", f"--boards-summary --boards-limit {limit} --json")
+
+    def get_board_detail(self, group_key: str, limit: int = 50) -> Optional[Dict]:
+        """获取指定板块的成分标的详情"""
+        clean_key = str(group_key).strip()
+        return self._run_script("fetch_realtime.py", f"--boards-detail --boards-group-key {clean_key} --boards-items-limit {limit} --json")
+
+    def get_active_market_quotes(self, sort_by: str = "amount_desc", top: int = 50) -> Optional[List[Dict[str, Any]]]:
+        """动态拉取全市场活跃度/成交额/涨幅排名靠前的标的行情列表"""
+        valid_sorts = {
+            "amount_desc", "change_pct_desc", "change_pct_asc",
+            "turnover_rate_desc", "market_cap_desc"
+        }
+        actual_sort = sort_by if sort_by in valid_sorts else "amount_desc"
+        result = self._run_script("fetch_realtime.py", f"--all-quote --sort {actual_sort} --top {top} --json")
+        if isinstance(result, dict) and "data" in result:
+            return result.get("data", [])
+        elif isinstance(result, list):
+            return result
+        return None
 
     def get_fund_flow(self, code: str, days: int = 5) -> Optional[Dict]:
         """获取资金流向"""
