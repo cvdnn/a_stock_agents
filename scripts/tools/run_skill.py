@@ -9,8 +9,15 @@ import os
 import subprocess
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SKILLS_DIR = ROOT / 'skills'
+def _find_project_root() -> Path:
+    curr = Path(__file__).resolve().parent
+    for p in [curr] + list(curr.parents):
+        if (p / "pyproject.toml").exists() or (p / "AGENTS.md").exists():
+            return p
+    return curr.parent.parent
+
+ROOT = _find_project_root()
+SKILLS_DIR = ROOT / ".agents" / "skills" if (ROOT / ".agents" / "skills").exists() else ROOT / "skills"
 
 def list_skills():
     print("Available Skills:")

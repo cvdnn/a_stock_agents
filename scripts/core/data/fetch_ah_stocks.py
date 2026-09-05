@@ -238,8 +238,12 @@ def main():
     parser.add_argument("--limit", type=int, default=200, help="文本模式最多展示条数，默认 200")
     args = parser.parse_args()
 
-    script_dir = Path(__file__).resolve().parent
-    cache_file = script_dir.parent / "cache" / "ah_stocks.json"
+    try:
+        from core.config import OUTPUT_CACHE_DIR
+        cache_file = OUTPUT_CACHE_DIR / "ah_stocks.json"
+    except Exception:
+        script_dir = Path(__file__).resolve().parent
+        cache_file = script_dir.parent / "cache" / "ah_stocks.json"
     ttl_sec = 12 * 3600
 
     rows: Optional[List[Dict[str, Any]]] = None

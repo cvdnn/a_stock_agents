@@ -14,11 +14,18 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-if str(PROJECT_ROOT / "core") not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT / "core"))
+def _find_project_root() -> Path:
+    curr = Path(__file__).resolve().parent
+    for p in [curr] + list(curr.parents):
+        if (p / "pyproject.toml").exists() or (p / "AGENTS.md").exists():
+            return p
+    return curr.parent.parent
+
+PROJECT_ROOT = _find_project_root()
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+for p in [PROJECT_ROOT, SCRIPTS_DIR, SCRIPTS_DIR / "core", PROJECT_ROOT / "core"]:
+    if p.exists() and str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 try:
     from core.config import OUTPUT_DIR, BACKUPS_DIR

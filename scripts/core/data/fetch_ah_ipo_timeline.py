@@ -97,7 +97,11 @@ def _normalize_hk_code(raw: str) -> str:
 # ------------------------------
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-CACHE_DIR = SCRIPT_DIR.parent / "cache"
+try:
+    from core.config import OUTPUT_CACHE_DIR
+    CACHE_DIR = OUTPUT_CACHE_DIR
+except Exception:
+    CACHE_DIR = SCRIPT_DIR.parent / "cache"
 AH_CACHE_FILE = CACHE_DIR / "ah_stocks.json"
 TIMELINE_CACHE_FILE = CACHE_DIR / "ah_ipo_timeline.json"
 CODE_MAPPING_FILE = CACHE_DIR / "ah_code_mapping.json"

@@ -13,6 +13,17 @@ venv/
 dist/
 build/
 
+# Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS & Editor residue
+.DS_Store
+*.swp
+*.swo
+*~
+
 # User Output Data & Private Assets (Complete Isolation)
 output/
 !output/**/.gitkeep
