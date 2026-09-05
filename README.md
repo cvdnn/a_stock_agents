@@ -33,7 +33,7 @@
 
 ## 二、核心功能与 17 大智能体技能体系（6+1 分层架构）
 
-### 1. 六大量化与投研核心子系统
+### 1. 七大量化与投研核心子系统
 1. **4 级自动降级数据桥接 (`core/data`)**：
    - **L1 腾讯直连**：`qt.gtimg.cn` 毫秒级原生行情与日K线，零外部复杂库依赖。
    - **L2/L3 东财与新浪财经**：提供资金流向、行业板块分布、个股事件与历史复权数据。
@@ -56,6 +56,15 @@
 6. **模拟盘撮合交易与事件驱动回测 (`core/paper_trading`)**：
    - 多账户独立资金管理、限价单/市价单撮合、撤单、A股 T+1 交易规则与涨跌停限制撮合。
    - **平方根市场冲击滑点模型**：集成 Almgren-Chriss 理论，依据订单规模占日成交量比例自适应计算大额冲击滑点。
+7. **统一算法注册中心与全生命周期治理体系 (`core/models` · `AlgoRegistry 2.0` / ALCM)**：
+   - **40+ 项算法资产全量纳管**：涵盖基础指标、形态因子、多维评分模型、交易策略、仓位风控、撮合与绩效度量 7 大族群，双轨支持函数直接调用与类工厂实例化，100% 完全向下兼容。
+   - **四道全生命周期质量门禁 (`AlgorithmQualityGate`)**：
+     - **G1 研发合规门禁**：静态 AST 扫描 + 动态时序扰动探针（`LookaheadGuard`，彻底排查未来函数泄漏）；A股 T+1 规则、一字板涨跌停封死买卖违规与停牌撮合硬约束审计（`AShareComplianceGuard`）。
+     - **G2 效能防过拟合门禁**：样本外表现衰减率检验（OOS Decay $\le 35\%$）与 Marcos López de Prado 经典的 Deflated Sharpe Ratio (DSR) 虚假夏普校准（`OverfittingGuard`）。
+   - **生产监控与智能自适应调度**：
+     - **`AlphaDecayTracker`**：横截面 Spearman Rank IC 滚动跟踪、IC_IR 与 Alpha 衰减预警。
+     - **`RegimeAdaptiveDispatcher`**：联动大盘牛/熊/震荡机制，自适应切换因子合成权重、主力策略路由与组合仓位上限（85% / 50% / 20%）。
+     - **`AlgorithmLifecycleManager`**：全生命周期状态流转机与实盘最大回撤超预期自动退市熔断器。
 
 ---
 
@@ -144,7 +153,7 @@ python verify.py
   - 主 Agent 可派发 `ta-multi-agent-analysis` 等子任务，直接复用项目内的 7 大分析师辩论框架。
 
 #### D. AIChat 对话系统提示词 (通用)
-- 将 [`prompts/aichat_system_prompt.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/prompts/aichat_system_prompt.md) 设置为 AIChat 对话的 System Message，大模型即可具备：
+- 将 [`prompts/aichat_system_prompt.md`](prompts/aichat_system_prompt.md) 设置为 AIChat 对话的 System Message，大模型即可具备：
   1. **自然语言自动意图路由**：根据用户输入自动提取股票代码并映射到对应技能。
   2. **强制实战风控输出**：输出建议时自动核算保本价、三级止损线（-3% / -5% / -8%）与三场景即时反应动作。
 
@@ -186,6 +195,42 @@ python verify.py
 ./bin/astock skill list --json
 ```
 
+### 6. Python 算法库与全生命周期治理 SDK 快速上手 (Python API)
+项目提供现代化的 Python 算法治理与调度接口：
+```python
+from core.models import (
+    AlgoRegistry,
+    AlgorithmQualityGate,
+    RegimeAdaptiveDispatcher,
+    AlphaDecayTracker,
+    get_algo,
+    run_algo,
+    list_algos,
+)
+
+# 1. 算法查询与工厂执行 (涵盖 40+ 项算法资产)
+indicators = list_algos(category="indicator")
+macd_fn = AlgoRegistry.get("macd")
+strategy = AlgoRegistry.get("volatility_breakout")
+
+# 2. 一键执行全生命周期质量门禁审计 (G1 合规 + G2 防过拟合)
+report = AlgorithmQualityGate.audit_algorithm(
+    name_or_func=strategy,
+    sample_klines=sample_klines,
+    trade_log=trade_records,
+    in_sample_metrics=is_metrics,
+    out_sample_metrics=oos_metrics,
+    daily_returns=daily_returns_series,
+)
+print(f"门禁判定: {report.status.value}, 质控得分: {report.score}")
+if not report.is_passed():
+    print(f"阻断原因: {report.violations}")
+
+# 3. 市场机制自适应调度 (牛市进攻/震荡轮动/熊市防御)
+plan = RegimeAdaptiveDispatcher.dispatch("BULL")
+print(f"建议总仓位: {plan.max_portfolio_weight*100}%, 主力策略: {plan.primary_strategies}")
+```
+
 ---
 
 ## 六、用户专属数据隔离 (output/)、安全打包与热更新
@@ -203,7 +248,7 @@ output/
 ```
 
 #### 外部磁盘挂载配置
-在 [`config/config.yaml`](file:///c:/Users/cvdnn/coding/a_stock_agents/config/config.yaml) 中直接修改：
+在 [`config/config.yaml`](config/config.yaml) 中直接修改：
 ```yaml
 paths:
   output_dir: "/var/data/astock_output" # Linux 独立数据盘
@@ -254,6 +299,7 @@ python bin/update.py --rollback backup_20260902_174003
 | **网关架构设计** | [`docs/design/token-gateway.md`](docs/design/token-gateway.md) | Token 链路安全网关与本地审计 Agent 架构 |
 | **实战交易反应动作** | [`docs/trading/execution-manual.md`](docs/trading/execution-manual.md) | 六大实战反应动作与三场景即时动作单 |
 | **最低保本价精算** | [`docs/trading/breakeven-rules.md`](docs/trading/breakeven-rules.md) | 覆盖印花税/佣金/过户费并向上进位至分位 |
+| **算法全生命周期治理** | [`docs/guidelines/algorithm-governance.md`](docs/guidelines/algorithm-governance.md) | 44项算法全景清单、四道质量门禁规范与ALCM治理方案 |
 
 ---
 
