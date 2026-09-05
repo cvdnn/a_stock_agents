@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import sqlite3
 import threading
 import uuid
@@ -115,12 +116,55 @@ def calc_tax(side: str, amount: float,
     return 0.0 if side.lower() != "sell" else round(amount * tax_rate, 2)
 
 
-def _apply_slippage(price: float, side: str, slippage_bps: float = 0.0) -> float:
-    """Apply slippage in basis points.  Buy: price up, Sell: price down."""
-    if slippage_bps <= 0:
+def calc_market_impact_bps(
+    order_shares: int,
+    day_volume: Optional[float] = None,
+    daily_volatility: float = 0.025,
+    gamma: float = 0.1,
+    base_slippage_bps: float = 0.0,
+) -> float:
+    """基于经典 Almgren-Chriss 平方根市场冲击模型计算总滑点基点 (BPS)
+    
+    Impact_BPS = Base_BPS + gamma * daily_volatility * sqrt(order_shares / day_volume) * 10000
+    如果未提供 day_volume 或 day_volume <= 0，则返回 base_slippage_bps。
+    """
+    if not day_volume or day_volume <= 0 or order_shares <= 0:
+        return float(base_slippage_bps)
+    
+    participation_rate = order_shares / day_volume
+    # 限制单笔最大冲击上限为 300 bps (3.0%)
+    impact_fraction = gamma * daily_volatility * math.sqrt(participation_rate)
+    impact_bps = impact_fraction * 10000.0
+    total_bps = base_slippage_bps + min(300.0, impact_bps)
+    return round(total_bps, 2)
+
+
+def _apply_slippage(
+    price: float,
+    side: str,
+    slippage_bps: float = 0.0,
+    order_shares: int = 0,
+    day_volume: Optional[float] = None,
+    daily_volatility: float = 0.025,
+    gamma: float = 0.1,
+) -> float:
+    """应用滑点（支持固定基点及大额订单平方根冲击成本）
+    Buy: 价格上浮, Sell: 价格下浮。
+    """
+    effective_bps = slippage_bps
+    if order_shares > 0 and day_volume and day_volume > 0:
+        effective_bps = calc_market_impact_bps(
+            order_shares=order_shares,
+            day_volume=day_volume,
+            daily_volatility=daily_volatility,
+            gamma=gamma,
+            base_slippage_bps=slippage_bps,
+        )
+
+    if effective_bps <= 0:
         return price
-    slip = slippage_bps / 10000.0
-    if side == "buy":
+    slip = effective_bps / 10000.0
+    if side.lower() == "buy":
         return round(price * (1.0 + slip), 2)
     return round(price * (1.0 - slip), 2)
 
@@ -600,8 +644,16 @@ class PaperTradingEngine:
             if use_t_plus_1:
                 pending_signal = strat.on_bar(i, row, bars, qty)
 
-            # Slippage
-            fill_price = _apply_slippage(exec_price, "buy" if signal == "buy" else "sell", slippage_bps)
+            # Slippage (incorporating volume impact if volume is present)
+            day_volume = float(row["volume"]) if "volume" in row and pd.notna(row["volume"]) else 0.0
+            order_shares_est = int((cash / exec_price) // 100) * 100 if signal == "buy" else qty
+            fill_price = _apply_slippage(
+                exec_price,
+                "buy" if signal == "buy" else "sell",
+                slippage_bps=slippage_bps,
+                order_shares=order_shares_est,
+                day_volume=day_volume,
+            )
 
             # Limit price check
             prev_close = float(bars.iloc[i - 1]["close"]) if i > 0 else fill_price

@@ -238,7 +238,6 @@ def calc_all(klines: List[List], ma_periods: Tuple[int, ...] = (5, 10, 20, 60)) 
         kdj_data = result["kdj"]
         latest["kdj_k"] = round(kdj_data["k"][-1], 2)
         latest["kdj_d"] = round(kdj_data["d"][-1], 2)
-        latest["kdj_j"] = round(kdj_data["j"][-1], 2)
     if "rsi" in result:
         latest["rsi"] = round(result["rsi"][-1], 2)
     if "boll" in result:
@@ -304,44 +303,86 @@ def gap_analysis(klines: List[List]) -> Dict[str, Any]:
 #  MACD二次金叉 / 底背离识别 — P1 新增
 # ═══════════════════════════════════════════════════
 
-def second_golden_cross(klines: List[List]) -> Dict[str, Any]:
+def second_golden_cross(klines: List[List], min_interval: int = 4) -> Dict[str, Any]:
     """
-    MACD底背离 + 零轴下二次金叉 识别。
+    MACD底背离 + 零轴下二次金叉 识别 (增强波谷极值对比与波段间距过滤)。
 
     返回: {
         has_first_leg, has_second_leg, is_weaker_second,
         first_golden_cross_idx, second_golden_cross_idx,
-        dif_higher, bars_shorter, verdict (A/B/C), checklist
+        dif_higher, bars_shorter, verdict (A/B/C), checklist,
+        is_divergence
     }
     """
     if len(klines) < 60:
-        return {"verdict": "C", "reason": "K线数据不足(需≥60根)", "checklist": []}
+        return {"verdict": "C", "reason": "K线数据不足(需≥60根)", "checklist": [], "is_divergence": False}
 
     closes = _floats(klines, 2)
+    lows = _floats(klines, 4)
     m = macd(closes)
     dif = m["dif"]
     dea = m["dea"]
     bar = m["bar"]
 
-    # 找零轴下金叉 (DIF上穿DEA, 且DIF<0)
-    crosses = []  # [(idx, dif_val, dea_val), ...]
+    # 1. 寻找零轴下金叉 (DIF上穿DEA, 且DIF<0)
+    raw_crosses = []
     for i in range(1, len(dif)):
         if dif[i - 1] <= dea[i - 1] and dif[i] > dea[i] and dif[i] < 0:
-            crosses.append((i, dif[i], dea[i], bar[i]))
+            raw_crosses.append((i, dif[i], dea[i], bar[i]))
 
-    if len(crosses) < 1:
+    if not raw_crosses:
         return {"verdict": "C", "reason": "无零轴下金叉信号",
-                "checklist": ["❌ 无金叉"], "crosses_count": 0}
+                "checklist": ["❌ 无金叉"], "crosses_count": 0, "is_divergence": False}
 
-    # 找最近的两次金叉
-    first = crosses[-2] if len(crosses) >= 2 else crosses[-1]
-    second = crosses[-1]
+    # 2. 波段间距过滤：剔除距离过近的毛刺金叉（间隔需 >= min_interval 且期间有死叉）
+    filtered_crosses = [raw_crosses[0]]
+    for cur in raw_crosses[1:]:
+        prev = filtered_crosses[-1]
+        if cur[0] - prev[0] >= min_interval:
+            # 校验期间是否有过死叉 (dif < dea)
+            had_dead_cross = any(dif[k] < dea[k] for k in range(prev[0], cur[0]))
+            if had_dead_cross:
+                filtered_crosses.append(cur)
+            else:
+                # 若未死叉只是粘合再上扬，更新为更晚更强的点位
+                filtered_crosses[-1] = cur
+        else:
+            if cur[1] > prev[1]:
+                filtered_crosses[-1] = cur
 
-    has_first = len(crosses) >= 2
-    dif_higher = second[1] > first[1] if has_first else None
-    bars_shorter = second[3] > first[3] if has_first else None  # 红柱更大=更强
+    has_first = len(filtered_crosses) >= 2
+    first = filtered_crosses[-2] if has_first else filtered_crosses[-1]
+    second = filtered_crosses[-1]
 
-    # 10项检查
+    # 3. 定位两次金叉前的局部波谷 (波谷价格与波谷DIF)
+    # 第一脚波谷区间：first前 15 根K线
+    start_p1 = max(0, first[0] - 15)
+    end_p1 = first[0] + 1
+    price_trough1 = min(lows[start_p1:end_p1]) if end_p1 > start_p1 else closes[first[0]]
+    dif_trough1 = min(dif[start_p1:end_p1]) if end_p1 > start_p1 else first[1]
+    green_bars1 = [b for b in bar[start_p1:end_p1] if b < 0]
+    min_green1 = min(green_bars1) if green_bars1 else 0.0
+
+    # 第二脚波谷区间：first与second之间
+    start_p2 = max(first[0], second[0] - 15)
+    end_p2 = second[0] + 1
+    price_trough2 = min(lows[start_p2:end_p2]) if end_p2 > start_p2 else closes[second[0]]
+    dif_trough2 = min(dif[start_p2:end_p2]) if end_p2 > start_p2 else second[1]
+    green_bars2 = [b for b in bar[start_p2:end_p2] if b < 0]
+    min_green2 = min(green_bars2) if green_bars2 else 0.0
+
+    # 4. 底背离与形态核心指标判定
+    # DIF抬高: 第二次金叉点高于第一次金叉，或第二脚波谷DIF高于第一脚波谷DIF
+    dif_higher = (second[1] > first[1]) or (dif_trough2 > dif_trough1) if has_first else False
+    # 绿柱缩短: 第二脚绿柱波谷绝对值更小 (负数更大)
+    green_shorter = (min_green2 > min_green1) if (min_green1 < 0 and min_green2 < 0) else (second[3] > first[3] if has_first else False)
+    # 价格创低或回踩不破前低
+    price_lower_or_equal = price_trough2 <= price_trough1 * 1.03 if has_first else False
+    is_divergence = bool(has_first and price_lower_or_equal and (dif_trough2 > dif_trough1 or dif_higher))
+
+    bars_shorter = second[3] > first[3] if has_first else None
+
+    # 5. 10项严谨量化检查
     checks = []
     # 1. 前期下跌
     if len(closes) >= 60:
@@ -406,11 +447,12 @@ def second_golden_cross(klines: List[List]) -> Dict[str, Any]:
         "reason": msg,
         "passed_count": passed,
         "total_checks": len(checks),
-        "crosses_count": len(crosses),
+        "crosses_count": len(filtered_crosses),
         "first_leg": {"idx": first[0], "dif": round(first[1], 4)} if has_first else None,
         "second_leg": {"idx": second[0], "dif": round(second[1], 4), "dea": round(second[2], 4)},
         "dif_higher": dif_higher,
         "bars_stronger": bars_shorter,
+        "is_divergence": is_divergence,
         "checklist": [f"{'✅' if ok else '❌'} {name}" for name, ok in checks],
     }
 

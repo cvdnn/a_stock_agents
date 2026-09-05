@@ -57,6 +57,69 @@ class FactorSynthesizer:
         "sentiment_score": 0.25
     }
 
+    # 市场机制/模式专属权重预设 (各维度总和 1.0)
+    REGIME_WEIGHTS = {
+        "DEFAULT": DEFAULT_WEIGHTS,
+        # 牛市/主升浪突破模式 (强化动量与量价共振突破)
+        "BULL": {
+            "ret_20d": 0.20,
+            "bias_20d": 0.15,
+            "kdj_j": 0.05,
+            "boll_pct_b": 0.05,
+            "vol_surge_5_20": 0.15,
+            "vwap_bias_5": 0.08,
+            "pv_corr_20": 0.07,
+            "norm_atr": 0.05,
+            "profit_ratio": 0.05,
+            "sentiment_score": 0.15,
+        },
+        # 震荡/轮动防御模式 (均值回归、筹码与低波动)
+        "OSCILLATION": {
+            "ret_20d": 0.10,
+            "bias_20d": 0.08,
+            "kdj_j": 0.12,
+            "boll_pct_b": 0.10,
+            "vol_surge_5_20": 0.08,
+            "vwap_bias_5": 0.06,
+            "pv_corr_20": 0.06,
+            "norm_atr": 0.12,
+            "profit_ratio": 0.10,
+            "sentiment_score": 0.18,
+        },
+        # 熊市/超跌反弹模式 (强调超卖金叉与极低波动防守)
+        "BEAR": {
+            "ret_20d": 0.05,
+            "bias_20d": 0.05,
+            "kdj_j": 0.18,
+            "boll_pct_b": 0.15,
+            "vol_surge_5_20": 0.05,
+            "vwap_bias_5": 0.05,
+            "pv_corr_20": 0.04,
+            "norm_atr": 0.15,
+            "profit_ratio": 0.13,
+            "sentiment_score": 0.15,
+        },
+    }
+
+    @classmethod
+    def calculate_ic_weights(
+        cls,
+        ic_dict: Dict[str, float],
+        min_weight: float = 0.02
+    ) -> Dict[str, float]:
+        """根据各因子历史 IC (信息系数) 计算动态自适应合成权重
+        
+        仅对 IC > 0 的有效预测因子赋予正向权重，若所有 IC <= 0 则回退至默认权重。
+        """
+        valid_ics = {k: max(0.0, float(v)) for k, v in ic_dict.items() if k in cls.FACTOR_DIRECTIONS}
+        total_ic = sum(valid_ics.values())
+        if total_ic <= 1e-6:
+            return cls.DEFAULT_WEIGHTS.copy()
+
+        raw_weights = {k: max(min_weight, v / total_ic) for k, v in valid_ics.items()}
+        total_w = sum(raw_weights.values())
+        return {k: round(v / total_w, 4) for k, v in raw_weights.items()}
+
     @staticmethod
     def _mad_winsorize(values: List[float], n: float = 3.0) -> List[float]:
         """中位数绝对偏差去极值 (MAD Winsorization)"""
@@ -100,16 +163,24 @@ class FactorSynthesizer:
     def synthesize_universe(
         cls,
         universe_factors: Dict[str, Dict[str, float]],
-        custom_weights: Optional[Dict[str, float]] = None
+        custom_weights: Optional[Dict[str, float]] = None,
+        regime: Optional[str] = None
     ) -> Dict[str, Dict[str, Any]]:
         """对整个股票池进行截面标准化、加权合成与排名
         universe_factors: {'600519': {'ret_20d': 5.2, 'sentiment_score': 0.6, ...}, '000858': {...}}
+        regime: 可选 'BULL' | 'BEAR' | 'OSCILLATION' | 'DEFAULT'
         """
         if not universe_factors:
             return {}
 
         symbols = list(universe_factors.keys())
-        raw_weights = custom_weights if custom_weights else cls.DEFAULT_WEIGHTS
+        if custom_weights:
+            raw_weights = custom_weights
+        elif regime and regime.upper() in cls.REGIME_WEIGHTS:
+            raw_weights = cls.REGIME_WEIGHTS[regime.upper()]
+        else:
+            raw_weights = cls.DEFAULT_WEIGHTS
+
         total_w = sum(raw_weights.values())
         if total_w > 0:
             weights = {k: v / total_w for k, v in raw_weights.items()}

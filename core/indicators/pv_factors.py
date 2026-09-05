@@ -162,9 +162,9 @@ class PVFactors:
         if not klines or len(klines) < 30:
             return {}
 
-        closes = [k["close"] for k in klines]
-        volumes = [k["volume"] for k in klines]
-        amounts = [k["amount"] for k in klines]
+        closes = [float(k["close"]) for k in klines]
+        volumes = [float(k["volume"]) for k in klines]
+        amounts = [float(k.get("amount", float(k.get("volume", 0.0)) * float(k.get("close", 0.0)))) for k in klines]
         c = closes[-1]
 
         # 1. 动量因子 (Momentum Returns %)
@@ -219,16 +219,9 @@ class PVFactors:
         else:
             pv_corr_20 = 0.0
 
-        # 7. 筹码获利盘估计 (基于过去120日成交量衰减加权成本分布)
-        lookback = min(120, len(klines))
-        weighted_cost_sum, weight_sum = 0.0, 0.0
-        for i in range(len(klines) - lookback, len(klines)):
-            decay = math.exp(-0.02 * (len(klines) - 1 - i))  # 近期权重高
-            w = klines[i]["volume"] * decay
-            weighted_cost_sum += klines[i]["close"] * w
-            weight_sum += w
-        avg_chip_cost = weighted_cost_sum / weight_sum if weight_sum > 0 else c
-        profit_ratio = round((c - avg_chip_cost) / avg_chip_cost * 100.0, 2)
+        # 7. 筹码获利盘与成本估计 (基于真实/估算换手率的成交量沉淀加权模型)
+        avg_chip_cost = cls.calculate_chip_cost(klines, lookback=120)
+        profit_ratio = round((c - avg_chip_cost) / avg_chip_cost * 100.0, 2) if avg_chip_cost > 0 else 0.0
 
         return {
             "ret_5d": round(ret_5d, 2),
@@ -247,3 +240,61 @@ class PVFactors:
             "hist_vol_20": round(hist_vol_20, 2),
             "profit_ratio": round(profit_ratio, 2)
         }
+
+    @classmethod
+    def calculate_chip_cost(cls, klines: List[Dict[str, Any]], lookback: int = 120) -> float:
+        """基于换手率沉淀的动态筹码分布加权成本算法 (Volume-by-Price Turnover Decay)
+        
+        每一天新进入流通的筹码以典型价格进入，历史筹码按当期换手率比例 (1 - turnover) 沉淀衰减。
+        """
+        if not klines:
+            return 0.0
+
+        sub_klines = klines[-lookback:] if len(klines) > lookback else klines
+        n = len(sub_klines)
+        c = sub_klines[-1]["close"]
+        if n == 1:
+            return c
+
+        volumes = [float(k.get("volume", 0.0)) for k in sub_klines]
+        avg_vol = sum(volumes) / max(1, n)
+        est_float_vol = avg_vol * 60.0  # 假设全流通平均周期约为60个交易日
+
+        # 逐日计算典型价格 (Typical Price) 和换手率
+        # Typical Price = (H + L + 2*C) / 4
+        typical_prices = []
+        turnovers = []
+        for k in sub_klines:
+            h = float(k.get("high", k.get("close", c)))
+            l = float(k.get("low", k.get("close", c)))
+            cl = float(k.get("close", c))
+            tp = (h + l + 2.0 * cl) / 4.0
+            typical_prices.append(tp)
+
+            # 优先使用真实换手率，若无则基于估算流通量
+            if "turnover" in k and k["turnover"] is not None and float(k["turnover"]) > 0:
+                to = min(0.40, float(k["turnover"]) / 100.0)
+            elif est_float_vol > 0:
+                to = min(0.30, max(0.005, float(k.get("volume", 0.0)) / est_float_vol))
+            else:
+                to = 0.02
+            turnovers.append(to)
+
+        # 反向递归计算截至最新日各历史日筹码的有效存留权重
+        # w_i = turnover_i * \prod_{j=i+1}^{n-1} (1 - turnover_j)
+        weights = [0.0] * n
+        retained = 1.0
+        for i in range(n - 1, -1, -1):
+            weights[i] = turnovers[i] * retained
+            retained *= (1.0 - turnovers[i])
+            if retained < 1e-4:
+                break
+
+        weight_sum = sum(weights)
+        if weight_sum > 0:
+            weighted_cost = sum(p * w for p, w in zip(typical_prices, weights)) / weight_sum
+        else:
+            weighted_cost = c
+
+        return round(weighted_cost, 2)
+
