@@ -259,6 +259,7 @@ flowchart LR
 | **工程规范** | [`guidelines/testing-guide.md`](guidelines/testing-guide.md) | 回归测试架构、TDD 流程规约与用例生命周期管理 |
 | **工程规范** | [`guidelines/naming-conventions.md`](guidelines/naming-conventions.md) | 源码物理命名、模型演进四大范式与文档命名规约 (SSOT) |
 | **架构设计** | [`design/token-gateway.md`](design/token-gateway.md) | Token 链路安全网关、敏感凭据脱敏与本地审计 Agent 架构 |
+| **架构设计** | [`design/web-aichat-and-skill-governance.md`](design/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理系统架构设计 |
 | **架构设计** | [`design/specs/`](design/specs/) | 不可变历史架构决策与功能规格说明 (ADR/RFC) |
 | **量化实战** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律 |
 | **量化实战** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 |

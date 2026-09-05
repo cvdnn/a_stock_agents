@@ -2,7 +2,7 @@
 name: astock-platform-evaluate
 version: "1.0.0"
 author: ""
-description: 统一A股全流程分析平台 — 数据桥接(4层降级) + 技术指标(零依赖) + 策略评分(trading-combo 100分) + 被套解套(4种量化策略) + 大盘健康度 + 持仓监控 + HTML报告。独立运行，不依赖TACN/TradingAgents项目。
+description: 统一A股全流程分析平台 — 数据桥接(4层降级) + 技术指标(零依赖) + 策略评分(trading-combo 100分) + 被套解套(4种量化策略) + 大盘健康度 + 持仓监控 + HTML报告。独立运行，自包含独立运行。
 tags: [A股, 选股, 策略, 技术分析, 解套, 监控, 数据, 全流程]
 related_skills: [a-share-data, trading-combo, a-share-paper-trading, a-share-dashboard, a-share-investment-expert, stock-report-html, macd-trend-resonance-stock-picker, a-share-strategy-mainboard-multi-swing-defensive]
 ---
@@ -11,7 +11,7 @@ related_skills: [a-share-data, trading-combo, a-share-paper-trading, a-share-das
 
 ## 定位
 
-**独立运行**的A股全流程技能。整合 TACN项目 + AI-Platform A股技能群 的全部前沿功能于一个技能中，不依赖 TACN/TradingAgents 项目代码。
+**独立运行**的A股全流程技能。作为 A-Stock Agents 统一全流程投研平台，完全自包含独立运行，具备 4 级数据降级、技术指标、多因子打分与动作单。
 
 ## 架构总览
 
@@ -333,11 +333,11 @@ python3 a_stocks.py score 600519 --board-chg 2.5 --board-top10 --short  # 短线
 ### 部署
 
 ```bash
-cp skills/astock-platform-evaluate/scripts/monitor_watchdog.py ~/.AI-Platform/scripts/
-nano ~/.AI-Platform/scripts/monitor_watchdog.py  # 修改 HOLDINGS 和 AVAILABLE_CASH
-AI-Platform cron create --name '全天持仓监控' \
+cp skills/astock-platform-evaluate/scripts/monitor_watchdog.py output/scripts/
+nano output/scripts/monitor_watchdog.py  # 修改 HOLDINGS 和 AVAILABLE_CASH
+# crontab 定时任务 --name '全天持仓监控' \
   --script monitor_watchdog.py --schedule 'every 5m' \
-  --no-agent --workdir ~/.AI-Platform/scripts --deliver all
+  --no-agent --workdir output/scripts --deliver all
 ```
 
 ---
@@ -447,7 +447,7 @@ python3 scripts/report_generator.py 600519
 | **报告格式** | `.html` (自包含单文件) | 使用 stock-report-html CSS 规范 |
 | **命名模式** | `<prefix>_<code/symbols>_<YYYYMMDD>.html` | 英文/数字+下划线，无中文 |
 | **多股报告** | `<prefix>_<codes-joined>_<YYYYMMDD>.html` | 代码用短横连接 |
-| **模板路径** | `skills/a-share-data/templates/stock-report.html` | 含完整CSS变量+组件系统 |
+| **模板路径** | `skills/astock-data-feed/templates/stock-report.html` | 含完整CSS变量+组件系统 |
 | **模板占位符** | `{{TITLE}}` `{{DATE}}` `{{HEADER_TAG}}` `{{MAIN_TITLE}}` `{{SUB_TITLE}}` `{{HEADER_STATS}}` `{{CONTENT}}` `{{FOOTER_TEXT}}` | 快速替换模式（8个占位符） |
 | **组件库** | `.card` `.tbl` `.tl` `.grid-2` `.grid-3` `.stat-row` `.info-box.(blue|green|red|ylw)` `.tag-(up|down|blue|ylw|cyan)` | 基于 stock-report-html skill |
 | **涨跌色** | 涨=`#d0312d` 红 / 跌=`#219653` 绿 | A股惯例 |
@@ -544,7 +544,7 @@ P2-P3 量化策略命令 (7个):
 - ✅ `stock_screener.py`: 依赖 `data_bridge` + `combo_scorer`
 - ✅ `monitor_watchdog.py`: 仅需 `urllib`
 - ✅ `report_generator.py`: 纯标准库
-- ❌ **不依赖**: TACN 项目、TradingAgents 项目、LangGraph、MongoDB、FastAPI
+- ❌ **不依赖**: TACN 项目、外部多智能体项目、LangGraph、MongoDB、FastAPI
 
 **路径配置优先级**: 环境变量 > `config.yaml` > 自动探测。详见 [十三、环境配置与迁移](#十三环境配置与迁移)。
 
@@ -595,10 +595,10 @@ L2/3/4 增强功能需要 `a-share-data` skill + venv Python (可选)，默认 L
 
 ### 定位
 
-**a-stocks LLM 多分析师协议**是 TACN LangGraph 多分析师协作的 AI-Platform 原生替代方案。
+**a-stocks LLM 多分析师协议**是 多分析师协同研判方案。
 核心差异:
 
-| 维度 | TACN LangGraph (旧) | a-stocks + AI-Platform (新) |
+| 维度 | 外部重量级图框架 (旧) | A-Stock 统一轻量编排 (新) |
 |:-----|:-------------------|:----------------------|
 | 架构 | Python 代码调用多个 LLM API 节点，Graph 编排 | AI Platform 自身 LLM 执行结构化多轮推理 |
 | API 调用 | 每个分析师一次 LLM 调用 (10+次) | **零额外 API 调用** — 复用当前会话的模型 |
@@ -699,10 +699,10 @@ python3 a_stocks.py analyze 600519
 
 # 深度分析 (脚本数据 + LLM 多分析师推理)
 # 通过 AI Platform 执行 (agent 收到 analyze --deep 后自动进入协议)
-AI-Platform "对 600519 做深度分析，包含多角度评估和风险辩论"
+astock debate 600519 # "对 600519 做深度分析，包含多角度评估和风险辩论"
 
 # 批量深度分析
-AI-Platform "对 600519,000400,002230 做批量深度分析"
+astock debate 600519 000400 002230 --json
 ```
 
 ### 与 TACN 能力对照
@@ -719,17 +719,17 @@ AI-Platform "对 600519,000400,002230 做批量深度分析"
 | Risk Debate (3方+委员会) | Phase 4: 风险辩论 |
 
 **未被复现**: TACN 的 Reflection (反思迭代) — 但这在单一 LLM 推理中天然更好:
-AI-Platform 单窗口连贯推理本身就支持"自我反思"，无需单独节点。
+智能体单会话推理本身就支持"自我反思"，无需单独节点。
 
 ### 为什么比 LangGraph 更好
 
 1. **上下文不丢失**: TACN 每个分析师独立 LLM 调用，只能看到上一个节点的输出文本。
-   AI-Platform 全部数据 + 之前分析师的输出都在同一窗口，可以随时交叉引证。
+   完整量化数据与各维度研判输出都在同一窗口，可以随时交叉引证。
 
 2. **辩论更真实**: TACN 的 Risk Debate 是三个独立 LLM 调用 + 委员会裁决，本质是消息传递。
-   AI-Platform 在同一个推理中构建 3 种场景，能发现更深层的矛盾 (如"激进条件在保守场景中也成立"这种跨场景推理)。
+   智能体在同一上下文中构建 3 种场景，能发现更深层的矛盾 (如"激进条件在保守场景中也成立"这种跨场景推理)。
 
-3. **自适应深度**: TACN 固定 10 节点拓扑。AI-Platform 可以动态决定:
+3. **自适应深度**: 传统固定节点拓扑对比，当前系统可自适应动态决定:
    - 对高波动股深度分析基本面
    - 对趋势股侧重技术面
    - 对横盘股侧重筹码和资金
@@ -746,7 +746,7 @@ a-stocks 支持三级配置优先级: **环境变量 > config.yaml > 自动探�
 
 ```bash
 # 核心环境变量
-export ASTOCKS_VENV_PY="$HOME/.AI-Platform/venvs/a-stocks/bin/python3"
+export ASTOCKS_VENV_PY="./.venv/bin/python3"
 export ASTOCKS_SYSTEM_PY="python3"
 export ASTOCKS_A_SHARE_DATA_DIR="skills/astock-data-feed"
 ```
@@ -824,7 +824,7 @@ print(f"建议策略: {result['decision_tree']['recommended']}")
 - [ ] `portfolio_risk_manager.py` 在 holdings 含 entry_price 时能输出 per_stock_stops
 - [ ] `--output json` 模式均能输出结构化 JSON
 - [ ] monitor_watchdog.py 在交易时间能正确检测止损
-- [ ] 不依赖 TACN/TradingAgents 项目文件
+- [ ] 完全自包含，不依赖外部项目文件
 - [ ] 环境变量 `ASTOCKS_VENV_PY` 未设置时 L2/L3 优雅降级 (不死机)
 - [ ] AI Platform 可通过本协议的 Phase 1-5 执行 LLM 深度分析
 

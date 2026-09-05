@@ -156,7 +156,7 @@ output_file.write_text(html, encoding="utf-8")
 # 4. 浏览器显示规范（Windows用）：报告生成落盘后，向用户提问确认是否在浏览器中弹出显示
 # 若用户确认打开，执行系统命令：
 # import subprocess
-# subprocess.run(["cmd.exe", "/c", "start", "", str(output).replace("/mnt/c/", "C:\\").replace("/", "\\")])
+# import webbrowser; webbrowser.open(Path(output).resolve().as_uri())
 ```
 
 

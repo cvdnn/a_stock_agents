@@ -1,7 +1,7 @@
 ---
 name: astock-screener-5a
 version: "5.0"
-author: AI-Platform
+author: A-Stock Agents
 license: MIT
 description: A股五维共振旋转选股引擎. Use when 用户要选股评分、回测验证策略或评估组合.
 tags: [A股, 选股, 旋转策略, 五维评分, 基本面过滤, 五大风险防范, 回测, 共振门禁, 组合分散, 样本外验证]

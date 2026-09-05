@@ -31,7 +31,7 @@ tags: [A股, 数据, 行情, 技术分析, 资金流向, 板块排行]
 ### 快速安装
 
 ```bash
-cd ./.AI-Platform/skills/stocks/a-share-data
+cd a_stock_agents
 bash setup.sh
 ```
 
@@ -41,10 +41,10 @@ bash setup.sh
 
 ```bash
 # 1. 安装依赖（通过 venv Python >= 3.10）
-/mnt/c/Users/user/coding/TradingAgents/.venv/bin/pip install -r requirements.txt
+pip install -r requirements.txt
 
-# 2. 配置 TOKEN（写入 ~/.AI-Platform/.env，不在 skill 目录落盘）
-echo 'AUTH_TOKEN="你的TOKEN"' > ~/.AI-Platform/.env
+# 2. 配置 TOKEN（写入 .env，不在 skill 目录落盘）
+echo 'AUTH_TOKEN="你的TOKEN"' > .env
 # 获取地址: https://ak.cheapproxy.net/dashboard/akshare
 
 # 3. 验证安装
@@ -73,13 +73,13 @@ akshare-proxy-patch>=0.5.0  - 代理补丁（绕过东财反爬）
 
 ## 配置系统
 
-所有配置集中在 `scripts/config.yaml`，TOKEN 从 `~/.AI-Platform/.env` 读取（不在 config.yaml 落盘）：
+所有配置集中在 `scripts/config.yaml`，TOKEN 从 `.env` 读取（不在 config.yaml 落盘）：
 
 ```yaml
 proxy_patch:
   enabled: true                    # 是否启用 proxy patch
   gateway: "101.201.173.125"       # 代理网关地址（不可修改）
-  auth_token: ""                   # 从 ~/.AI-Platform/.env 的 AUTH_TOKEN 读取
+  auth_token: ""                   # 从 .env 的 AUTH_TOKEN 读取
   retry: 30
   fast: true
   hook_domains:                    # 按 URL 路径精确匹配，节省积分
@@ -102,7 +102,7 @@ python:
 ### 方案 A：系统 Python（新浪/腾讯链路）
 
 ```bash
-SKILL_DIR="./.AI-Platform/skills/stocks/a-share-data/scripts"
+SKILL_DIR="skills/astock-data-feed/scripts"
 python3 "$SKILL_DIR/fetch_realtime.py" --quote 600760 --json
 python3 "$SKILL_DIR/fetch_history.py" --kline 600760 --start 20260601 --end 20260616 --freq d --json
 ```
@@ -112,7 +112,7 @@ python3 "$SKILL_DIR/fetch_history.py" --kline 600760 --start 20260601 --end 2026
 ### 方案 B：venv Python + proxy-patch（推荐 ⭐）
 
 ```bash
-SKILL_DIR="./.AI-Platform/skills/stocks/a-share-data/scripts"
+SKILL_DIR="skills/astock-data-feed/scripts"
 VENV_PY="python3"
 
 # 通过 fetch_patched.py 包装脚本调用（自动读取 config.yaml 初始化 patch）
@@ -258,9 +258,9 @@ def tencent_quote(codes):
 
 > ⚠️ **数据源可靠性陷阱（实测发现）**：\\n> 1. `--all-quote` 通过新浪/腾讯链路时**仅返回约20只股票**（非全市场），如需全市场数据必须通过 proxy-patch 用 `stock_zh_a_spot_em()`\\n> 2. `--boards-summary`（DangInvest API）**超时率较高（实测约50%）**，如超时请重试，仍失败则改用 `ak.stock_board_industry_name_em()` 通过 proxy-patch 获取（已验证：该东财接口稳定，排序取跌幅板块时使用 `.sort_values('涨跌幅')`）\\n> 3. `--boards-summary --sort change_pct_desc` **不生效** — DangInvest API 总是以 `market_cap_desc` 返回，`sort` 参数被忽略。需在客户端对返回的 `data` 数组按 `changePct` 自行排序。\\n> 4. `efinance` 获取指数报价时 `get_latest_quote(['sh000001'])` 可能报错，改用 `ak.stock_zh_index_daily_em()` 替代\\n> 5. **东财 proxy-patch 批量数据采集偶发超时**：单次调用 (如 `stock_cyq_em` 或 `stock_zh_a_hist`) 通常稳定 (<2s)，但批量循环采集多只股票或多周期时，第 N 次调用可能卡死超时（多次测试验证）。解决方案：每个循环内设置独立超时+重试，或用 `fetch_history.py`（新浪/腾讯链路）兜底批量历史数据。不要在同一脚本中对东财做 10+ 次连续调用而不加超时保护。\\n> 6. **proxy-patch 可连续数小时完全不可用** — 此时所有东财链路接口（板块排行、筹码、资金流、行业信息）均返回空/超时。这种现象会持续整个交易日。不要死磕，**立即降级到腾讯直连（方案D）**。先调用一次腾讯API获取行情，确认数据通路正常，再决定是否需要替代方案。\\n> 7. **proxy-patch 每次调用消耗代理积分** — `stock_zh_a_spot_em` 单次 12~18 分，其余接口 1~2 分。定期检查余额 `http://101.201.173.125:47001/api/token/{token}`（返回 `{"balance": N}`）。余额 < 100 时停止代理调用。详细积分优化策略见 `references/proxy-credit-cost.md`。
 
-### 新增陷阱：腾讯API直连在AI-Platform terminal中的\"bad request\"问题
+### 新增陷阱：腾讯API直连在Agent terminal中的\"bad request\"问题
 
-2026-07-21 实测：通过 `write_file` 写 Python urllib 脚本到 `/tmp/` 后 `python3 /tmp/xxx.py` 调用 `qt.gtimg.cn` 返回 \"bad request\"，而技能脚本 `fetch_realtime.py`（同一数据链路）正常工作。详见 `references/AI-Platform-terminal-tencent-block.md`。**对策**：当方案D裸调失败时，直接降级到方案A（技能脚本），不要反复重试。
+2026-07-21 实测：通过 `write_file` 写 Python urllib 脚本到 `/tmp/` 后 `python3 /tmp/xxx.py` 调用 `qt.gtimg.cn` 返回 \"bad request\"，而技能脚本 `fetch_realtime.py`（同一数据链路）正常工作。详见 `references/tencent-api-http-block.md`。**对策**：当方案D裸调失败时，直接降级到方案A（技能脚本），不要反复重试。
 
 ### 新增陷阱：--tick 数据仅覆盖开盘后前几分钟
 
@@ -343,7 +343,7 @@ def _is_blocked(code: str) -> bool:
 2. **持仓画像计算** — 成本、浮亏%、解套需涨幅
 3. **技术面解读** — KDJ J值极端值、MACD死叉/金叉、布林带突破、均线排列
 4. **分级操作方案** — 三档阶梯触发（减1/4→再减→清仓），每档对应一个触发价
-5. **自动监控** — `~/.AI-Platform/scripts/` 下创建 Python 脚本 + cron 每5分钟检测 + Windows Toast + 微信推送
+5. **自动监控** — `output/scripts/` 下创建 Python 脚本 + cron 每5分钟检测 + Windows Toast + 微信推送
 
 关键信号：KDJ J值<0是极端超卖，不要在此恐慌割肉。
 
@@ -354,7 +354,7 @@ def _is_blocked(code: str) -> bool:
 ### 技能脚本命令
 
 ```bash
-SKILL_DIR="./.AI-Platform/skills/stocks/a-share-data/scripts"
+SKILL_DIR="skills/astock-data-feed/scripts"
 VENV_PY="python3"
 
 # 方案A：系统 Python（新浪/腾讯）
@@ -530,22 +530,22 @@ curl http://101.201.173.125:47001/api/token/{TOKEN}
 ### 先决条件：Gateway 必须运行
 
 ```bash
-AI-Platform cron status
+# 查看系统定时任务状态: crontab -l
 # 如果显示 "Gateway is not running":
-AI-Platform gateway install    # 安装用户级 systemd 服务
-# WSL 中 systemd 不稳定，重启后需手动 AI-Platform gateway restart
+# 安装本地监控守护进程服务
+# 重启本地监控服务
 ```
 
 ### 部署步骤
 
 ```bash
 # 1. 复制监控模板，修改配置
-cp templates/monitor_watchdog.py ~/.AI-Platform/scripts/monitor_XXX.py
-nano ~/.AI-Platform/scripts/monitor_XXX.py
+cp templates/monitor_watchdog.py output/scripts/monitor_XXX.py
+nano output/scripts/monitor_XXX.py
 # 修改 CODE / NAME / TRIGGERS / COST_PRICE / HOLDINGS
 
 # 2. 设置定时任务（每5分钟检查）
-AI-Platform cron create \
+# 系统 crontab 定时监控配置: \
   --name "股票名称监控" \
   --script monitor_XXX.py \
   --schedule "every 5m" \
@@ -553,13 +553,13 @@ AI-Platform cron create \
   --deliver all
 
 # 3. 测试运行
-AI-Platform cron run <job_id>
+python output/scripts/monitor_XXX.py
 ```
 
 ### 工作原理
 
 - `is_market_hours()`：仅 A股交易时间（9:30-11:30 / 13:00-15:00）检测
-- 状态持久化：`~/.AI-Platform/scripts/stock_monitor_<CODE>_state.json`
+- 状态持久化：`output/scripts/stock_monitor_<CODE>_state.json`
 - 通知方式：Windows Toast + 所有已连接渠道
 - 触发价从高到低检查，避免低价位先拦截高价位
 
@@ -594,7 +594,7 @@ AI-Platform cron run <job_id>
 | `references/akshare-api-compatibility.md` | AKShare 接口版本兼容性 |
 | `references/proxy-credit-cost.md` | Proxy 积分消耗速查表 + 省积分策略 |
 | `references/balance-check.md` | 积分余额查询 CLI + 预检机制 + 省积分建议 |
-| `references/AI-Platform-terminal-tencent-block.md` | 腾讯API直连在 AI-Platform terminal 中返回"bad request"的根因与对策 |
+| `references/tencent-api-http-block.md` | 腾讯API直连在 Agent terminal 中返回"bad request"的根因与对策 |
 | `references/tick-limited-coverage.md` | --tick 仅覆盖开盘后前几分钟，早盘分析的替代方案 |
 | `references/technical-indicators-handbook.md` | A股盘口技术指标完整解析手册（量比/委比/换手率/内外盘/振幅/PE/PB） |
 | `templates/monitor_watchdog.py` | 通用 no_agent 监控脚本模板 |
@@ -608,7 +608,7 @@ AI-Platform cron run <job_id>
 ### 行业板块 TOP10/BOTTOM10
 
 ```bash
-SKILL_DIR="./.AI-Platform/skills/stocks/a-share-data/scripts"
+SKILL_DIR="skills/astock-data-feed/scripts"
 VENV_PY="python3"
 
 cd $SKILL_DIR && $VENV_PY -c "
@@ -682,7 +682,7 @@ if unmatched:
 - **列名陷阱**: `ak.stock_board_concept_name_em()` 返回的 DataFrame 列名是 `板块名称`，**不是** `概念板块名称`。容易从字面含义推导出错误列名。
 - **关键字重复匹配**: 不同关键字可能匹配到同一个概念板块（如 `芯片` 和 `存储` 都匹配 `存储芯片`）。必须用 `set` 去重。
 - **f-string 嵌套引号冲突**: 在 `-c` inline 模式中，外层 Python 字符串使用单引号包裹时，内部 f-string 不能再用单引号。例如 `print(f' (未匹配: {', '.join(unmatched)})')` 会 SyntaxError。改用 `.format()` 或外层双引号规避。
-- **AI-Platform 安全拦截 pipe-to-interpreter**: 形如 `$VENV_PY script.py | python3 -c "..."` 的管道命令会被 AI-Platform 安全系统标记为"下载内容不经检查直接执行"并阻止。如需后处理 JSON 输出，改为：①单独使用 `-c` 参数内联执行，②脚本内自带处理逻辑用 `print()` 输出，③或分两次终端调用。不要在技能命令示例中使用 `| python3` / `| python` 管道后处理。
+- **部分 Agent 平台安全拦截 pipe-to-interpreter**: 形如 `$VENV_PY script.py | python3 -c "..."` 的管道命令会被部分宿主安全系统标记为"下载内容不经检查直接执行"并阻止。如需后处理 JSON 输出，改为：①单独使用 `-c` 参数内联执行，②脚本内自带处理逻辑用 `print()` 输出，③或分两次终端调用。不要在技能命令示例中使用 `| python3` / `| python` 管道后处理。
 - **tqdm 进度条污染**: `akshare` 的 tqdm 输出会混入 stdout，在 `-c` 模式下不可避免，但最终会被覆盖或刷新。
 - **静态关键字列表可能过时**: 市场热点会变，关键字应随用户需求调整。本会话实测发现 `OCS`、`服务器`、`电源`、`铜箔`、`树脂`、`电子布` 等关键字匹配到零个概念板块，说明这些关键字在东方财富概念板块命名体系下已不活跃。
 
@@ -698,7 +698,7 @@ if unmatched:
 
 ### execute_code 跨调用变量隔离
 
-AI-Platform 的 `execute_code` 每次调用都运行独立的 Python 进程，所有变量不会跨调用保留。如果在分析 pipeline 中需要引用前一步计算的变量（如 `closes`、`highs`、`dif` 等），必须在同一个 `execute_code` 块内完成全部计算。分多次调用时不能假设全局变量仍然存在。
+智能体平台的代码执行环境 每次调用都运行独立的 Python 进程，所有变量不会跨调用保留。如果在分析 pipeline 中需要引用前一步计算的变量（如 `closes`、`highs`、`dif` 等），必须在同一个 `execute_code` 块内完成全部计算。分多次调用时不能假设全局变量仍然存在。
 
 **实战案例（2026-07-20 中航沈飞分析）：** 底背离检测代码因引用前一步定义的 `closes` 变量而抛出 NameError。修复方法：将数据获取+全部计算放在一个 `execute_code` 块中，或每次重新获取数据。
 

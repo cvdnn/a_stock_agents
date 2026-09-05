@@ -2,19 +2,19 @@
 name: astock-agent-debate
 version: "1.0.0"
 author: ""
-description: "Use when you need multi-agent A-stock research with 7 AI analysts (Market/Social/News/Fundamentals/Policy/HotMoney/Lockup), bull-bear debate, risk assessment, and integrated AI-Platform paper-trading + cron monitoring. Combines TradingAgents-astock multi-LLM debate pipeline with AI-Platform data fallback, quantitative scoring, and execution layers."
+description: "Use when you need multi-agent A-stock research with 7 AI analysts (Market/Social/News/Fundamentals/Policy/HotMoney/Lockup), bull-bear debate, risk assessment, and integrated paper-trading + cron monitoring. Combines 多智能体辩论框架 multi-LLM debate pipeline with data fallback, quantitative scoring, and execution layers."
 license: MIT
 metadata:
-  AI-Platform:
+  Agent-Platform:
     tags: [A股, 多智能体, 辩论, 投研, 分析, 交易, 政策, 游资, 解禁]
     related_skills: [a-share-data, a-share-paper-trading, trading-combo, macd-trend-resonance-stock-picker, a-share-strategy-mainboard-multi-swing-defensive, a-share-investment-expert, user-feedback-verification, a-share-dashboard]
 ---
 
-# 多Agent投研分析 — TradingAgents × AI-Platform 整合
+# 多Agent投研分析 — 多角色量化协同研判体系
 
 ## Overview
 
-将 [TradingAgents-astock](https://github.com/simonlin1212/TradingAgents-astock)（1750⭐）的 7 分析师多 Agent 辩论管道，与 AI-Platform 已有的 A 股权威技能体系深度融合。AI-Platform 端提供数据降级、量化评分、模拟盘执行、自动监控；TradingAgents 端提供多视角分析师协作、结构化辩论、质量门控和综合决策。
+将 [多智能体辩论框架](https://github.com/simonlin1212/多智能体辩论框架)（1750⭐）的 7 分析师多 Agent 辩论管道，与 A-Stock Agents 的量化内核深度融合。底层提供 4 级数据降级、多因子打分、模拟盘撮合与风控决策。
 
 ## When to Use
 
@@ -24,7 +24,7 @@ metadata:
 - **多Agent辩论决策** — "多角度分析 600760，让分析师们辩论一下"
 - **投研报告生成** — "出一份带政策分析、游资、解禁的完整报告"
 - **决策 + 执行** — "分析完如果推荐买入，直接在模拟盘下单并部署监控"
-- **融合评分验证** — "用 TradingAgents 跑完再用 trading-combo 打分验证"
+- **融合评分验证** — "执行 7 大分析师多空辩论并与量化模型交叉验证"
 
 不使用场景：
 
@@ -37,13 +37,13 @@ metadata:
 ```
                             ┌──────────────────────────┐
                             │   ta_analyze.py (入口)    │
-                            │ AI-Platform CLI 触发           │
+                            │ 统一 CLI (astock debate) 触发  │
                             └──────┬───────────────────┘
                                    │
                     ┌──────────────┼──────────────┐
                     ▼              ▼              ▼
          ┌────────────────┐ ┌──────────┐ ┌──────────────┐
-         │  AI-Platform 数据层  │ │ 量化评分 │ │ TradingAgents│
+         │  A-Stock 数据层     │ │ 量化评分 │ │ 多智能体分析引擎│
          │ (a-share-data) │ │ 预筛选   │ │ 多Agent管道  │
          │ 4层降级保障     │ │ (可选)   │ │ 7分析师辩论  │
          └────────┬───────┘ └──────────┘ └──────┬────────┘
@@ -51,7 +51,7 @@ metadata:
                   ▼                              ▼
          ┌──────────────────────────────────────────┐
          │        结果融合 & 交叉验证                │
-         │  AI-Platform 数据源 × TA 分析师报告            │
+         │  A-Stock 数据源 × 分析师多空研报                │
          │  trading-combo 评分 × LLM 决策           │
          └─────────────────┬────────────────────────┘
                            │
@@ -66,12 +66,12 @@ metadata:
 
 ## 前置条件
 
-### 1. TradingAgents-astock 安装
+### 1. 多智能体辩论框架 安装
 
 ```bash
 # 克隆到本地
-git clone https://github.com/simonlin1212/TradingAgents-astock.git
-cd TradingAgents-astock
+git clone https://github.com/simonlin1212/多智能体辩论框架.git
+cd 多智能体辩论框架
 pip install -e .
 
 # 配置 LLM API Key (.env 文件)
@@ -83,10 +83,10 @@ DEEPSEEK_API_KEY=sk-xxx
 EOF
 
 # 验证
-python3 -c "from tradingagents.graph.trading_graph import TradingAgentsGraph; print('OK')"
+python3 -c "from tradingagents.graph.trading_graph import 多智能体分析引擎Graph; print('OK')"
 ```
 
-### 2. AI-Platform 前置技能就绪
+### 2. 前置数据与引擎就绪
 
 | 技能 | 用途 | 安装状态 |
 |------|------|---------|
@@ -101,20 +101,20 @@ python3 -c "from tradingagents.graph.trading_graph import TradingAgentsGraph; pr
 
 ```python
 _TA_PATHS = [
-    "/mnt/c/Users/user/coding/TradingAgents/_original_src",  # 完整管道（agents/graph/llm_clients）
-    "/mnt/c/Users/user/coding/TradingAgents",                # 根项目（仅 dataflows/ 时不可用）
-    "~/TradingAgents-astock",                                  # 用户目录
+    "./core/multi_agent/_original_src",  # 完整管道（agents/graph/llm_clients）
+    "./core/multi_agent",                # 根项目（仅 dataflows/ 时不可用）
+    "~/多智能体辩论框架",                                  # 用户目录
 ]
 ```
 
-> ⚠️ `_original_src` 优先级高于 `TradingAgents` 根目录，因为它包含完整的 `agents/graph/llm_clients` 模块。根目录可能只有 `dataflows/` 子模块，无法运行 Phase 2。
+> ⚠️ `_original_src` 优先级高于 `多智能体分析引擎` 根目录，因为它包含完整的 `agents/graph/llm_clients` 模块。根目录可能只有 `dataflows/` 子模块，无法运行 Phase 2。
 
 ## 核心工作流
 
 ### 完整 3 阶段分析
 
 ```
-Phase 1 — 数据准备 & 预筛选（AI-Platform 端）
+Phase 1 — 数据准备 & 预筛选（量化数据与评分）
 ┌──────────────────────────────────────────────┐
 │ ① 调用 a-share-data 获取实时行情 + K线        │
 │ ② 调用 trading-combo 做 100 分评分预筛        │
@@ -123,7 +123,7 @@ Phase 1 — 数据准备 & 预筛选（AI-Platform 端）
 │ → 产出：量化评分 + 数据清单                    │
 └──────────────────────────────────────────────┘
 
-Phase 2 — 多Agent深度分析（TradingAgents 端）
+Phase 2 — 多Agent深度分析（多智能体分析引擎 端）
 ┌──────────────────────────────────────────────┐
 │ ⑤ 7 分析师并行产出报告                        │
 │   市场 | 舆情 | 新闻 | 基本面 | 政策 | 游资 | 解禁 │
@@ -136,7 +136,7 @@ Phase 2 — 多Agent深度分析（TradingAgents 端）
 │ → 产出：结构化决策 + 报告                      │
 └──────────────────────────────────────────────┘
 
-Phase 3 — 执行 & 监控（AI-Platform 端）
+Phase 3 — 执行 & 监控（量化数据与评分）
 ┌──────────────────────────────────────────────┐
 │ ⑫ 如果决策 Buy：                              │
 │   ├─ 通过 a-share-paper-trading API 模拟下单  │
@@ -154,7 +154,7 @@ Phase 3 — 执行 & 监控（AI-Platform 端）
 
 ```bash
 VENV_PY="python3"
-SKILL_DIR="./.AI-Platform/skills/stocks/ta-multi-agent-analysis"
+SKILL_DIR="skills/astock-agent-debate"
 
 # 基础分析（自动同步到自选股池）
 $VENV_PY $SKILL_DIR/scripts/ta_analyze.py 600519 --date 2026-07-09
@@ -336,7 +336,7 @@ $VENV_PY $SKILL_DIR/scripts/ta_analyze.py --batch stocks.txt \
 
 ## 关联技能详解
 
-### AI-Platform 端（数据层 + 执行层）
+### 量化数据层与执行层
 
 | 技能 | 在本 skill 中的角色 |
 |------|-------------------|
@@ -348,7 +348,7 @@ $VENV_PY $SKILL_DIR/scripts/ta_analyze.py --batch stocks.txt \
 | `a-share-investment-expert` | Phase 2 四维评分补充 |
 | `user-feedback-verification` | Phase 2 用户断言验证 |
 
-### TradingAgents 端（多Agent管道）
+### 多智能体分析引擎 端（多Agent管道）
 
 | 模块 | 在本 skill 中的角色 |
 |------|-------------------|
@@ -361,9 +361,9 @@ $VENV_PY $SKILL_DIR/scripts/ta_analyze.py --batch stocks.txt \
 | `tradingagents/graph/` | LangGraph 图编排 |
 | `tradingagents/dataflows/a_stock.py` | A 股数据 vendor（可选替换） |
 
-## Integration Points（AI-Platform 注入点）
+## 核心数据与算法注入点
 
-以下是将 AI-Platform 数据层注入 TradingAgents-astock 的关键代码钩子：
+以下是将多级数据降级机制注入多智能体研判 的关键代码钩子：
 
 ### 数据降级（替换 a_stock.py 部分函数）
 
@@ -371,30 +371,30 @@ $VENV_PY $SKILL_DIR/scripts/ta_analyze.py --batch stocks.txt \
 # ta_analyze.py 中数据获取的降级路由
 _DATA_STRATEGIES = {
     "OHLCV": [
-        ("proxy-patch东财",  lambda c,s,e: _AI-Platform_fetch_history(c, s, e)),
-        ("新浪/腾讯脚本",     lambda c,s,e: _AI-Platform_fallback_history(c, s, e)),
+        ("proxy-patch东财",  lambda c,s,e: _fetch_history(c, s, e)),
+        ("新浪/腾讯脚本",     lambda c,s,e: _fallback_history(c, s, e)),
         ("腾讯qt.gtimg.cn",  lambda c,s,e: _tencent_direct_kline(c, s, e)),
     ],
     "实时行情": [
         ("腾讯qt.gtimg.cn", lambda c: _tencent_quote(c)),
-        ("新浪脚本",        lambda c: _AI-Platform_quote(c)),
+        ("新浪脚本",        lambda c: _quote(c)),
     ],
     "技术指标": [
-        ("MyTT计算", lambda c: _AI-Platform_technical(c)),
+        ("MyTT计算", lambda c: _calc_technical(c)),
     ],
     "板块排行": [
-        ("东财proxy-patch", lambda: _AI-Platform_board_summary()),
+        ("东财行情", lambda: _board_summary()),
         ("akshare直连",    lambda: _akshare_board()),
     ],
 }
 ```
 
-### 量化评分注入（TradingAgents Research Manager context）
+### 量化评分注入（多智能体分析引擎 Research Manager context）
 
 ```python
 # 在调用 Research Manager 前注入评分
 SCORE_CONTEXT = """
-=== AI-Platform 量化评分参考 ===
+=== A-Stock 量化评分参考 ===
 总分: {total}/100 (评级: {rating})
 均线: {ma}/25 | MACD: {macd}/40 | 量价: {vp}/15 | 板块: {sector}/20
 
@@ -404,7 +404,7 @@ SCORE_CONTEXT = """
 """
 ```
 
-### 模拟盘对接（TradingAgents Trader → AI-Platform paper-trading）
+### 模拟盘对接（分析师决策 → 本地模拟盘执行 (paper-trading)）
 
 ```python
 # 在 Trader 输出交易方案后，实际落地
@@ -420,7 +420,7 @@ _EXECUTE_MAP = {
 
 | 参数 | 环境变量 | 默认值 | 说明 |
 |------|---------|--------|------|
-| `TA_PROJECT_DIR` | `TA_PROJECT_DIR` | 自动检测 | TradingAgents 项目路径 |
+| `TA_PROJECT_DIR` | `TA_PROJECT_DIR` | 自动检测 | 外部参考投研库路径（可选） |
 | `--provider` | `TA_LLM_PROVIDER` | `minimax` | LLM 供应商 |
 | `--deep-model` | `TA_DEEP_MODEL` | `MiniMax-M2.7` | 深度思考模型 |
 | `--quick-model` | `TA_QUICK_MODEL` | `MiniMax-M2.7-highspeed` | 快速模型 |
@@ -430,16 +430,16 @@ _EXECUTE_MAP = {
 ## 已知问题与踩坑
 
 1. **LLM API Key 缺失** — ta_analyze.py 需要 `.env` 文件在 TA 项目根目录。首次运行检查：`test -f $TA_PROJECT_DIR/.env && echo OK`
-2. **TradingAgents 模块不全（常见陷阱 ⚠️）** — 项目根目录 `tradingagents/` 可能只有 `dataflows/` 子模块，缺少 `agents/graph/llm_clients`。**必须从 `_original_src/` 安装**：`cd .../_original_src && pip install -e .`。ta_analyze.py 的 `phase2_multiagent_analysis()` 已内置缺失模块检测。
-3. **`DEFAULT_CONFIG` 缺失字段（子进程 KeyError）** — `phase2_multiagent_analysis()` 的 config dict 必须 merge `DEFAULT_CONFIG`，否则 `TradingAgentsGraph.__init__` 报 `KeyError: 'data_cache_dir'`。已修复：`config = dict(DEFAULT_CONFIG); config.update({...})`。如果新增类似子进程代码，一定要先加载 DEFAULT_CONFIG 再覆盖。
-4. **`.env` 路径在 `_original_src` 下不存在** — 当 TA_DIR 指向 `_original_src` 时，`.env` 在父目录 (`TradingAgents/.env`)。子进程代码已添加 fallback：`Path(TA_DIR) / '.env'` -> `Path(TA_DIR).parent / '.env'`。
+2. **多智能体分析引擎 模块不全（常见陷阱 ⚠️）** — 项目根目录 `tradingagents/` 可能只有 `dataflows/` 子模块，缺少 `agents/graph/llm_clients`。**必须从 `_original_src/` 安装**：`cd .../_original_src && pip install -e .`。ta_analyze.py 的 `phase2_multiagent_analysis()` 已内置缺失模块检测。
+3. **`DEFAULT_CONFIG` 缺失字段（子进程 KeyError）** — `phase2_multiagent_analysis()` 的 config dict 必须 merge `DEFAULT_CONFIG`，否则 `多智能体分析引擎Graph.__init__` 报 `KeyError: 'data_cache_dir'`。已修复：`config = dict(DEFAULT_CONFIG); config.update({...})`。如果新增类似子进程代码，一定要先加载 DEFAULT_CONFIG 再覆盖。
+4. **`.env` 路径在 `_original_src` 下不存在** — 当 TA_DIR 指向 `_original_src` 时，`.env` 在父目录 (`多智能体分析引擎/.env`)。子进程代码已添加 fallback：`Path(TA_DIR) / '.env'` -> `Path(TA_DIR).parent / '.env'`。
 5. **`langgraph.graph` 首次导入极慢（~12s）** — 这是 `langgraph` 包的正常冷启动行为，非卡死。ta_analyze.py 的子进程 timeout=300s 足够覆盖。如需在交互式终端中测试，用 `timeout 60` 而非 `timeout 30`。
 6. **A 股数据 vendor 不匹配** — `_original_src/tradingagents/dataflows/` 不含 `a_stock.py`（该文件仅在 GitHub fork 中存在）。本地改用 `akshare/` 子模块。运行时需要在 config 中指定 data_vendors。
 7. **setup.sh 语法陷阱** — bash 脚本顶部不能有 Python 的 `"""..."""` 文档字符串，否则 bash 会报错。必须用 `#` 注释替代。
 8. **模拟盘服务 Python 版本** — 不支持 Python 3.9（pandas 导入 `TypeAlias` 失败）。必须用 Python >= 3.10 的 venv 启动：`$VENV_PY paper_trading_service.py --port 18765`
-9. **符号链接缺失导致监控静默回退** — `a-share-dashboard` 的 cron 脚本部署到 `~/.AI-Platform/scripts/` 后 `SKILL_DIR` 解析错误，需创建：`ln -sf .../a-share-dashboard/data ~/.AI-Platform/scripts/data`
-10. **TradingAgents LLM 调用成本** — 一次完整分析 30-50 次 LLM 调用（20-50 万 token）。首次用 `--phase 2 --brief` 测试。
-11. **数据源冲突** — TA 自带 `a_stock.py` 和 AI-Platform `a-share-data` 可能同时请求同一标的。ta_analyze.py 默认优先使用 AI-Platform 数据层。
+9. **符号链接缺失导致监控静默回退** — `a-share-dashboard` 的 cron 脚本部署到 `output/scripts/` 后 `SKILL_DIR` 解析错误，需创建：`ln -sf .../a-share-dashboard/data output/cache/data`
+10. **多智能体分析引擎 LLM 调用成本** — 一次完整分析 30-50 次 LLM 调用（20-50 万 token）。首次用 `--phase 2 --brief` 测试。
+11. **数据源冲突** — 数据层请求已统一收敛至 core.data 4级自动降级机制。
 12. **Phase 1 腾讯直连降级** — 当 `fetch_technical.py` 超时（WSL 下常见），自动退回到腾讯实时行情的简化评分，标注 `note="腾讯直连模式"`。
 13. **CSV schema 自动迁移** — `pool_manager.py` 每次运行自动检测并补全 CSV 缺失字段，旧文件无需手动修改。
 
@@ -473,7 +473,7 @@ python3 ta_orchestrator.py --mode reanalyze --ticker 600760
 python3 ta_orchestrator.py --mode check-pool
 
 # 部署到 cron（每个交易日16点）
-AI-Platform cron create --name "TA每日收盘分析" \
+# crontab: 定时任务调度 --name "TA每日收盘分析" \
   --script /path/to/ta_orchestrator.py \
   --schedule "0 16 * * 1-5" --deliver all
 ```
@@ -483,9 +483,9 @@ AI-Platform cron create --name "TA每日收盘分析" \
 - [ ] `ta_analyze.py --help` 显示完整参数（含 `--sync-pool` / `--no-sync-pool`）
 - [ ] `ta_analyze.py 600519 --phase 1 --pre-score --no-sync-pool` 能输出量化评分
 - [ ] `ta_analyze.py 600519 --phase 2 --brief` 能跑通多Agent管道
-- [ ] TradingAgents `_original_src/` 目录存在完整 `agents/graph/llm_clients` 模块
-- [ ] TradingAgents `.env` 文件存在且配置正确
-- [ ] `~/.AI-Platform/scripts/data` 符号链接指向 `a-share-dashboard/data`（`ls -la` 验证）
+- [ ] 多智能体分析引擎 `_original_src/` 目录存在完整 `agents/graph/llm_clients` 模块
+- [ ] 多智能体分析引擎 `.env` 文件存在且配置正确
+- [ ] `output/cache/data` 符号链接指向 `a-share-dashboard/data`（`ls -la` 验证）
 - [ ] a-share-paper-trading 服务在端口 18765 监听（用 `curl :18765/health` 验证）
 - [ ] `--paper-trade` 能成功下单到模拟盘
 - [ ] `--deploy-monitor` 能创建 cron 监控任务

@@ -114,7 +114,7 @@ python3 "$SKILL_DIR/scripts/realtime_quotes.py" -f "$HOME/my_holdings.txt" --wor
 ```bash
 # 1a. 跑策略得到候选列表（去重合并 from_previous_day_close + from_last_close）
 VENV_PY="python3"
-SKILL_DIR="./.AI-Platform/skills/stocks/a-share-strategy-mainboard-multi-swing-defensive"
+SKILL_DIR="skills/astock-strategy-mainboard/scripts"
 "$VENV_PY" "$SKILL_DIR/scripts/daily_decisions.py" --top-n 300 --max-buys 30 --json 2>/dev/null
 
 # 1b. 批量拉实时行情（配合 realtime_quotes.py）

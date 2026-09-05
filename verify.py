@@ -23,7 +23,7 @@ def run_tests():
     print("=" * 70)
 
     passed_count = 0
-    total_count = 10
+    total_count = 11
 
 
     # Test 1: Skill Manifest Integrity
@@ -248,6 +248,45 @@ def run_tests():
         assert r_rp.returncode == 0 and "report_path" in r_rp.stdout, f"report CLI failed: {r_rp.stderr}"
 
         print("  --> PASS (统一 CLI 成功集成 screen、trapped 与 report，命令行交互与自动化调用完全就绪)")
+        passed_count += 1
+    except Exception as e:
+        print(f"  --> FAIL: {e}")
+
+    # Test 11: Cross-platform Workspace In-Place Discovery & Cleanliness Audit
+    print("[11/11] 检查跨平台工作区就地挂载、纯净度及 debate 闭环调度...")
+    try:
+        from core.workspace import setup_workspace_mount, check_workspace_health
+        from core.reporting.report_generator import TEMPLATE_PATH
+
+        # 1. 挂载健康度
+        setup_workspace_mount()
+        health = check_workspace_health()
+        assert health["is_healthy"], f"Workspace health check failed: {health}"
+        assert health["total_skills"] >= 15, f"Expected >= 15 skills in .agents/skills, got {health['total_skills']}"
+
+        # 2. 报告模板存在性
+        assert TEMPLATE_PATH.exists(), f"Report template path does not exist: {TEMPLATE_PATH}"
+
+        # 3. 技能文档私有路径纯净度审计
+        dirty_keywords = ["/mnt/c", "AI-Platform", "TradingAgents"]
+        skills_p = PROJECT_ROOT / "skills"
+        dirty_found = []
+        for d in skills_p.iterdir():
+            if d.is_dir():
+                sf = d / "SKILL.md"
+                if sf.exists():
+                    text = sf.read_text(encoding="utf-8")
+                    for k in dirty_keywords:
+                        if k in text:
+                            dirty_found.append(f"{d.name}: {k}")
+        assert len(dirty_found) == 0, f"Dirty paths found in SKILL.md: {dirty_found}"
+
+        # 4. debate 命令闭环验证
+        cmd_db = [sys.executable, str(PROJECT_ROOT / "core" / "cli.py"), "debate", "600519", "--json"]
+        r_db = subprocess.run(cmd_db, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
+        assert r_db.returncode == 0 and "consensus" in r_db.stdout and "analysts" in r_db.stdout, f"debate CLI failed: {r_db.stderr}"
+
+        print(f"  --> PASS (工作区就地挂载生效、17项技能零污染、报告模板有效、7大分析师辩论自闭环)")
         passed_count += 1
     except Exception as e:
         print(f"  --> FAIL: {e}")

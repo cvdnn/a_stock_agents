@@ -59,14 +59,14 @@ delegation.model: ''     # 子代理继承父会话模型（当前为 flash）
 
 # 股票编程
 # 用 execute_code 替代 delegate_task，在主会话中链式调用工具
-# from AI-Platform_tools import write_file, terminal, ...
+# from agent_tools import write_file, terminal, ...
 ```
 
 ## 审核清单
 - [ ] 这是纯分析任务？
-  - → 主会话 flash 直接执行，或 delegate_task
+  - → 主会话直接执行分析，或派发子代理
 - [ ] 这是编程/脚本任务？
-  - → 使用 `execute_code` / `write_file` / `terminal` 在主会话用 flash 完成
+  - → 使用代码执行或终端在主会话调用 `./bin/astock` 完成
 - [ ] 任务极其复杂需要更强推理？
-  - → 手动切换模型：`AI-Platform model set deepseek-v4-pro --provider deepseek`
-  - → 完成后再切回：`AI-Platform model set deepseek-v4-flash --provider deepseek`
+  - → 建议使用 Pro / 高推理能力模型（如 deepseek-reasoner / claude-3-7-sonnet / gpt-4o）
+  - → 常规任务推荐 Flash / 快速模型以节省延迟与 Token

@@ -21,7 +21,19 @@ if str(PROJECT_ROOT / "core") not in sys.path:
 
 from core.config import OUTPUT_REPORTS_DIR
 
-TEMPLATE_PATH = PROJECT_ROOT / "skills" / "a-share-data" / "templates" / "stock-report.html"
+def _resolve_template_path() -> Path:
+    """自适应查找并解析 HTML 报告模板路径"""
+    candidate_paths = [
+        PROJECT_ROOT / "skills" / "astock-data-feed" / "templates" / "stock-report.html",
+        PROJECT_ROOT / ".agents" / "skills" / "astock-data-feed" / "templates" / "stock-report.html",
+        PROJECT_ROOT / "skills" / "a-share-data" / "templates" / "stock-report.html",
+    ]
+    for p in candidate_paths:
+        if p.exists():
+            return p
+    return candidate_paths[0]
+
+TEMPLATE_PATH = _resolve_template_path()
 
 
 def generate_simple_report(data: dict, output_path: str = None) -> str:

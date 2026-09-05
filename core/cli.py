@@ -34,6 +34,7 @@ from core.commands import (
     cmd_action_plan,
     cmd_analyze,
     cmd_backtest,
+    cmd_debate,
     cmd_balance,
     cmd_batch,
     cmd_config_market,
@@ -78,6 +79,7 @@ __all__ = [
     "cmd_market",
     "cmd_score",
     "cmd_analyze",
+    "cmd_debate",
     "cmd_multi_factor",
     "cmd_trapped",
     "cmd_risk",
@@ -246,6 +248,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_vb.add_argument("code", help="股票代码")
     p_vb.add_argument("--count", type=int, default=120)
 
+    # debate
+    p_deb = subparsers.add_parser("debate", help="7大AI分析师多空辩论与协同研判", parents=[common_parser])
+    p_deb.add_argument("code", help="股票代码")
+
     # action
     p_action = subparsers.add_parser("action", help="实战交易反应动作决策单", parents=[common_parser])
     p_action.add_argument("code", nargs="?", default=None, help="股票代码")
@@ -372,6 +378,8 @@ def main():
         cmd_grid(args)
     elif cmd == "vol-breakout":
         cmd_vol_breakout(args)
+    elif cmd == "debate":
+        cmd_debate(args)
     elif cmd == "action":
         if getattr(args, "opt_code", None):
             args.code = args.opt_code

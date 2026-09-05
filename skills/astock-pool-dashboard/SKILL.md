@@ -78,26 +78,25 @@ tags: [投研面板, 选股, 持仓管理, 入场监控, 回撤风控, 换股策
   7. 可用资金提示
 ```
 
-### 11.5 部署命令速查
+### 11.5 定时监控部署速查
 
+使用系统 crontab 或本地守护进程定时调度：
 ```bash
 # 竞价分析（09:25-09:30间执行）
-AI-Platform cron create "30 9 * * 1-5" --name "000400竞价分析" \
-  --script auction_000400.py --no-agent --workdir ~/.AI-Platform/scripts
+# 30 9 * * 1-5 cd /path/to/a_stock_agents && ./bin/astock evaluate 000400 --json
 
 # 午盘分析（11:30执行）
-AI-Platform cron create "0 12 * * 1-5" --name "000400午盘分析" \
-  --script midday_000400.py --no-agent --workdir ~/.AI-Platform/scripts
+# 0 12 * * 1-5 cd /path/to/a_stock_agents && ./bin/astock evaluate 000400 --json
 
-# 全天监控（每5分钟）
-AI-Platform cron create "every 5m" --name "全天持仓监控" \
-  --script portfolio_monitor.py --no-agent --workdir ~/.AI-Platform/scripts
+# 全天持仓风控监控（盘中每5分钟）
+# */5 9-11,13-14 * * 1-5 cd /path/to/a_stock_agents && ./bin/astock pool audit --json
 ```
 
-### 11.6 脚本部署到cron的路径规则
+### 11.6 定时任务路径规范
 
-- `--workdir ~/.AI-Platform/scripts` 是必需的，确保脚本能正确找到数据文件
-- 新脚本必须放在 `~/.AI-Platform/scripts/` 下，不在技能目录内直接引用
+- 始终在项目根目录下执行 `./bin/astock` 或 `python core/cli.py`
+- 监控产生的数据与状态持久化保存于 `output/cache/` 或 `output/positions/`，遵循数据隔离标准
+- 脚本内所有子进程调用统一使用 `sys.executable`（保证虚拟环境一致性）
 - 脚本内所有 `subprocess.run` 调用 `sys.executable` 而非硬编码 `python3`（兼容cron环境）
 - 所有文件路径使用绝对 `Path` 或 `Path.home()` 构建，不依赖 `__file__` 推导
 

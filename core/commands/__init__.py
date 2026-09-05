@@ -14,6 +14,7 @@ from core.commands.data_cmds import (
 )
 from core.commands.model_cmds import (
     cmd_analyze,
+    cmd_debate,
     cmd_deploy_monitor,
     cmd_evaluate,
     cmd_multi_factor,
@@ -55,6 +56,7 @@ __all__ = [
     "cmd_market",
     "cmd_score",
     "cmd_analyze",
+    "cmd_debate",
     "cmd_multi_factor",
     "cmd_trapped",
     "cmd_risk",

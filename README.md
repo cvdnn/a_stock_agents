@@ -18,8 +18,9 @@
 - [四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)](#四第三方-ai-平台与工具使用指南-antigravity--hermes--codex-等)
 - [五、CLI 实战命令速查与使用说明](#五cli-实战命令速查与使用说明)
 - [六、用户专属数据隔离 (output/)、安全打包与热更新](#六用户专属数据隔离-output-安全打包与热更新)
-- [七、项目技术文档体系](#七项目技术文档体系)
-- [八、免责声明](#八免责声明)
+- [七、下一阶段演进路线：独立 Web AIChatUI 与 Skill 治理系统](#七下一阶段演进路线独立-web-aichatui-与-skill-治理系统)
+- [八、项目技术文档体系](#八项目技术文档体系)
+- [九、免责声明](#九免责声明)
 
 ---
 
@@ -99,69 +100,79 @@
 # 进入项目目录
 cd a_stock_agents
 
-# 赋予执行权限并一键安装
+# 赋予执行权限并一键安装 (自动初始化虚拟环境、依赖、.agents/skills 挂载与自检)
 chmod +x install.sh update.sh bin/astock
 ./install.sh
 
-# 运行自检
+# 手动运行 11/11 项全功能自动化自检
 python verify.py
 ```
 
 ### 2. Windows (PowerShell)
 ```powershell
+# 进入项目目录
 cd a_stock_agents
+
+# 一键安装部署 (自动配置 Windows Directory Junction、依赖与自检)
 .\install.ps1
+
+# 手动运行自检
 python verify.py
 ```
+
+> [!TIP]
+> **自动就地挂载保障**：安装脚本会自动调用 `core/workspace.py`，根据当前操作系统自适应建立 `.agents/skills` 链接（POSIX 相对软链接 / Windows 目录联接），确保任何 AI Agent 打开即可原地工作，绝不污染全局系统。
+
 
 ---
 
 ## 四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)
 
-本项目原生支持 **项目级就地按需调用（In-Place Project Skills）**，**无需将技能文件复制或软链接至系统全局目录**，即可在主流 AI Agent 平台中开箱即用：
+本项目原生支持 **项目级就地按需调用（In-Place Project Skills）**，**无需将技能文件复制或安装至系统全局技能库**，即可在主流 AI Agent 平台中开箱即用：
 
-### 1. 核心使用模式：项目内就地按需调用（推荐 · 零污染）
+### 1. 核心使用原则：零全局污染（Zero Global Pollution）
 - **工作区就地检索 (Workspace In-Place Discovery)**：
-  - 当 AI Agent（如 Google Antigravity、Claude Code、OpenAI Codex、Cursor）在当前工作区中工作时，可直接就地读取项目内的 [`skills/<skill_id>/SKILL.md`](skills/) 获取专业领域策略指引。
-  - AI 代理直接执行项目内的 CLI 工具：`./bin/astock <subcommand> --json` 完成量化运算与策略决策。
-- **单一真理来源 (Single Source of Truth)**：
-  - 所有技能代码、提示词与量化引擎均在项目内由 Git 统筹管理，任何修改即时生效，杜绝了多处复制带来的版本冲突。
+  - 打开 `a_stock_agents` 目录作为工作区，AI Agent 自动识别工作区内的技能与规则规范（[`AGENTS.md`](AGENTS.md) 与 [`.agents/skills`](.agents/skills)）。
+  - 关闭工作区后全局零残留，杜绝多处复制带来的版本冲突与环境污染。
+- **跨平台统一执行底座**：
+  - **Linux / macOS**: `./bin/astock <subcommand> --json`
+  - **Windows (CMD/PowerShell)**: `.\bin\astock.cmd <subcommand> --json`
+  - **跨平台通用回退**: `python core/cli.py <subcommand> --json`
 
 ---
 
-### 2. 各主流 AI 平台接入指南
+### 2. 各主流 AI 平台接入最佳实践
 
-#### A. Google Antigravity / Gemini CLI
-- **项目级使用模式**：
-  - 将 `a_stock_agents` 作为工作区打开，Antigravity 可直接就地索引 `skills/*/SKILL.md`。
-  - 对话中通过 `run_command` 直接调用 `./bin/astock <subcommand> --json` 获取结构化量化数据。
-- **跨目录环境变量引用**（可选）：
-  - 若在外部项目会话中调用，设置环境变量 `A_STOCK_AGENTS_ROOT=/path/to/a_stock_agents` 即可远程执行 `astock`。
+#### A. Google Antigravity (原生工作区支持)
+- **开箱即用**：
+  - Antigravity 官方工作区定制根为 `.agents/`。本项目已跨平台自动挂载 `.agents/skills -> skills`。
+  - 只需在 Antigravity 中将本项目作为工作区（Open Workspace）打开，系统原生技能列表即可**原地自动挂载 17 项技能**。
+  - 对话中直接说“帮我查茅台行情”或“5A选股”，Antigravity 会自动激活对应技能，并通过 `run_command` 执行 `./bin/astock ... --json`。
 
-#### B. Hermes Agent
-- **路径直接挂载（免复制）**：
-  - 在 Hermes 配置或启动会话时，直接将技能检索路径指向本项目的 `skills/` 目录（或配置环境变量 `A_STOCK_AGENTS_ROOT`）。
-  - Hermes Agent 将自动按需读取对应技能的系统提示词（如 `macd-second-golden-cross`、`tuige-shortline-trading`），并通过子进程执行量化脚本。
+#### B. Hermes Agent (会话级挂载)
+- **免参数/免复制运行**：
+  - 直接在项目根目录下启动：`hermes --skills-dir ./skills`
+  - Hermes 自动扫描 `./skills/*/SKILL.md`，并在子进程中调用当前工作区的 `./bin/astock`。
 
-#### C. OpenAI Codex / Copilot CLI / Claude Code
-- **CLI 工具黑盒执行**：
-  - 在大模型上下文或 Function Calling 工具定义中，直接将 `astock` 注册为量化分析工具：
-  - **Tool Name**：`astock_quant_tool`
-  - **Description**：`A-Stock quantitative CLI for market data, indicators, 5A rotation screener, and execution action engine.`
-  - **Command**：`/path/to/a_stock_agents/bin/astock <command> --json`
-- **Sub-Agent 协同派发**：
-  - 主 Agent 可派发 `ta-multi-agent-analysis` 等子任务，直接复用项目内的 7 大分析师辩论框架。
-
-#### D. AIChat 对话系统提示词 (通用)
-- 将 [`prompts/aichat_system_prompt.md`](prompts/aichat_system_prompt.md) 设置为 AIChat 对话的 System Message，大模型即可具备：
-  1. **自然语言自动意图路由**：根据用户输入自动提取股票代码并映射到对应技能。
-  2. **强制实战风控输出**：输出建议时自动核算保本价、三级止损线（-3% / -5% / -8%）与三场景即时反应动作。
+#### C. OpenAI Codex / Claude Code / Cursor (规约驱动)
+- **规则自动注入**：
+  - 项目根目录已提供标准化 [`AGENTS.md`](AGENTS.md) 与 [`CLAUDE.md`](CLAUDE.md)。
+  - Agent 在打开工作区后首要阅读 `AGENTS.md`，自动获知 17 个技能的意图触发词与 CLI 命令行契约，严禁私写网络爬虫，确保输出结果确定、合规。
 
 ---
 
 ## 五、CLI 实战命令速查与使用说明
 
-所有 CLI 命令均原生支持 `--json` 参数，便于程序解析。
+所有 CLI 命令均原生支持 `--json` 参数，便于智能体程序反序列化解析。
+
+### 0. 7 大 AI 分析师多空辩论研判 (Debate)
+```bash
+# 7 角色多空对抗研判、量化打分与首席风控指令 (纯文本排版)
+./bin/astock debate 600519
+
+# 结构化 JSON 输出 (供智能体程序与未来 Web UI 消费)
+./bin/astock debate 600519 --json
+```
 
 ### 1. 实时行情快照 (Quote)
 ```bash
@@ -285,7 +296,63 @@ python bin/update.py --rollback backup_20260902_174003
 
 ---
 
-## 七、项目技术文档体系
+## 七、下一阶段演进路线：独立 Web AIChatUI 与 Skill 治理系统
+
+为了进一步摆脱对第三方 AI 终端工具（Antigravity / Hermes / Codex）的宿主环境依赖，系统计划在下一阶段构建**自包含的 Web 版本独立交互系统**，涵盖以下三大核心子系统：
+
+### 1. 架构演进蓝图
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Web 前端交互系统 (现代响应式 UI)"]
+        UI_Chat["AIChat 交互对话台\n(SSE流式打字机 / Tool 调用进度折叠卡片)"]
+        UI_Gov["Skill 治理控制台\n(17项技能看板 / 动态启停 / 契约Schema / 耗时审计)"]
+        UI_Report["交互式研报预览中心\n(K线缩放 / 5A雷达图 / 实时筹码 / 保本操作单)"]
+    end
+
+    subgraph Gateway["自建服务网关与 Agent 运行时 (Server)"]
+        API["FastAPI 统一网关\n(RESTful + Server-Sent Events 流式通道)"]
+        Orchestrator["轻量 Agent 调度引擎\n(意图路由 / ReAct 循环 / 会话上下文 Session)"]
+        LLM_GW["多模型适配网关\n(DeepSeek / Gemini / OpenAI / 本地 Ollama)"]
+        TaskQueue["异步任务调度器\n(长耗时选股 / 回测 / 辩论后台异步执行)"]
+    end
+
+    subgraph CoreEngine["量化投研核心基座 (已就绪 · 零依赖)"]
+        SkillGov["Skill 治理核心\n(Pydantic 契约 / 权限门禁 / 调用监控)"]
+        Core_Data["core/data (4级降级数据源)"]
+        Core_Models["core/models (5A旋转 / AlgoRegistry 2.0)"]
+        Core_Strategy["core/strategy (保本进位 / 三级止损)"]
+        Core_Trade["core/paper_trading (模拟撮合与回测)"]
+    end
+
+    UI_Chat <-->|SSE 流式通信| API
+    UI_Gov <-->|REST API| API
+    UI_Report <-->|REST API| API
+    API --> Orchestrator
+    Orchestrator --> LLM_GW
+    Orchestrator --> SkillGov
+    API --> TaskQueue
+    TaskQueue --> CoreEngine
+    SkillGov --> CoreEngine
+```
+
+### 2. 三大核心能力规划
+1. **全功能量化 AIChat 对话台**：
+   - 内置轻量 Agent ReAct 运行时与会话存储（SQLite / DuckDB）；
+   - 支持 SSE（Server-Sent Events）打字机流式响应与工具调用状态（如“正在拉取腾讯行情”、“正在计算MACD水下二次金叉”）实时折叠展开；
+   - 自动映射用户意图至 17 大专业量化技能，强制输出三级风控止损与保本价进位动作。
+2. **可视化 Skill 治理控制台 (Skill Governance Console)**：
+   - 基于 `config/skills_manifest.json` 与 Pydantic Schema 建立技能运行时元数据管理；
+   - **动态生命周期管控**：支持在 Web 界面上一键启用/停用特定技能、调整技能参数阈值；
+   - **调用审计与度量中心**：统计技能调用频次、耗时分布、错误率与 Token 消耗，提供全链路调用日志回溯；
+   - **分级权限与风控门禁**：对只读查询（如 quote、screen）与高危写入（如模拟下单、清空股票池）进行分级管控，支持 Human-in-the-Loop 二次确认。
+3. **交互式研报预览与策略中心**：
+   - 摆脱传统静态单文件 HTML，通过结构化 JSON API 驱动现代交互式可视化图表（ECharts / Lightweight-Charts）；
+   - 支持 K 线周期缩放、指标动态叠加、筹码分布交互演化与股票池/持仓池拖拽管理。
+
+---
+
+## 八、项目技术文档体系
 
 本项目全量文档统一遵循**领域分层**与 **`kebab-case` 小写短横线**标准化命名规范：
 
@@ -297,13 +364,15 @@ python bin/update.py --rollback backup_20260902_174003
 | **回归测试指南** | [`docs/guidelines/testing-guide.md`](docs/guidelines/testing-guide.md) | TDD 测试先行与临时用例即测即删铁律 |
 | **命名与设计范式** | [`docs/guidelines/naming-conventions.md`](docs/guidelines/naming-conventions.md) | 源码/文档规范与模型演进四大范式 (SSOT) |
 | **网关架构设计** | [`docs/design/token-gateway.md`](docs/design/token-gateway.md) | Token 链路安全网关与本地审计 Agent 架构 |
+| **Web系统演进设计** | [`docs/design/web-aichat-and-skill-governance.md`](docs/design/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理设计规范 |
 | **实战交易反应动作** | [`docs/trading/execution-manual.md`](docs/trading/execution-manual.md) | 六大实战反应动作与三场景即时动作单 |
 | **最低保本价精算** | [`docs/trading/breakeven-rules.md`](docs/trading/breakeven-rules.md) | 覆盖印花税/佣金/过户费并向上进位至分位 |
 | **算法全生命周期治理** | [`docs/guidelines/algorithm-governance.md`](docs/guidelines/algorithm-governance.md) | 44项算法全景清单、四道质量门禁规范与ALCM治理方案 |
 
 ---
 
-## 八、免责声明
+## 九、免责声明
 
 1. 本项目所提供的所有量化算法、技术指标、5A 选股模型、实战决策建议及多智能体研判结论，**仅供金融投研学习、量化策略研究与技术验证使用，不构成任何实质性投资建议或交易推荐**。
 2. 证券市场有风险，投资决策需建立在独立思考与专业判断之上。用户依据本项目提供的数据、策略或模型进行的任何实盘交易操作，其盈亏风险由使用者自行完全承担。
+

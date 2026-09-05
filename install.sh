@@ -41,22 +41,24 @@ echo "[3/4] 安装项目核心量化与分析依赖 (requirements.txt)..."
 "${VENV_PIP}" install --upgrade pip -q
 "${VENV_PIP}" install -r requirements.txt -q
 
-# 4. 设置执行权限与目录初始化
-echo "[4/4] 设置可执行权限与运行自检..."
+# 4. 设置执行权限与工作区就地挂载
+echo "[4/5] 设置执行权限与工作区就地挂载 (.agents/skills)..."
 chmod +x bin/astock || true
 chmod +x install.sh || true
 
-mkdir -p data/pools data/positions cache reports
+"${VENV_PY}" core/workspace.py
 
 # 5. 运行快速自检
 echo "----------------------------------------------------------------------"
-echo "[自检] 运行验证套件 (verify.py)..."
+echo "[5/5] 运行全流程验证套件 (verify.py)..."
 "${VENV_PY}" verify.py
 
 echo "======================================================================"
 echo " [成功] a_stock_agents 部署完成！"
-echo " 使用方法："
-echo "   - 运行 CLI:   ./bin/astock --help"
-echo "   - 查询行情:   ./bin/astock data quote sh600519"
-echo "   - 技能清单:   ./bin/astock skill list"
+echo " 就地使用指引（零全局污染，开箱即用）："
+echo "   - Antigravity: 直接打开当前项目作为工作区，自动就地挂载 17 项技能"
+echo "   - Hermes/Codex: 当前目录下直接调用 ./bin/astock <subcommand> --json"
+echo "   - 实时行情:     ./bin/astock data quote 600519 --json"
+echo "   - 7大分析师辩论: ./bin/astock debate 600519 --json"
+echo "   - 技能清单:     ./bin/astock skill list --json"
 echo "======================================================================"
