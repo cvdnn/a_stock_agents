@@ -39,10 +39,13 @@
    - **L2/L3 东财与新浪财经**：提供资金流向、行业板块分布、个股事件与历史复权数据。
    - **L4 本地离线缓存**：断网或源站故障时自动切换至本地缓存，确保服务高可用。
 2. **零编译经典技术指标引擎 (`core/indicators`)**：
-   - 纯 Python/NumPy 实现全套技术指标：MA（5/10/20/60/120/250）、MACD、KDJ、RSI、BOLL、ATR、跳空缺口分析、水下二次金叉底背离形态识别。
+   - 纯 Python/NumPy 实现全套技术指标：MA（5/10/20/60/120/250）、MACD、KDJ、RSI、BOLL、ATR、跳空缺口分析。
+   - **波段级 MACD 底背离与水下二次金叉识别**：增加波段最小间隔过滤与波谷极值（Local Minima）对比，剔除震荡毛刺。
+   - **换手率沉淀筹码模型 (Volume-by-Price)**：基于真实/估算换手率迭代衰减计算存量筹码分布加权成本与获利盘比例。
 3. **5A 多维共振旋转选股与多因子模型 (`core/models`)**：
    - 结合动量、估值、质量、量价结构、主线轮动 5 个维度进行 100 分制综合打分。
    - 包含舆情因子指数半衰期衰减、MAD 去极值与 Z-Score 截面 Rank 因子合成流水线。
+   - **市场机制自适应加权**：支持牛市（BULL）、震荡轮动（OSCILLATION）、熊市超跌（BEAR）专属权重模式及基于滚动 IC 的动态自适应加权。
 4. **实战交易反应动作与保本价进位引擎 (`core/strategy`)**：
    - **精确最低保本卖出价**：严格计入卖出印花税（0.05%）、券商佣金（万2.5且最低5元起收）、过户费，并**强制向上精确进位至分位（`math.ceil`）**，杜绝四舍五入导致的隐性亏损。
    - **三级风控止损线**：T0 警戒线（-3%）、T1 减仓线（-5%）、T2 绝杀线（-8%）。
@@ -52,6 +55,7 @@
    - 展开多轮多空对抗辩论并生成决议报告。
 6. **模拟盘撮合交易与事件驱动回测 (`core/paper_trading`)**：
    - 多账户独立资金管理、限价单/市价单撮合、撤单、A股 T+1 交易规则与涨跌停限制撮合。
+   - **平方根市场冲击滑点模型**：集成 Almgren-Chriss 理论，依据订单规模占日成交量比例自适应计算大额冲击滑点。
 
 ---
 
@@ -62,15 +66,15 @@
 | **`astock-data-feed`** | A股全链路行情数据引擎 | L1 数据 | 实时行情快照、历史K线、全套技术指标、筹码分布与板块资金流 | `astock data quote <代码>` |
 | **`astock-platform-evaluate`** | 统一A股全流程投研平台 | L1 平台 | 4层降级、100分制综合评分、被套解套策略诊断、大盘健康度评估 | `astock evaluate <代码>` |
 | **`astock-screener-5a`** | 5A多维共振旋转选股 | L2 选股 | 动量/价值/质量/主线旋转多维评分模型与滚动样本外回测检验 | `astock screen 5a` |
-| **`astock-quant-engine`** | 工业级量化工程引擎 | L2 量化 | 截面因子提取、舆情半衰期衰减、MAD去极值、凯利仓位与ATR止损 | `astock quant pipeline` |
+| **`astock-quant-engine`** | 工业级量化工程引擎 | L2 量化 | 截面因子提取、换手沉淀筹码模型、牛熊自适应加权、MAD去极值、凯利仓位与ATR止损 | `astock quant pipeline` |
 | **`astock-model-validation`** | 时序AI模型实证检验 | L2 验证 | 外部时序 AI 基础模型（如 Kronos/TimesFM）滚动样本外回测规范 | `astock validate-model` |
 | **`astock-action-execution`** | 实战反应动作与保本价 | L3 执行 | 最低保本卖出价精确进位、T0/T1/T2三级止损与三场景即时反应指令 | `astock action plan` |
 | **`astock-strategy-mainboard`** | 主板流动性池多波段防御 | L3 策略 | 主板流动性池趋势回踩（trend_pullback）与波段防守反击决策 | `astock strategy swing` |
 | **`astock-strategy-tuige`** | 退哥短线交易规则体系 | L3 策略 | 涨停回调、连板接力、洗盘突破、失效卖点与仓位纪律规则库 | `astock shortline check` |
-| **`astock-strategy-macd`** | 水下二次金叉与底背离 | L3 策略 | 水下二次金叉、双底回踩验底、MACD底背离形态识别与决策清单 | `astock pattern macd <代码>` |
+| **`astock-strategy-macd`** | 水下二次金叉与底背离 | L3 策略 | 波谷极值对比、波段间距过滤、水下二次金叉、双底回踩、MACD底背离形态识别 | `astock pattern macd <代码>` |
 | **`astock-pool-dashboard`** | 投研面板与股池管理 | L4 面板 | 关注池/自选池/持仓池生命周期管理、通达信公式同步、盘中预警 | `astock pool list` |
 | **`astock-pool-audit`** | 三大股池统一审查 | L4 股池 | 统一审查股池、重算均线支撑阻力位、清洗过期失效标的 | `astock pool audit` |
-| **`astock-trade-paper`** | 模拟盘与撮合系统 | L4 交易 | 多账户模拟仓、限价单/市价单撮合、撤单、持仓资金查询与回测 | `astock trade balance` |
+| **`astock-trade-paper`** | 模拟盘与撮合系统 | L4 交易 | 多账户模拟仓、平方根市场冲击滑点、限价/市价单撮合、撤单与回测 | `astock trade balance` |
 | **`astock-agent-debate`** | 7大AI分析师多空辩论 | L5 协同 | 基本面/量价/消息/政策/游资/筹码/风控 7 大智能体辩论与研报 | `astock debate <代码>` |
 | **`astock-report-html`** | 标准HTML交互报告规范 | L6 展现 | 亚光白背景、红涨绿跌、1344px居中单文件自包含 HTML 报告样式 | `astock report html` |
 | **`astock-report-archive`** | 报告持久化与归档规范 | L6 报告 | 多股联合报告输出路径规范与数据持久化存储结构标准 | `astock report generate` |
