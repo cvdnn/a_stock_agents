@@ -1,9 +1,9 @@
 # 独立 Web AIChatUI 与 Skill 治理系统 —— 架构设计与实施路线图
 
-- **文档版本**：v1.0
-- **创建日期**：2026-09-05
-- **当前状态**：技术方案锁定 / 实施蓝图就绪
-- **适用场景**：脱离第三方 AI 终端宿主（Antigravity / Hermes / Codex 等），自建独立 Web 版本 A股量化投研交互系统
+- **文档版本**：v1.1
+- **创建日期**：2026-09-05（更新于 2026-09-06）
+- **当前状态**：技术方案锁定 / 第一阶段落地完成 / 双模兼容架构确立
+- **适用场景**：脱离第三方 AI 终端宿主（Antigravity / Hermes / Codex 等），自建独立 Web 界面系统并原生兼容本地客户端（Desktop / TUI）的 A股全流程量化投研交互中枢
 
 ---
 
@@ -64,6 +64,70 @@ flowchart TB
     GovernanceLayer --> CoreEngine
     TaskWorker --> CoreEngine
 ```
+
+---
+
+## 1.2 多端部署拓扑与双模兼容架构 (Dual-Mode Deployment Architecture)
+
+系统不仅支持中心化云端 Web 服务部署，还原生兼容本地独立客户端（Desktop 桌面端与终端 TUI），支持以下三种部署与接入形态：
+
+```mermaid
+flowchart TB
+    subgraph Core["Agent Runtime 与量化内核 (跨端共享底座)"]
+        RT["AgentReActRunner (统一 ReAct 编排引擎)"]
+        EV["AgentEvent (强类型结构化领域事件流)"]
+        DB["SQLite WAL (轻量持久化: chats.db)"]
+        LLM["多模型网关 (DeepSeek / OpenAI / Ollama / Mock)"]
+    end
+
+    subgraph Mode1["形态一：服务端 Web 部署 (Server Web)"]
+        FastAPI["FastAPI 网关 (Uvicorn 托管)"]
+        Nginx["反向代理 / Nginx\n(X-Accel-Buffering: no)"]
+        WebUI["现代 Web AIChat 浏览器前端\n(跨公网 / 局域网访问)"]
+    end
+
+    subgraph Mode2["形态二：本地桌面应用 (Desktop Sidecar)"]
+        LocalDaemon["本地回环子进程\n(127.0.0.1 动态端口协商)"]
+        Tauri["Tauri / Electron 桌面宿主\n(Localhost HTTP/SSE 通信)"]
+    end
+
+    subgraph Mode3["形态三：终端命令行 TUI (In-Process Embedded)"]
+        TUI["Textual / Rich 交互式终端台\n(Python 进程内直接消费 AgentEvent)"]
+    end
+
+    RT --> EV
+    EV -->|SSE 协议序列化| FastAPI
+    FastAPI --> Nginx --> WebUI
+
+    EV -->|Localhost SSE 流| LocalDaemon --> Tauri
+
+    EV -->|直接调用 AsyncIterator 领域对象| TUI
+```
+
+### 1.2.1 三大部署接入形态规范
+
+| 部署形态 | 典型适用场景 | 进程模型 | 通信介质与协议 | 存储与数据库位置 | 外部环境依赖 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **① 服务端 Web** | 团队投研云平台、私有化服务器、远程访问 | 独立后台常驻进程 (`uvicorn server.app:app`) | HTTP REST + SSE 流 (`text/event-stream`) | 服务器端 `output/cache/chats.db` | 仅需 Python 3.10+，Nginx可选 |
+| **② 本地 Desktop** | 个人电脑独立桌面客户端 (Tauri/Electron) | 桌面应用主进程 + 后台 Local Sidecar 子进程 | 本地回环 Localhost / HTTP IPC | 用户本地 `output/cache/chats.db` | 零外部依赖，开箱即用 |
+| **③ 本地 TUI** | 极客终端、低功耗 VPS、无桌面快捷盯盘 | 单进程纯内嵌 (`In-Process` 导入直接运行) | Python 内存对象流 (`AsyncIterator[AgentEvent]`) | 工作区就地 `output/cache/chats.db` | 零端口占用，零网络开销 |
+
+### 1.2.2 核心事件层与传输层解耦规范
+为保障 Agent 编排核心在 Web 与本地客户端（Desktop/TUI）的双模通用性，系统实施严格的**事件模型与传输协议分层隔离**：
+1. **领域事件内核 (`AgentEvent`)**：`AgentReActRunner` 统一产出强类型领域事件模型，包含：
+   - `ThoughtEvent`：大模型内部思考与链式推理（COT）；
+   - `ToolCallStartEvent` / `ToolCallCompleteEvent`：工具调用生命周期状态与摘要；
+   - `RiskCardEvent`：严格符合实战三原则的风控动作单与保本价结构化数据；
+   - `ContentDeltaEvent`：打字机内容文本增量；
+   - `DoneEvent` / `ErrorEvent`：完成度量与异常事件。
+2. **多协议适配器 (Protocol Adapters)**：
+   - **Web / Desktop 适配器**：位于 `server.api.chat`，负责将 `AgentEvent` 序列化为标准的 SSE `event: <type>\ndata: <json>\n\n` 文本流；
+   - **TUI 适配器**：位于终端客户端模块，直接在异步循环中获取 `AgentEvent` 实例，驱动 Rich Console 或 Textual 控件实时折叠/高亮渲染，无需经过二次 JSON 反序列化。
+
+### 1.2.3 关键演进约束与兼容指标
+1. **端口动态发现与协商 (Port Hunting)**：本地 Sidecar 模式下，启动命令支持 `--port 0` 自动绑定系统空闲端口，并将分配的端口写入本地运行时锁定文件（`.server.port`），杜绝 8000 端口冲突导致桌面应用初始化失败。
+2. **零外部强依赖 (Zero Global Pollution)**：全链路默认采用标准库 `sqlite3` (WAL 模式)，禁止引入强制依赖 Redis/PostgreSQL 等外部服务中间件的硬编码逻辑，确保全平台单一命令即可就地运行。
+3. **多租户隔离扩展性储备**：`sessions` 与 `messages` 持久化表结构预留 `user_id` 逻辑字段（单机默认 `default_user`），确保未来升级至公网多用户 SaaS 模式时，可通过统一中间件注入 JWT 鉴权无缝平滑迁移。
 
 ---
 
@@ -193,23 +257,29 @@ class SkillMeta(BaseModel):
 本项目采用循序渐进的交付策略，分为三个明确阶段：
 
 ### 📌 第一阶段：服务底座与 Agent 编排核心 (Backend & Runtime Foundation)
-- [x] 在项目根目录下建立 `server/` 独立工程模块；
+- [x] 在项目根目录下建立 `scripts/server/` 独立工程模块；
 - [x] 集成 FastAPI 基础服务架构，提供健康检查与配置读取；
-- [x] 实现轻量级 LLM Provider 统一适配层（支持 OpenAI 规范接口、DeepSeek、Gemini、Claude、本地 Ollama）；
+- [x] 实现轻量级 LLM Provider 统一适配层（支持 OpenAI 规范接口、DeepSeek、Gemini、Claude、本地 Ollama 与离线 Mock）；
 - [x] 实现支持 SSE 流式打字机与 Tool Calling 调度的 Agent ReAct 运行时；
-- [x] 实现基于 SQLite 的本地会话历史与多轮对话状态存储。
+- [x] 实现基于 SQLite (WAL 模式) 的本地会话历史与多轮对话状态存储；
+- [x] 验证通过 Web 模式与本地客户端（Desktop/TUI）双模架构兼容性基线测试。
 
 ### 📌 第二阶段：Skill 治理控制子系统 (Skill Governance Implementation)
 - [ ] 基于 `config/skills_manifest.json` 建立 `core/governance/skill_registry.py`；
 - [ ] 将 17 项技能抽象为统一注册实例，生成标准的 JSON Schema / Function Calling 规范；
+- [ ] 重构事件流抽象：确立通用的 `AgentEvent` 领域模型，将 SSE 传输层与内核事件彻底解耦；
 - [ ] 实现 REST API：技能列表检索、启用/停用切换、参数测试与调用审计日志；
-- [ ] 集成安全门禁：实现长耗时任务异步 Worker（选股与回测队列）与超时熔断控制。
+- [ ] 集成安全门禁：实现长耗时任务异步 Worker（选股与回测队列）与超时熔断控制；
+- [ ] 本地客户端适配：实现 `--port 0` 动态端口探测与本地锁定文件机制。
 
-### 📌 第三阶段：现代 Web 前端 AIChatUI 构建 (Frontend UI & Visualization)
+### 📌 第三阶段：现代 Web 前端与跨端客户端构建 (Frontend UI & Multi-Client)
 - [ ] 初始化现代 Web 前端（推荐 Vite + React + TailwindCSS + Lucide Icons + ECharts / Lightweight-Charts）；
 - [ ] 构建 **AIChat 投研对话台**：支持流式打字机、Thought 思考气泡折叠、Tool Call 进度卡片、快捷意图气泡；
 - [ ] 构建 **Skill 治理仪表盘**：17 项技能可视化卡片、开关状态切换、调用监控与参数调试器；
-- [ ] 构建 **交互式研报与股票池看板**：自选/关注/持仓池拖拽管理与多周期 K 线图表交互。
+- [ ] 构建 **交互式研报与股票池看板**：自选/关注/持仓池拖拽管理与多周期 K 线图表交互；
+- [ ] **跨端打包与 CLI 交互支持**：
+  - 支持将 Web 前端打包为本地 Desktop 桌面客户端（Tauri / Electron）；
+  - 在主 CLI 中新增 `astock chat` 交互子命令，提供开箱即用的轻量终端 TUI 对话体验。
 
 ---
 
