@@ -261,6 +261,7 @@ flowchart LR
 | **工程规范** | [`guidelines/algorithm-governance.md`](guidelines/algorithm-governance.md) | 44项算法全景清单、四道质量门禁规范与ALCM治理方案 |
 | **设计规格与架构** | [`specs/token-gateway.md`](specs/token-gateway.md) | Token 链路安全网关、敏感凭据脱敏与本地审计 Agent 架构 |
 | **设计规格与架构** | [`specs/web-aichat-and-skill-governance.md`](specs/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理系统架构设计 |
+| **设计规格与架构** | [`specs/ui-design-specification.md`](specs/ui-design-specification.md) | 现代 Web 界面设计规范：三栏40/60布局、极简投研助手与双向弹出交互 |
 | **设计规格与架构** | [`specs/broker-commission-configurable-design.md`](specs/broker-commission-configurable-design.md) | 券商佣金及费率参数配置化与首次使用提示设计规范 (ADR) |
 | **量化实战** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律 |
 | **量化实战** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 |
