@@ -419,6 +419,169 @@ class FinancialCharts {
       ctx.fillText(labels[i], padding.left + i * stepX + stepX / 2, height - 6);
     });
   }
+
+  // 6. Portfolio Equity Curve vs Benchmark (收益分析净值走势图)
+  static drawEquityCurve(canvasId, strategyData, benchmarkData, labels = []) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const { ctx, width, height } = this.setupCanvas(canvas);
+    if (!strategyData || strategyData.length < 2) return;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const padding = { top: 24, right: 45, bottom: 26, left: 16 };
+    const usableW = width - padding.left - padding.right;
+    const usableH = height - padding.top - padding.bottom;
+
+    const allVals = [...strategyData, ...(benchmarkData || [])];
+    const minVal = Math.min(...allVals) * 0.98;
+    const maxVal = Math.max(...allVals) * 1.02;
+    const range = maxVal - minVal || 1;
+
+    // Draw grid lines
+    ctx.strokeStyle = '#F0F2F5';
+    ctx.lineWidth = 1;
+    const gridRows = 4;
+    for (let r = 0; r <= gridRows; r++) {
+      const y = padding.top + (usableH / gridRows) * r;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+
+      const val = maxVal - (range / gridRows) * r;
+      ctx.fillStyle = '#86909C';
+      ctx.font = '10px tabular-nums -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.textAlign = 'left';
+      ctx.fillText(val.toFixed(2), width - padding.right + 6, y + 3);
+    }
+
+    const stepX = usableW / (strategyData.length - 1);
+
+    // Draw Benchmark line (dashed gray)
+    if (benchmarkData && benchmarkData.length === strategyData.length) {
+      ctx.beginPath();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = '#B4BCC8';
+      ctx.lineWidth = 1.5;
+      benchmarkData.forEach((val, i) => {
+        const x = padding.left + i * stepX;
+        const y = padding.top + usableH * (1 - (val - minVal) / range);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Draw Strategy line (solid blue)
+    ctx.beginPath();
+    ctx.strokeStyle = '#1677FF';
+    ctx.lineWidth = 2.2;
+    strategyData.forEach((val, i) => {
+      const x = padding.left + i * stepX;
+      const y = padding.top + usableH * (1 - (val - minVal) / range);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Fill gradient below strategy line
+    ctx.lineTo(padding.left + (strategyData.length - 1) * stepX, padding.top + usableH);
+    ctx.lineTo(padding.left, padding.top + usableH);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + usableH);
+    grad.addColorStop(0, 'rgba(22, 119, 255, 0.18)');
+    grad.addColorStop(1, 'rgba(22, 119, 255, 0.01)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // X-axis labels
+    if (labels && labels.length) {
+      ctx.fillStyle = '#86909C';
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.textAlign = 'center';
+      const labelInterval = Math.max(1, Math.floor(labels.length / 5));
+      labels.forEach((lbl, i) => {
+        if (i % labelInterval === 0 || i === labels.length - 1) {
+          const x = padding.left + i * stepX;
+          ctx.fillText(lbl, x, height - 6);
+        }
+      });
+    }
+
+    // Legend at top left
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    ctx.fillStyle = '#1677FF';
+    ctx.fillRect(padding.left, 8, 10, 3);
+    ctx.textAlign = 'left';
+    ctx.fillText('策略净值 (当前 +34.28%)', padding.left + 16, 12);
+
+    ctx.strokeStyle = '#86909C';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(padding.left + 170, 9);
+    ctx.lineTo(padding.left + 184, 9);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#86909C';
+    ctx.fillText('沪深300 (+8.65%)', padding.left + 190, 12);
+  }
+
+  // 7. Monthly PnL Bar Chart (月度盈亏分布图)
+  static drawMonthlyPnLChart(canvasId, monthlyData) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const { ctx, width, height } = this.setupCanvas(canvas);
+    if (!monthlyData || monthlyData.length === 0) return;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const padding = { top: 20, right: 12, bottom: 22, left: 12 };
+    const usableW = width - padding.left - padding.right;
+    const usableH = height - padding.top - padding.bottom;
+
+    const values = monthlyData.map(d => d.pnl);
+    const minVal = Math.min(-2, ...values);
+    const maxVal = Math.max(5, ...values);
+    const range = maxVal - minVal || 1;
+
+    const zeroY = padding.top + usableH * (1 - (0 - minVal) / range);
+    const stepX = usableW / monthlyData.length;
+    const barW = Math.max(14, stepX * 0.55);
+
+    // Zero line
+    ctx.beginPath();
+    ctx.strokeStyle = '#D9D9D9';
+    ctx.lineWidth = 1;
+    ctx.moveTo(padding.left, zeroY);
+    ctx.lineTo(width - padding.right, zeroY);
+    ctx.stroke();
+
+    monthlyData.forEach((item, i) => {
+      const x = padding.left + i * stepX + (stepX - barW) / 2;
+      const isPositive = item.pnl >= 0;
+      const y = padding.top + usableH * (1 - (item.pnl - minVal) / range);
+      const barH = Math.max(2, Math.abs(y - zeroY));
+      const topY = isPositive ? y : zeroY;
+
+      ctx.fillStyle = isPositive ? '#F5222D' : '#52C41A';
+      ctx.fillRect(x, topY, barW, barH);
+
+      // Value label on bar
+      ctx.fillStyle = isPositive ? '#F5222D' : '#52C41A';
+      ctx.font = '10px tabular-nums -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.textAlign = 'center';
+      const labelY = isPositive ? topY - 4 : topY + barH + 11;
+      ctx.fillText((isPositive ? '+' : '') + item.pnl.toFixed(1) + '%', x + barW / 2, labelY);
+
+      // Month label below zero line
+      ctx.fillStyle = '#86909C';
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.fillText(item.month, x + barW / 2, height - 6);
+    });
+  }
 }
 
 window.FinancialCharts = FinancialCharts;
+

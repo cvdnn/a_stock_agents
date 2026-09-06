@@ -1,13 +1,25 @@
 // ==========================================================================
-// A-Stock Agents Web AIChat UI - Main Application Logic
-// Supports View Routing, Interactive Charts, SSE Streaming Chat, Mock Data
+// A-Stock Agents Web AIChat UI - Main Application Engine
+// Three-Column Architecture with Independent Dual-Scroll & Bidirectional Linkage
 // ==========================================================================
 
 const AppState = {
-  activeView: 'chat', // 'chat' | 'market' | 'watchlist'
+  activeRightTab: 'dashboard', // 'dashboard' | 'market' | 'watchlist' | 'returns' | 'projected-action' etc.
   selectedStock: '300750',
   isChatStreaming: false,
   apiBaseUrl: window.location.origin,
+  loadedSessionCount: 10,
+  riskParams: {
+    cost: 320.0,
+    shares: 1000,
+    t0: -3.0,
+    t1: -5.0,
+    t2: -8.0,
+    stampDuty: 0.05,
+    commissionRate: 0.00025,
+    minCommission: 5.0,
+    transferRate: 0.00002
+  },
   strategies: {
     'trend': true,
     'sector': true,
@@ -15,7 +27,523 @@ const AppState = {
   }
 };
 
-// 1. Synthetic K-line Generator (28 trading bars)
+// --------------------------------------------------------------------------
+// 1. Historical Sessions Repository (时间倒序前10条 + 分页加载数据池)
+// --------------------------------------------------------------------------
+const HistoricalSessions = [
+  { id: 's1', title: 'A股大盘反弹持续性与放量研判', time: '刚刚', tab: 'dashboard' },
+  { id: 's2', title: '宁德时代300750资金面与底背离诊断', time: '今天 11:20', tab: 'watchlist' },
+  { id: 's3', title: '5A多因子量化选股与主线轮动模型', time: '今天 09:45', tab: 'dashboard' },
+  { id: 's4', title: '半导体与CPO算力链短线买点筛查', time: '昨天 16:15', tab: 'market' },
+  { id: 's5', title: '水下二次金叉战法验证与保本价精算', time: '昨天 14:02', tab: 'projected-action' },
+  { id: 's6', title: '中芯国际日K突破与主力控盘分析', time: '09-04 15:30', tab: 'watchlist' },
+  { id: 's7', title: '高股息红利板块防御对冲方案', time: '09-04 10:18', tab: 'dashboard' },
+  { id: 's8', title: '海光信息均线多头回踩买入策略', time: '09-03 16:50', tab: 'watchlist' },
+  { id: 's9', title: '实战三原则止损线执行动作单生成', time: '09-03 13:12', tab: 'projected-action' },
+  { id: 's10', title: '宏观降准预期与金融板块异动追踪', time: '09-02 11:05', tab: 'market' },
+  // Extra sessions loaded on bottom scroll
+  { id: 's11', title: '新能源车出海产业链中报业绩复盘', time: '09-01 14:30', tab: 'watchlist' },
+  { id: 's12', title: '低空经济概念超跌反弹动量测试', time: '08-31 16:20', tab: 'market' },
+  { id: 's13', title: '银行股破净修复与股息率截面排序', time: '08-30 10:15', tab: 'dashboard' },
+  { id: 's14', title: '券商合并传闻与早盘集合竞价异动', time: '08-29 09:28', tab: 'market' },
+  { id: 's15', title: '科创50ETF流动性与主力大单跟踪', time: '08-28 15:00', tab: 'dashboard' },
+  { id: 's16', title: '中际旭创光模块订单与筹码换手', time: '08-27 11:10', tab: 'watchlist' },
+  { id: 's17', title: '量化事件驱动：定增解禁压力测算', time: '08-26 14:40', tab: 'dashboard' },
+  { id: 's18', title: '北向资金单日大幅净流入板块挖掘', time: '08-25 17:05', tab: 'market' },
+  { id: 's19', title: '退哥龙头首阴战法买卖点回测', time: '08-24 13:50', tab: 'dashboard' },
+  { id: 's20', title: '全市场换手率与波动率因子有效性', time: '08-23 16:30', tab: 'returns' }
+];
+
+// Initialize and render session list
+function renderSessionList() {
+  const container = document.getElementById('sessionList');
+  if (!container) return;
+
+  const currentCount = AppState.loadedSessionCount;
+  const sessionsToRender = HistoricalSessions.slice(0, currentCount);
+
+  container.innerHTML = sessionsToRender.map((s, idx) => `
+    <div class="session-item ${idx === 0 ? 'active' : ''}" data-id="${s.id}" onclick="selectSession('${s.id}')">
+      <div class="session-item-header">
+        <div class="session-item-title" title="${s.title}">${s.title}</div>
+      </div>
+      <div class="session-item-time">${s.time}</div>
+    </div>
+  `).join('');
+
+  // Update load more indicator
+  const loadMoreElem = document.getElementById('sessionLoadMore');
+  if (loadMoreElem) {
+    if (currentCount >= HistoricalSessions.length) {
+      loadMoreElem.innerHTML = '<span style="color:#B4BCC8;">已加载全部历史会话 (20条)</span>';
+    } else {
+      loadMoreElem.innerHTML = '<span class="spinner-dot"></span><span>下拉自动加载更早记录...</span>';
+    }
+  }
+}
+
+// Infinite scroll listener for session history
+function setupSessionInfiniteScroll() {
+  const container = document.getElementById('sessionList');
+  if (!container) return;
+
+  let isFetching = false;
+  container.addEventListener('scroll', () => {
+    if (isFetching) return;
+    if (AppState.loadedSessionCount >= HistoricalSessions.length) return;
+
+    // Trigger when user scrolls near the bottom (within 15px)
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 15) {
+      isFetching = true;
+      const loadMoreElem = document.getElementById('sessionLoadMore');
+      if (loadMoreElem) {
+        loadMoreElem.innerHTML = '<span class="spinner-dot"></span><span style="color:#1677FF;">正在从存储中拉取更早的会话...</span>';
+      }
+
+      setTimeout(() => {
+        AppState.loadedSessionCount = Math.min(HistoricalSessions.length, AppState.loadedSessionCount + 10);
+        renderSessionList();
+        isFetching = false;
+        showToast(`已成功自动加载历史会话（当前展示最近 ${AppState.loadedSessionCount} 条）`);
+      }, 500);
+    }
+  });
+}
+
+// Select a session
+function selectSession(id) {
+  document.querySelectorAll('.session-item').forEach(item => {
+    if (item.dataset.id === id) item.classList.add('active');
+    else item.classList.remove('active');
+  });
+
+  const session = HistoricalSessions.find(s => s.id === id);
+  if (session) {
+    showToast(`已载入会话：${session.title}`);
+    // Switch linked right tab if appropriate
+    if (session.tab) {
+      switchRightTab(session.tab);
+    }
+  }
+}
+
+// Start a new chat session
+function startNewChat() {
+  const newSession = {
+    id: 's_' + Date.now(),
+    title: '新建投研对话 ' + new Date().toLocaleTimeString().slice(0, 5),
+    time: '刚刚',
+    tab: 'dashboard'
+  };
+  HistoricalSessions.unshift(newSession);
+  AppState.loadedSessionCount++;
+  renderSessionList();
+
+  const chatMessages = document.getElementById('chatMessages');
+  if (chatMessages) {
+    chatMessages.innerHTML = `
+      <div class="message-item message-ai">
+        <div class="message-bubble-ai">
+          <div class="ai-msg-header">
+            <div class="ai-avatar-pill">AI</div>
+            <div class="ai-msg-header-text">
+              <h3 class="ai-msg-title">智能投研助手就绪</h3>
+              <p class="ai-msg-summary">已开启新一轮多因子量化研判会话，支持随时针对右侧盘面提问与调参</p>
+            </div>
+          </div>
+          <div class="ai-content-body">
+            <p>您好！我是您的 A股智能量化投研助手。当前右侧已为您保持【整体投研盘面】，您可以：</p>
+            <ul>
+              <li>点击右侧工具栏的 <strong>“💬 针对此内容提问”</strong> 一键诊断；</li>
+              <li>点击左侧菜单切换 <strong>市场行情、自选个股、收益分析</strong>；</li>
+              <li>提问任意个股，例如：“<em>分析中芯国际突破买点与保本价</em>”。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  showToast('已创建新投研会话！右侧内容已完整保留');
+}
+
+// --------------------------------------------------------------------------
+// 2. Left Menu Bar Navigation
+// --------------------------------------------------------------------------
+function handleMenuClick(tabId) {
+  // Update Left Sidebar Active Nav
+  document.querySelectorAll('.sidebar-nav-section .nav-item').forEach(item => {
+    if (item.dataset.tab === tabId) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+
+  // Switch right pane
+  switchRightTab(tabId);
+}
+
+// --------------------------------------------------------------------------
+// 3. Right Multi-Tab Management (保留当前右侧内容)
+// --------------------------------------------------------------------------
+const ViewDescriptions = {
+  'dashboard': '整体投研盘面 (大盘/自选/持仓监控/策略开关)',
+  'market': '市场行情全景 (四大指数/情绪仪表盘/日K线/板块流向)',
+  'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
+  'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
+  'projected-action': '实战交易三原则指令单 (保本价进位试算器/三级止损)'
+};
+
+function switchRightTab(tabId) {
+  AppState.activeRightTab = tabId;
+
+  // 1. Update Tab Bar
+  document.querySelectorAll('.right-tab').forEach(tab => {
+    if (tab.dataset.tab === tabId) tab.classList.add('active');
+    else tab.classList.remove('active');
+  });
+
+  // 2. Update Left Menu Active state if matching
+  document.querySelectorAll('.sidebar-nav-section .nav-item').forEach(item => {
+    if (item.dataset.tab === tabId) item.classList.add('active');
+    else item.classList.remove('active');
+  });
+
+  // 3. Update Panes
+  document.querySelectorAll('.right-pane').forEach(pane => {
+    pane.classList.remove('active');
+  });
+  const targetPane = document.getElementById(`pane-${tabId}`);
+  if (targetPane) {
+    targetPane.classList.add('active');
+  }
+
+  // 4. Update Context Indicators
+  const desc = ViewDescriptions[tabId] || `自定义工作台 [${tabId}]`;
+  const viewNameElem = document.getElementById('currentViewName');
+  if (viewNameElem) viewNameElem.innerText = `当前展示：${desc}`;
+
+  const linkedContextElem = document.getElementById('linkedContextText');
+  if (linkedContextElem) linkedContextElem.innerText = desc;
+
+  // 5. Re-render Canvas Charts for this tab
+  setTimeout(() => {
+    renderTabCharts(tabId);
+  }, 40);
+}
+
+// Dynamically open a new tab on the right without closing previous ones
+function openRightTab(tabId, title, icon = '📑', isClosable = true) {
+  const tabsBar = document.getElementById('rightTabsBar');
+  if (!tabsBar) return;
+
+  let existingTab = tabsBar.querySelector(`.right-tab[data-tab="${tabId}"]`);
+  if (!existingTab) {
+    existingTab = document.createElement('div');
+    existingTab.className = 'right-tab';
+    existingTab.dataset.tab = tabId;
+    existingTab.onclick = () => switchRightTab(tabId);
+    existingTab.innerHTML = `
+      <span class="tab-icon">${icon}</span>
+      <span>${title}</span>
+      ${isClosable ? `<span class="tab-close" onclick="closeRightTab('${tabId}', event)" title="关闭标签">×</span>` : ''}
+    `;
+    tabsBar.appendChild(existingTab);
+  }
+
+  switchRightTab(tabId);
+}
+
+// Close a tab and fallback safely to dashboard
+function closeRightTab(tabId, event) {
+  if (event) event.stopPropagation();
+
+  const tabsBar = document.getElementById('rightTabsBar');
+  if (!tabsBar) return;
+
+  const targetTab = tabsBar.querySelector(`.right-tab[data-tab="${tabId}"]`);
+  if (targetTab) targetTab.remove();
+
+  if (AppState.activeRightTab === tabId) {
+    switchRightTab('dashboard');
+    showToast('已关闭投射标签，平滑返回【投研盘面】');
+  }
+}
+
+// --------------------------------------------------------------------------
+// 4. 【重要交互 1】：AIChat 针对右侧信息提问与修改
+// --------------------------------------------------------------------------
+function askAboutRightContent() {
+  const tab = AppState.activeRightTab;
+  const input = document.getElementById('chatInput');
+  if (!input) return;
+
+  let prompt = '';
+  if (tab === 'dashboard') {
+    prompt = '请结合右侧整体投研盘面数据（两市放量1.28万亿，科技领涨），分析明天的核心主线与防守标的。';
+  } else if (tab === 'market') {
+    prompt = '请结合右侧市场行情全景看板与北向资金流向，深度研判大盘短期突破 3,450 点的动能与风险。';
+  } else if (tab === 'watchlist') {
+    prompt = '请针对右侧【宁德时代 300750】的主力控盘仪表盘与资金流向，制定下周一的买入与防守策略。';
+  } else if (tab === 'returns') {
+    prompt = '请评估右侧投资收益全景看板中的最大回撤(-8.24%)与夏普比率(1.84)，并给出仓位与多因子优化建议。';
+  } else if (tab === 'projected-action') {
+    const cost = AppState.riskParams.cost;
+    prompt = `请针对右侧实战动作单中的买入成本 ¥${cost}、最低保本卖出价与三级止损阶梯给出盘中突发跳水的执行动作细节。`;
+  } else {
+    prompt = `请根据右侧当前展示的【${tab}】数据，出具深度的量化投研报告。`;
+  }
+
+  input.value = prompt;
+  input.focus();
+
+  // Highlight effect
+  const inputBar = document.querySelector('.chat-input-bar');
+  if (inputBar) {
+    inputBar.style.boxShadow = '0 0 0 3px rgba(22, 119, 255, 0.25)';
+    setTimeout(() => { inputBar.style.boxShadow = ''; }, 1200);
+  }
+
+  showToast(`已提取右侧数据并载入输入框，直接回车即可发送！`);
+}
+
+// Injects prompt for specific stock row
+function askStockPrompt(name, code, price) {
+  const input = document.getElementById('chatInput');
+  if (!input) return;
+
+  input.value = `请针对右侧自选标的【${name} (${code})】（现价 ¥${price}）进行量化深度诊断，并计算最低保本卖出价与三场景反应动作单。`;
+  input.focus();
+  showToast(`已引用【${name}】数据至提问框！按回车即可执行诊断`);
+}
+
+// Unlink context
+function unlinkRightContent() {
+  const linkedContextElem = document.getElementById('linkedContextText');
+  if (linkedContextElem) linkedContextElem.innerText = '未关联 (自由对话模式)';
+  showToast('已解除右侧上下文强绑定');
+}
+
+// Open / Close Modify Parameter Modal
+function openModifyRightParam() {
+  const modal = document.getElementById('modifyParamModal');
+  if (!modal) return;
+
+  document.getElementById('modCost').value = AppState.riskParams.cost;
+  document.getElementById('modShares').value = AppState.riskParams.shares;
+  document.getElementById('modT1').value = AppState.riskParams.t1;
+  document.getElementById('modT2').value = AppState.riskParams.t2;
+
+  modal.classList.add('active');
+}
+
+function closeModifyParamModal() {
+  const modal = document.getElementById('modifyParamModal');
+  if (modal) modal.classList.remove('active');
+}
+
+// Apply form modifications to right panel
+function applyRightParamForm() {
+  const cost = parseFloat(document.getElementById('modCost').value) || 320.0;
+  const shares = parseInt(document.getElementById('modShares').value) || 1000;
+  const t1 = parseFloat(document.getElementById('modT1').value) || -5.0;
+  const t2 = parseFloat(document.getElementById('modT2').value) || -8.0;
+
+  AppState.riskParams.cost = cost;
+  AppState.riskParams.shares = shares;
+  AppState.riskParams.t1 = t1;
+  AppState.riskParams.t2 = t2;
+
+  // Sync with projected sliders
+  const sliderCost = document.getElementById('sliderCost');
+  if (sliderCost) sliderCost.value = cost;
+  const sliderShares = document.getElementById('sliderShares');
+  if (sliderShares) sliderShares.value = shares;
+
+  updateProjectedCalculator();
+  closeModifyParamModal();
+  showToast('已成功更新右侧风控参数！保本价与三级止损线已完成精确重算');
+}
+
+// --------------------------------------------------------------------------
+// 5. 【重要交互 2】：AIChat 卡片/连接放大投射到右侧（保留当前右侧内容）
+// --------------------------------------------------------------------------
+function projectToRight(cardType, payload = {}) {
+  let tabId = 'projected-action';
+  let title = '🛡️ 实战动作单·宁德时代';
+
+  if (cardType === 'action') {
+    tabId = 'projected-action';
+    title = `🛡️ 实战动作单·${payload.name || '宁德时代'}`;
+    if (payload.cost) AppState.riskParams.cost = payload.cost;
+    if (payload.shares) AppState.riskParams.shares = payload.shares;
+  } else if (cardType === 'report') {
+    tabId = 'projected-action';
+    title = `📑 行情研报·深度版`;
+  }
+
+  // Open the tab preserving previous tabs
+  openRightTab(tabId, title, '⛶', true);
+
+  // Update calculator values in the projected pane
+  updateProjectedCalculator();
+
+  // Trigger from-left-to-right pop-in animation (从左到右弹出展示)
+  const pane = document.getElementById('pane-projected');
+  if (pane) {
+    pane.classList.remove('popup-slide-from-left');
+    void pane.offsetWidth; // force DOM reflow
+    pane.classList.add('popup-slide-from-left');
+  }
+
+  showToast(`已将【${title}】放大投射至右侧窗口（从左至右动画弹出，原有内容完整保留）`);
+}
+
+// Toggle ChatUI collapse / expand (收起 / 展开投研助手)
+function toggleChatCollapse() {
+  const container = document.querySelector('.app-container');
+  const chatCol = document.getElementById('appMiddleChat');
+  const expandTabBtn = document.getElementById('btnExpandChatTab');
+
+  if (!container) return;
+
+  const isCollapsed = container.classList.toggle('chat-collapsed');
+  if (chatCol) chatCol.classList.toggle('collapsed', isCollapsed);
+
+  if (expandTabBtn) {
+    expandTabBtn.style.display = isCollapsed ? 'inline-flex' : 'none';
+  }
+
+  if (isCollapsed) {
+    showToast('已收起 AI 投研助手，右侧内容展示区已最大化展开');
+  } else {
+    showToast('已展开 AI 投研助手 (占比 40%)');
+  }
+
+  // Trigger resize event so Canvas charts smoothly re-render to new width
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 320);
+}
+
+// Interactive Dynamic Calculator inside Projected View (math.ceil rule)
+function updateProjectedCalculator() {
+  const sliderCost = document.getElementById('sliderCost');
+  const sliderShares = document.getElementById('sliderShares');
+  if (!sliderCost || !sliderShares) return;
+
+  const cost = parseFloat(sliderCost.value);
+  const shares = parseInt(sliderShares.value);
+
+  document.getElementById('sliderCostVal').innerText = `¥${cost.toFixed(2)}`;
+  document.getElementById('sliderSharesVal').innerText = `${shares.toLocaleString()} 股`;
+
+  AppState.riskParams.cost = cost;
+  AppState.riskParams.shares = shares;
+
+  const buyAmount = cost * shares;
+  const buyComm = Math.max(AppState.riskParams.minCommission, buyAmount * AppState.riskParams.commissionRate);
+  const buyTransfer = buyAmount * AppState.riskParams.transferRate;
+
+  const sellStamp = buyAmount * (AppState.riskParams.stampDuty / 100);
+  const sellComm = Math.max(AppState.riskParams.minCommission, buyAmount * AppState.riskParams.commissionRate);
+  const sellTransfer = buyAmount * AppState.riskParams.transferRate;
+
+  const totalFee = buyComm + buyTransfer + sellStamp + sellComm + sellTransfer;
+  
+  // Mandatory math.ceil to the nearest cent (0.01)
+  const breakeven = Math.ceil(((buyAmount + totalFee) / shares) * 100) / 100;
+
+  const t0Price = Math.round(cost * (1 + AppState.riskParams.t0 / 100) * 100) / 100;
+  const t1Price = Math.round(cost * (1 + AppState.riskParams.t1 / 100) * 100) / 100;
+  const t2Price = Math.round(cost * (1 + AppState.riskParams.t2 / 100) * 100) / 100;
+
+  document.getElementById('resBreakeven').innerText = `¥${breakeven.toFixed(2)}`;
+  document.getElementById('resT0').innerText = `¥${t0Price.toFixed(2)}`;
+  document.getElementById('resT1').innerText = `¥${t1Price.toFixed(2)}`;
+  document.getElementById('resT2').innerText = `¥${t2Price.toFixed(2)}`;
+
+  document.getElementById('feeAmount').innerText = `¥${buyAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+  document.getElementById('feeBuyComm').innerText = `¥${buyComm.toFixed(2)}`;
+  document.getElementById('feeStamp').innerText = `¥${sellStamp.toFixed(2)}`;
+  document.getElementById('feeTransfer').innerText = `¥${(buyTransfer + sellTransfer).toFixed(2)}`;
+  document.getElementById('feeTotal').innerText = `¥${totalFee.toFixed(2)}`;
+}
+
+function askAboutProjectedAction() {
+  const cost = AppState.riskParams.cost;
+  const shares = AppState.riskParams.shares;
+  const breakeven = document.getElementById('resBreakeven').innerText;
+
+  const input = document.getElementById('chatInput');
+  if (!input) return;
+
+  input.value = `针对右侧放大投射的实战动作单（买入成本 ${cost} 元，${shares} 股，最低保本卖出价 ${breakeven}），若盘中跳水跌破 T1 减仓线，请给出分批对冲与减仓的具体委单策略。`;
+  input.focus();
+  showToast('已带入动作单最新保本参数至提问框！按回车即可提问');
+}
+
+// --------------------------------------------------------------------------
+// 6. Canvas Charts Rendering
+// --------------------------------------------------------------------------
+function renderTabCharts(tabId) {
+  if (tabId === 'dashboard') {
+    FinancialCharts.drawSparkline('sparklineSh', [3390, 3405, 3400, 3415, 3422, 3418, 3426.56], true);
+    FinancialCharts.drawSparkline('sparklineSz', [10750, 10780, 10820, 10800, 10860, 10892.14], true);
+    FinancialCharts.drawSparkline('sparklineCy', [2250, 2265, 2260, 2278, 2282, 2289.76], true);
+
+    FinancialCharts.drawDonutChart('portfolioDonut', [
+      { name: '持仓市值', value: 328.56, color: '#1677FF' },
+      { name: '现金', value: 125.68, color: '#4096FF' }
+    ], { centerTitle: '总市值', centerValue: '328.56万' });
+  } 
+  else if (tabId === 'market') {
+    FinancialCharts.drawSparkline('marketSparkSh', [3395, 3408, 3402, 3418, 3426.56], true);
+    FinancialCharts.drawSparkline('marketSparkSz', [10760, 10795, 10830, 10892.14], true);
+    FinancialCharts.drawSparkline('marketSparkCy', [2260, 2272, 2265, 2280, 2289.76], true);
+    FinancialCharts.drawSparkline('marketSparkKc', [980, 992, 988, 1005, 1012.35], true);
+
+    FinancialCharts.drawSentimentGauge('marketSentimentGauge', 78);
+
+    const klines = generateKlines(3400, 28, 0.006);
+    FinancialCharts.drawCandlestickChart('marketMainCandle', klines, { showVolume: true });
+  }
+  else if (tabId === 'watchlist') {
+    const klines = generateKlines(315, 28, 0.009);
+    FinancialCharts.drawCandlestickChart('stockDetailCandle', klines, { showVolume: true });
+
+    FinancialCharts.drawDonutChart('capitalFlowDonut', [
+      { name: '超大单', value: 45, color: '#F5222D' },
+      { name: '大单', value: 25, color: '#FF7875' },
+      { name: '中单', value: 18, color: '#52C41A' },
+      { name: '小单', value: 12, color: '#86909C' }
+    ], { centerTitle: '主力流入', centerValue: '+12.36亿' });
+
+    FinancialCharts.drawTrendLine('flowTrendLine', [2.5, 4.8, -1.2, 8.6, 12.36], ['08-21', '08-22', '08-25', '08-26', '08-27']);
+    FinancialCharts.drawSentimentGauge('mainForceGauge', 85);
+  }
+  else if (tabId === 'returns') {
+    // Strategy equity curve vs Benchmark 沪深300
+    const strategyEquity = [1.00, 1.02, 1.01, 1.05, 1.08, 1.06, 1.12, 1.15, 1.18, 1.16, 1.22, 1.25, 1.28, 1.30, 1.34];
+    const benchmarkEquity = [1.00, 1.01, 0.99, 1.02, 1.03, 1.01, 1.04, 1.05, 1.04, 1.02, 1.05, 1.06, 1.07, 1.08, 1.09];
+    const labels = ['3月', '4月', '5月', '6月', '7月', '8月', '9月'];
+    FinancialCharts.drawEquityCurve('equityCurveCanvas', strategyEquity, benchmarkEquity, labels);
+
+    // Monthly PnL
+    const monthlyPnL = [
+      { month: '1月', pnl: 4.8 },
+      { month: '2月', pnl: 6.2 },
+      { month: '3月', pnl: -1.5 },
+      { month: '4月', pnl: 5.4 },
+      { month: '5月', pnl: 3.1 },
+      { month: '6月', pnl: 7.8 },
+      { month: '7月', pnl: -2.1 },
+      { month: '8月', pnl: 8.6 }
+    ];
+    FinancialCharts.drawMonthlyPnLChart('monthlyPnLCanvas', monthlyPnL);
+  }
+}
+
 function generateKlines(basePrice = 320, count = 28, trend = 0.008) {
   const list = [];
   let curr = basePrice;
@@ -36,255 +564,9 @@ function generateKlines(basePrice = 320, count = 28, trend = 0.008) {
   return list;
 }
 
-// 2. View Routing
-function switchView(viewName) {
-  AppState.activeView = viewName;
-
-  // Update Left Sidebar Active Nav
-  document.querySelectorAll('.nav-item').forEach(item => {
-    if (item.dataset.view === viewName) {
-      item.classList.add('active');
-    } else {
-      item.classList.remove('active');
-    }
-  });
-
-  // Update Top Sub-Nav Active Item if present
-  document.querySelectorAll('.top-subnav-item').forEach(item => {
-    if (item.dataset.view === viewName) {
-      item.classList.add('active');
-    } else {
-      item.classList.remove('active');
-    }
-  });
-
-  // Toggle View Panels
-  document.querySelectorAll('.view-panel').forEach(panel => {
-    panel.classList.remove('active');
-  });
-
-  const targetPanel = document.getElementById(`view-${viewName}`);
-  if (targetPanel) {
-    targetPanel.classList.add('active');
-  }
-
-  // Toggle floating bottom bar (only in watchlist view)
-  const floatingBar = document.getElementById('aiFloatingBar');
-  if (floatingBar) {
-    floatingBar.style.display = (viewName === 'watchlist') ? 'flex' : 'none';
-  }
-
-  // Re-render corresponding charts
-  setTimeout(() => {
-    renderViewCharts(viewName);
-  }, 50);
-}
-
-// 3. Render Charts according to active view
-function renderViewCharts(viewName) {
-  if (viewName === 'chat') {
-    // 整体盘面 Sparklines
-    FinancialCharts.drawSparkline('sparklineSh', [3390, 3405, 3400, 3415, 3422, 3418, 3426.56], true);
-    FinancialCharts.drawSparkline('sparklineSz', [10750, 10780, 10820, 10800, 10860, 10892.14], true);
-    FinancialCharts.drawSparkline('sparklineCy', [2250, 2265, 2260, 2278, 2282, 2289.76], true);
-
-    // 持股/投资统计 Donut
-    FinancialCharts.drawDonutChart('portfolioDonut', [
-      { name: '持仓市值', value: 328.56, color: '#1677FF' },
-      { name: '现金', value: 125.68, color: '#4096FF' }
-    ], { centerTitle: '总市值', centerValue: '328.56万' });
-  } 
-  else if (viewName === 'market') {
-    // 4 大指数 Sparklines
-    FinancialCharts.drawSparkline('marketSparkSh', [3395, 3408, 3402, 3418, 3426.56], true);
-    FinancialCharts.drawSparkline('marketSparkSz', [10760, 10795, 10830, 10892.14], true);
-    FinancialCharts.drawSparkline('marketSparkCy', [2255, 2270, 2265, 2289.76], true);
-    FinancialCharts.drawSparkline('marketSparkKc', [952, 958, 963, 969.43], true);
-
-    // 市场情绪仪表盘
-    FinancialCharts.drawGauge('sentimentGauge', 78, {
-      statusText: '较强',
-      statusColor: '#F5222D',
-      fontSize: 24
-    });
-
-    // 大盘走势主 K 线图 (上证日K)
-    const shKlines = generateKlines(3380, 35, 0.006);
-    FinancialCharts.drawCandlestickChart('marketKlineCanvas', shKlines, { showVolume: true });
-  } 
-  else if (viewName === 'watchlist') {
-    // 宁德时代个股 K 线
-    const catlKlines = generateKlines(300, 35, 0.012);
-    FinancialCharts.drawCandlestickChart('stockKlineCanvas', catlKlines, { showVolume: true });
-
-    // 资金流向分布 Donut
-    FinancialCharts.drawDonutChart('fundFlowDonut', [
-      { name: '主力净流入', value: 12.36, color: '#F5222D' },
-      { name: '中单小单净流出', value: 12.36, color: '#52C41A' }
-    ], { centerTitle: '主力净流入', centerValue: '+12.36亿' });
-
-    // 近5日资金流向趋势折线图 (主力 vs 散户)
-    FinancialCharts.drawMultiLine('fundFlowTrendLine', 
-      ['08-21', '08-22', '08-25', '08-26', '08-27'],
-      [
-        { name: '主力', color: '#F5222D', data: [-2, 3, 5, 8, 12.36] },
-        { name: '散户', color: '#52C41A', data: [2, -1, -3, -6, -8.15] }
-      ]
-    );
-
-    // 北向资金占比 Donut
-    FinancialCharts.drawDonutChart('northboundDonut', [
-      { name: '沪股通', value: 3.12, color: '#1677FF' },
-      { name: '深股通', value: 2.11, color: '#52C41A' }
-    ], { centerTitle: '北向合计', centerValue: '5.23亿' });
-
-    // 近5日北向净买入柱状图
-    FinancialCharts.drawBarChart('northboundBar',
-      ['08-21', '08-22', '08-25', '08-26', '08-27'],
-      [-3.2, 4.1, -1.8, 6.5, 5.23]
-    );
-
-    // 主力控盘度仪表盘
-    FinancialCharts.drawGauge('mainControlGauge', 68.32, {
-      suffix: '%',
-      statusText: '高控盘',
-      statusColor: '#1677FF',
-      colorType: 'control',
-      fontSize: 22
-    });
-
-    // 主力持仓变化柱状图 (近5日)
-    FinancialCharts.drawBarChart('mainHoldingsBar',
-      ['08-21', '08-22', '08-25', '08-26', '08-27'],
-      [4.2, 6.8, 7.5, 11.2, 14.6]
-    );
-  }
-}
-
-// 4. Chat Typing Stream Simulation / Real SSE Bridge
-function appendChatMessage(role, content, options = {}) {
-  const container = document.getElementById('chatMessages');
-  if (!container) return null;
-
-  const now = new Date();
-  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-  const item = document.createElement('div');
-  item.className = `message-item ${role === 'user' ? 'message-user' : 'message-ai'}`;
-
-  if (role === 'user') {
-    item.innerHTML = `
-      <div class="message-bubble-user">
-        ${content}
-        <div class="message-timestamp">${timeStr}</div>
-      </div>
-    `;
-    container.appendChild(item);
-  } else {
-    const title = options.title || '当前A股市场行情分析';
-    const summary = options.summary || '两市成交放量破1.28万亿，科技成长主线共振领涨，短期延续震荡向上反弹格局';
-
-    // AI Structured Response Card with integrated header (仿照第2张图布局: 头像 + 标题 + 摘要)
-    item.innerHTML = `
-      <div class="message-bubble-ai" id="${options.msgId || 'aiMsg_' + Date.now()}">
-        <!-- 头像 + 标题 + 摘要 -->
-        <div class="ai-msg-header">
-          <div class="ai-avatar-pill">AI</div>
-          <div class="ai-msg-header-text">
-            <h3 class="ai-msg-title">${title}</h3>
-            <p class="ai-msg-summary">${summary}</p>
-          </div>
-        </div>
-
-        ${options.toolRunning ? `
-          <div class="tool-status-bubble" id="toolStatus">
-            <span class="tool-badge-running"></span>
-            <span>正在调用智能量化引擎 [astock-action-execution / astock-data-feed]...</span>
-          </div>
-        ` : ''}
-
-        <!-- 详细内容【在头像+标题+摘要】下方 -->
-        <div class="ai-content-body">${content}</div>
-
-        <div class="message-actions">
-          <span class="action-chip" onclick="showToast('感谢您的反馈：标记为有用！')">👍 有用</span>
-          <span class="action-chip" onclick="showToast('感谢反馈，我们将持续优化')">👎 没用</span>
-          <span class="action-chip" onclick="copyMessageText(this)">📋 复制</span>
-          <span class="action-chip" onclick="regenerateLastMessage()">🔄 重新生成</span>
-        </div>
-      </div>
-    `;
-    container.appendChild(item);
-  }
-
-  container.scrollTop = container.scrollHeight;
-  return item;
-}
-
-// Typewriter Streaming
-function streamAIResponse(contentOrTpl, titleParam, summaryParam) {
-  let fullText = contentOrTpl;
-  let title = titleParam || '当前A股市场行情分析';
-  let summary = summaryParam || '两市成交放量破1.28万亿，科技成长主线共振领涨，短期延续震荡向上反弹格局';
-
-  if (contentOrTpl && typeof contentOrTpl === 'object') {
-    fullText = contentOrTpl.body || '';
-    if (contentOrTpl.title) title = contentOrTpl.title;
-    if (contentOrTpl.summary) summary = contentOrTpl.summary;
-  }
-  if (titleParam && typeof contentOrTpl !== 'object') {
-    title = titleParam;
-  }
-  if (summaryParam) {
-    summary = summaryParam;
-  }
-
-  AppState.isChatStreaming = true;
-  const msgId = 'aiMsg_' + Date.now();
-  
-  // Initial placeholder with tool animation
-  const msgElem = appendChatMessage('ai', '<span style="color:#86909C;">AI正在综合大盘、资金流、筹码与技术指标进行深度研判...</span>', {
-    msgId: msgId,
-    title: title,
-    summary: summary,
-    toolRunning: true
-  });
-
-  setTimeout(() => {
-    const container = document.getElementById(msgId);
-    if (!container) return;
-
-    // Remove tool status or mark completed
-    const toolStatus = container.querySelector('#toolStatus');
-    if (toolStatus) {
-      toolStatus.innerHTML = `
-        <span style="color:#52C41A; font-weight:700;">✓</span>
-        <span>已完成数据调取与实战三原则保本价精算（税费最低卖出价向上进位至分）</span>
-      `;
-    }
-
-    const contentBody = container.querySelector('.ai-content-body');
-    contentBody.innerHTML = '';
-
-    // Stream characters
-    let idx = 0;
-    const speed = 12; // ms per char
-    const interval = setInterval(() => {
-      idx += 3;
-      if (idx >= fullText.length) {
-        clearInterval(interval);
-        contentBody.innerHTML = fullText;
-        AppState.isChatStreaming = false;
-      } else {
-        contentBody.innerHTML = fullText.slice(0, idx) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
-      }
-      const scrollBox = document.getElementById('chatMessages');
-      if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
-    }, speed);
-  }, 600);
-}
-
-// Quick Prompts Pre-set Content
+// --------------------------------------------------------------------------
+// 7. Chat Engine & Typewriter Streaming
+// --------------------------------------------------------------------------
 const PromptTemplates = {
   '行情分析': {
     title: '当前A股市场行情分析',
@@ -303,13 +585,9 @@ const PromptTemplates = {
           <li><strong>消费板块</strong>：整体偏弱，食品饮料与家电呈现结构性分化。</li>
         </ul>
       </div>
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">3. 技术面分析</div>
-        <p>上证指数站上 5日/10日均线，MACD 水上金叉发散；创业板指放量突破前期压力位，需关注 2,300 点强压力区筹码消化。</p>
-      </div>
       <div class="summary-highlight-card">
         <span class="summary-icon">📈</span>
-        <div class="summary-text"><strong>一句总结线</strong>：市场短期延续震荡向上趋势，科技成长仍是核心主线，建议逢低布局，合理控制仓位，警惕高位股获利回吐。</div>
+        <div class="summary-text"><strong>一句总结线</strong>：市场短期延续震荡向上趋势，科技成长仍是核心主线，建议逢低布局，合理控制仓位。</div>
       </div>
       <div class="risk-iron-card">
         <div class="risk-iron-header">🛡️ 实战交易三原则（合规风控指令单）</div>
@@ -326,6 +604,14 @@ const PromptTemplates = {
             <div class="risk-pill-title">T2绝杀线 (-8%)</div>
             <div class="risk-pill-val">¥294.55 (坚决止损)</div>
           </div>
+        </div>
+        <div class="risk-card-actions">
+          <button class="project-btn" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
+            <span>⛶ 放大投射到右侧工作台</span>
+          </button>
+          <button class="project-btn secondary" onclick="openModifyRightParam()">
+            <span>✏️ 修改风控参数</span>
+          </button>
         </div>
       </div>
     `
@@ -344,7 +630,7 @@ const PromptTemplates = {
       </div>
       <div class="summary-highlight-card">
         <span class="summary-icon">🎯</span>
-        <div class="summary-text"><strong>量化提示</strong>：技术指标反弹动能充沛，但需严格遵守分级风控止损原则，防范虚假突破。</div>
+        <div class="summary-text"><strong>量化提示</strong>：技术指标反弹动能充沛，需严格遵守分级风控止损原则，防范虚假突破。</div>
       </div>
     `
   },
@@ -367,7 +653,111 @@ const PromptTemplates = {
   }
 };
 
-// 5. Chat Input Handler
+function appendChatMessage(role, content, meta = {}) {
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
+
+  const item = document.createElement('div');
+  item.className = `message-item message-${role}`;
+  const nowStr = new Date().toLocaleTimeString().slice(0, 5);
+
+  if (role === 'user') {
+    item.innerHTML = `
+      <div class="message-bubble-user">
+        ${content}
+        <div class="message-timestamp">${nowStr}</div>
+      </div>
+    `;
+    container.appendChild(item);
+  } else {
+    const msgId = meta.msgId || 'msg_' + Date.now();
+    const title = meta.title || '量化投研综合研报';
+    const summary = meta.summary || '模型结合盘面数据与风控铁律输出';
+
+    item.innerHTML = `
+      <div class="message-bubble-ai" id="${msgId}">
+        <div class="ai-msg-header">
+          <div class="ai-avatar-pill">AI</div>
+          <div class="ai-msg-header-text">
+            <h3 class="ai-msg-title">${title}</h3>
+            <p class="ai-msg-summary">${summary}</p>
+          </div>
+        </div>
+        ${meta.toolRunning ? `
+          <div class="tool-status-bubble" id="toolStatus">
+            <span class="tool-badge-running"></span>
+            <span>正在调用智能量化引擎 [astock-action-execution / astock-data-feed]...</span>
+          </div>
+        ` : ''}
+        <div class="ai-content-body">${content}</div>
+        <div class="message-actions">
+          <span class="action-chip" onclick="showToast('感谢反馈：已标记有用！')">👍 有用</span>
+          <span class="action-chip" onclick="showToast('感谢反馈，我们将持续优化')">👎 没用</span>
+          <span class="action-chip" onclick="copyMessageText(this)">📋 复制</span>
+          <span class="action-chip" onclick="regenerateLastMessage()">🔄 重新生成</span>
+        </div>
+      </div>
+    `;
+    container.appendChild(item);
+  }
+
+  container.scrollTop = container.scrollHeight;
+  return item;
+}
+
+function streamAIResponse(contentOrTpl, titleParam, summaryParam) {
+  let fullText = contentOrTpl;
+  let title = titleParam || '当前A股市场行情分析';
+  let summary = summaryParam || '两市成交放量破1.28万亿，科技成长主线共振领涨，短期延续震荡向上反弹格局';
+
+  if (contentOrTpl && typeof contentOrTpl === 'object') {
+    fullText = contentOrTpl.body || '';
+    if (contentOrTpl.title) title = contentOrTpl.title;
+    if (contentOrTpl.summary) summary = contentOrTpl.summary;
+  }
+
+  AppState.isChatStreaming = true;
+  const msgId = 'aiMsg_' + Date.now();
+
+  appendChatMessage('ai', '<span style="color:#86909C;">AI正在综合大盘、资金流、筹码与技术指标进行深度研判...</span>', {
+    msgId: msgId,
+    title: title,
+    summary: summary,
+    toolRunning: true
+  });
+
+  setTimeout(() => {
+    const container = document.getElementById(msgId);
+    if (!container) return;
+
+    const toolStatus = container.querySelector('#toolStatus');
+    if (toolStatus) {
+      toolStatus.innerHTML = `
+        <span style="color:#52C41A; font-weight:700;">✓</span>
+        <span>已完成数据调取与实战三原则保本价精算（税费最低卖出价向上进位至分）</span>
+      `;
+    }
+
+    const contentBody = container.querySelector('.ai-content-body');
+    contentBody.innerHTML = '';
+
+    let idx = 0;
+    const speed = 12;
+    const interval = setInterval(() => {
+      idx += 3;
+      if (idx >= fullText.length) {
+        clearInterval(interval);
+        contentBody.innerHTML = fullText;
+        AppState.isChatStreaming = false;
+      } else {
+        contentBody.innerHTML = fullText.slice(0, idx) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
+      }
+      const scrollBox = document.getElementById('chatMessages');
+      if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
+    }, speed);
+  }, 500);
+}
+
 function handleSendChat() {
   if (AppState.isChatStreaming) return;
 
@@ -378,44 +768,66 @@ function handleSendChat() {
   appendChatMessage('user', text);
   input.value = '';
 
-  // Check matching template or fallback
   let tpl = PromptTemplates['行情分析'];
-  if (text.includes('指标') || text.includes('技术')) {
+  if (text.includes('指标') || text.includes('技术') || text.includes('金叉')) {
     tpl = PromptTemplates['技术指标'];
-  } else if (text.includes('选股') || text.includes('模型') || text.includes('股票')) {
+  } else if (text.includes('选股') || text.includes('模型') || text.includes('因子')) {
     tpl = PromptTemplates['选股模型'];
   }
 
   streamAIResponse(tpl.body, tpl.title, tpl.summary);
 }
 
-// 6. Watchlist stock selection
-function selectWatchStock(code) {
-  AppState.selectedStock = code;
-  document.querySelectorAll('.watchlist-item-card').forEach(card => {
-    if (card.dataset.code === code) {
-      card.classList.add('active');
-    } else {
-      card.classList.remove('active');
-    }
+function copyMessageText(btn) {
+  const card = btn.closest('.message-bubble-ai');
+  if (!card) return;
+  const text = card.innerText.replace(/👍 有用|👎 没用|📋 复制|🔄 重新生成/g, '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('内容已复制到剪贴板！');
+  }).catch(() => {
+    showToast('已选中内容，可直接复制');
+  });
+}
+
+function regenerateLastMessage() {
+  showToast('正在重新调用 AI 模型与风控规则...');
+  streamAIResponse(PromptTemplates['行情分析'], '重算行情研报');
+}
+
+// --------------------------------------------------------------------------
+// 8. Modals Management (系统设置 & 参数修改)
+// --------------------------------------------------------------------------
+function openSettingsModal() {
+  const modal = document.getElementById('settingsModal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeSettingsModal() {
+  const modal = document.getElementById('settingsModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function switchSettingsSec(secId) {
+  document.querySelectorAll('.settings-tab').forEach(tab => {
+    if (tab.dataset.sec === secId) tab.classList.add('active');
+    else tab.classList.remove('active');
   });
 
-  showToast(`已切换至个股：${code}`);
-  if (AppState.activeView !== 'watchlist') {
-    switchView('watchlist');
-  } else {
-    renderViewCharts('watchlist');
-  }
+  document.querySelectorAll('.settings-sec').forEach(sec => {
+    sec.classList.remove('active');
+  });
+  const target = document.getElementById(`sec-${secId}`);
+  if (target) target.classList.add('active');
 }
 
-// 7. Strategy switch toggler
-function toggleStrategy(key, el) {
-  AppState.strategies[key] = el.checked;
-  const status = el.checked ? '已开启' : '已暂停';
-  showToast(`策略 [${key}] ${status}！盯盘后台已同步更新`);
+function saveSettings() {
+  closeSettingsModal();
+  showToast('系统设置已成功保存！大模型网关与实战风控已平滑热重载');
 }
 
-// 8. Toast Helper
+// --------------------------------------------------------------------------
+// 9. Toast Notification Helper
+// --------------------------------------------------------------------------
 function showToast(msg) {
   let container = document.getElementById('toastContainer');
   if (!container) {
@@ -434,67 +846,18 @@ function showToast(msg) {
     toast.style.opacity = '0';
     toast.style.transform = 'translateY(-10px)';
     setTimeout(() => toast.remove(), 300);
-  }, 2400);
+  }, 2600);
 }
 
-// 9. Copy message helper
-function copyMessageText(btn) {
-  const card = btn.closest('.message-bubble-ai');
-  if (!card) return;
-  const text = card.innerText.replace(/👍 有用|👎 没用|📋 复制|🔄 重新生成/g, '').trim();
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('内容已复制到剪贴板！');
-  }).catch(() => {
-    showToast('已选中内容，可直接复制');
-  });
-}
-
-// 10. Regenerate message helper
-function regenerateLastMessage() {
-  showToast('正在重新调用 AI 模型与风控规则...');
-  streamAIResponse(PromptTemplates['行情分析'], '重算行情研报');
-}
-
-// 11. Initial DOM Ready Hook
+// --------------------------------------------------------------------------
+// 10. Initial DOM Ready Hook
+// --------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
-  // Setup Global Nav clicks
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const view = item.dataset.view;
-      if (view) switchView(view);
-    });
-  });
+  // 1. Render Session History & Infinite Scroll
+  renderSessionList();
+  setupSessionInfiniteScroll();
 
-  // Setup Top Sub-Nav clicks
-  document.querySelectorAll('.top-subnav-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const view = item.dataset.view;
-      if (view) switchView(view);
-    });
-  });
-
-  // Setup Prompt Pills click
-  document.querySelectorAll('.prompt-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      const key = pill.innerText.replace(/\[|\]/g, '').trim();
-      const content = PromptTemplates[key] || PromptTemplates['行情分析'];
-      appendChatMessage('user', `请帮我执行【${key}】并出具研报`);
-      streamAIResponse(content, `${key} 深度诊断`);
-    });
-  });
-
-  // Setup Card Tabs Switcher
-  document.querySelectorAll('.card-tabs').forEach(tabBar => {
-    tabBar.querySelectorAll('.card-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        tabBar.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        showToast(`已切换至标签：${tab.innerText}`);
-      });
-    });
-  });
-
-  // Setup Chat Input Enter Key
+  // 2. Setup Chat Input Enter Key
   const chatInput = document.getElementById('chatInput');
   if (chatInput) {
     chatInput.addEventListener('keydown', (e) => {
@@ -505,27 +868,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Setup Floating bottom bar input
-  const floatingInput = document.getElementById('aiFloatingInput');
-  if (floatingInput) {
-    floatingInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const text = floatingInput.value.trim();
-        if (text) {
-          switchView('chat');
-          appendChatMessage('user', text);
-          floatingInput.value = '';
-          streamAIResponse(PromptTemplates['行情分析'], '针对个股即时诊断');
-        }
-      }
+  // 3. Setup Prompt Pills
+  document.querySelectorAll('.prompt-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const key = pill.innerText.replace(/\[|\]/g, '').trim();
+      const content = PromptTemplates[key] || PromptTemplates['行情分析'];
+      appendChatMessage('user', `请帮我执行【${key}】并出具研报`);
+      streamAIResponse(content, `${key} 深度诊断`);
     });
-  }
+  });
 
-  // Initial View Rendering
-  switchView('chat');
+  // 4. Initial Tab & View Activation
+  switchRightTab('dashboard');
+  updateProjectedCalculator();
 });
 
-// Window resize re-renders charts
+// Resize listener
 window.addEventListener('resize', () => {
-  renderViewCharts(AppState.activeView);
+  renderTabCharts(AppState.activeRightTab);
 });
