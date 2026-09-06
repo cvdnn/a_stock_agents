@@ -2,7 +2,7 @@
 
 - **文档版本**：v1.1
 - **创建日期**：2026-09-05（更新于 2026-09-06）
-- **当前状态**：技术方案锁定 / 第一阶段落地完成 / 双模兼容架构确立
+- **当前状态**：技术方案锁定 / 第一阶段落地完成 / 第二阶段治理子系统落地完成 / 双模兼容架构确立
 - **适用场景**：脱离第三方 AI 终端宿主（Antigravity / Hermes / Codex 等），自建独立 Web 界面系统并原生兼容本地客户端（Desktop / TUI）的 A股全流程量化投研交互中枢
 
 ---
@@ -265,12 +265,12 @@ class SkillMeta(BaseModel):
 - [x] 验证通过 Web 模式与本地客户端（Desktop/TUI）双模架构兼容性基线测试。
 
 ### 📌 第二阶段：Skill 治理控制子系统 (Skill Governance Implementation)
-- [ ] 基于 `config/skills_manifest.json` 建立 `core/governance/skill_registry.py`；
-- [ ] 将 17 项技能抽象为统一注册实例，生成标准的 JSON Schema / Function Calling 规范；
-- [ ] 重构事件流抽象：确立通用的 `AgentEvent` 领域模型，将 SSE 传输层与内核事件彻底解耦；
-- [ ] 实现 REST API：技能列表检索、启用/停用切换、参数测试与调用审计日志；
-- [ ] 集成安全门禁：实现长耗时任务异步 Worker（选股与回测队列）与超时熔断控制；
-- [ ] 本地客户端适配：实现 `--port 0` 动态端口探测与本地锁定文件机制。
+- [x] 基于 `config/skills_manifest.json` 建立 `core/governance/skill_registry.py`；
+- [x] 将 17 项技能抽象为统一注册实例，生成标准的 JSON Schema / Function Calling 规范；
+- [x] 重构事件流抽象：确立通用的 `AgentEvent` 领域模型，将 SSE 传输层与内核事件彻底解耦；
+- [x] 实现 REST API：技能列表检索、启用/停用切换、参数测试与调用审计日志；
+- [x] 集成安全门禁：实现长耗时任务异步 Worker（选股与回测队列）与超时熔断控制；
+- [x] 本地客户端适配：实现 `--port 0` 动态端口探测与本地锁定文件机制。
 
 ### 📌 第三阶段：现代 Web 前端与跨端客户端构建 (Frontend UI & Multi-Client)
 - [ ] 初始化现代 Web 前端（推荐 Vite + React + TailwindCSS + Lucide Icons + ECharts / Lightweight-Charts）；

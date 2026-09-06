@@ -11,21 +11,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import VERSION, get_logger
-from server.api import chat_router, health_router, sessions_router
+from server.api import chat_router, health_router, sessions_router, skills_router, tasks_router
 from server.config import server_settings
 from server.db import init_db
+from server.port_utils import remove_server_lockfile
 
 logger = get_logger("server.app")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Application lifespan: initialize database schemas on startup."""
+    """Application lifespan: initialize database schemas on startup, cleanup on shutdown."""
     logger.info("Initializing A-Stock Agents server database...")
     init_db(server_settings.db_path)
     logger.info(f"Database ready at: {server_settings.db_path}")
     yield
     logger.info("A-Stock Agents server shutting down.")
+    remove_server_lockfile()
 
 
 def create_app() -> FastAPI:
@@ -50,6 +52,9 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(sessions_router)
     app.include_router(chat_router)
+    app.include_router(skills_router)
+    app.include_router(tasks_router)
+
 
     @app.get("/", tags=["Root"])
     async def root_index():

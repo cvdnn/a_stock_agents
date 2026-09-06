@@ -69,6 +69,50 @@ def _init_schemas(conn: sqlite3.Connection) -> None:
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, id);
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS skill_audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                skill_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                status TEXT NOT NULL,
+                latency_ms INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
+                tokens INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_skill_audit ON skill_audit_logs(skill_id, created_at);
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS skill_overrides (
+                skill_id TEXT PRIMARY KEY,
+                enabled INTEGER,
+                timeout_seconds INTEGER,
+                require_confirmation INTEGER,
+                updated_at TEXT NOT NULL
+            );
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS task_records (
+                task_id TEXT PRIMARY KEY,
+                task_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                progress REAL DEFAULT 0.0,
+                status_message TEXT DEFAULT '',
+                params_json TEXT DEFAULT '{}',
+                result_json TEXT,
+                error TEXT,
+                created_at TEXT NOT NULL,
+                started_at TEXT,
+                completed_at TEXT,
+                elapsed_ms INTEGER DEFAULT 0
+            );
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tasks_status ON task_records(status, created_at);
+        """)
+
 
 
 def init_db(db_path: Optional[Path] = None) -> None:
@@ -314,3 +358,331 @@ def get_messages(
         return msgs
     finally:
         conn.close()
+
+
+# ── Skill Governance Persistence ─────────────────────────────────────────────
+
+def record_skill_audit(
+    skill_id: str,
+    action: str,
+    status: str,
+    latency_ms: int = 0,
+    error_message: Optional[str] = None,
+    tokens: int = 0,
+    db_path: Optional[Path] = None,
+) -> int:
+    """Record an audit log entry for a skill invocation."""
+    now = _get_utc_now_iso()
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.execute(
+                """
+                INSERT INTO skill_audit_logs (skill_id, action, status, latency_ms, error_message, tokens, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (skill_id, action, status, latency_ms, error_message, tokens, now),
+            )
+            return cur.lastrowid or 0
+    finally:
+        conn.close()
+
+
+def get_skill_audit_stats(db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Calculate aggregated calling metrics and per-skill statistics."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM skill_audit_logs;")
+        total_calls = cur.fetchone()[0]
+
+        cur.execute(
+            """
+            SELECT COUNT(*) FROM skill_audit_logs
+            WHERE date(created_at) = date('now');
+            """
+        )
+        today_calls = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(*) FROM skill_audit_logs WHERE status = 'success';")
+        success_count = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(*) FROM skill_audit_logs WHERE status != 'success';")
+        error_count = cur.fetchone()[0]
+
+        cur.execute("SELECT AVG(latency_ms) FROM skill_audit_logs;")
+        avg_latency = float(cur.fetchone()[0] or 0.0)
+
+        # Approximate P95 latency
+        cur.execute("SELECT latency_ms FROM skill_audit_logs ORDER BY latency_ms ASC;")
+        latencies = [r[0] for r in cur.fetchall()]
+        p95_latency = 0
+        if latencies:
+            idx = int(len(latencies) * 0.95)
+            p95_latency = latencies[min(idx, len(latencies) - 1)]
+
+        # Per skill breakdown
+        cur.execute(
+            """
+            SELECT skill_id,
+                   COUNT(*) as total,
+                   SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success,
+                   SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) as error,
+                   AVG(latency_ms) as avg_lat,
+                   MAX(created_at) as last_called
+            FROM skill_audit_logs
+            GROUP BY skill_id;
+            """
+        )
+        by_skill = {}
+        for r in cur.fetchall():
+            by_skill[r["skill_id"]] = {
+                "total_calls": r["total"],
+                "success_count": r["success"],
+                "error_count": r["error"],
+                "avg_latency_ms": round(r["avg_lat"] or 0, 1),
+                "last_called_at": r["last_called"],
+            }
+
+        error_rate = round(error_count / total_calls, 4) if total_calls > 0 else 0.0
+
+        return {
+            "total_calls": total_calls,
+            "today_calls": today_calls,
+            "success_count": success_count,
+            "error_count": error_count,
+            "error_rate": error_rate,
+            "avg_latency_ms": round(avg_latency, 1),
+            "p95_latency_ms": p95_latency,
+            "by_skill": by_skill,
+        }
+    finally:
+        conn.close()
+
+
+def save_skill_override(
+    skill_id: str,
+    enabled: Optional[bool] = None,
+    timeout_seconds: Optional[int] = None,
+    require_confirmation: Optional[bool] = None,
+    db_path: Optional[Path] = None,
+) -> None:
+    """Save persistent configuration override for a skill."""
+    now = _get_utc_now_iso()
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            # Check existing
+            cur = conn.execute("SELECT * FROM skill_overrides WHERE skill_id = ?;", (skill_id,))
+            existing = cur.fetchone()
+            if existing:
+                cur_en = existing["enabled"] if enabled is None else (1 if enabled else 0)
+                cur_to = existing["timeout_seconds"] if timeout_seconds is None else timeout_seconds
+                cur_rc = existing["require_confirmation"] if require_confirmation is None else (1 if require_confirmation else 0)
+                conn.execute(
+                    """
+                    UPDATE skill_overrides
+                    SET enabled = ?, timeout_seconds = ?, require_confirmation = ?, updated_at = ?
+                    WHERE skill_id = ?;
+                    """,
+                    (cur_en, cur_to, cur_rc, now, skill_id),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO skill_overrides (skill_id, enabled, timeout_seconds, require_confirmation, updated_at)
+                    VALUES (?, ?, ?, ?, ?);
+                    """,
+                    (
+                        skill_id,
+                        (1 if enabled else 0) if enabled is not None else None,
+                        timeout_seconds,
+                        (1 if require_confirmation else 0) if require_confirmation is not None else None,
+                        now,
+                    ),
+                )
+    finally:
+        conn.close()
+
+
+def get_skill_overrides(db_path: Optional[Path] = None) -> Dict[str, Dict[str, Any]]:
+    """Retrieve all persistent skill overrides."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM skill_overrides;")
+        rows = cur.fetchall()
+        res = {}
+        for r in rows:
+            res[r["skill_id"]] = {
+                "enabled": bool(r["enabled"]) if r["enabled"] is not None else None,
+                "timeout_seconds": r["timeout_seconds"],
+                "require_confirmation": bool(r["require_confirmation"]) if r["require_confirmation"] is not None else None,
+                "updated_at": r["updated_at"],
+            }
+        return res
+    finally:
+        conn.close()
+
+
+# ── Task Persistence ──────────────────────────────────────────────────────────
+
+def save_task_record(
+    task_id: str,
+    task_type: str,
+    status: str = "pending",
+    params: Optional[Dict[str, Any]] = None,
+    db_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Create a new async task record."""
+    now = _get_utc_now_iso()
+    params_json = json.dumps(params or {}, ensure_ascii=False)
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO task_records (task_id, task_type, status, progress, status_message, params_json, created_at)
+                VALUES (?, ?, ?, 0.0, 'Task initialized', ?, ?);
+                """,
+                (task_id, task_type, status, params_json, now),
+            )
+    finally:
+        conn.close()
+
+    return {
+        "task_id": task_id,
+        "task_type": task_type,
+        "status": status,
+        "progress": 0.0,
+        "status_message": "Task initialized",
+        "created_at": now,
+        "params": params or {},
+    }
+
+
+def update_task_record(
+    task_id: str,
+    status: Optional[str] = None,
+    progress: Optional[float] = None,
+    status_message: Optional[str] = None,
+    result: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None,
+    started_at: Optional[str] = None,
+    completed_at: Optional[str] = None,
+    elapsed_ms: Optional[int] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
+    """Update task progress, status, or completion outcome."""
+    conn = get_connection(db_path)
+    try:
+        updates = []
+        vals = []
+        if status is not None:
+            updates.append("status = ?")
+            vals.append(status)
+        if progress is not None:
+            updates.append("progress = ?")
+            vals.append(progress)
+        if status_message is not None:
+            updates.append("status_message = ?")
+            vals.append(status_message)
+        if result is not None:
+            updates.append("result_json = ?")
+            vals.append(json.dumps(result, ensure_ascii=False))
+        if error is not None:
+            updates.append("error = ?")
+            vals.append(error)
+        if started_at is not None:
+            updates.append("started_at = ?")
+            vals.append(started_at)
+        if completed_at is not None:
+            updates.append("completed_at = ?")
+            vals.append(completed_at)
+        if elapsed_ms is not None:
+            updates.append("elapsed_ms = ?")
+            vals.append(elapsed_ms)
+
+        if not updates:
+            return True
+
+        vals.append(task_id)
+        with conn:
+            cur = conn.execute(
+                f"UPDATE task_records SET {', '.join(updates)} WHERE task_id = ?;",
+                tuple(vals),
+            )
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_task_record(task_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    """Fetch task details by task_id."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM task_records WHERE task_id = ?;", (task_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        params = json.loads(row["params_json"]) if row["params_json"] else {}
+        result = json.loads(row["result_json"]) if row["result_json"] else None
+        return {
+            "task_id": row["task_id"],
+            "task_type": row["task_type"],
+            "status": row["status"],
+            "progress": row["progress"],
+            "status_message": row["status_message"],
+            "params": params,
+            "result": result,
+            "error": row["error"],
+            "created_at": row["created_at"],
+            "started_at": row["started_at"],
+            "completed_at": row["completed_at"],
+            "elapsed_ms": row["elapsed_ms"],
+        }
+    finally:
+        conn.close()
+
+
+def list_task_records(
+    status: Optional[str] = None,
+    limit: int = 50,
+    db_path: Optional[Path] = None,
+) -> List[Dict[str, Any]]:
+    """List recent tasks optionally filtered by status."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        if status:
+            cur.execute(
+                "SELECT * FROM task_records WHERE status = ? ORDER BY created_at DESC LIMIT ?;",
+                (status, limit),
+            )
+        else:
+            cur.execute(
+                "SELECT * FROM task_records ORDER BY created_at DESC LIMIT ?;",
+                (limit,),
+            )
+        rows = cur.fetchall()
+        tasks = []
+        for r in rows:
+            tasks.append({
+                "task_id": r["task_id"],
+                "task_type": r["task_type"],
+                "status": r["status"],
+                "progress": r["progress"],
+                "status_message": r["status_message"],
+                "params": json.loads(r["params_json"]) if r["params_json"] else {},
+                "result": json.loads(r["result_json"]) if r["result_json"] else None,
+                "error": r["error"],
+                "created_at": r["created_at"],
+                "started_at": r["started_at"],
+                "completed_at": r["completed_at"],
+                "elapsed_ms": r["elapsed_ms"],
+            })
+        return tasks
+    finally:
+        conn.close()
+

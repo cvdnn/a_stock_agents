@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 server.agent.react_runner - Agent ReAct Execution Runtime.
-Coordinates LLM streaming, thoughts, tool calling, and SSE event streaming.
+Coordinates LLM streaming, thoughts, tool calling, and emits universal AgentEvent objects.
+Completely decouples internal deliberation from transport layer protocols.
 """
 from __future__ import annotations
 
@@ -11,9 +12,21 @@ import time
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from core.config import get_logger
+from core.governance.skill_registry import get_skill_registry
+from server.agent.events import (
+    AgentEvent,
+    ContentDeltaEvent,
+    ConversationStartEvent,
+    DoneEvent,
+    ErrorEvent,
+    RiskCardEvent,
+    ThoughtEvent,
+    ToolCallCompleteEvent,
+    ToolCallStartEvent,
+    sse_format,
+)
 from server.agent.prompts import AGENT_SYSTEM_PROMPT
 from server.agent.tools import (
-    TOOLS_DEFINITIONS,
     execute_tool,
     extract_risk_card,
 )
@@ -25,24 +38,23 @@ logger = get_logger("server.agent.react_runner")
 
 
 class AgentReActRunner:
-    """Agent runtime managing multi-turn conversation and tool execution loop."""
+    """Agent runtime managing multi-turn conversation, Skill Governance, and typed AgentEvents."""
 
     MAX_REACT_STEPS = 5
 
     def __init__(self, default_model: Optional[str] = None) -> None:
         self.default_model = default_model or server_settings.default_model
 
-    async def run_chat_stream(
+    async def run_chat(
         self,
         message: str,
         session_id: Optional[str] = None,
         model: Optional[str] = None,
         tools_enabled: bool = True,
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[AgentEvent]:
         """
-        Stream chat responses formatted as Server-Sent Events (SSE).
-        Yields strings formatted according to the spec:
-        event: <type>\\ndata: <json>\\n\\n
+        Execute ReAct loop and yield strongly-typed AgentEvent domain objects.
+        Directly consumable by in-process clients (TUI / Desktop Sidecar).
         """
         start_time = time.time()
         selected_model = model or self.default_model
@@ -62,10 +74,7 @@ class AgentReActRunner:
         add_message(session_id=sid, role="user", content=message)
 
         # 3. Emit conversation_start event
-        yield (
-            f"event: conversation_start\n"
-            f"data: {json.dumps({'session_id': sid, 'model': selected_model}, ensure_ascii=False)}\n\n"
-        )
+        yield ConversationStartEvent(session_id=sid, model=selected_model)
 
         try:
             # 4. Prepare message history for LLM
@@ -94,14 +103,16 @@ class AgentReActRunner:
             total_tokens = 0
             step = 0
 
+            # Obtain tools from Skill Governance Registry
+            registry = get_skill_registry()
+            tools_to_pass = registry.to_openai_tools(enabled_only=True) if tools_enabled else None
+
             # 5. ReAct iteration loop
             while step < self.MAX_REACT_STEPS:
                 step += 1
                 accumulated_text = ""
                 accumulated_thought = ""
                 accumulated_tool_calls: List[Dict[str, Any]] = []
-
-                tools_to_pass = TOOLS_DEFINITIONS if tools_enabled else None
 
                 stream_gen = provider.stream_chat(
                     messages=llm_messages,
@@ -116,18 +127,12 @@ class AgentReActRunner:
                     # Stream thought/reasoning
                     if chunk.thought:
                         accumulated_thought += chunk.thought
-                        yield (
-                            f"event: thought\n"
-                            f"data: {json.dumps({'content': chunk.thought}, ensure_ascii=False)}\n\n"
-                        )
+                        yield ThoughtEvent(content=chunk.thought)
 
                     # Stream text delta
                     if chunk.delta_text:
                         accumulated_text += chunk.delta_text
-                        yield (
-                            f"event: content_delta\n"
-                            f"data: {json.dumps({'text': chunk.delta_text}, ensure_ascii=False)}\n\n"
-                        )
+                        yield ContentDeltaEvent(text=chunk.delta_text)
 
                     # Stream tool calls
                     if chunk.tool_calls:
@@ -165,21 +170,30 @@ class AgentReActRunner:
                     except Exception:
                         args = {}
 
-                    # Emit tool_call_start
-                    yield (
-                        f"event: tool_call_start\n"
-                        f"data: {json.dumps({'call_id': call_id, 'skill_id': fn_name, 'action': fn_name, 'args': args}, ensure_ascii=False)}\n\n"
+                    # Emit ToolCallStartEvent
+                    yield ToolCallStartEvent(
+                        call_id=call_id,
+                        skill_id=fn_name,
+                        action=fn_name,
+                        args=args if isinstance(args, dict) else {},
                     )
 
-                    # Execute tool asynchronously
-                    tool_res = await execute_tool(fn_name, args)
+                    # Execute tool via executor
+                    tool_res = await execute_tool(fn_name, args if isinstance(args, dict) else {})
 
-                    # Check for risk card data
+                    # Check for risk card data adhering to real-world 3 principles
                     risk_card = extract_risk_card(tool_res)
                     if risk_card:
-                        yield (
-                            f"event: risk_card\n"
-                            f"data: {json.dumps(risk_card, ensure_ascii=False)}\n\n"
+                        yield RiskCardEvent(
+                            breakeven_price=risk_card["breakeven_price"],
+                            stop_t0=risk_card["stop_t0"],
+                            stop_t1=risk_card["stop_t1"],
+                            stop_t2=risk_card["stop_t2"],
+                            code=risk_card.get("code"),
+                            name=risk_card.get("name"),
+                            cost=risk_card.get("cost"),
+                            shares=risk_card.get("shares"),
+                            actions=risk_card.get("actions"),
                         )
 
                     # Summary for complete event
@@ -193,10 +207,15 @@ class AgentReActRunner:
                     elif "selected_count" in tool_res:
                         summary = f"初选入围 {tool_res['selected_count']} 只标的"
 
-                    # Emit tool_call_complete
-                    yield (
-                        f"event: tool_call_complete\n"
-                        f"data: {json.dumps({'call_id': call_id, 'skill_id': fn_name, 'status': 'success', 'summary': summary, 'data': tool_res}, ensure_ascii=False)}\n\n"
+                    status = "success" if not ("error" in tool_res) else "error"
+
+                    # Emit ToolCallCompleteEvent
+                    yield ToolCallCompleteEvent(
+                        call_id=call_id,
+                        skill_id=fn_name,
+                        status=status,
+                        summary=summary,
+                        data=tool_res if isinstance(tool_res, dict) else None,
                     )
 
                     # Store tool execution in DB
@@ -218,18 +237,36 @@ class AgentReActRunner:
                         "content": tool_json_str,
                     })
 
-            # 6. Emit done event
+            # 6. Emit DoneEvent
             elapsed_ms = int((time.time() - start_time) * 1000)
             if total_tokens == 0:
                 total_tokens = max(100, int(len(message) * 1.5))
-            yield (
-                f"event: done\n"
-                f"data: {json.dumps({'total_tokens': total_tokens, 'elapsed_ms': elapsed_ms, 'finish_reason': 'stop'}, ensure_ascii=False)}\n\n"
+            yield DoneEvent(
+                total_tokens=total_tokens,
+                elapsed_ms=elapsed_ms,
+                finish_reason="stop",
             )
 
         except Exception as exc:
             logger.error(f"ReAct runtime error: {exc}", exc_info=True)
-            yield (
-                f"event: error\n"
-                f"data: {json.dumps({'error': str(exc)}, ensure_ascii=False)}\n\n"
-            )
+            yield ErrorEvent(error=str(exc))
+
+    async def run_chat_stream(
+        self,
+        message: str,
+        session_id: Optional[str] = None,
+        model: Optional[str] = None,
+        tools_enabled: bool = True,
+    ) -> AsyncIterator[str]:
+        """
+        Protocol Adapter for Server-Sent Events (SSE).
+        Wraps run_chat domain event generator and formats to wire specification:
+        event: <type>\\ndata: <json>\\n\\n
+        """
+        async for event in self.run_chat(
+            message=message,
+            session_id=session_id,
+            model=model,
+            tools_enabled=tools_enabled,
+        ):
+            yield sse_format(event)
