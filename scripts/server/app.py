@@ -5,6 +5,7 @@ server.app - FastAPI application factory with lifespan and CORS configuration.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import FastAPI
@@ -56,12 +57,19 @@ def create_app() -> FastAPI:
     app.include_router(tasks_router)
 
 
+    # Mount Static Web UI
+    web_dir = Path(__file__).resolve().parent.parent.parent / "web"
+    if web_dir.exists():
+        from fastapi.staticfiles import StaticFiles
+        app.mount("/ui", StaticFiles(directory=str(web_dir), html=True), name="ui")
+
     @app.get("/", tags=["Root"])
     async def root_index():
         return {
             "name": "A-Stock Agents Web API",
             "version": VERSION,
             "docs_url": "/docs",
+            "ui_url": "/ui/",
             "status": "online",
         }
 

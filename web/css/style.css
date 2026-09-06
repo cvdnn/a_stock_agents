@@ -1,0 +1,1940 @@
+/* ==========================================================================
+   A-Stock Agents Web AIChat UI - Light Financial Design System (浅色金融风格)
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Canvas & Cards */
+  --bg-canvas: #F6F8FC;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F4F7FC;
+  --bg-active: #EBF3FF;
+  --bg-tag: #F2F5FA;
+  
+  /* Primary Brand Blue */
+  --primary: #1677FF;
+  --primary-hover: #0958D9;
+  --primary-light: #E6F4FF;
+  --primary-border: #91CAFF;
+  --primary-gradient: linear-gradient(135deg, #1677FF 0%, #3B82F6 100%);
+
+  /* A-Share Market Semantics (红涨绿跌) */
+  --color-up: #F5222D;
+  --color-up-dark: #CF1322;
+  --color-up-bg: #FFF1F0;
+  --color-up-border: #FFA39E;
+
+  --color-down: #52C41A;
+  --color-down-dark: #389E0D;
+  --color-down-bg: #F6FFED;
+  --color-down-border: #B7EB8F;
+
+  --color-warn: #FA8C16;
+  --color-warn-bg: #FFF7E6;
+
+  /* Neutral Text Typography */
+  --text-title: #1D2129;
+  --text-body: #4E5969;
+  --text-muted: #86909C;
+  --text-subtle: #C9CDD4;
+  --text-white: #FFFFFF;
+
+  /* Borders & Dividers */
+  --border-card: #EBF0F5;
+  --border-light: #F0F2F5;
+  --border-focus: #1677FF;
+
+  /* Shadows */
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.035);
+  --shadow-hover: 0 6px 18px rgba(22, 119, 255, 0.08);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset & Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-body);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Tabular numbers for financial metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Typography Helpers */
+h1, h2, h3, h4 {
+  color: var(--text-title);
+  font-weight: 600;
+}
+
+.text-up {
+  color: var(--color-up) !important;
+}
+
+.text-down {
+  color: var(--color-down) !important;
+}
+
+.bg-up-tag {
+  background: var(--color-up-bg);
+  color: var(--color-up);
+  border: 1px solid var(--color-up-border);
+}
+
+.bg-down-tag {
+  background: var(--color-down-bg);
+  color: var(--color-down);
+  border: 1px solid var(--color-down-border);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D9E1EC;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B9C6D8;
+}
+
+/* ==========================================================================
+   Header Navbar (顶部栏)
+   ========================================================================== */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 56px;
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--border-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--primary-gradient);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.25);
+}
+
+.brand-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-title);
+  letter-spacing: -0.2px;
+}
+
+.brand-slogan {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border-card);
+  display: inline-block;
+}
+
+/* Search Box */
+.header-search {
+  position: relative;
+  width: 340px;
+}
+
+.header-search input {
+  width: 100%;
+  height: 34px;
+  background: #F4F6FA;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  padding: 0 36px 0 14px;
+  font-size: 12px;
+  color: var(--text-title);
+  transition: var(--transition-fast);
+}
+
+.header-search input:focus {
+  outline: none;
+  background: #FFFFFF;
+  border-color: var(--primary-border);
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-body);
+  font-size: 15px;
+  cursor: pointer;
+  position: relative;
+  transition: var(--transition-fast);
+}
+
+.header-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+}
+
+.badge-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 15px;
+  height: 15px;
+  background: var(--color-up);
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #FFFFFF;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  transition: var(--transition-fast);
+}
+
+.user-profile:hover {
+  background: var(--bg-hover);
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: #E8F3FF;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.user-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-title);
+}
+
+/* Top Sub-Nav in Market/Watchlist Views */
+.top-subnav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 24px;
+}
+
+.top-subnav-item {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-body);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  position: relative;
+}
+
+.top-subnav-item:hover {
+  color: var(--primary);
+}
+
+.top-subnav-item.active {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.top-subnav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -15px;
+  left: 14px;
+  right: 14px;
+  height: 2.5px;
+  background: var(--primary);
+  border-radius: 2px;
+}
+
+/* ==========================================================================
+   Main App Layout
+   ========================================================================== */
+.app-container {
+  display: flex;
+  min-height: calc(100vh - 56px);
+}
+
+/* Left Sidebar (左侧边栏) */
+.app-sidebar {
+  width: 190px;
+  background: #FFFFFF;
+  border-right: 1px solid var(--border-card);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-body);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+}
+
+.nav-item.active {
+  background: var(--primary);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.25);
+}
+
+.nav-item.active .nav-icon {
+  color: #FFFFFF;
+}
+
+.nav-icon {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 14px 4px;
+}
+
+.sidebar-subheading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.strategy-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.strategy-link {
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--text-body);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.strategy-link:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+}
+
+.strategy-link::before {
+  content: '•';
+  color: var(--primary);
+  font-size: 14px;
+}
+
+.sidebar-footer {
+  padding: 12px 6px 4px;
+  border-top: 1px solid var(--border-light);
+}
+
+.sidebar-tagline {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* ==========================================================================
+   Main Content Area & View Container
+   ========================================================================== */
+.main-viewport {
+  flex: 1;
+  padding: 16px 20px;
+  overflow-y: auto;
+  max-height: calc(100vh - 56px);
+}
+
+.view-panel {
+  display: none;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+.view-panel.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Common Card Styles */
+.quant-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 14px;
+  transition: var(--transition-fast);
+}
+
+.quant-card:hover {
+  border-color: #DFE6EF;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-title);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-tabs-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.card-tabs {
+  display: inline-flex;
+  gap: 2px;
+  background: #F4F6FA;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-tab {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  user-select: none;
+}
+
+.card-tab:hover {
+  color: var(--text-title);
+}
+
+.card-tab.active {
+  background: #FFFFFF;
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.more-link {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.more-link:hover {
+  color: var(--primary);
+}
+
+/* ==========================================================================
+   VIEW 1: AI Chat Main Workspace (参考图 1)
+   ========================================================================== */
+.view-chat-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1.35fr;
+  gap: 16px;
+}
+
+/* Left AI Chat Area */
+.chat-workspace {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 90px);
+  position: relative;
+}
+
+.chat-banner {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(180deg, #F8FAFD 0%, #FFFFFF 100%);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.chat-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ai-avatar-pill {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--primary-gradient);
+  color: #FFFFFF;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.2);
+}
+
+.chat-banner-text h3 {
+  font-size: 14px;
+  color: var(--text-title);
+}
+
+.chat-banner-text p {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Quick Prompt Pills */
+.prompt-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.prompt-pill {
+  padding: 3px 10px;
+  font-size: 11px;
+  background: #F0F4FA;
+  color: var(--primary);
+  border: 1px solid #E2E8F3;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.prompt-pill:hover {
+  background: var(--primary-light);
+  border-color: var(--primary-border);
+}
+
+/* Chat Messages Flow */
+.chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message-item {
+  width: 100%;
+}
+
+.message-user {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.message-ai {
+  display: block;
+}
+
+.message-bubble-user {
+  background: var(--primary);
+  color: #FFFFFF;
+  padding: 10px 14px;
+  border-radius: 12px 2px 12px 12px;
+  font-size: 13px;
+  max-width: 80%;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.2);
+}
+
+.message-timestamp {
+  font-size: 10px;
+  color: var(--text-subtle);
+  margin-top: 4px;
+  text-align: right;
+}
+
+.message-bubble-ai {
+  background: #FFFFFF;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  font-size: 13px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.035);
+}
+
+/* AI Message Header (仿照 chat-banner 布局: 头像 + 标题 + 摘要) */
+.ai-msg-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ai-msg-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ai-msg-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-title);
+  line-height: 1.3;
+}
+
+.ai-msg-summary {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.ai-report-section {
+  margin-bottom: 10px;
+}
+
+.ai-report-section-title {
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 3px;
+}
+
+.ai-report-section p, .ai-report-section li {
+  color: var(--text-body);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.ai-report-section ul {
+  padding-left: 18px;
+}
+
+/* Highlight "一句总结线" Card */
+.summary-highlight-card {
+  background: #F0F6FF;
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 10px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.summary-highlight-card .summary-icon {
+  color: var(--primary);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.summary-highlight-card .summary-text {
+  font-size: 12px;
+  color: var(--text-title);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* 实战三原则合规风控卡片 (AGENTS.md铁律) */
+.risk-iron-card {
+  background: #FFFDF8;
+  border: 1px dashed #F8D69A;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+
+.risk-iron-header {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #D46B08;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.risk-iron-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.risk-pill-box {
+  background: #FFFFFF;
+  border: 1px solid #FFE7BA;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.risk-pill-title {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.risk-pill-val {
+  font-weight: 600;
+  color: var(--color-up);
+}
+
+/* Tool execution status widget */
+.tool-status-bubble {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool-badge-running {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1677FF;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+/* Message Feedback Actions */
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-light);
+}
+
+.action-chip {
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition-fast);
+}
+
+.action-chip:hover {
+  color: var(--primary);
+}
+
+/* Bottom Chat Input Bar */
+.chat-input-bar {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-light);
+  background: #FFFFFF;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.input-container {
+  background: #F6F8FB;
+  border: 1px solid #E2E7F0;
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  transition: var(--transition-fast);
+}
+
+.input-container:focus-within {
+  border-color: var(--primary-border);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.08);
+}
+
+.chat-textarea {
+  width: 100%;
+  height: 38px;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-size: 12.5px;
+  color: var(--text-title);
+  font-family: inherit;
+}
+
+.chat-textarea:focus {
+  outline: none;
+}
+
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.tool-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.input-tool-btn {
+  background: transparent;
+  border: none;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition-fast);
+}
+
+.input-tool-btn:hover {
+  color: var(--primary);
+}
+
+.send-btn {
+  background: var(--primary-gradient);
+  color: #FFFFFF;
+  border: none;
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.25);
+  transition: var(--transition-fast);
+}
+
+.send-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+/* Right Dashboard Widgets Layout */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-content: start;
+}
+
+.dashboard-full-col {
+  grid-column: span 2;
+}
+
+/* Indices Widget inside 整体盘面 */
+.indices-mini-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.index-mini-card {
+  background: #F9FBFE;
+  border: 1px solid #EBF0F8;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  position: relative;
+}
+
+.index-mini-name {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.index-mini-val {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 2px 0;
+}
+
+.index-mini-change {
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  gap: 4px;
+}
+
+.index-sparkline {
+  width: 100%;
+  height: 28px;
+  margin-top: 4px;
+}
+
+/* Market Breadth Strip */
+.market-breadth-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #F5F7FA;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-body);
+}
+
+.breadth-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 快捷入口 (Quick Access Grid) */
+.quick-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.quick-entry-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 4px;
+  background: #F8FAFD;
+  border: 1px solid #EBF1F8;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.quick-entry-btn:hover {
+  background: #FFFFFF;
+  border-color: var(--primary-border);
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.quick-entry-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.icon-blue { background: #E6F4FF; color: #1677FF; }
+.icon-orange { background: #FFF7E6; color: #FA8C16; }
+.icon-green { background: #F6FFED; color: #52C41A; }
+.icon-purple { background: #F9F0FF; color: #722ED1; }
+.icon-cyan { background: #E6FFFB; color: #13C2C2; }
+.icon-gray { background: #F2F4F7; color: #86909C; }
+
+.quick-entry-label {
+  font-size: 11px;
+  color: var(--text-title);
+  font-weight: 500;
+}
+
+/* Stock Quote Table (自选个股) */
+.stock-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stock-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.stock-table td {
+  padding: 8px 4px;
+  font-size: 12px;
+  border-bottom: 1px solid #F6F8FA;
+}
+
+.stock-name-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.stock-name {
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.stock-code {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.btn-follow {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid #D9E1EC;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: var(--primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-follow:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* 持股/投资统计 (Portfolio Stats) */
+.portfolio-widget-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.portfolio-chart-box {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.portfolio-metrics {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+}
+
+.metric-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.portfolio-stats-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.stats-summary-val {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.stats-summary-lbl {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* 策略/盯盘/消息提醒 (Toggle Switch List) */
+.strategy-switch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.strategy-switch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: #F8FAFD;
+  border: 1px solid #EBF1F8;
+  border-radius: var(--radius-sm);
+}
+
+.strategy-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.strategy-item-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.strategy-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.strategy-item-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* iOS Style Switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #D9E1EC;
+  transition: .3s;
+  border-radius: 20px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+input:checked + .slider {
+  background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
+/* 重点简报 (Key Briefing News) */
+.news-briefing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.news-briefing-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.news-briefing-item:hover .news-briefing-text {
+  color: var(--primary);
+}
+
+.news-index-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: #F0F4FA;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.news-briefing-item:nth-child(1) .news-index-badge { background: #FFF1F0; color: #F5222D; }
+.news-briefing-item:nth-child(2) .news-index-badge { background: #FFF7E6; color: #FA8C16; }
+.news-briefing-item:nth-child(3) .news-index-badge { background: #E6F4FF; color: #1677FF; }
+
+.news-briefing-text {
+  flex: 1;
+  color: var(--text-title);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.news-briefing-time {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+/* 算法/战法模型 (Algo Models List) */
+.algo-models-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.algo-model-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: #F9FAFD;
+  border: 1px solid #EBF0F8;
+  border-radius: var(--radius-sm);
+}
+
+.algo-model-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.algo-model-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #EFF6FF;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.algo-model-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.algo-model-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.btn-use-model {
+  padding: 3px 12px;
+  font-size: 11px;
+  background: var(--primary);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-use-model:hover {
+  background: var(--primary-hover);
+}
+
+/* ==========================================================================
+   VIEW 2: Market Overview Dashboard (参考图 2)
+   ========================================================================== */
+.market-overview-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Top 4 Major Indices */
+.market-indices-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) 220px 220px;
+  gap: 14px;
+}
+
+.market-index-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.market-index-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.market-index-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.market-index-price {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 6px 0 2px;
+}
+
+.market-index-change {
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
+}
+
+.market-index-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.market-index-stats span {
+  color: var(--text-title);
+  font-weight: 500;
+}
+
+/* Market Sentiment Card */
+.market-sentiment-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gauge-box {
+  width: 160px;
+  height: 90px;
+  position: relative;
+}
+
+.sentiment-details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 100%;
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+}
+
+/* Mid Row: Big K-Line Chart + Sectors */
+.market-mid-row {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr 1fr;
+  gap: 14px;
+}
+
+.kline-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.kline-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.kline-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.kline-canvas {
+  width: 100%;
+  height: 290px;
+}
+
+/* Sector Grid (行业板块) */
+.sector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.sector-tile {
+  background: #FFF1F0;
+  border: 1px solid #FFA39E;
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.sector-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(245, 34, 45, 0.15);
+}
+
+.sector-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.sector-change {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-up);
+  margin-top: 2px;
+}
+
+/* Concept Tag Cloud */
+.concept-tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.concept-tag {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: #F0F4FA;
+  border-radius: 4px;
+  color: var(--primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.concept-tag:hover {
+  background: var(--primary-light);
+}
+
+/* Bottom Row: Rankings */
+.market-bottom-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+/* Bottom Banner */
+.ai-banner-strip {
+  background: linear-gradient(90deg, #EBF3FF 0%, #F0F6FF 100%);
+  border: 1px solid #D0E3FF;
+  border-radius: var(--radius-md);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.banner-left h4 {
+  font-size: 14px;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+
+.banner-left p {
+  font-size: 12px;
+  color: var(--text-body);
+}
+
+.banner-btn {
+  background: var(--primary-gradient);
+  color: #FFFFFF;
+  border: none;
+  padding: 8px 20px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.3);
+}
+
+/* ==========================================================================
+   VIEW 3: Watchlist & Stock Detail (参考图 3)
+   ========================================================================== */
+.view-watchlist-layout {
+  display: grid;
+  grid-template-columns: 260px 1.55fr 1.05fr;
+  gap: 16px;
+}
+
+/* Watchlist Sidebar Column */
+.watchlist-col {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 90px);
+}
+
+.watchlist-search {
+  margin-bottom: 10px;
+}
+
+.watchlist-search input {
+  width: 100%;
+  height: 32px;
+  background: #F4F6FA;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.watchlist-items {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.watchlist-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.watchlist-item-card:hover {
+  background: var(--bg-hover);
+}
+
+.watchlist-item-card.active {
+  background: #EFF6FF;
+  border-left: 3px solid var(--primary);
+}
+
+/* Stock Main Detail Center Column */
+.stock-detail-center {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stock-hero-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.stock-hero-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stock-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stock-hero-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.stock-hero-code {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.stock-tag-pill {
+  padding: 2px 8px;
+  font-size: 10.5px;
+  background: #F0F4FA;
+  color: var(--primary);
+  border-radius: 4px;
+}
+
+.stock-hero-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 10px 0 12px;
+}
+
+.stock-hero-price {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.stock-hero-delta {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.stock-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  background: #F9FBFE;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 11.5px;
+}
+
+.stock-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stock-grid-lbl {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.stock-grid-val {
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+/* Timeline of Important Events */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  padding-left: 14px;
+  margin-top: 8px;
+}
+
+.timeline-list::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: #E5E9F0;
+}
+
+.timeline-item {
+  position: relative;
+  font-size: 11.5px;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.timeline-date {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.timeline-content {
+  color: var(--text-title);
+  font-weight: 500;
+}
+
+/* Right Side: Capital Flow & Main Tracking */
+.stock-detail-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* AI Floating Assistant Bottom Bar (参考图 3 底部) */
+.ai-floating-bottom-bar {
+  position: fixed;
+  bottom: 14px;
+  left: 210px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 90;
+}
+
+.ai-bottom-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.ai-bottom-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--text-title);
+}
+
+.ai-bottom-input:focus {
+  outline: none;
+}
+
+.ai-bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-bottom-btn {
+  padding: 5px 12px;
+  font-size: 11px;
+  border-radius: var(--radius-full);
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: var(--text-body);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.ai-bottom-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* Toast Notification Popup */
+.toast-container {
+  position: fixed;
+  top: 70px;
+  right: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: #FFFFFF;
+  border: 1px solid var(--border-card);
+  border-left: 4px solid var(--primary);
+  box-shadow: var(--shadow-float);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideInRight 0.25s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1440px) {
+  .view-chat-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+  .market-indices-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .view-watchlist-layout {
+    grid-template-columns: 220px 1.4fr 1fr;
+  }
+}
+
+@media (max-width: 1200px) {
+  .view-chat-layout {
+    grid-template-columns: 1fr;
+  }
+  .market-mid-row {
+    grid-template-columns: 1fr;
+  }
+}

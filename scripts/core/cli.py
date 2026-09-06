@@ -335,6 +335,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_srv_start.add_argument("--reload", action="store_true", help="热重载模式")
     p_srv_status = srv_sub.add_parser("status", help="检查服务运行状态", parents=[common_parser])
     p_srv_status.add_argument("--url", default="http://127.0.0.1:8000", help="服务基础地址")
+    srv_sub.add_parser("preview", help="在默认浏览器中打开 Web UI 预览", parents=[common_parser])
+
+    # ui
+    subparsers.add_parser("ui", help="在默认浏览器中打开 Web AIChat 投研界面", parents=[common_parser])
 
     # trade
     p_trade = subparsers.add_parser("trade", help="A股模拟盘交易与资金持仓管理", parents=[common_parser])
@@ -529,6 +533,24 @@ def main():
                     print(json.dumps(err, ensure_ascii=False, indent=2))
                 else:
                     print(f"❌ 无法连接到服务: {base_url} ({e})")
+        elif server_cmd == "preview":
+            import webbrowser
+            ui_path = PROJECT_ROOT / "web" / "index.html"
+            url = f"file://{ui_path.resolve()}"
+            webbrowser.open(url)
+            if getattr(args, "json", False):
+                print(json.dumps({"status": "opened", "url": url}, ensure_ascii=False))
+            else:
+                print(f"🌐 已在默认浏览器中打开 Web UI: {url}")
+    elif cmd == "ui":
+        import webbrowser
+        ui_path = PROJECT_ROOT / "web" / "index.html"
+        url = f"file://{ui_path.resolve()}"
+        webbrowser.open(url)
+        if getattr(args, "json", False):
+            print(json.dumps({"status": "opened", "url": url}, ensure_ascii=False))
+        else:
+            print(f"🌐 已在默认浏览器中打开 Web UI: {url}")
     elif cmd == "trade":
         cmd_trade_dispatch(args, parser)
     elif cmd == "version":

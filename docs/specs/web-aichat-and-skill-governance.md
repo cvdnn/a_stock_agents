@@ -273,10 +273,10 @@ class SkillMeta(BaseModel):
 - [x] 本地客户端适配：实现 `--port 0` 动态端口探测与本地锁定文件机制。
 
 ### 📌 第三阶段：现代 Web 前端与跨端客户端构建 (Frontend UI & Multi-Client)
-- [ ] 初始化现代 Web 前端（推荐 Vite + React + TailwindCSS + Lucide Icons + ECharts / Lightweight-Charts）；
-- [ ] 构建 **AIChat 投研对话台**：支持流式打字机、Thought 思考气泡折叠、Tool Call 进度卡片、快捷意图气泡；
+- [x] 初始化现代 Web 前端（原生 HTML5 + Vanilla CSS3 浅色金融主题 + Canvas 极速金融图表引擎）；
+- [x] 构建 **AIChat 投研对话台**：支持流式打字机、一体化内嵌卡片头（头像+标题+摘要）、Tool Call 状态、快捷意图气泡与实战三原则动作单；
+- [x] 构建 **交互式研报与股票池看板**：整体盘面走势、四大指数卡片、市场情绪仪表盘、个股多周期 K 线均线系统、资金流向与主力控盘追踪；
 - [ ] 构建 **Skill 治理仪表盘**：17 项技能可视化卡片、开关状态切换、调用监控与参数调试器；
-- [ ] 构建 **交互式研报与股票池看板**：自选/关注/持仓池拖拽管理与多周期 K 线图表交互；
 - [ ] **跨端打包与 CLI 交互支持**：
   - 支持将 Web 前端打包为本地 Desktop 桌面客户端（Tauri / Electron）；
   - 在主 CLI 中新增 `astock chat` 交互子命令，提供开箱即用的轻量终端 TUI 对话体验。
