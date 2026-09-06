@@ -55,7 +55,7 @@
   <!-- ========================================================================
        MAIN APP CONTAINER (三栏式等分工作区：左侧菜单栏 + 中间AI助手 + 右侧详细展示区)
        ======================================================================== -->
-  <div class="app-container">
+  <div class="app-container layout-chat-center" id="appContainer">
 
     <!-- 1. LEFT SIDEBAR (左侧菜单栏：功能区 + 会话记录区 + 系统设置区) -->
     <aside class="app-sidebar">
@@ -126,12 +126,12 @@
         <div class="chat-header-simple">
           <div class="chat-simple-left">
             <div class="ai-avatar-pill-sm">AI</div>
-            <h3 class="chat-simple-title">投研助手</h3>
-            <span class="chat-status-dot">● 在线</span>
+            <h3 class="chat-simple-title" id="chatHeaderTitle">投研助手</h3>
+            <span class="chat-status-dot" id="chatHeaderStatus">● 在线</span>
           </div>
-          <button class="btn-collapse-chat" id="btnCollapseChat" onclick="toggleChatCollapse()" title="收起投研助手">
-            <span class="collapse-icon">◀</span>
-            <span class="collapse-text">收起</span>
+          <button class="btn-collapse-chat" id="btnCollapseChat" onclick="handleChatCollapseBtn()" title="收起">
+            <span class="collapse-icon" id="collapseIcon">◀</span>
+            <span class="collapse-text" id="collapseText">收起</span>
           </button>
         </div>
 
@@ -298,6 +298,11 @@
           </button>
           <button class="context-act-btn" onclick="openModifyRightParam()">
             <span>✏️ 修改右侧参数</span>
+          </button>
+          <button class="btn-copilot-launcher" id="btnCopilotLauncher" onclick="toggleCopilot()" title="展开AI助手">
+            <span class="copilot-btn-icon">🤖</span>
+            <span class="copilot-btn-label">AI助手</span>
+            <span class="copilot-btn-arrow">◀</span>
           </button>
         </div>
       </div>

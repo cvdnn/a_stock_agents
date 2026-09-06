@@ -5,6 +5,8 @@
 
 const AppState = {
   activeRightTab: 'dashboard', // 'dashboard' | 'market' | 'watchlist' | 'returns' | 'projected-action' etc.
+  layoutMode: 'chat-center',   // 'chat-center' (投研助手居中) | 'workspace-main' (业务主工作区居中，AI助手在右)
+  isCopilotCollapsed: false,
   selectedStock: '300750',
   isChatStreaming: false,
   apiBaseUrl: window.location.origin,
@@ -179,8 +181,67 @@ function handleMenuClick(tabId) {
     }
   });
 
-  // Switch right pane
+  // 1. 当选择【投研助手】时：【AIChatUI】在中间
+  // 2. 当点击其他功能（市场行情、自选个股、收益分析...）：【AIChatUI】定位为AI助手，布局变到右侧，中间区域为主工作区
+  if (tabId === 'dashboard') {
+    switchLayoutMode('chat-center');
+  } else {
+    switchLayoutMode('workspace-main');
+  }
+
+  // Switch right/middle business pane
   switchRightTab(tabId);
+}
+
+// Switch between Chat-Centric mode and Workspace-Centric Copilot mode
+function switchLayoutMode(mode) {
+  const container = document.getElementById('appContainer') || document.querySelector('.app-container');
+  const chatTitle = document.getElementById('chatHeaderTitle');
+  const chatStatus = document.getElementById('chatHeaderStatus');
+  const collapseIcon = document.getElementById('collapseIcon');
+  const collapseText = document.getElementById('collapseText');
+  const btnCollapse = document.getElementById('btnCollapseChat');
+  const btnExpandTab = document.getElementById('btnExpandChatTab');
+
+  if (!container) return;
+  AppState.layoutMode = mode;
+
+  if (mode === 'chat-center') {
+    container.classList.remove('layout-workspace-main');
+    container.classList.add('layout-chat-center');
+
+    if (chatTitle) chatTitle.innerText = '投研助手';
+    if (chatStatus) {
+      chatStatus.innerText = '● 在线';
+      chatStatus.style.color = '#52C41A';
+    }
+    if (collapseIcon) collapseIcon.innerText = '◀';
+    if (collapseText) collapseText.innerText = '收起';
+    if (btnCollapse) btnCollapse.title = '收起投研助手';
+
+    if (btnExpandTab) {
+      btnExpandTab.style.display = container.classList.contains('chat-collapsed') ? 'inline-flex' : 'none';
+    }
+  } else {
+    container.classList.remove('layout-chat-center');
+    container.classList.add('layout-workspace-main');
+
+    if (chatTitle) chatTitle.innerText = 'AI助手';
+    if (chatStatus) {
+      chatStatus.innerText = '● 协同中';
+      chatStatus.style.color = '#1677FF';
+    }
+    if (collapseIcon) collapseIcon.innerText = '▶';
+    if (collapseText) collapseText.innerText = '收起';
+    if (btnCollapse) btnCollapse.title = '收起AI助手';
+
+    if (btnExpandTab) btnExpandTab.style.display = 'none';
+  }
+
+  // Trigger resize event for canvas charts
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 320);
 }
 
 // --------------------------------------------------------------------------
@@ -197,7 +258,14 @@ const ViewDescriptions = {
 function switchRightTab(tabId) {
   AppState.activeRightTab = tabId;
 
-  // 1. Update Tab Bar
+  // 1. 同步布局模式：投研盘面居中，其他功能主工作区居中+AI助手在右
+  if (tabId === 'dashboard') {
+    switchLayoutMode('chat-center');
+  } else {
+    switchLayoutMode('workspace-main');
+  }
+
+  // 2. Update Tab Bar
   document.querySelectorAll('.right-tab').forEach(tab => {
     if (tab.dataset.tab === tabId) tab.classList.add('active');
     else tab.classList.remove('active');
@@ -274,24 +342,29 @@ function closeRightTab(tabId, event) {
 // 4. 【重要交互 1】：AIChat 针对右侧信息提问与修改
 // --------------------------------------------------------------------------
 function askAboutRightContent() {
+  // 若当前处于业务主工作区且右侧 AI 助手已收起，自动展开呼出
+  if (AppState.layoutMode === 'workspace-main' && AppState.isCopilotCollapsed) {
+    toggleCopilot(false);
+  }
+
   const tab = AppState.activeRightTab;
   const input = document.getElementById('chatInput');
   if (!input) return;
 
   let prompt = '';
   if (tab === 'dashboard') {
-    prompt = '请结合右侧整体投研盘面数据（两市放量1.28万亿，科技领涨），分析明天的核心主线与防守标的。';
+    prompt = '请结合整体投研盘面数据（两市放量1.28万亿，科技领涨），分析明天的核心主线与防守标的。';
   } else if (tab === 'market') {
-    prompt = '请结合右侧市场行情全景看板与北向资金流向，深度研判大盘短期突破 3,450 点的动能与风险。';
+    prompt = '请结合市场行情全景看板与北向资金流向，深度研判大盘短期突破 3,450 点的动能与风险。';
   } else if (tab === 'watchlist') {
-    prompt = '请针对右侧【宁德时代 300750】的主力控盘仪表盘与资金流向，制定下周一的买入与防守策略。';
+    prompt = '请针对自选标的【宁德时代 300750】的主力控盘仪表盘与资金流向，制定下周一的买入与防守策略。';
   } else if (tab === 'returns') {
-    prompt = '请评估右侧投资收益全景看板中的最大回撤(-8.24%)与夏普比率(1.84)，并给出仓位与多因子优化建议。';
+    prompt = '请评估投资收益全景看板中的最大回撤(-8.24%)与夏普比率(1.84)，并给出仓位与多因子优化建议。';
   } else if (tab === 'projected-action') {
     const cost = AppState.riskParams.cost;
-    prompt = `请针对右侧实战动作单中的买入成本 ¥${cost}、最低保本卖出价与三级止损阶梯给出盘中突发跳水的执行动作细节。`;
+    prompt = `请针对实战动作单中的买入成本 ¥${cost}、最低保本卖出价与三级止损阶梯给出盘中突发跳水的执行动作细节。`;
   } else {
-    prompt = `请根据右侧当前展示的【${tab}】数据，出具深度的量化投研报告。`;
+    prompt = `请根据当前展示的【${tab}】数据，出具深度的量化投研报告。`;
   }
 
   input.value = prompt;
@@ -304,15 +377,20 @@ function askAboutRightContent() {
     setTimeout(() => { inputBar.style.boxShadow = ''; }, 1200);
   }
 
-  showToast(`已提取右侧数据并载入输入框，直接回车即可发送！`);
+  showToast(`已提取数据并载入 AI 助手输入框，直接回车即可发送！`);
 }
 
 // Injects prompt for specific stock row
 function askStockPrompt(name, code, price) {
+  // 若当前处于业务主工作区且右侧 AI 助手已收起，自动展开呼出
+  if (AppState.layoutMode === 'workspace-main' && AppState.isCopilotCollapsed) {
+    toggleCopilot(false);
+  }
+
   const input = document.getElementById('chatInput');
   if (!input) return;
 
-  input.value = `请针对右侧自选标的【${name} (${code})】（现价 ¥${price}）进行量化深度诊断，并计算最低保本卖出价与三场景反应动作单。`;
+  input.value = `请针对标的【${name} (${code})】（现价 ¥${price}）进行量化深度诊断，并计算最低保本卖出价与三场景反应动作单。`;
   input.focus();
   showToast(`已引用【${name}】数据至提问框！按回车即可执行诊断`);
 }
@@ -399,9 +477,45 @@ function projectToRight(cardType, payload = {}) {
   showToast(`已将【${title}】放大投射至右侧窗口（从左至右动画弹出，原有内容完整保留）`);
 }
 
-// Toggle ChatUI collapse / expand (收起 / 展开投研助手)
+// Master Collapse Button Handler in Chat Header
+function handleChatCollapseBtn() {
+  if (AppState.layoutMode === 'workspace-main') {
+    // Mode 2: 收起右侧 AI 助手
+    toggleCopilot();
+  } else {
+    // Mode 1: 收起居中投研助手
+    toggleChatCollapse();
+  }
+}
+
+// Toggle AI Copilot on the right (Mode 2: 业务主工作区模式下的收起 / 展开)
+function toggleCopilot(forceState) {
+  const container = document.getElementById('appContainer') || document.querySelector('.app-container');
+  if (!container) return;
+
+  const willCollapse = typeof forceState === 'boolean'
+    ? forceState
+    : !container.classList.contains('copilot-collapsed');
+
+  if (willCollapse) {
+    container.classList.add('copilot-collapsed');
+    AppState.isCopilotCollapsed = true;
+    showToast('已收起 AI 助手，中间主工作区已全宽大屏展现');
+  } else {
+    container.classList.remove('copilot-collapsed');
+    AppState.isCopilotCollapsed = false;
+    showToast('已展开 AI 助手伴随协同视窗');
+  }
+
+  // Trigger resize event so Canvas charts smoothly re-render
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 320);
+}
+
+// Toggle ChatUI collapse / expand (Mode 1: 投研助手居中模式下的收起 / 展开)
 function toggleChatCollapse() {
-  const container = document.querySelector('.app-container');
+  const container = document.getElementById('appContainer') || document.querySelector('.app-container');
   const chatCol = document.getElementById('appMiddleChat');
   const expandTabBtn = document.getElementById('btnExpandChatTab');
 

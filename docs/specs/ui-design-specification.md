@@ -20,54 +20,146 @@
 
 ---
 
-## 2. 工作区整体架构：三栏式 40% / 60% 弹性布局规范
+## 2. 工作区整体架构：双模动态视口与 AI 助手灵活定位规范 (Adaptive Dual-Mode Layout)
 
-工作区采用 CSS Grid 弹性响应式三栏架构，视口高度严密锁定在 `calc(100vh - 50px)`，杜绝整页滚动：
+为了兼顾“深度会话投研”与“专业业务看盘分析”两种截然不同的核心使用场景，工作区彻底升级为 **意图驱动的双模动态视口架构（Intent-Driven Dual-Mode Viewport）**。视口高度严密锁定在 `calc(100vh - 50px)`，杜绝整页滚动。
+
+### 2.1 模式一：【投研助手】模式 (Chat-Centric Dedicated Mode)
+当用户在左侧菜单栏选择 **【投研助手】**（或新建/切换历史会话）时触发：
+- **【AIChatUI】居于中间核心主交互位（占 40% 宽度）**，作为主视觉交互焦点，专注于多轮投研问答、量化推演与动作单生成；
+- **右侧为详细内容与投射展示区（占 60% 宽度）**，承载综合盘面、大盘指数、自选异动，或由对话内卡片一键投射出来的放大动作单/战法分析；
+- **收起交互**：点击 AIChatUI 标题栏右侧 `[◀ 收起]` 时，中间列收起为 42px 侧边悬停条，右侧内容扩展为全宽；点击悬停条或 `[▶ 展开投研助手]` 还原。
 
 ```
 +---------------------------------------------------------------------------------------------------------------+
 | Top Header (50px): AI量化投资助手 | 全局检索 (股票/代码/指标) | 📑研报  🔔预警 | 👤量化实盘账户 (机构级认证)            |
 +-------------------+-----------------------------------+-------------------------------------------------------+
-| 左侧菜单栏 (240px)| 中间：AI投研助手 (占 40%)          | 右侧：详细内容展示区 (占 60%，折叠时占 100%)            |
-| (三段式结构)      | (独立垂直上下滑动)                | (多标签页保留体系，独立垂直上下滑动)                  |
-|                   |                                   |                                                       |
-| [1. 功能导航]     | [极简标题栏]                      | [顶部多标签栏 (Tabs Bar)]                              |
-| · 🤖 投研助手     | 🤖 投研助手 ● 在线       [◀ 收起] | [▶ 展开] [📊投研盘面] [📈市场行情] [⭐自选] [💰收益]   |
-| · 📊 市场行情     |                                   |          [🛡️实战动作单·宁德时代 ✕]                     |
-| · ⭐ 自选个股     | [对话流区域 (Chat Messages)]      | [右侧上下文操作条]                                     |
-| · 📈 收益分析     | · 用户提问气泡                    | 📌 当前展示: 整体投研盘面 | [💬针对提问] [✏️修改参数]   |
-|                   | · AI 一问一答标准卡片             | [内容视口 (Scrollable Pane)]                           |
-| [2. 会话记录]     |   - 头像 + 标题 + 摘要            | · Pane 1: 投研综合盘面 (大盘/指数/板块/自选)           |
-| · 倒序前10条      |   - 研报正文与实战三原则动作单    | · Pane 2: 市场行情全景 (四大指数/情绪表/日K/北向)      |
-| · 触底自动加载    |   - [⛶ 放大投射到右侧]            | · Pane 3: 自选个股研判 (多周期K线/主力控盘/资金流)     |
-| · [+ 新建对话]    |                                   | · Pane 4: 收益分析全景 (净值走势图/月度胜负/持仓明细)  |
-|                   | [底部固定输入区]                  | · Pane 5: 动态投射视窗 (保本价ceil进位试算器/战法大图) |
-| [3. 系统设置]     | · [⚡ 引用右侧提问] [📁] [📊]     |   * 触发时从左至右动画弹出 (popupSlideFromLeft)        |
-| · ⚙️ 系统设置     | · 输入框 + [发送 ✈️] (Enter即发)  |                                                       |
+| 左侧菜单栏 (240px)| 中间：AIChatUI 投研对话台 (占 40%) | 右侧：详细内容/投射展示区 (占 60%，折叠时占 100%)      |
+|                   | [极简标题栏]                      | [顶部多标签栏 (Tabs Bar)]                              |
+| [1. 功能导航]     | 🤖 投研助手 ● 在线       [◀ 收起] | [▶ 展开] [📊投研盘面] [📈市场行情] [⭐自选] [💰收益]   |
+| · 🤖 投研助手 (选)|                                   |          [🛡️实战动作单·宁德时代 ✕]                     |
+| · 📊 市场行情     | [对话流区域 (Chat Messages)]      | [右侧上下文操作条]                                     |
+| · ⭐ 自选个股     | · 用户提问气泡                    | 📌 当前展示: 整体投研盘面 | [💬针对提问] [✏️修改参数]   |
+| · 📈 收益分析     | · AI 一问一答标准卡片             | [内容视口 (Scrollable Pane)]                           |
+|                   |   - 头像 + 标题 + 摘要            | · Pane 1: 投研综合盘面 (大盘/指数/板块/自选)           |
+| [2. 会话记录]     |   - 研报正文与实战三原则动作单    | · Pane 2: 市场行情全景 (四大指数/情绪表/日K/北向)      |
+| · 倒序前10条      |   - [⛶ 放大投射到右侧]            | · Pane 3: 自选个股研判 (多周期K线/主力控盘/资金流)     |
+| · 触底自动加载    |                                   | · Pane 4: 收益分析全景 (净值走势图/月度胜负/持仓明细)  |
+| · [+ 新建对话]    | [底部固定输入区]                  | · Pane 5: 动态投射视窗 (保本价ceil进位试算器/战法大图) |
+|                   | · [⚡ 引用右侧提问] [📁] [📊]     |   * 触发时从左至右动画弹出 (popupSlideFromLeft)        |
+| [3. 系统设置]     | · 输入框 + [发送 ✈️] (Enter即发)  |                                                       |
+| · ⚙️ 系统设置     |                                   |                                                       |
 +-------------------+-----------------------------------+-------------------------------------------------------+
 ```
 
-### 2.1 网格栅格定义
+### 2.2 模式二：【业务主工作区】模式 (Workspace-Centric Copilot Mode)
+当用户在左侧菜单栏点击其他核心业务功能（如 **【市场行情】**、**【自选个股】**、**【收益分析】** 等）时自动触发：
+1. **主工作区居中（占据中间主体视口）**：
+   - 业务内容（市场行情全景看板、自选股深度研判、收益分析等）跃升为主导视重视窗；
+   - 拥有独立的主工作区 Title 栏与多标签管理能力；
+2. **【AIChatUI】定位为 AI 助手（伴随式 AI Copilot）并变动到右侧**：
+   - 宽度固定或弹性占据右侧（如 `390px` 或 `35%` 比例）；
+   - 标题切换为 `🤖 AI助手 ● 协同中`，顶部提供 `[▶ 收起]` 按钮；
+   - 支持随主工作区内容上下文同步滚动提问、参数联动修改与答疑。
+
+```
++---------------------------------------------------------------------------------------------------------------+
+| Top Header (50px): AI量化投资助手 | 全局检索 (股票/代码/指标) | 📑研报  🔔预警 | 👤量化实盘账户 (机构级认证)            |
++-------------------+-------------------------------------------------------+-----------------------------------+
+| 左侧菜单栏 (240px)| 中间：业务主工作区 (占 65%~70%，折叠右侧时占 100%)    | 右侧：AIChatUI 定位为 AI助手 (390px)|
+|                   | [业务主工作区 Title 栏 / 多标签栏]                   | [AI助手标题栏]                    |
+| [1. 功能导航]     | [📊投研盘面] [📈市场行情] (当前激活) [⭐自选] [💰收益]| 🤖 AI助手 ● 协同中       [▶ 收起] |
+| · 🤖 投研助手     |                                                       |                                   |
+| · 📊 市场行情 (选)| [主工作区上下文操作条与 Title]                        | [对话流区域 (Chat Messages)]      |
+| · ⭐ 自选个股     | 📌 市场行情全景 (四大指数/情绪/日K) [💬提问] [🤖AI助手]| · 针对当前行情提出分析与推演      |
+| · 📈 收益分析     |                                                       | · 关联当前选中标的实时建议        |
+|                   | [大屏专业图表与数据流 (Scrollable Workspace)]         |                                   |
+| [2. 会话记录]     | · 四大核心指数分时/日K走势全屏看板                    | [底部固定输入区]                  |
+| · 倒序前10条      | · 情绪温度计 (78分贪婪) + 两市成交 1.28万亿           | · [⚡ 引用中间提问]               |
+| · 触底自动加载    | · 行业/概念板块资金流入榜 + 涨跌停家数对比            | · 输入框 + [发送 ✈️]              |
+| · [+ 新建对话]    | · 宁德时代 / 中芯国际深度盘口动态                     |                                   |
+|                   |                                                       |                                   |
+| [3. 系统设置]     |                                                       |                                   |
+| · ⚙️ 系统设置     |                                                       |                                   |
++-------------------+-------------------------------------------------------+-----------------------------------+
+```
+
+### 2.3 右侧 AI 助手收起与中间区域 Title 右侧小按钮交互规范 (Collapsed Copilot Interaction)
+在模式二（业务主工作区）下：
+1. **收起动作**：用户点击右侧 AI 助手标题右上方的 `[▶ 收起]` 按钮：
+   - 右侧 AI 助手平滑向右侧滑出收起（CSS 宽度收敛为 0，添加 `.copilot-collapsed` 类）；
+   - 中间业务主工作区宽度瞬间弹性扩展至 **100% 全宽**，满足专业交易者大屏复盘看盘的沉浸诉求；
+2. **中间区域 Title 右侧常驻展开小按钮**：
+   - **位置与形态**：在中间主工作区 Title / 上下文操作栏右侧，动态显示一个精巧的高对比度微按钮：
+     ```html
+     <button class="btn-copilot-launcher" id="btnCopilotLauncher" onclick="toggleCopilot()" title="打开AI助手">
+       <span class="copilot-btn-icon">🤖</span>
+       <span class="copilot-btn-label">AI助手</span>
+       <span class="copilot-btn-arrow">◀</span>
+     </button>
+     ```
+   - **视觉规范**：高度 `28px`，圆角 `6px`，背景浅蓝高亮 `#E8F3FF`，文字主色 `#1677FF`，边框 `1px solid #ADC6FF`，带有轻微的呼吸点与悬停高亮效果；
+   - **展开动作**：用户在看盘时随时点击该小按钮，右侧 AI 助手向左平滑展开，工作区平滑恢复为业务区 + AI 助手双列，同时自动派发图表 resize 事件重新适配 Canvas。
+
+```
++---------------------------------------------------------------------------------------------------------------+
+| 左侧菜单栏 (240px)| 中间：业务主工作区 (100% 全宽大屏看盘沉浸模式)                                                    |
+|                   | [业务主工作区 Title 栏]                                                                        |
+| · 🤖 投研助手     | 📌 市场行情全景 (四大指数/情绪表/日K/板块)                 [💬提问]  [ 🤖 AI助手 ◀ ] (小按钮)|
+| · 📊 市场行情 (选)| +-------------------------------------------------------------------------------------------+ |
+| · ⭐ 自选个股     | |                                                                                           | |
+| · 📈 收益分析     | |  [100% 满屏金融图表、K线量价深度矩阵、净值曲线大图展示]                                  | |
+|                   | |                                                                                           | |
++-------------------+-------------------------------------------------------------------------------------------+ |
+```
+
+### 2.4 网格栅格定义与 CSS Order 置换实现
 ```css
+/* 基础容器 */
 .app-container {
   display: grid;
-  grid-template-columns: 240px 4fr 6fr; /* 左侧 240px，中栏 40%，右栏 60% */
   height: calc(100vh - 50px);
   overflow: hidden;
   background: var(--bg-body);
   transition: grid-template-columns 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* 当中间 AIChatUI 折叠时 */
-.app-container.chat-collapsed {
-  grid-template-columns: 240px 42px 1fr; /* 中栏缩为 42px 侧边条，右栏占满 */
+/* 1. 投研助手模式：AIChat 在中 (40%)，辅助展示在右 (60%) */
+.app-container.layout-chat-center {
+  grid-template-columns: 240px 4fr 6fr;
+}
+.app-container.layout-chat-center .app-middle-chat {
+  order: 2;
+}
+.app-container.layout-chat-center .app-right-details {
+  order: 3;
+}
+
+/* 2. 业务主工作区模式：业务区在中 (占满主视口)，AI助手在右 (390px) */
+.app-container.layout-workspace-main {
+  grid-template-columns: 240px 1fr 390px;
+}
+.app-container.layout-workspace-main .app-right-details {
+  order: 2; /* 业务主工作区置于中间 */
+}
+.app-container.layout-workspace-main .app-middle-chat {
+  order: 3; /* AIChatUI 定位为 AI助手置于右侧 */
+  border-left: 1px solid var(--border-card);
+  border-right: none;
+}
+
+/* 3. 业务主工作区模式下 AI助手收起：主工作区占满 100% */
+.app-container.layout-workspace-main.copilot-collapsed {
+  grid-template-columns: 240px 1fr 0px;
+}
+.app-container.layout-workspace-main.copilot-collapsed .app-middle-chat {
+  display: none;
+}
+/* 收起时显示中间 Title 栏右侧小按钮 */
+.app-container.layout-workspace-main.copilot-collapsed .btn-copilot-launcher {
+  display: inline-flex;
 }
 ```
-
-### 2.2 折叠与展开交互规范
-- **收起动作**：点击中间投研助手标题右侧的 `[◀ 收起]` 按钮，中间列平滑收拢为宽度 `42px` 的竖向悬停条，右侧内容区自然扩充至 **100%** 全宽；
-- **展开动作**：点击侧边竖向悬停条任意位置，或点击右侧标签栏最左侧出现的 `[▶ 展开投研助手]` 按钮，工作区平滑还原至 `40% : 60%`；
-- **自适应重绘**：折叠/展开动画完成后，系统自动调度 `window.dispatchEvent(new Event('resize'))`，驱动右侧所有 Canvas 图表（K线、分时、净值曲线、月度盈亏）重算像素分辨率，严禁出现拉伸或模糊。
 
 ---
 
@@ -114,19 +206,29 @@
 
 ## 5. AIChatUI 极简设计与双向交互规范 (AIChat & Bidirectional Linkage)
 
-### 5.1 极简标题栏规范
+### 5.1 极简标题栏规范与双模状态自适应
 - **杜绝空间浪费**：移除传统对话应用大面积的欢迎 Banner、Slogan 标语及冗余胶囊，将上部区域高度压缩至 `44px`；
-- **标准标题排版**：
+- **双模动态标题与收起交互**：
+  1. **模式一（投研助手居中）**：
+     - 标题展示为：`🤖 投研助手 ● 在线`；
+     - 右侧按钮为：`[◀ 收起]`（点击调用 `toggleChatCollapse()`）；
+  2. **模式二（定位为右侧伴随式 AI 助手）**：
+     - 标题展示为：`🤖 AI助手 ● 协同中`；
+     - 右侧按钮为：`[▶ 收起]`（点击调用 `toggleCopilot()`，平滑向右滑出折叠）；
+  3. **收起后的中区 Title 联动呼出**：
+     - 当 AI 助手在右侧收起时，中间主工作区 Title 栏右侧展示小按钮 `[🤖 AI助手]`；
+     - 用户在中间主工作区点击任何 `💬 提问` 时，若 AI 助手处于收起状态，系统**自动唤醒展开右侧 AI 助手**并完成 Prompt 注入与聚焦。
+- **标准标题排版模板**：
   ```html
   <div class="chat-header-simple">
     <div class="chat-simple-left">
       <div class="ai-avatar-pill-sm">AI</div>
-      <h3 class="chat-simple-title">投研助手</h3>
-      <span class="chat-status-dot">● 在线</span>
+      <h3 class="chat-simple-title" id="chatHeaderTitle">投研助手</h3>
+      <span class="chat-status-dot" id="chatHeaderStatus">● 在线</span>
     </div>
-    <button class="btn-collapse-chat" onclick="toggleChatCollapse()" title="收起投研助手">
-      <span class="collapse-icon">◀</span>
-      <span class="collapse-text">收起</span>
+    <button class="btn-collapse-chat" id="btnCollapseChat" onclick="handleChatCollapseBtn()" title="收起">
+      <span class="collapse-icon" id="collapseIcon">◀</span>
+      <span class="collapse-text" id="collapseText">收起</span>
     </button>
   </div>
   ```
@@ -206,10 +308,11 @@
 
 | 规范章节 | 对应前端实现文件 | 对应样式与逻辑模块 |
 | :--- | :--- | :--- |
-| **三栏式40/60布局与折叠** | `web/index.html`<br>`web/css/style.css` | `.app-container`, `.app-container.chat-collapsed`, `toggleChatCollapse` |
-| **极简投研助手标题栏** | `web/index.html`<br>`web/css/style.css` | `.chat-header-simple`, `.chat-simple-title`, `.btn-collapse-chat` |
+| **双模动态视口与灵活定位** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `.layout-chat-center`, `.layout-workspace-main`, `handleMenuClick`, `switchLayoutMode` |
+| **AI助手收起与Title小按钮** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `.copilot-collapsed`, `.btn-copilot-launcher`, `#btnCopilotLauncher`, `toggleCopilot` |
+| **AIChatUI 极简标题与折叠** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `.chat-header-simple`, `#chatHeaderTitle`, `#btnCollapseChat`, `handleChatCollapseBtn` |
 | **三段式菜单栏与无限滚动** | `web/index.html`<br>`web/js/app.js` | `.sidebar-sessions-list`, `renderSessionList`, `setupSessionInfiniteScroll` |
 | **多标签页保留与左向右弹出** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `#rightTabsBar`, `projectToRight`, `popupSlideFromLeft` |
-| **针对右侧提问与参数修改** | `web/index.html`<br>`web/js/app.js` | `askAboutRightContent`, `askStockPrompt`, `applyRightParamForm` |
+| **针对中右提问与参数修改** | `web/index.html`<br>`web/js/app.js` | `askAboutRightContent`, `askStockPrompt`, `applyRightParamForm` |
 | **保本价进位与滑块试算器** | `web/index.html`<br>`web/js/app.js` | `updateProjectedCalculator`, `#resBreakeven`, `math.ceil` |
 | **收益分析与 Canvas 图表** | `web/index.html`<br>`web/js/charts.js` | `drawEquityCurve`, `drawMonthlyPnLChart`, `.returns-overview-grid` |

@@ -1941,7 +1941,7 @@ input:checked + .slider:before {
 
 
 /* ==========================================================================
-   Three-Column Layout: Left Menu (240px), Middle AI Chat (40%), Right Details (60%)
+   Dual-Mode Adaptive Layout: Chat-Centric vs Workspace-Centric Copilot
    ========================================================================== */
 .app-container {
   display: grid;
@@ -1952,8 +1952,108 @@ input:checked + .slider:before {
   transition: grid-template-columns 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
-.app-container.chat-collapsed {
+/* 1. 投研助手模式 (Chat-Centric Dedicated Mode): AIChatUI 在中间 (40%)，辅助展示在右 (60%) */
+.app-container.layout-chat-center {
+  grid-template-columns: 240px 4fr 6fr;
+}
+
+.app-container.layout-chat-center .app-middle-chat {
+  order: 2;
+  border-right: 1px solid var(--border-card);
+  border-left: none;
+}
+
+.app-container.layout-chat-center .app-right-details {
+  order: 3;
+}
+
+.app-container.layout-chat-center.chat-collapsed {
   grid-template-columns: 240px 42px 1fr;
+}
+
+/* 2. 业务主工作区模式 (Workspace-Centric Copilot Mode): 业务区在中间跃升为主工作区，AIChatUI 定位为 AI助手在右 (390px) */
+.app-container.layout-workspace-main {
+  grid-template-columns: 240px 1fr 390px;
+}
+
+.app-container.layout-workspace-main .app-right-details {
+  order: 2;
+  border-right: none;
+}
+
+.app-container.layout-workspace-main .app-middle-chat {
+  order: 3;
+  border-left: 1px solid var(--border-card);
+  border-right: none;
+}
+
+/* 3. 业务主工作区模式下 AI助手收起：中间主工作区占满 100% 宽度 */
+.app-container.layout-workspace-main.copilot-collapsed {
+  grid-template-columns: 240px 1fr 0px;
+}
+
+.app-container.layout-workspace-main.copilot-collapsed .app-middle-chat {
+  display: none !important;
+}
+
+/* 中间区域 Title 右侧 AI 助手呼出小按钮 */
+.btn-copilot-launcher {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--radius-sm);
+  background: #E8F3FF;
+  border: 1px solid #ADC6FF;
+  color: var(--primary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(22, 119, 255, 0.08);
+}
+
+.btn-copilot-launcher:hover {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+  box-shadow: 0 3px 10px rgba(22, 119, 255, 0.28);
+}
+
+.copilot-btn-icon {
+  font-size: 13px;
+}
+
+.copilot-btn-label {
+  letter-spacing: 0.3px;
+}
+
+.copilot-btn-arrow {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.btn-copilot-launcher:hover .copilot-btn-arrow {
+  transform: translateX(-2px);
+}
+
+/* 当业务主工作区模式下 AI 助手收起时，在中间主工作区 Title 右侧高亮展示小按钮 */
+.app-container.layout-workspace-main.copilot-collapsed .btn-copilot-launcher {
+  display: inline-flex;
+  animation: launcherFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes launcherFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Left Sidebar 3-Section Partition */
