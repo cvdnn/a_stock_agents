@@ -254,10 +254,12 @@ python bin/update.py --rollback backup_20260902_174003
 如需查阅更多底层架构与设计方案，请参阅以下专项文档：
 
 - **全景架构导图**：[`index.md`](index.md)
-- **Web UI 界面设计与交互规范**：[`specs/ui-design-specification.md`](specs/ui-design-specification.md)
-- **Web AIChat 与 Skill 治理架构**：[`specs/web-aichat-and-skill-governance.md`](specs/web-aichat-and-skill-governance.md)
-- **最低保本卖出价精算数学公式**：[`trading/breakeven-rules.md`](trading/breakeven-rules.md)
-- **实战交易反应动作操作手册**：[`trading/execution-manual.md`](trading/execution-manual.md)
-- **算法资产全生命周期治理体系**：[`guidelines/algorithm-governance.md`](guidelines/algorithm-governance.md)
+- **规范体系总览中心**：[`specs/README.md`](specs/README.md)
+- **Web UI 界面设计与交互规范**：[`specs/ui/ui-design-and-interaction-specification.md`](specs/ui/ui-design-and-interaction-specification.md) (SPEC-UI-001)
+- **Web AIChat 与 Skill 治理架构**：[`specs/architecture/arch-web-aichat-and-skill-governance.md`](specs/architecture/arch-web-aichat-and-skill-governance.md) (SPEC-ARCH-001)
+- **A2UI 前端动态渲染引擎规范**：[`specs/a2ui/a2ui-framework-engine-specification.md`](specs/a2ui/a2ui-framework-engine-specification.md) (SPEC-A2UI-001)
+- **最低保本卖出价精算数学规则**：[`specs/business/biz-breakeven-price-calculation-rules.md`](specs/business/biz-breakeven-price-calculation-rules.md) (SPEC-BIZ-002)
+- **实战交易反应动作与风控规范**：[`specs/business/biz-trading-execution-and-risk-control.md`](specs/business/biz-trading-execution-and-risk-control.md) (SPEC-BIZ-003)
+- **算法资产全生命周期治理体系**：[`specs/algorithm/algo-lifecycle-and-governance-specification.md`](specs/algorithm/algo-lifecycle-and-governance-specification.md) (SPEC-ALGO-001)
 - **代码审查基准与防御模式**：[`guidelines/code-review.md`](guidelines/code-review.md)
 - **自动化回归测试规范**：[`guidelines/testing-guide.md`](guidelines/testing-guide.md)

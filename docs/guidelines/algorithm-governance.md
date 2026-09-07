@@ -1,6 +1,8 @@
 # aStocks 算法审查、算法库架构评估与全生命周期治理规范
 *(Algorithm Review, Library Architecture Evaluation & Full Lifecycle Governance)*
 
+> 🔗 **权威技术规格**：本文件为研发审查与指南，完整规范体系定义请参阅 [`docs/specs/algorithm/algo-lifecycle-and-governance-specification.md`](../specs/algorithm/algo-lifecycle-and-governance-specification.md) (SPEC-ALGO-001)。
+
 ---
 
 ## Executive Summary (执行摘要)

@@ -109,11 +109,14 @@ a_stock_agents/
 │   │   ├── code-review.md         # 代码审查基准、红线清单与防御模式
 │   │   ├── naming-conventions.md  # 源码物理命名、模型演进四大范式规范
 │   │   └── testing-guide.md       # 回归测试架构、TDD规约与用例管理
-│   ├── specs/               # 架构设计方案与功能规格说明 (ADR/RFC)
-│   │   ├── broker-commission-configurable-design.md # 券商佣金及费率参数配置化设计
-│   │   ├── token-gateway.md                         # Token链路安全网关与本地审计
-│   │   ├── ui-design-specification.md               # Web UI 界面设计与三栏40/60交互规范
-│   │   └── web-aichat-and-skill-governance.md       # 独立 Web AIChat 与 Skill 治理架构设计
+│   ├── specs/               # 6 大核心领域规范体系中心 (遵循统一命名规则)
+│   │   ├── README.md        # 规范总览与矩阵看板 (SPEC-INDEX)
+│   │   ├── engineering/     # [01.工程结构] eng-project-structure-and-workspace.md
+│   │   ├── ui/              # [02.UI设计] ui-design-and-interaction-specification.md
+│   │   ├── architecture/    # [03.系统架构] arch-web-aichat, arch-llm-provider, arch-token-gateway
+│   │   ├── a2ui/            # [04.A2UI框架] a2ui-framework-engine, a2ui-component-registry
+│   │   ├── business/        # [05.业务规则] biz-broker-commission, biz-breakeven, biz-trading-execution
+│   │   └── algorithm/       # [06.算法规则] algo-lifecycle-and-governance-specification.md
 │   ├── trading/             # 实战交易动作手册与数学计算规则
 │   │   ├── breakeven-rules.md     # 最低保本卖出价精算数学公式与向上进位规则
 │   │   └── execution-manual.md    # 六大实战反应动作、三场景决策单与挂单纪律
@@ -470,10 +473,18 @@ flowchart TD
 | **工程规范** | [`guidelines/testing-guide.md`](guidelines/testing-guide.md) | 回归测试架构、TDD 流程规约与用例生命周期管理 |
 | **工程规范** | [`guidelines/naming-conventions.md`](guidelines/naming-conventions.md) | 源码物理命名、模型演进四大范式与文档命名规约 (SSOT) |
 | **工程规范** | [`guidelines/algorithm-governance.md`](guidelines/algorithm-governance.md) | 44项算法全景清单、四道质量门禁规范与 ALCM 治理方案 |
-| **设计方案** | [`specs/token-gateway.md`](specs/token-gateway.md) | Token 链路安全网关、敏感凭据脱敏与本地审计 Agent 架构 |
-| **设计方案** | [`specs/web-aichat-and-skill-governance.md`](specs/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理系统架构设计 |
-| **设计方案** | [`specs/ui-design-specification.md`](specs/ui-design-specification.md) | 现代 Web 界面设计规范：三栏40/60布局、极简投研助手与双向弹出交互 |
-| **设计方案** | [`specs/broker-commission-configurable-design.md`](specs/broker-commission-configurable-design.md) | 券商佣金及费率参数配置化与首次使用提示设计规范 (ADR) |
-| **实战交易** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律手册 |
-| **实战交易** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 |
+| **规范总览** | [`specs/README.md`](specs/README.md) | 规范体系总览、命名规则范式与 6 大分类矩阵导航 (SPEC-INDEX) |
+| **工程结构规范** | [`specs/engineering/eng-project-structure-and-workspace.md`](specs/engineering/eng-project-structure-and-workspace.md) | 项目工程结构、就地运行底座、目录职责、跨平台 CLI 与数据隔离设计规范 (SPEC-ENG-001) |
+| **UI设计规范** | [`specs/ui/ui-design-and-interaction-specification.md`](specs/ui/ui-design-and-interaction-specification.md) | 现代 Web 界面设计规范：双模视口、工作台六大板块、连通长顶栏与无竖条边框 (SPEC-UI-001) |
+| **系统架构规范** | [`specs/architecture/arch-web-aichat-and-skill-governance.md`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 17 项技能治理中心架构设计规范 (SPEC-ARCH-001) |
+| **系统架构规范** | [`specs/architecture/arch-llm-provider-and-role-allocation.md`](specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与 5 大业务场景角色绑定 (Roles) 架构设计规范 (SPEC-ARCH-002) |
+| **系统架构规范** | [`specs/architecture/arch-token-security-gateway.md`](specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、敏感凭据脱敏与本地审计 Agent 架构规范 (SPEC-ARCH-003) |
+| **A2UI框架规范** | [`specs/a2ui/a2ui-framework-engine-specification.md`](specs/a2ui/a2ui-framework-engine-specification.md) | Agent2UI (A2UI) 前端引擎框架设计与架构规范 (1:1 骨架屏与渐进水合) (SPEC-A2UI-001) |
+| **A2UI框架规范** | [`specs/a2ui/a2ui-component-registry-specification.md`](specs/a2ui/a2ui-component-registry-specification.md) | A2UI 组件库模块化拆解、时序缓冲解耦与约定式动态发现机制设计规范 (SPEC-A2UI-002) |
+| **业务规则规范** | [`specs/business/biz-broker-commission-configurable-design.md`](specs/business/biz-broker-commission-configurable-design.md) | 券商佣金及费率参数配置化与首次使用提示设计规范 (SPEC-BIZ-001) |
+| **业务规则规范** | [`specs/business/biz-breakeven-price-calculation-rules.md`](specs/business/biz-breakeven-price-calculation-rules.md) | 最低保本卖出价精算数学模型与向上精确进位至分位 (`math.ceil`) 业务规则 (SPEC-BIZ-002) |
+| **业务规则规范** | [`specs/business/biz-trading-execution-and-risk-control.md`](specs/business/biz-trading-execution-and-risk-control.md) | 实战交易三原则、六大交易反应动作与 T0/T1/T2 阶梯止损风控规范 (SPEC-BIZ-003) |
+| **算法规则规范** | [`specs/algorithm/algo-lifecycle-and-governance-specification.md`](specs/algorithm/algo-lifecycle-and-governance-specification.md) | 44项算法全景清单、AlgoRegistry 2.0 架构与 ALCM 四道门禁治理规范 (SPEC-ALGO-001) |
+| **实战交易** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律手册 (操作指引) |
+| **实战交易** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 (快速速查) |
 | **静态资源** | [`images/architecture.png`](images/architecture.png) | 系统架构全景图高清原图 |

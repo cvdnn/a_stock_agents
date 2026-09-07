@@ -1,6 +1,8 @@
 # A股最低保本价量化精算与精确进位规则 (2026-09-02 制定)
 
 > 📌 **核心原则**：按全摩擦税费公式得出理论保本价后，**必须均精确向上进位到 0.01 元**（向上取整到分）。实战挂单与止损止盈参考一律采用进位后价格，确保 100% 绝对无损保本。
+> 
+> 🔗 **权威设计规范**：本文件为实操速查指引，完整系统级工程规范请参阅 [`docs/specs/business/biz-breakeven-price-calculation-rules.md`](../specs/business/biz-breakeven-price-calculation-rules.md) (SPEC-BIZ-002)。
 
 ---
 

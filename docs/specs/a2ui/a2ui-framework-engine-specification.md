@@ -1,9 +1,12 @@
 # Agent2UI (A2UI) 前端引擎框架设计与架构规范 (Agent-to-UI Engine Specification)
 
-- **文档版本**：v1.0
+- **规范分类**：A2UI框架
+- **规范编号**：SPEC-A2UI-001
+- **文档版本**：v1.1
+- **当前状态**：正式规范 (Production Baseline)
 - **创建日期**：2026-09-07
 - **适用范围**：A-Stock Agents 独立 Web 投研前端、Desktop 客户端（Tauri/Electron）及跨端通用的 AI 动态驱动 UI 渲染中枢
-- **状态**：正式规范 (Production Baseline)
+- **关联文档**：[`a2ui-component-registry-specification.md`](a2ui-component-registry-specification.md)、[`../ui/ui-design-and-interaction-specification.md`](../ui/ui-design-and-interaction-specification.md)、[`../architecture/arch-web-aichat-and-skill-governance.md`](../architecture/arch-web-aichat-and-skill-governance.md)、[`../../../AGENTS.md`](../../../AGENTS.md)
 
 ---
 
@@ -96,7 +99,7 @@ flowchart TB
 ### 2.3 渐进式流式水合 (Progressive Hydration) 流水线
 渲染过程坚决杜绝“全量阻塞”，严格执行五阶段渐进演进：
 
-```
+```text
 [用户触发] "分析市场行情"
   │
   ├─► Stage 0 [0~80ms]:   意图解析 ──► 立即渲染骨架屏 (Mount Skeleton)
@@ -194,7 +197,7 @@ flowchart TB
 
 A2UI 引擎根据 `display_target` 指令，智能控制渲染目标视窗：
 
-```
+```text
                               ┌─────────────────────────┐
                               │  display_target 路由决策 │
                               └────────────┬────────────┘
@@ -302,7 +305,7 @@ export interface A2UIComponent<TProps = any> {
 | **WebApp Shell** | `web/index.html`<br>`web/css/style.css` | 静态视口网格容器、连通顶部栏、双模 CSS Order 置换 |
 | **A2UI Core Engine** | `web/js/app.js` (`UIEngine`) | 流式解调、骨架编排调度器、Tab 路由器、动作总线 |
 | **金融图表渲染底座** | `web/js/charts.js` (`FinancialCharts`) | Canvas K线蜡烛图、火花线、情绪温度计、净值曲线 |
-| **组件库规范与契约** | `docs/specs/agent2ui-framework-specification.md` | 本文档，作为通用 A2UI 框架与股票投研示范库标准基准 |
-| **组件注册与发现机制** | `docs/specs/a2ui-component-registry-specification.md` | 模块化子目录规范、时序解耦缓冲池、双重寻址与约定式动态发现 |
-| **交互与视觉规范** | `docs/specs/ui-design-specification.md` | 浅色金融商务风格、双向独立滚动、从左到右弹出动画规范 |
-| **风控计算契约** | `AGENTS.md` | 保本卖出价 `math.ceil` 进位算法、三级风控阶梯、三场景动作单 |
+| **组件库规范与契约** | `a2ui-framework-engine-specification.md` | 本文档，作为通用 A2UI 框架与股票投研示范库标准基准 |
+| **组件注册与发现机制** | [`a2ui-component-registry-specification.md`](a2ui-component-registry-specification.md) | 模块化子目录规范、时序解耦缓冲池、双重寻址与约定式动态发现 |
+| **交互与视觉规范** | [`../ui/ui-design-and-interaction-specification.md`](../ui/ui-design-and-interaction-specification.md) | 浅色金融商务风格、双向独立滚动、从左到右弹出动画规范 |
+| **风控计算契约** | [`../../../AGENTS.md`](../../../AGENTS.md) | 保本卖出价 `math.ceil` 进位算法、三级风控阶梯、三场景动作单 |

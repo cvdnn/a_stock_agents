@@ -1,9 +1,12 @@
 # A-Stock Agents Web UI 界面设计与交互规范 (UI/UX Specification)
 
-- **文档版本**：v1.0
-- **创建日期**：2026-09-06
+- **规范分类**：UI设计
+- **规范编号**：SPEC-UI-001
+- **文档版本**：v1.2
+- **当前状态**：正式规范 (Production Baseline)
+- **创建日期**：2026-09-06（修订日期：2026-09-07）
 - **适用范围**：A-Stock Agents 独立 Web 投研前端、Desktop 客户端（Tauri/Electron）及跨端界面系统
-- **状态**：正式规范 (Production Baseline)
+- **关联文档**：[`docs/specs/architecture/arch-web-aichat-and-skill-governance.md`](../architecture/arch-web-aichat-and-skill-governance.md)、[`docs/specs/architecture/arch-llm-provider-and-role-allocation.md`](../architecture/arch-llm-provider-and-role-allocation.md)、[`docs/specs/a2ui/a2ui-framework-engine-specification.md`](../a2ui/a2ui-framework-engine-specification.md)、[`docs/specs/a2ui/a2ui-component-registry-specification.md`](../a2ui/a2ui-component-registry-specification.md)
 
 ---
 
@@ -17,6 +20,10 @@
    - 品牌主色：`#1677FF`（深蓝，代表理性、量化与科技）
    - 全局背景：`#F8FAFD`（亚光冷白，护眼防疲劳）；卡片底色：`#FFFFFF`；细分割线：`#DFE6EF`
 3. **高精数字排版**：涉及行情价格、涨跌幅、成交量、资金流、保本价等所有金融数值，必须强制启用 CSS `font-variant-numeric: tabular-nums`，确保垂直方向精准对齐。
+4. **边框轻量化与卡片视觉一致性 (Subtle Border & Zero-Stripe Principle)**：
+   - 彻底摒弃卡片、自选列表项、快评条目及监控流左侧生硬突兀的 3px/4px 粗彩色竖条（`border-left`）；
+   - 全面统一采用清爽、规整的 1px 浅色金融边框（如普通卡片 `1px solid var(--border-card)` / `#EBF1F8`，高亮引用卡片 `1px solid #D6E4FF`，激活自选股采用浅蓝底色 `#EFF6FF` 替代竖条）；
+   - 保持金融图表与信息流界面呼吸感一致，杜绝杂乱的装饰性色块打扰交易专注度。
 
 ---
 
@@ -28,7 +35,7 @@
 当用户在左侧菜单栏选择 **【投研助手】**（或新建/切换历史会话）时触发：
 - **【AIChatUI】居于中间核心主交互位（占 40% 宽度）**，作为主视觉交互焦点，专注于多轮投研问答、量化推演与动作单生成；
 - **铁律：AIChatUI 在该模式下始终展示**（不提供收起 AIChatUI 的操作，杜绝主对话区折叠消失）；
-- **右侧定位为【工作台】（占 60% 宽度）**，承载整体综合盘面、快捷入口、自选异动、持仓统计及量化盯盘策略；
+- **右侧定位为【工作台】（占 60% 宽度）**，承载整体市场盘面、快捷操作矩阵、自选股异动盯盘、策略回测看板、模拟交易资产统计及实战三原则风控核算默认六大板块；
 - **长条连通顶部栏规范（无中段分割与工作台标题）**：
   - 投研助手模式下，顶部栏彻底重构为**横贯中间与右侧的长条连通一体化布局（Unified Connected Top Bar）**；
   - 顶部栏消除中间垂直分割线，并删除原本突兀的 `[📊] 工作台` 独立标题；
@@ -40,19 +47,19 @@
 
 ```
 +---------------------------------------------------------------------------------------------------------------+
-| Top Header (50px): AI量化投资助手 | 全局检索 (股票/代码/指标) | 📑研报  🔔预警 | 👤量化实盘账户 (机构级认证)            |
+| Top Header (50px): AI量化投资助手 | 全局检索 (代码/名称) | 🛡️技能治理  📑研报  🔔预警 | 👤量化实盘账户 (机构级)       |
 +-------------------+-------------------------------------------------------------------------------------------+
 | 左侧菜单栏 (240px)| 中右长条连通一体化顶部栏 (50px): 消除中段分割与工作台标题                                         |
 | [1. 功能导航]     | 🤖 投研助手 ● 在线                         [📊工作台◀ (折叠时)]                       [收起 ▶] |
 | · 🤖 投研助手 (选)+-----------------------------------+-------------------------------------------------------+
 | · 📊 市场行情     | 中间：AIChatUI 对话区 (40% / 100%) | 右侧：工作台内容区 (60% / 0%)                         |
 | · ⭐ 自选个股     | [对话流区域 (Chat Messages)]      | [工作台内容视口 (Scrollable Dashboard)]               |
-| · 📈 收益分析     | · 用户提问气泡                    | · 1. 整体盘面 (大盘/指数/板块/两市成交)               |
-|                   | · AI 一问一答标准卡片             | · 2. 快捷入口 (大盘分析/行业轮动/5A选股)              |
-| [2. 会话记录]     |   - 头像 + 标题 + 摘要            | · 3. 自选个股异动监控 (中芯国际/海光信息/宁德时代)    |
-| · 倒序前10条      |   - 研报正文与实战三原则动作单    | · 4. 持股/投资统计 (持仓市值/总收益/年化收益)         |
-| · 触底自动加载    |   - [⛶ 放大投射到右侧工作台]      | · 5. 量化/盯盘/消息提醒 (趋势突破策略开关)            |
-| · [+ 新建对话]    | [底部固定输入区]                  |                                                       |
+| · 📈 收益分析     | · 【空白态】欢迎头屏+功能卡+紧凑操作 | · 1. 整体市场盘面 (四大指数/两市成交/情绪温度计)      |
+|                   | · 【会话态】一问一答标准卡片流    | · 2. 投研快捷操作矩阵 (三原则动作单/大盘/收益)        |
+| [2. 会话记录]     |   - 头像 + 标题 + 摘要            | · 3. 自选个股异动盯盘 (中芯国际/海光信息/宁德时代)    |
+| · 倒序前10条      |   - 研报正文与实战三原则动作单    | · 4. 量化选股与策略回测看板 (5A多因子/回测收益分布)   |
+| · 触底自动加载    |   - [⛶ 放大投射到右侧工作台]      | · 5. 模拟交易与账户资产 (持仓市值/总收益/年化表现)    |
+| · [+ 新建对话]    | [底部固定输入区]                  | · 6. 实战三原则风控核算 (保本价试算/阶梯止损明细)     |
 | [3. 系统设置]     | · [⚡ 引用右侧提问] [📁] [📊]     |                                                       |
 | · ⚙️ 系统设置     | · 输入框 + [发送 ✈️] (Enter即发)  |                                                       |
 +-------------------+-----------------------------------+-------------------------------------------------------+
@@ -190,13 +197,14 @@
   - 监听会话列表滚动事件：当检测到 `scrollTop + clientHeight >= scrollHeight - 15` 时，自动触发下一分页异步拉取；
   - 列表底部展示轻量级 Loading 动效（`.spinner-dot` 脉冲呼吸动画），加载完成后平滑追加 10 条历史会话，并展示当前已收录总数。
 
-### 3.3 系统设置区 (Bottom Settings Section)
-- 底部常驻显示当前量化实盘账户简介与在线状态；
-- 点击 `⚙️ 系统设置` 唤出金融级全局配置弹窗（Modal）：
-  - **大模型网关**：DeepSeek V3 (量化推理推荐) / Gemini 2.5 Flash / 本地 Ollama (Qwen2.5-7B) 切换与 API Key 管理；
+### 3.3 系统设置与顶部治理中心分离 (Settings & Governance Separation)
+- **顶部菜单常驻治理入口**：顶部导航栏常驻 `🛡️ 技能治理` 按钮，点击唤起独立的 17 项量化投研技能治理中心（含看板、调用审计、动态 Schema 调试控制台与热重载）；
+- **底部常驻系统设置入口**：点击 `⚙️ 系统设置` 唤出金融级全局配置弹窗（Modal）：
+  - **大模型双轨配置**（详见 [`arch-llm-provider-and-role-allocation.md`](../architecture/arch-llm-provider-and-role-allocation.md)）：
+    - **【模型接入】**：多平台 Provider 添加/编辑、API Key 明暗切换、连接延迟探测与服务端防 CORS 代理拉取；
+    - **【模型分配】**：Chat (默认助手)、Summary (快速概要)、Quant (算法量化)、Debate (深度辩论)、Vision (多模态视觉) 5 大场景角色绑定；
   - **行情降级策略**：腾讯财经 API $\to$ 东方财富 $\to$ 新浪财经 $\to$ Baostock 四级容灾状态；
-  - **实战三原则参数**：印花税率（0.05%）、佣金费率（万2.5最低5元起）、T0/T1/T2 止损线数值调整；
-  - **Skill 治理监控**：17 项技能健康度与运行审计。
+  - **实战三原则参数**：印花税率（0.05%）、券商佣金（万2.5最低5元起）、T0/T1/T2 止损线数值调整。
 
 ---
 
@@ -214,8 +222,20 @@
 
 ## 5. AIChatUI 极简设计与双向交互规范 (AIChat & Bidirectional Linkage)
 
-### 5.1 极简标题栏规范与双模状态自适应
-- **杜绝空间浪费**：移除传统对话应用大面积的欢迎 Banner、Slogan 标语及冗余胶囊，将上部区域高度压缩至 `44px`；
+### 5.1 极简标题栏规范与新建会话欢迎态自适应
+- **新建会话“欢迎空白态”与会话态自适应 (Adaptive Welcome Hero vs Active Conversation)**：
+  1. **空白会话态 (`.chat-welcome-state`)**：
+     - 当新建对话或会话中尚无消息时，中间 AIChat 展示精心构筑的欢迎头屏；
+     - **助手定位介绍**：明确 17 项技能量化引擎支撑，贯穿宏观择时、多因子选股与实战动作单；
+     - **四大核心投研能力卡片**：
+       - `📊 实时行情与综合诊断`（4级降级容灾、筹码分布与技术形态）；
+       - `🎯 5A 多因子共振选股`（量价/基本面/估值/主线轮动共振）；
+       - `🛡️ 实战三原则交易指令`（精算保本卖出价、T0/T1/T2 止损阶梯）；
+       - `⚔️ 多智能体对抗辩论`（7 大分析师角色多空博弈深度推演）；
+     - **三原则紧凑操作推荐卡片 (`.quick-iron-card` + `.quick-pill-box`)**：
+       - 采用紧凑胶囊网格布局，展示 `🛡️ 评估持股策略`、`📈 分析今日大盘行情`、`💰 收益分析` 三项常用实战动作，点击直接触发智能体分析；
+  2. **会话态自动无缝切换**：
+     - 一旦用户发送首条提问或切换至已有历史会话，欢迎头屏立即平滑隐藏，上部区域高度压缩至 `44px` 极简标题栏，确保垂直空间全部让渡给金融对话流与研报卡片。
 - **双模动态标题与收起交互**：
   1. **模式一（投研助手居中）**：
      - 标题展示为：`🤖 投研助手 ● 在线`；
@@ -282,6 +302,16 @@
    }
    ```
 
+### 5.4 全局 Toast 消息通知交互规范 (Global Toast Notification Specification)
+为杜绝顶部弹出横幅遮挡连通长条顶部栏（Top Bar）与金融盯盘关键视窗，系统实施**右下角反向堆叠 Toast 规范**：
+1. **视口锚定与层级**：
+   - 容器固定于视口右下角：`position: fixed; bottom: 24px; right: 24px; z-index: 9999;`；
+   - 容器必须声明 `pointer-events: none`，单个 Toast 卡片声明 `pointer-events: auto`，保障下层大盘与图表可正常点击操作，零事件阻断；
+2. **反向向上堆叠动效 (Bottom-Up Reverse Stacking)**：
+   - 采用弹性布局逆向排序：`display: flex; flex-direction: column-reverse; gap: 8px;`；
+   - 新产生提示自右侧边缘平滑滑入（`slideInRight 0.25s ease-out`），多条连续通知向上有序顶起推进，阅读视线极其自然；
+   - 停留 3 秒后执行淡出平滑消失（`opacity: 0; transform: translateY(-4px);`），轻巧优雅。
+
 ---
 
 ## 6. 实战三原则保本价精算与风控指令单规范 (AGENTS.md 契约落地)
@@ -291,11 +321,18 @@
 2. **强制向上进位至分 (`math.ceil`)**：
    $$\text{最低保本卖出价} = \frac{\lceil (\text{总买入金额} + \text{全部买卖摩擦税费}) \times 100 \rceil}{100 \times \text{股数}}$$
    严禁任何形式的四舍五入，杜绝哪怕 1 分钱的摩擦亏损。
-3. **三级风控止损阶梯卡片**：
+3. **“算法严守进位，界面去研发术语化”展示准则 (Calculation Rigor vs Clean UI Presentation)**：
+   - **底层计算铁律**：计算引擎、数据模型与试算器内核必须严格执行 `math.ceil` / `Math.ceil` 进位至分，确保保本价真实有效；
+   - **界面展示净化**：表格表头、卡片标签、试算器标题与提示文案中，**全面剔除 `(ceil)`、`(math.ceil)`、`(分位进位)` 等开发调试与代码术语**；
+   - **标准金融文案规范**：
+     - 表头与字段名：统一使用标准金融术语 `最低保本卖出价`（而非 `最低保本卖出价(分位进位)`）；
+     - 试算器标题：统一命名为 `🧮 动态保本价试算器`（而非 `向上进位试算器`）；
+     - 辅助说明：统一使用 `严格计入全额税费，确保交易不亏本` 或 `精算至分位并覆盖全部税费，防范交易磨损`。
+4. **三级风控止损阶梯卡片**：
    - **T0 警戒线 (-3%)**：准备对冲或平保
    - **T1 减仓线 (-5%)**：强制减仓 50% 锁定本金
    - **T2 绝杀线 (-8%)**：无条件市价坚决止损出局
-4. **三场景即时动作单**：明确开盘冲高 (+3%)、盘中窄幅震荡 (<1.5%)、盘中跳水急跌 (-3%以下) 时的清晰操作指令。
+5. **三场景即时动作单**：明确开盘冲高 (+3%)、盘中窄幅震荡 (<1.5%)、盘中跳水急跌 (-3%以下) 时的清晰操作指令。
 
 ---
 
@@ -318,10 +355,13 @@
 | :--- | :--- | :--- |
 | **双模动态视口与灵活定位** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `.layout-chat-center`, `.layout-workspace-main`, `handleMenuClick`, `switchLayoutMode` |
 | **AI助手收起与Title小按钮** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `.copilot-collapsed`, `.btn-copilot-launcher`, `#btnCopilotLauncher`, `toggleCopilot` |
-| **AIChatUI 极简标题与折叠** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `.chat-header-simple`, `#chatHeaderTitle`, `#btnCollapseChat`, `handleChatCollapseBtn` |
+| **AIChatUI 极简标题与欢迎态** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `.chat-welcome-state`, `.quick-iron-card`, `.chat-header-simple`, `#chatHeaderTitle`, `handleChatCollapseBtn` |
+| **右下角反向堆叠 Toast** | `web/css/style.css`<br>`web/js/app.js` | `.toast-container`, `.toast`, `showToast`, `slideInRight` |
 | **三段式菜单栏与无限滚动** | `web/index.html`<br>`web/js/app.js` | `.sidebar-sessions-list`, `renderSessionList`, `setupSessionInfiniteScroll` |
+| **17项技能独立治理中心** | `docs/specs/architecture/arch-web-aichat-and-skill-governance.md`<br>`web/index.html`<br>`web/js/app.js` | `#modalSkillsGovernance`, `openSkillsGovernanceModal`, `testSkillExecution` |
+| **大模型配置双轨制 (Providers/Roles)** | `docs/specs/architecture/arch-llm-provider-and-role-allocation.md`<br>`scripts/server/api/models_mgmt.py`<br>`web/js/app.js` | `/api/models/providers`, `/api/models/roles`, `testConnection`, `fetchRemoteModels` |
 | **多标签页保留与左向右弹出** | `web/index.html`<br>`web/css/style.css`<br>`web/js/app.js` | `#rightTabsBar`, `projectToRight`, `popupSlideFromLeft` |
 | **针对中右提问与参数修改** | `web/index.html`<br>`web/js/app.js` | `askAboutRightContent`, `askStockPrompt`, `applyRightParamForm` |
-| **保本价进位与滑块试算器** | `web/index.html`<br>`web/js/app.js` | `updateProjectedCalculator`, `#resBreakeven`, `math.ceil` |
+| **保本价进位与去术语化展示** | `web/index.html`<br>`web/js/app.js` | `updateProjectedCalculator`, `#resBreakeven`, `Math.ceil` |
 | **收益分析与 Canvas 图表** | `web/index.html`<br>`web/js/charts.js` | `drawEquityCurve`, `drawMonthlyPnLChart`, `.returns-overview-grid` |
-| **Agent2UI 动态驱动与组件库** | `docs/specs/agent2ui-framework-specification.md`<br>`web/js/app.js` | `UIEngine`, `SkeletonOrchestrator`, `ProgressiveHydrator`, `@a2ui/pack-astock` |
+| **A2UI 驱动引擎与模块化组件包** | [`a2ui-framework-engine-specification.md`](../a2ui/a2ui-framework-engine-specification.md)<br>[`a2ui-component-registry-specification.md`](../a2ui/a2ui-component-registry-specification.md)<br>`web/js/ui_engine.js`<br>`web/js/components/astock.js` | `UIEngine`, `defineA2UIPack`, `loadPack`, `@a2ui/pack-astock` |

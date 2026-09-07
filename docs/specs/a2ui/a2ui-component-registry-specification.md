@@ -1,30 +1,32 @@
 # Agent2UI (A2UI) 组件库拆解与模块化注册发现机制设计规范 (Component Registry & Discovery Specification)
 
-- **文档版本**：v1.0
+- **规范分类**：A2UI框架
+- **规范编号**：SPEC-A2UI-002
+- **文档版本**：v1.1
+- **当前状态**：正式规范 (Production Baseline)
 - **创建日期**：2026-09-07
-- **当前状态**：正式规范 (Draft / Approved for Execution)
 - **适用范围**：A-Stock Agents 独立 Web 前端、Agent2UI (A2UI) 渲染引擎、跨端组件库生态
-- **关联文档**：[`docs/specs/agent2ui-framework-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/agent2ui-framework-specification.md)、[`AGENTS.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/AGENTS.md)
+- **关联文档**：[`a2ui-framework-engine-specification.md`](a2ui-framework-engine-specification.md)、[`../ui/ui-design-and-interaction-specification.md`](../ui/ui-design-and-interaction-specification.md)、[`../../../AGENTS.md`](../../../AGENTS.md)
 
 ---
 
 ## 0. 背景与演进动因 (Context & Motivation)
 
 ### 0.1 现状与瓶颈
-在现有的 Agent2UI 前端实现中，股票领域的卡片与看板组件全部平铺在单一文件 `web/js/components_astock.js` 中，并在 `web/js/ui_engine.js` 内通过极其简易的键值字典进行注册：
+在现有的 Agent2UI 前端实现中，股票领域的卡片与看板组件最初平铺在单一文件 `web/js/components_astock.js` 中，并在 `web/js/ui_engine.js` 内通过极其简易的键值字典进行注册：
 ```javascript
-// ui_engine.js 现状
+// ui_engine.js 早期现状
 registerComponent(name, definition) {
   this.components[name] = definition;
 }
 
-// components_astock.js 现状
+// components_astock.js 早期现状
 if (typeof UIEngine !== 'undefined') {
   UIEngine.registerComponent('MarketRadar', AStockMarketRadar);
 }
 ```
 
-随着投研与多智能体系统向更多维度（宏观、商业智能 BI、加密货币、通用数据可视化等）横向演进，当前模式暴露出以下明显的架构瓶颈：
+随着投研与多智能体系统向更多维度（宏观、商业智能 BI、加密货币、通用数据可视化等）横向演进，上述模式暴露出以下明显的架构瓶颈：
 1. **缺乏命名空间隔离 (Namespace Collision)**：扁平的单维字典无法防止不同业务包组件命名冲突（例如多个包同时存在 `SummaryCard` 或 `MetricPanel`）；
 2. **强脚本加载时序绑定 (Temporal Coupling)**：组件脚本必须严格在 `ui_engine.js` 之后同步载入，一旦后续采用 `async` / `defer` 或动态按需引入，极易产生 `UIEngine is undefined` 的初始化竞态报错；
 3. **缺乏组件元数据清单与自省机制 (Missing Introspection & Catalog)**：前端和后端 Agent 均无法动态查询当前客户端已加载的组件能力集（支持的视图模式、参数规格、组件描述等）；
@@ -40,7 +42,7 @@ if (typeof UIEngine !== 'undefined') {
 
 ### 1.1 目录组织层级
 `web/js/` 目录实行“引擎内核”与“领域组件包”两级分离：
-```
+```text
 web/js/
 ├── app.js                       # 业务主控制器与交互状态机
 ├── charts.js                    # 金融级 Canvas 底座 (FinancialCharts)
@@ -370,23 +372,3 @@ UIEngine.loadPack = function(namespace, customUrl = null) {
 ### 6.2 Agent UI Toolset Schema 赋能
 后端 Agent 在系统提示词或 ReAct 循环中，可直接以 JSON 格式读取 `getCatalog()`：
 > *“当前前端已就绪组件包括：`astock/MarketRadar`（大盘全景）、`astock/CandleMatrix`（K线量价矩阵）、`astock/RiskBreakevenCalc`（保本算价器）。请优先输出结构化插槽语法而非纯文本代码块。”*
-
----
-
-## 7. 迁移与工程落地计划 (Migration Plan)
-
-### 7.1 文件变更对照清单
-| 操作 | 目标文件路径 | 变更说明 |
-| :--- | :--- | :--- |
-| **[NEW]** | `web/js/components/` | 新建组件库专有子目录 |
-| **[MOVE & UPGRADE]** | `web/js/components_astock.js`<br>➔ `web/js/components/astock.js` | 迁移文件并升级为符合 `defineA2UIPack` 的领域包规范 |
-| **[DELETE]** | `web/js/components_astock.js` | 移除原根目录下冗余文件 |
-| **[MODIFY]** | `web/js/ui_engine.js` | 实现命名空间存储、双重寻址、缓冲队列冲刷、`loadPack` 动态发现与 `getCatalog` |
-| **[MODIFY]** | `web/index.html` | 更新脚本路径：`<script src="js/components/astock.js"></script>` |
-
-### 7.2 实施检查清单 (Verification Checklist)
-- [ ] 检查浏览器控制台无任何 `404 Not Found` 静态资源报错；
-- [ ] 触发“分析今日大盘行情”快捷指令，验证 `MarketRadar` 骨架屏与图表正常水合渲染；
-- [ ] 触发“评估持股策略”快捷指令，验证 `RiskBreakevenCalc` 保本价滑块在对话卡片与工作台正常联动；
-- [ ] 控制台执行 `UIEngine.getCatalog()`，确认完整打印 `astock` 领域包与 3 个组件的元数据；
-- [ ] 验证双重寻址：`UIEngine.getComponent('MarketRadar')` 与 `UIEngine.getComponent('astock/MarketRadar')` 均准确命中。

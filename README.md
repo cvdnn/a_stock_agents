@@ -363,12 +363,15 @@ flowchart TB
 | **代码审查规范** | [`docs/guidelines/code-review.md`](docs/guidelines/code-review.md) | 代码质量基准、安全红线与审查报告 |
 | **回归测试指南** | [`docs/guidelines/testing-guide.md`](docs/guidelines/testing-guide.md) | TDD 测试先行与临时用例即测即删铁律 |
 | **命名与设计范式** | [`docs/guidelines/naming-conventions.md`](docs/guidelines/naming-conventions.md) | 源码/文档规范与模型演进四大范式 (SSOT) |
-| **网关架构设计** | [`docs/specs/token-gateway.md`](docs/specs/token-gateway.md) | Token 链路安全网关与本地审计 Agent 架构 |
-| **Web系统演进设计** | [`docs/specs/web-aichat-and-skill-governance.md`](docs/specs/web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 网关与 Skill 治理设计规范 |
-| **券商费率配置规范** | [`docs/specs/broker-commission-configurable-design.md`](docs/specs/broker-commission-configurable-design.md) | 券商佣金及费率参数配置化与首次使用提示设计规范 |
-| **实战交易反应动作** | [`docs/trading/execution-manual.md`](docs/trading/execution-manual.md) | 六大实战反应动作与三场景即时动作单 |
-| **最低保本价精算** | [`docs/trading/breakeven-rules.md`](docs/trading/breakeven-rules.md) | 覆盖印花税/佣金/过户费并向上进位至分位 |
-| **算法全生命周期治理** | [`docs/guidelines/algorithm-governance.md`](docs/guidelines/algorithm-governance.md) | 44项算法全景清单、四道质量门禁规范与ALCM治理方案 |
+| **规范总览中心** | [`docs/specs/README.md`](docs/specs/README.md) | 规范文档命名规则、SPEC 矩阵与 6 大领域规范导航 |
+| **工程结构设计规范** | [`docs/specs/engineering/eng-project-structure-and-workspace.md`](docs/specs/engineering/eng-project-structure-and-workspace.md) | 项目工程结构、就地运行底座与跨平台 CLI 规范 (SPEC-ENG-001) |
+| **Web UI 设计规范** | [`docs/specs/ui/ui-design-and-interaction-specification.md`](docs/specs/ui/ui-design-and-interaction-specification.md) | 现代浅色金融风格、双模视口与连通长顶栏规范 (SPEC-UI-001) |
+| **系统架构设计规范** | [`docs/specs/architecture/arch-web-aichat-and-skill-governance.md`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI 与 17 项技能治理系统架构规范 (SPEC-ARCH-001) |
+| **A2UI 动态前端框架** | [`docs/specs/a2ui/a2ui-framework-engine-specification.md`](docs/specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 核心动态渲染引擎与 1:1 骨架屏规范 (SPEC-A2UI-001) |
+| **券商费率配置规范** | [`docs/specs/business/biz-broker-commission-configurable-design.md`](docs/specs/business/biz-broker-commission-configurable-design.md) | 券商佣金及费率参数配置化与首次使用提示设计规范 (SPEC-BIZ-001) |
+| **保本价精算业务规则** | [`docs/specs/business/biz-breakeven-price-calculation-rules.md`](docs/specs/business/biz-breakeven-price-calculation-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位 (SPEC-BIZ-002) |
+| **实战交易动作与风控** | [`docs/specs/business/biz-trading-execution-and-risk-control.md`](docs/specs/business/biz-trading-execution-and-risk-control.md) | 六大实战反应动作、三场景动作单与三级止损阶梯 (SPEC-BIZ-003) |
+| **算法全生命周期治理** | [`docs/specs/algorithm/algo-lifecycle-and-governance-specification.md`](docs/specs/algorithm/algo-lifecycle-and-governance-specification.md) | 44项算法全景清单、四道质量门禁规范与ALCM治理方案 (SPEC-ALGO-001) |
 
 ---
 

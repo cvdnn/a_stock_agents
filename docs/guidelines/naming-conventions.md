@@ -136,26 +136,53 @@ sequenceDiagram
    - 文档内第一行一级标题（`# Title`）采用清晰规范的中文原名，兼顾链接健壮性与中文母语阅读体验。
 3. **消除版本号与临时状态侵入**：
    - 严禁出现 `_v1`, `_v2`, `_new`, `_final` 等临时后缀。
-   - 所有架构决策（ADR / RFC）与技术规格说明统一归档于 `docs/specs/`，遵循语义明确的标准 `kebab-case` 命名（如 `broker-commission-configurable-design.md`、`token-gateway.md`、`web-aichat-and-skill-governance.md`）。
+   - 所有架构决策（ADR / RFC）、技术规格说明与业务算法规则统一归档于 `docs/specs/`，遵循下述 6 大分类与标准命名前缀规约。
 
-### 2. 标准领域分层结构 (Standard Directory Taxonomy)
+### 2. 规范文档命名规约 (Specification Naming Rules)
+
+归档于 `docs/specs/` 的设计规范严格遵循**“分层目录 + 前缀自解释 + 元数据头契约”**三重标准：
+
+1. **六大核心领域子目录与统一定界前缀**：
+   - **`engineering/` (`eng-`)**：项目工程结构规范（零全局污染、SSOT单一真理来源、跨平台 CLI、数据隔离）
+   - **`ui/` (`ui-`)**：UI 界面设计规范（浅色金融风格、红涨绿跌、无竖条轻量边框、双模视口）
+   - **`architecture/` (`arch-`)**：系统架构设计规范（FastAPI网关、Agent运行时、Skill治理、多模型双轨制、Token安全）
+   - **`a2ui/` (`a2ui-`)**：A2UI 框架规范（A2UI渲染引擎、1:1骨架屏、渐进式水合、组件库模块化注册与时序解耦）
+   - **`business/` (`biz-`)**：业务规则规范（全摩擦费率配置化、最低保本价进位算法、交易三原则与三级止损）
+   - **`algorithm/` (`algo-`)**：算法规则规范（44项算法资产全景清单、AlgoRegistry 2.0、ALCM四道质量门禁）
+
+2. **物理命名范式**：
+   ```text
+   {category_prefix}-{domain_slug}-{doc_type}.md
+   ```
+   - `category_prefix`：取自 `eng-`、`ui-`、`arch-`、`a2ui-`、`biz-`、`algo-`；
+   - `domain_slug`：全小写短横线（kebab-case）领域语义；
+   - `doc_type`：`-specification.md`（体系规格）、`-design.md`（技术方案/ADR）、`-rules.md`（核心业务/算法规则）。
+
+3. **元数据头部契约**：
+   每个规范文档第一行必须声明统一头部元数据（规范分类、规范编号如 `SPEC-ENG-001`、版本、当前状态、适用范围与关联文档）。
+
+### 3. 标准领域分层结构 (Standard Directory Taxonomy)
 
 ```text
 docs/
 ├── index.md                      # [根级索引] 全景速查图谱与知识导航
 ├── quickstart.md                 # [根级入口] 快速上手与环境自检向导
-├── guidelines/                   # [工程规范] 开发流程、质量标准与规范准则
+├── guidelines/                   # [工程指南] 开发流程、质量审查与命名准则
 │   ├── code-review.md            # 代码审查标准与红线清单
 │   ├── testing-guide.md          # 回归测试架构与规约
-│   ├── algorithm-governance.md   # 算法全生命周期治理规范 (ALCM)
-│   └── naming-conventions.md     # 本规范文档 (SSOT)
-├── specs/                        # [设计规格与架构] 架构设计方案与功能规格说明 (ADR/RFC)
-│   ├── token-gateway.md          # Token 链路安全网关与审计架构
-│   ├── web-aichat-and-skill-governance.md # 独立 Web AIChatUI 与 Skill 治理系统架构设计
-│   └── broker-commission-configurable-design.md # 券商佣金及费率参数配置化设计规范 (ADR)
-├── trading/                      # [量化实战] 策略执行手册与数学规则
-│   ├── execution-manual.md       # 实战交易反应动作与执行层手册
-│   └── breakeven-rules.md        # 最低保本价精算与向上进位算法规则
+│   ├── algorithm-governance.md   # 算法全生命周期治理指南
+│   └── naming-conventions.md     # 本命名规约 (SSOT)
+├── specs/                        # [规范中心] 6 大领域规范体系 (SPEC-INDEX)
+│   ├── README.md                 # 规范总览矩阵与命名规则说明
+│   ├── engineering/              # [01.工程结构] eng-project-structure-and-workspace.md
+│   ├── ui/                       # [02.UI设计] ui-design-and-interaction-specification.md
+│   ├── architecture/             # [03.系统架构] arch-web-aichat, arch-llm-provider, arch-token-gateway
+│   ├── a2ui/                     # [04.A2UI框架] a2ui-framework-engine, a2ui-component-registry
+│   ├── business/                 # [05.业务规则] biz-broker-commission, biz-breakeven, biz-trading-execution
+│   └── algorithm/                # [06.算法规则] algo-lifecycle-and-governance-specification.md
+├── trading/                      # [量化实战] 实操手册与速查指引
+│   ├── execution-manual.md       # 实战交易反应动作与执行操作指引
+│   └── breakeven-rules.md        # 最低保本价精算数学公式速查
 └── images/                       # [静态资产] 架构全景图与流程示意图
     └── architecture.png
 ```
