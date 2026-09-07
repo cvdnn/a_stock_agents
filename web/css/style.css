@@ -764,7 +764,36 @@ h1, h2, h3, h4 {
   margin-bottom: 6px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+
+.risk-iron-title {
+  display: flex;
+  align-items: center;
   gap: 4px;
+}
+
+.risk-iron-action-btn {
+  background: #FFFFFF;
+  border: 1px solid #FFE7BA;
+  border-radius: 4px;
+  color: #D46B08;
+  cursor: pointer;
+  padding: 3px 5px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(212, 107, 8, 0.08);
+}
+
+.risk-iron-action-btn:hover {
+  background: #FFE7BA;
+  border-color: #FFD591;
+  color: #B35500;
+  transform: scale(1.08);
 }
 
 .risk-iron-grid {
@@ -3502,6 +3531,71 @@ input:checked + .slider:before {
   border-radius: 6px;
   border-left: 3px solid #1677FF;
   margin-bottom: 14px;
+}
+
+/* 快捷操作推荐 (参照实战交易三原则样式改造) */
+.quick-iron-card {
+  background: #FFFDF8;
+  border: 1px dashed #F8D69A;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+
+.quick-iron-header {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #D46B08;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-iron-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.quick-pill-box {
+  background: #FFFFFF;
+  border: 1px solid #FFE7BA;
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-pill-box:hover {
+  border-color: #1677FF;
+  background: #F5F8FF;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.12);
+}
+
+.quick-pill-title {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.quick-pill-val {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1677FF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quick-pill-box:hover .quick-pill-val {
+  color: #0958D9;
 }
 
 .welcome-quick-title {

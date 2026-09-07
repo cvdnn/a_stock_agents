@@ -144,33 +144,24 @@
                   </div>
 
                   <div class="welcome-feature-desc">
-                    基于全市场 4 级降级实时行情与工业级量化引擎，为您提供<strong>行情全景监测</strong>、<strong>多因子选股诊断</strong>、严格执行<strong>最低保本卖出价精算（ceil向上进位）</strong>与 <strong>T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损</strong>，并支持投资收益多维归因及全天候智能盯盘。
+                    基于全市场 4 级降级实时行情与工业级量化引擎，为您提供<strong>行情全景监测</strong>、<strong>多因子选股诊断</strong>、严格执行<strong>最低保本卖出价精算</strong>与 <strong>T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损</strong>，并支持投资收益多维归因及全天候智能盯盘。
                   </div>
 
-                  <div class="welcome-quick-title">
-                    <span>⚡ 快捷操作推荐（点击直接发起智能体分析）：</span>
-                  </div>
-
-                  <div class="welcome-quick-grid">
-                    <div class="welcome-quick-card" onclick="executeQuickAction('评估持股策略')">
-                      <div class="welcome-quick-icon">🛡️</div>
-                      <div class="welcome-quick-name">评估持股策略</div>
-                      <div class="welcome-quick-tip">诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单</div>
-                      <div class="welcome-quick-btn">立即评估 &gt;</div>
-                    </div>
-
-                    <div class="welcome-quick-card" onclick="executeQuickAction('分析今日大盘行情')">
-                      <div class="welcome-quick-icon">📈</div>
-                      <div class="welcome-quick-name">分析今日大盘行情</div>
-                      <div class="welcome-quick-tip">四大指数走势研判、两市放量动能、情绪温度与主线轮动</div>
-                      <div class="welcome-quick-btn">一键分析 &gt;</div>
-                    </div>
-
-                    <div class="welcome-quick-card" onclick="executeQuickAction('收益分析')">
-                      <div class="welcome-quick-icon">💰</div>
-                      <div class="welcome-quick-name">收益分析</div>
-                      <div class="welcome-quick-tip">复盘资产净值走势、夏普比率、最大回撤与多因子收益归因</div>
-                      <div class="welcome-quick-btn">查看分析 &gt;</div>
+                  <div class="quick-iron-card">
+                    <div class="quick-iron-header">⚡ 快捷操作推荐（点击直接发起智能体分析）：</div>
+                    <div class="quick-iron-grid">
+                      <div class="quick-pill-box" onclick="executeQuickAction('评估持股策略')" title="诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单">
+                        <div class="quick-pill-title">🛡️ 评估持股策略</div>
+                        <div class="quick-pill-val">立即评估 &gt;</div>
+                      </div>
+                      <div class="quick-pill-box" onclick="executeQuickAction('分析今日大盘行情')" title="四大指数走势研判、两市放量动能、情绪温度与主线轮动">
+                        <div class="quick-pill-title">📈 分析今日大盘行情</div>
+                        <div class="quick-pill-val">一键分析 &gt;</div>
+                      </div>
+                      <div class="quick-pill-box" onclick="executeQuickAction('收益分析')" title="复盘资产净值走势、夏普比率、最大回撤与多因子收益归因">
+                        <div class="quick-pill-title">💰 收益分析</div>
+                        <div class="quick-pill-val">查看分析 &gt;</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1657,7 +1648,7 @@
                       <th>买入成本</th>
                       <th>现价</th>
                       <th>浮动盈亏</th>
-                      <th>最低保本卖出价(分位进位)</th>
+                      <th>最低保本卖出价</th>
                       <th>风控状态</th>
                       <th>策略来源</th>
                       <th>即时动作</th>
@@ -1673,7 +1664,7 @@
                       <td class="tabular-nums">¥315.00</td>
                       <td class="tabular-nums text-up" style="font-weight:700;">¥328.56</td>
                       <td class="text-up tabular-nums" style="font-weight:700;">+4.30% (+¥13,560)</td>
-                      <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥315.68 <span style="font-size:10px; color:#86909C;">(ceil)</span></td>
+                      <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥315.68</td>
                       <td><span style="color:#52C41A; font-weight:600;">🟢 正常持仓</span></td>
                       <td><span class="tag-chip">5A多因子</span></td>
                       <td>
@@ -1689,7 +1680,7 @@
                       <td class="tabular-nums">¥95.20</td>
                       <td class="tabular-nums text-up" style="font-weight:700;">¥98.60</td>
                       <td class="text-up tabular-nums" style="font-weight:700;">+3.57% (+¥6,800)</td>
-                      <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥95.41 <span style="font-size:10px; color:#86909C;">(ceil)</span></td>
+                      <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥95.41</td>
                       <td><span style="color:#52C41A; font-weight:600;">🟢 突破持股</span></td>
                       <td><span class="tag-chip">趋势突破</span></td>
                       <td>
@@ -1705,7 +1696,7 @@
                       <td class="tabular-nums">¥142.00</td>
                       <td class="tabular-nums text-up" style="font-weight:700;">¥145.20</td>
                       <td class="text-up tabular-nums" style="font-weight:700;">+2.25% (+¥4,800)</td>
-                      <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥142.31 <span style="font-size:10px; color:#86909C;">(ceil)</span></td>
+                      <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥142.31</td>
                       <td><span style="color:#52C41A; font-weight:600;">🟢 水下金叉验底</span></td>
                       <td><span class="tag-chip">MACD金叉</span></td>
                       <td>
@@ -1721,7 +1712,7 @@
                       <td class="tabular-nums">¥1,480.00</td>
                       <td class="tabular-nums text-down" style="font-weight:700;">¥1,465.00</td>
                       <td class="text-down tabular-nums" style="font-weight:700;">-1.01% (-¥3,000)</td>
-                      <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥1,483.21 <span style="font-size:10px; color:#86909C;">(ceil)</span></td>
+                      <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥1,483.21</td>
                       <td><span style="color:#FA8C16; font-weight:600;">🟡 靠近T0警戒线</span></td>
                       <td><span class="tag-chip">价值防守</span></td>
                       <td>
@@ -1760,7 +1751,7 @@
 
                 <!-- Interactive Cost Slider Sandbox -->
                 <div class="calculator-sandbox">
-                  <div class="sandbox-title">🧮 动态保本价向上进位试算器 (包含印花税0.05%、佣金万2.5最低5元、过户费，强制向上进位至分)</div>
+                  <div class="sandbox-title">🧮 动态保本价试算器 (包含印花税0.05%、佣金万2.5最低5元、过户费)</div>
                   <div class="sandbox-sliders">
                     <div class="slider-group">
                       <label>买入成本单价: <span id="sliderCostVal" class="tabular-nums" style="color:#1677FF; font-weight:700;">¥320.00</span></label>
@@ -1775,9 +1766,9 @@
                   <!-- Dynamic Calculation Result Grid -->
                   <div class="calc-results-grid">
                     <div class="calc-res-item highlight">
-                      <div class="calc-res-label">最低保本卖出价 (math.ceil)</div>
+                      <div class="calc-res-label">最低保本卖出价</div>
                       <div class="calc-res-num text-up tabular-nums" id="resBreakeven">¥320.69</div>
-                      <div class="calc-res-tip">严格进位至分，拒绝任何四舍五入亏损</div>
+                      <div class="calc-res-tip">严格计入全额税费，确保交易不亏本</div>
                     </div>
                     <div class="calc-res-item">
                       <div class="calc-res-label">T0 警戒线 (-3.0%)</div>
@@ -2140,7 +2131,7 @@
               <input type="number" class="form-input" id="cfgT1" value="-5.0" step="0.5" title="T1减仓线(-5%)">
               <input type="number" class="form-input" id="cfgT2" value="-8.0" step="0.5" title="T2绝杀线(-8%)">
             </div>
-            <div class="form-hint">严格进位规则：最低保本价必须使用 math.ceil 向上进位至分</div>
+            <div class="form-hint">严格保本规则：精算至分位并覆盖全部税费，防范交易磨损</div>
           </div>
         </div>
 

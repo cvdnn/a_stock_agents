@@ -189,11 +189,18 @@ const AStockRiskBreakevenCalc = {
 
     return `
       <div class="risk-iron-card" style="margin-top:6px;">
-        <div class="risk-iron-header">🛡️ 实战交易三原则（合规风控指令单）</div>
+        <div class="risk-iron-header">
+          <span class="risk-iron-title">🛡️ 实战交易三原则（合规风控指令单）</span>
+          <button class="risk-iron-action-btn" title="投射到右侧工作台" onclick="if(typeof projectToRight==='function'){projectToRight('action', {code:'${props.code||'300750'}', name:'${props.name||'宁德时代'}', cost:${cost}, shares:${shares}});}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+          </button>
+        </div>
         <div class="risk-iron-grid">
           <div class="risk-pill-box">
             <div class="risk-pill-title">最低保本卖出价</div>
-            <div class="risk-pill-val tabular-nums" style="color:#F5222D; font-weight:700;">¥${breakeven.toFixed(2)} (ceil进位)</div>
+            <div class="risk-pill-val tabular-nums" style="color:#F5222D; font-weight:700;">¥${breakeven.toFixed(2)}</div>
           </div>
           <div class="risk-pill-box">
             <div class="risk-pill-title">T1减仓线 (-5%)</div>
@@ -216,7 +223,7 @@ const AStockRiskBreakevenCalc = {
     return `
       <div class="calc-expanded-card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h4 style="margin:0; font-size:14px; color:#1D2129;">🛡️ 保本卖出价动态滑块试算器 (税费精算·向上进位至分)</h4>
+          <h4 style="margin:0; font-size:14px; color:#1D2129;">🛡️ 保本卖出价动态滑块试算器 (全税费精算)</h4>
           <span class="badge-tag-green">AGENTS.md 规范落地</span>
         </div>
         
@@ -236,7 +243,7 @@ const AStockRiskBreakevenCalc = {
         <div class="calc-result-preview">
           <span>最低保本卖出价:</span>
           <strong id="a2ui_breakeven_res" class="tabular-nums">¥${breakeven.toFixed(2)}</strong>
-          <span style="font-size:11px; color:#86909C;">(已计入全部税费，强制 ceil 向上进位)</span>
+          <span style="font-size:11px; color:#86909C;">(已计入印花税、佣金与过户费)</span>
         </div>
 
         <div style="margin-top:12px; font-size:12px; color:#4E5969; background:#FFFFFF; border:1px solid #EBF0F5; border-radius:6px; padding:10px;">

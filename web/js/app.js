@@ -153,33 +153,24 @@ function getWelcomeMessageHtml() {
         </div>
 
         <div class="welcome-feature-desc">
-          基于全市场 4 级降级实时行情与工业级量化引擎，为您提供<strong>行情全景监测</strong>、<strong>多因子选股诊断</strong>、严格执行<strong>最低保本卖出价精算（ceil向上进位）</strong>与 <strong>T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损</strong>，并支持投资收益多维归因及全天候智能盯盘。
+          基于全市场 4 级降级实时行情与工业级量化引擎，为您提供<strong>行情全景监测</strong>、<strong>多因子选股诊断</strong>、严格执行<strong>最低保本卖出价精算</strong>与 <strong>T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损</strong>，并支持投资收益多维归因及全天候智能盯盘。
         </div>
 
-        <div class="welcome-quick-title">
-          <span>⚡ 快捷操作推荐（点击直接发起智能体分析）：</span>
-        </div>
-
-        <div class="welcome-quick-grid">
-          <div class="welcome-quick-card" onclick="executeQuickAction('评估持股策略')">
-            <div class="welcome-quick-icon">🛡️</div>
-            <div class="welcome-quick-name">评估持股策略</div>
-            <div class="welcome-quick-tip">诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单</div>
-            <div class="welcome-quick-btn">立即评估 &gt;</div>
-          </div>
-
-          <div class="welcome-quick-card" onclick="executeQuickAction('分析今日大盘行情')">
-            <div class="welcome-quick-icon">📈</div>
-            <div class="welcome-quick-name">分析今日大盘行情</div>
-            <div class="welcome-quick-tip">四大指数走势研判、两市放量动能、情绪温度与主线轮动</div>
-            <div class="welcome-quick-btn">一键分析 &gt;</div>
-          </div>
-
-          <div class="welcome-quick-card" onclick="executeQuickAction('收益分析')">
-            <div class="welcome-quick-icon">💰</div>
-            <div class="welcome-quick-name">收益分析</div>
-            <div class="welcome-quick-tip">复盘资产净值走势、夏普比率、最大回撤与多因子收益归因</div>
-            <div class="welcome-quick-btn">查看分析 &gt;</div>
+        <div class="quick-iron-card">
+          <div class="quick-iron-header">⚡ 快捷操作推荐（点击直接发起智能体分析）：</div>
+          <div class="quick-iron-grid">
+            <div class="quick-pill-box" onclick="executeQuickAction('评估持股策略')" title="诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单">
+              <div class="quick-pill-title">🛡️ 评估持股策略</div>
+              <div class="quick-pill-val">立即评估 &gt;</div>
+            </div>
+            <div class="quick-pill-box" onclick="executeQuickAction('分析今日大盘行情')" title="四大指数走势研判、两市放量动能、情绪温度与主线轮动">
+              <div class="quick-pill-title">📈 分析今日大盘行情</div>
+              <div class="quick-pill-val">一键分析 &gt;</div>
+            </div>
+            <div class="quick-pill-box" onclick="executeQuickAction('收益分析')" title="复盘资产净值走势、夏普比率、最大回撤与多因子收益归因">
+              <div class="quick-pill-title">💰 收益分析</div>
+              <div class="quick-pill-val">查看分析 &gt;</div>
+            </div>
           </div>
         </div>
       </div>
@@ -230,7 +221,7 @@ function executeQuickAction(actionType) {
     const prompt = '请评估我的持股策略，对当前持仓标的进行量化健康度诊断，并根据实战三原则计算最低保本卖出价与三级风控止损阶梯。';
     appendChatMessage('user', prompt);
     const tpl = PromptTemplates['评估持股策略'] || PromptTemplates['行情分析'];
-    streamAIResponse(tpl, '持股策略与实战三原则量化诊断报告', '持仓综合评分88分，计算税费向上进位最低保本价与三级止损阶梯');
+    streamAIResponse(tpl, '持股策略与实战三原则量化诊断报告', '持仓综合评分88分，精算税费保本卖出价与三级止损阶梯');
     const sec = document.getElementById('section-portfolio-overview');
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     showToast('已发起【评估持股策略】量化诊断！');
@@ -336,7 +327,7 @@ const ViewDescriptions = {
   'market': '市场行情全景 (四大指数/情绪仪表盘/日K线/板块流向)',
   'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
-  'projected-action': '实战交易三原则指令单 (保本价进位试算器/三级止损)'
+  'projected-action': '实战交易三原则指令单 (保本价试算器/三级止损)'
 };
 
 const ViewHeaderInfo = {
@@ -782,7 +773,7 @@ function generateKlines(basePrice = 320, count = 28, trend = 0.008) {
 const PromptTemplates = {
   '评估持股策略': {
     title: '持股策略与实战三原则量化诊断报告',
-    summary: '持仓组合综合健康度 88分，计算税费向上进位最低保本价与三级止损阶梯',
+    summary: '持仓组合综合健康度 88分，精算税费保本卖出价与三级止损阶梯',
     body: `
       <div class="ai-report-section">
         <div class="ai-report-section-title">1. 持仓组合结构画像</div>
@@ -801,11 +792,18 @@ const PromptTemplates = {
         <div class="summary-text"><strong>策略诊断结论</strong>：持仓组合整体健康度优秀，处于安全垫区间（平均缓冲距离 +11.8%），建议保持底仓，待盘中拉升逐步止盈。</div>
       </div>
       <div class="risk-iron-card">
-        <div class="risk-iron-header">🛡️ 实战交易三原则（合规风控指令单）</div>
+        <div class="risk-iron-header">
+          <span class="risk-iron-title">🛡️ 实战交易三原则（合规风控指令单）</span>
+          <button class="risk-iron-action-btn" title="投射到右侧工作台" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+          </button>
+        </div>
         <div class="risk-iron-grid">
           <div class="risk-pill-box">
             <div class="risk-pill-title">最低保本卖出价</div>
-            <div class="risk-pill-val">¥320.69 (ceil进位)</div>
+            <div class="risk-pill-val">¥320.69</div>
           </div>
           <div class="risk-pill-box">
             <div class="risk-pill-title">T1减仓线 (-5%)</div>
@@ -815,14 +813,6 @@ const PromptTemplates = {
             <div class="risk-pill-title">T2绝杀线 (-8%)</div>
             <div class="risk-pill-val">¥294.55 (坚决止损)</div>
           </div>
-        </div>
-        <div class="risk-card-actions">
-          <button class="project-btn" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
-            <span>⛶ 放大投射到右侧工作台</span>
-          </button>
-          <button class="project-btn secondary" onclick="openModifyRightParam()">
-            <span>✏️ 修改风控参数</span>
-          </button>
         </div>
       </div>
     `
@@ -880,11 +870,18 @@ const PromptTemplates = {
         <div class="summary-text"><strong>一句总结线</strong>：市场短期延续震荡向上趋势，科技成长仍是核心主线，建议逢低布局，合理控制仓位。</div>
       </div>
       <div class="risk-iron-card">
-        <div class="risk-iron-header">🛡️ 实战交易三原则（合规风控指令单）</div>
+        <div class="risk-iron-header">
+          <span class="risk-iron-title">🛡️ 实战交易三原则（合规风控指令单）</span>
+          <button class="risk-iron-action-btn" title="投射到右侧工作台" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+          </button>
+        </div>
         <div class="risk-iron-grid">
           <div class="risk-pill-box">
             <div class="risk-pill-title">最低保本卖出价</div>
-            <div class="risk-pill-val">¥320.69 (ceil进位)</div>
+            <div class="risk-pill-val">¥320.69</div>
           </div>
           <div class="risk-pill-box">
             <div class="risk-pill-title">T1减仓线 (-5%)</div>
@@ -894,14 +891,6 @@ const PromptTemplates = {
             <div class="risk-pill-title">T2绝杀线 (-8%)</div>
             <div class="risk-pill-val">¥294.55 (坚决止损)</div>
           </div>
-        </div>
-        <div class="risk-card-actions">
-          <button class="project-btn" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
-            <span>⛶ 放大投射到右侧工作台</span>
-          </button>
-          <button class="project-btn secondary" onclick="openModifyRightParam()">
-            <span>✏️ 修改风控参数</span>
-          </button>
         </div>
       </div>
     `
@@ -981,8 +970,6 @@ function appendChatMessage(role, content, meta = {}) {
         ` : ''}
         <div class="ai-content-body">${content}</div>
         <div class="message-actions">
-          <span class="action-chip" onclick="showToast('感谢反馈：已标记有用！')">👍 有用</span>
-          <span class="action-chip" onclick="showToast('感谢反馈，我们将持续优化')">👎 没用</span>
           <span class="action-chip" onclick="copyMessageText(this)">📋 复制</span>
           <span class="action-chip" onclick="regenerateLastMessage()">🔄 重新生成</span>
         </div>
@@ -1024,7 +1011,7 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam) {
     if (toolStatus) {
       toolStatus.innerHTML = `
         <span style="color:#52C41A; font-weight:700;">✓</span>
-        <span>已完成数据调取与实战三原则保本价精算（税费最低卖出价向上进位至分）</span>
+        <span>已完成数据调取与实战三原则保本价精算（含全部税费保本测算）</span>
       `;
     }
 
@@ -1092,7 +1079,7 @@ function executeA2UITask(promptText = '分析市场行情') {
   }, 180);
 
   // Stage 2: 打字机流式输出文本 (350ms - 850ms)
-  const reportNarrative = `【A2UI 渐进式研报】基于多因子量化模型与盘面数据深度研判：今日两市成交突破 1.28 万亿，科技成长主线共振领涨。均线呈多头排列，零轴下方二次金叉验底形态确认。实战交易严格执行保本价进位与三级止损阶梯防守。`;
+  const reportNarrative = `【A2UI 渐进式研报】基于多因子量化模型与盘面数据深度研判：今日两市成交突破 1.28 万亿，科技成长主线共振领涨。均线呈多头排列，零轴下方二次金叉验底形态确认。实战交易严格执行保本价精算与三级止损阶梯防守。`;
   let idx = 0;
   setTimeout(() => {
     const timer = setInterval(() => {
@@ -1166,7 +1153,7 @@ function handleSendChat() {
 function copyMessageText(btn) {
   const card = btn.closest('.message-bubble-ai');
   if (!card) return;
-  const text = card.innerText.replace(/👍 有用|👎 没用|📋 复制|🔄 重新生成/g, '').trim();
+  const text = card.innerText.replace(/📋 复制|🔄 重新生成/g, '').trim();
   navigator.clipboard.writeText(text).then(() => {
     showToast('内容已复制到剪贴板！');
   }).catch(() => {
