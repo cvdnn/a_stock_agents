@@ -1872,7 +1872,7 @@
        MODAL 1: 系统设置弹窗 (System Settings Modal)
        ======================================================================== -->
   <div class="modal-backdrop" id="settingsModal">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-large">
       <div class="modal-header">
         <div class="modal-title">⚙️ 系统设置 (System Settings & Governance)</div>
         <button class="modal-close" onclick="closeSettingsModal()">✕</button>
@@ -1880,29 +1880,215 @@
       <div class="modal-body">
         <!-- Tab navigation inside settings -->
         <div class="settings-tabs">
-          <div class="settings-tab active" data-sec="llm" onclick="switchSettingsSec('llm')">🤖 智能体大模型网关</div>
+          <div class="settings-tab active" data-sec="providers" onclick="switchSettingsSec('providers')">🔌 模型接入</div>
+          <div class="settings-tab" data-sec="roles" onclick="switchSettingsSec('roles')">🎯 模型分配</div>
           <div class="settings-tab" data-sec="datafeed" onclick="switchSettingsSec('datafeed')">📶 行情数据源降级</div>
           <div class="settings-tab" data-sec="risk" onclick="switchSettingsSec('risk')">🛡️ 实战三原则风控</div>
           <div class="settings-tab" data-sec="skills" onclick="switchSettingsSec('skills')">🧩 17项技能治理</div>
         </div>
 
-        <!-- Section 1: LLM Gateway -->
-        <div class="settings-sec active" id="sec-llm">
-          <div class="form-group">
-            <label class="form-label">推荐主力推理模型</label>
-            <select class="form-select" id="cfgModel">
-              <option value="deepseek-v3" selected>DeepSeek V3 (量化投研专用·深度推理)</option>
-              <option value="gemini-flash">Gemini 2.5 Flash (超低延迟·高吞吐)</option>
-              <option value="ollama-local">本地 Ollama (Qwen2.5-7B-Instruct 离线断网隐私)</option>
-            </select>
+        <!-- Section 1: 模型接入 (Providers 管理, 对齐图1) -->
+        <div class="settings-sec active" id="sec-providers">
+          <div class="providers-split-layout">
+            <!-- Left: Providers List & Search -->
+            <div class="providers-sidebar">
+              <div class="provider-search-box">
+                <input type="text" class="provider-search-input" id="providerSearchInput" placeholder="搜索模型平台..." oninput="filterProvidersList(this.value)">
+                <span class="search-icon-hint">🔍</span>
+              </div>
+              <div class="providers-list-scroll" id="providersListContainer">
+                <!-- Dynamically rendered provider items -->
+              </div>
+              <div class="providers-bottom-actions">
+                <button type="button" class="btn-add-provider" onclick="addNewProvider()">
+                  <span class="add-plus-symbol">＋</span> <span>添加</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Right: Provider Detail -->
+            <div class="provider-detail-panel">
+              <!-- Empty state when no provider selected -->
+              <div class="provider-empty-state" id="providerEmptyState" style="display:none;">
+                <div class="empty-icon">🔌</div>
+                <div class="empty-title">暂无模型供应商</div>
+                <div class="empty-desc">请点击左下角【＋ 添加】按钮新增一个模型供应商（如 DeepSeek、OpenAI、Ollama、vLLM 等）</div>
+                <button type="button" class="btn-action-primary" onclick="addNewProvider()" style="margin-top:14px;">＋ 立即添加供应商</button>
+              </div>
+
+              <!-- Edit form -->
+              <div class="provider-edit-form" id="providerEditForm">
+                <!-- Top Title & Toggle -->
+                <div class="provider-header-row">
+                  <div class="provider-title-group">
+                    <input type="text" class="provider-name-input" id="currProviderName" placeholder="例如：DeepSeek、proxy、Ollama" oninput="handleProviderNameChange(this.value)">
+                    <span class="provider-sub-hint" id="currProviderIdBadge"></span>
+                  </div>
+                  <div class="provider-header-controls">
+                    <label class="switch-toggle" title="启用/禁用当前供应商">
+                      <input type="checkbox" id="currProviderEnabled" onchange="toggleCurrentProviderEnabled(this.checked)">
+                      <span class="switch-slider"></span>
+                    </label>
+                    <button type="button" class="btn-delete-provider" onclick="deleteCurrentProvider()" title="删除此供应商">🗑️</button>
+                  </div>
+                </div>
+
+                <!-- API Key -->
+                <div class="form-group provider-field-group">
+                  <div class="field-label-row">
+                    <label class="form-label">API 密钥</label>
+                  </div>
+                  <div class="key-input-wrapper">
+                    <div class="key-input-inner">
+                      <input type="password" class="form-input key-input" id="currProviderKey" placeholder="••••••••••••••••••••••••••••••••" oninput="handleProviderKeyChange(this.value)">
+                      <button type="button" class="btn-eye-toggle" onclick="toggleKeyVisibility()" title="显示/隐藏密钥">👁️</button>
+                    </div>
+                    <button type="button" class="btn-test-key" id="btnTestConn" onclick="testCurrentProviderConn()">检测</button>
+                  </div>
+                  <div class="form-hint">多个密钥使用逗号分隔，仅保存在本地/当前服务，安全无外泄</div>
+                </div>
+
+                <!-- API Base URL -->
+                <div class="form-group provider-field-group">
+                  <div class="field-label-row">
+                    <label class="form-label">API 地址 <span class="field-help" title="服务的基础请求地址，通常以 /v1 结尾">ⓘ</span></label>
+                  </div>
+                  <input type="text" class="form-input" id="currProviderUrl" placeholder="http://127.0.0.1:9000/v1 或 https://api.deepseek.com/v1" oninput="handleProviderUrlChange(this.value)">
+                  <div class="url-preview-tag" id="currUrlPreview">预览: http://127.0.0.1:9000/v1/chat/completions</div>
+                </div>
+
+                <!-- Advanced Settings (Collapsible) -->
+                <details class="provider-adv-details" id="currAdvDetails">
+                  <summary class="adv-summary">
+                    <span>⚙️ 高级配置 (请求超时、自定义 Headers)</span>
+                    <span class="adv-arrow">▼</span>
+                  </summary>
+                  <div class="adv-body">
+                    <div class="form-group" style="margin-bottom:8px;">
+                      <label class="form-label" style="font-size:11px;">请求超时 (秒)</label>
+                      <input type="number" class="form-input" id="currProviderTimeout" value="60" min="5" max="300" oninput="handleProviderTimeoutChange(this.value)">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                      <label class="form-label" style="font-size:11px;">自定义 HTTP Headers (JSON格式，可选)</label>
+                      <textarea class="form-textarea" id="currProviderHeaders" rows="2" placeholder='{"HTTP-Referer": "http://localhost", "X-Title": "A-Stock Agents"}' oninput="handleProviderHeadersChange(this.value)"></textarea>
+                    </div>
+                  </div>
+                </details>
+
+                <!-- Models Section -->
+                <div class="models-section">
+                  <div class="models-section-header">
+                    <div class="models-header-left">
+                      <span class="models-title">模型</span>
+                      <span class="model-count-pill" id="currModelCount">0</span>
+                      <div class="model-search-inline">
+                        <span class="search-icon-sm">🔍</span>
+                        <input type="text" class="model-filter-input" placeholder="搜索模型..." oninput="filterCurrentProviderModels(this.value)">
+                      </div>
+                    </div>
+                    <div class="models-header-actions">
+                      <button type="button" class="btn-model-action" id="btnFetchModels" onclick="fetchCurrentProviderModels()" title="通过 BaseURL 获取上游模型列表">
+                        <span class="btn-icon">🔄</span> 获取模型列表
+                      </button>
+                      <button type="button" class="btn-model-action" onclick="promptAddCustomModel()" title="手动添加特定模型名称">
+                        <span class="btn-icon">＋</span> 手动添加
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Models List Container (Scrollable) -->
+                  <div class="models-list-scroll" id="currModelListContainer">
+                    <!-- Populated by JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">API Base URL</label>
-            <input type="text" class="form-input" id="cfgApiUrl" value="http://localhost:8000">
+        </div>
+
+        <!-- Section 2: 模型分配 (对齐图2) -->
+        <div class="settings-sec" id="sec-roles">
+          <div class="roles-intro-bar">
+            <div class="intro-title">🎯 系统模型分配 (按业务场景绑定大模型)</div>
+            <div class="intro-desc">根据系统不同场景对推理深度、延迟与多模态的需求，分配对应的推荐大模型。可选模型来自于【模型接入】中已启用供应商所选中的模型列表。</div>
           </div>
-          <div class="form-group">
-            <label class="form-label">API Key / Token</label>
-            <input type="password" class="form-input" id="cfgApiKey" value="sk-astock-agents-production-key">
+
+          <div class="roles-cards-grid">
+            <!-- 1. 默认助手模型 (Chat) -->
+            <div class="role-config-card">
+              <div class="role-card-header">
+                <div class="role-card-icon">💬</div>
+                <div class="role-card-title-group">
+                  <div class="role-card-title">默认助手模型</div>
+                  <div class="role-card-desc">创建新会话或助手主窗口提问时使用的核心模型；如果未单独设置模型，则使用此模型</div>
+                </div>
+              </div>
+              <div class="role-card-select-row">
+                <select class="form-select role-select" id="roleSelect_chat" onchange="handleRoleChange('chat', this.value)">
+                  <!-- Options generated dynamically: model_id | provider_name -->
+                </select>
+              </div>
+            </div>
+
+            <!-- 2. 快速 / 标题概要模型 (Summary) -->
+            <div class="role-config-card">
+              <div class="role-card-header">
+                <div class="role-card-icon">⚡</div>
+                <div class="role-card-title-group">
+                  <div class="role-card-title">快速 / 标题概要模型</div>
+                  <div class="role-card-desc">执行话题命名、搜索关键字提炼、早盘快讯与研报摘要等简单任务时使用的模型</div>
+                </div>
+              </div>
+              <div class="role-card-select-row">
+                <select class="form-select role-select" id="roleSelect_summary" onchange="handleRoleChange('summary', this.value)">
+                </select>
+              </div>
+            </div>
+
+            <!-- 3. 算法量化与代码模型 (Quant) -->
+            <div class="role-config-card">
+              <div class="role-card-header">
+                <div class="role-card-icon">📐</div>
+                <div class="role-card-title-group">
+                  <div class="role-card-title">算法量化与代码模型</div>
+                  <div class="role-card-desc">执行量化选股因子推导、策略编写、指标计算与代码生成等高逻辑确定性任务使用的模型</div>
+                </div>
+              </div>
+              <div class="role-card-select-row">
+                <select class="form-select role-select" id="roleSelect_quant" onchange="handleRoleChange('quant', this.value)">
+                </select>
+              </div>
+            </div>
+
+            <!-- 4. 深度推理 / 多空辩论模型 (Debate) -->
+            <div class="role-config-card">
+              <div class="role-card-header">
+                <div class="role-card-icon">⚖️</div>
+                <div class="role-card-title-group">
+                  <div class="role-card-title">深度推理 / 多空辩论模型</div>
+                  <div class="role-card-desc">执行 7 大分析师多空辩论（astock-agent-debate）、多维度博弈与宏观深度推演时使用的高阶推理模型</div>
+                </div>
+              </div>
+              <div class="role-card-select-row">
+                <select class="form-select role-select" id="roleSelect_debate" onchange="handleRoleChange('debate', this.value)">
+                </select>
+              </div>
+            </div>
+
+            <!-- 5. 多模态 / 图表视觉模型 (Vision) -->
+            <div class="role-config-card">
+              <div class="role-card-header">
+                <div class="role-card-icon">👁️</div>
+                <div class="role-card-title-group">
+                  <div class="role-card-title">多模态 / 图表视觉模型</div>
+                  <div class="role-card-desc">解析 K 线走势截图、筹码分布热力图、盘面截图与图像形态识别等视觉任务时使用的多模态模型</div>
+                </div>
+              </div>
+              <div class="role-card-select-row">
+                <select class="form-select role-select" id="roleSelect_vision" onchange="handleRoleChange('vision', this.value)">
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 

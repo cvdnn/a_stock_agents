@@ -27,6 +27,15 @@ const AppState = {
     'trend': true,
     'sector': true,
     'alert': true
+  },
+  providers: [],
+  activeProviderId: null,
+  modelRoles: {
+    chat: { provider_id: '', model_id: '' },
+    summary: { provider_id: '', model_id: '' },
+    quant: { provider_id: '', model_id: '' },
+    debate: { provider_id: '', model_id: '' },
+    vision: { provider_id: '', model_id: '' }
   }
 };
 
@@ -1171,11 +1180,15 @@ function regenerateLastMessage() {
 }
 
 // --------------------------------------------------------------------------
-// 8. Modals Management (系统设置 & 参数修改)
+// 8. Modals Management (模型接入、模型分配、系统设置 & 风控参数)
 // --------------------------------------------------------------------------
+
 function openSettingsModal() {
   const modal = document.getElementById('settingsModal');
-  if (modal) modal.classList.add('active');
+  if (modal) {
+    modal.classList.add('active');
+    initProvidersSettings();
+  }
 }
 
 function closeSettingsModal() {
@@ -1194,11 +1207,672 @@ function switchSettingsSec(secId) {
   });
   const target = document.getElementById(`sec-${secId}`);
   if (target) target.classList.add('active');
+
+  // If switched to model roles tab, refresh dropdown options from active providers
+  if (secId === 'roles') {
+    renderModelRolesDropdowns();
+  }
 }
 
-function saveSettings() {
+// --------------------------------------------------------------------------
+// 8.1 Providers & Model Roles Core Controller
+// --------------------------------------------------------------------------
+
+async function initProvidersSettings() {
+  try {
+    // 1. Fetch providers from backend
+    const provResp = await fetch('/api/models/providers');
+    if (provResp.ok) {
+      const data = await provResp.json();
+      AppState.providers = data.providers || [];
+    } else {
+      loadProvidersFromLocalStorage();
+    }
+  } catch (err) {
+    loadProvidersFromLocalStorage();
+  }
+
+  try {
+    // 2. Fetch roles from backend
+    const rolesResp = await fetch('/api/models/roles');
+    if (rolesResp.ok) {
+      const data = await rolesResp.json();
+      AppState.modelRoles = Object.assign({
+        chat: { provider_id: '', model_id: '' },
+        summary: { provider_id: '', model_id: '' },
+        quant: { provider_id: '', model_id: '' },
+        debate: { provider_id: '', model_id: '' },
+        vision: { provider_id: '', model_id: '' }
+      }, data.roles || {});
+    } else {
+      loadRolesFromLocalStorage();
+    }
+  } catch (err) {
+    loadRolesFromLocalStorage();
+  }
+
+  // Set active provider (first one if available and none selected)
+  if (AppState.providers.length > 0) {
+    if (!AppState.activeProviderId || !AppState.providers.find(p => p.provider_id === AppState.activeProviderId)) {
+      AppState.activeProviderId = AppState.providers[0].provider_id;
+    }
+  } else {
+    AppState.activeProviderId = null;
+  }
+
+  renderProvidersList();
+  renderActiveProviderDetail();
+  renderModelRolesDropdowns();
+}
+
+function loadProvidersFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem('astock_llm_providers');
+    AppState.providers = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    AppState.providers = [];
+  }
+}
+
+function loadRolesFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem('astock_model_roles');
+    AppState.modelRoles = raw ? JSON.parse(raw) : {
+      chat: { provider_id: '', model_id: '' },
+      summary: { provider_id: '', model_id: '' },
+      quant: { provider_id: '', model_id: '' },
+      debate: { provider_id: '', model_id: '' },
+      vision: { provider_id: '', model_id: '' }
+    };
+  } catch (e) {
+    // fallback
+  }
+}
+
+function renderProvidersList(filterText = '') {
+  const container = document.getElementById('providersListContainer');
+  if (!container) return;
+
+  const keyword = filterText.trim().toLowerCase();
+  const list = AppState.providers.filter(p => {
+    if (!keyword) return true;
+    return (p.name && p.name.toLowerCase().includes(keyword)) ||
+           (p.base_url && p.base_url.toLowerCase().includes(keyword));
+  });
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 24px 10px; text-align: center; color: var(--text-muted); font-size: 11.5px;">
+        ${keyword ? '未匹配到供应商' : '暂无供应商，点击下方添加'}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = list.map(p => {
+    const isActive = p.provider_id === AppState.activeProviderId;
+    const initial = (p.name || 'P').trim().charAt(0).toUpperCase();
+    const isEnabled = !!p.enabled;
+    return `
+      <div class="provider-list-item ${isActive ? 'active' : ''}" onclick="selectProvider('${p.provider_id}')">
+        <div class="provider-item-left">
+          <div class="provider-avatar">${initial}</div>
+          <span class="provider-item-name" title="${p.name}">${p.name}</span>
+        </div>
+        ${isEnabled ? '<span class="provider-badge-on">ON</span>' : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function filterProvidersList(val) {
+  renderProvidersList(val);
+}
+
+function selectProvider(id) {
+  // Save any unsaved edits of current provider before switching
+  syncCurrentProviderFormToState();
+  AppState.activeProviderId = id;
+  renderProvidersList(document.getElementById('providerSearchInput')?.value || '');
+  renderActiveProviderDetail();
+}
+
+function addNewProvider() {
+  syncCurrentProviderFormToState();
+  const newId = 'prov_' + Date.now().toString(36);
+  const newProv = {
+    provider_id: newId,
+    name: '新供应商 ' + (AppState.providers.length + 1),
+    base_url: 'https://api.deepseek.com/v1',
+    api_key: '',
+    enabled: true,
+    models: [
+      { id: 'deepseek-chat', name: 'deepseek-chat', selected: true, capabilities: ['chat', 'tools'] },
+      { id: 'deepseek-reasoner', name: 'deepseek-reasoner', selected: true, capabilities: ['chat', 'reasoning'] }
+    ],
+    custom_headers: {},
+    timeout_seconds: 60
+  };
+
+  AppState.providers.push(newProv);
+  AppState.activeProviderId = newId;
+
+  renderProvidersList();
+  renderActiveProviderDetail();
+  renderModelRolesDropdowns();
+
+  const nameInput = document.getElementById('currProviderName');
+  if (nameInput) {
+    nameInput.focus();
+    nameInput.select();
+  }
+  showToast('已新增模型供应商，请完善 API 地址与密钥');
+}
+
+function deleteCurrentProvider() {
+  if (!AppState.activeProviderId) return;
+  const curr = AppState.providers.find(p => p.provider_id === AppState.activeProviderId);
+  const name = curr ? curr.name : '此供应商';
+
+  if (!confirm(`确定要删除模型供应商【${name}】吗？`)) return;
+
+  const targetId = AppState.activeProviderId;
+  AppState.providers = AppState.providers.filter(p => p.provider_id !== targetId);
+
+  // Clear from backend
+  fetch(`/api/models/providers/${targetId}`, { method: 'DELETE' }).catch(() => {});
+
+  // Clear any roles assigned to this provider
+  for (const roleKey in AppState.modelRoles) {
+    if (AppState.modelRoles[roleKey]?.provider_id === targetId) {
+      AppState.modelRoles[roleKey] = { provider_id: '', model_id: '' };
+    }
+  }
+
+  AppState.activeProviderId = AppState.providers.length > 0 ? AppState.providers[0].provider_id : null;
+
+  renderProvidersList();
+  renderActiveProviderDetail();
+  renderModelRolesDropdowns();
+  showToast(`已删除供应商【${name}】`);
+}
+
+function syncCurrentProviderFormToState() {
+  if (!AppState.activeProviderId) return;
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p) return;
+
+  const nameInput = document.getElementById('currProviderName');
+  if (nameInput) p.name = nameInput.value.trim() || p.name;
+
+  const enabledInput = document.getElementById('currProviderEnabled');
+  if (enabledInput) p.enabled = enabledInput.checked;
+
+  const keyInput = document.getElementById('currProviderKey');
+  if (keyInput) p.api_key = keyInput.value.trim();
+
+  const urlInput = document.getElementById('currProviderUrl');
+  if (urlInput) p.base_url = urlInput.value.trim();
+
+  const timeoutInput = document.getElementById('currProviderTimeout');
+  if (timeoutInput) p.timeout_seconds = parseInt(timeoutInput.value, 10) || 60;
+
+  const headersInput = document.getElementById('currProviderHeaders');
+  if (headersInput && headersInput.value.trim()) {
+    try {
+      p.custom_headers = JSON.parse(headersInput.value.trim());
+    } catch (e) {
+      // ignore invalid json
+    }
+  }
+}
+
+function renderActiveProviderDetail() {
+  const emptyState = document.getElementById('providerEmptyState');
+  const editForm = document.getElementById('providerEditForm');
+
+  if (!AppState.activeProviderId || AppState.providers.length === 0) {
+    if (emptyState) emptyState.style.display = 'block';
+    if (editForm) editForm.style.display = 'none';
+    return;
+  }
+
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p) {
+    if (emptyState) emptyState.style.display = 'block';
+    if (editForm) editForm.style.display = 'none';
+    return;
+  }
+
+  if (emptyState) emptyState.style.display = 'none';
+  if (editForm) editForm.style.display = 'flex';
+
+  const nameInput = document.getElementById('currProviderName');
+  if (nameInput) nameInput.value = p.name || '';
+
+  const idBadge = document.getElementById('currProviderIdBadge');
+  if (idBadge) idBadge.innerText = p.provider_id ? `(${p.provider_id})` : '';
+
+  const enabledInput = document.getElementById('currProviderEnabled');
+  if (enabledInput) enabledInput.checked = !!p.enabled;
+
+  const keyInput = document.getElementById('currProviderKey');
+  if (keyInput) keyInput.value = p.api_key || '';
+
+  const urlInput = document.getElementById('currProviderUrl');
+  if (urlInput) urlInput.value = p.base_url || '';
+
+  updateUrlPreview(p.base_url || '');
+
+  const timeoutInput = document.getElementById('currProviderTimeout');
+  if (timeoutInput) timeoutInput.value = p.timeout_seconds || 60;
+
+  const headersInput = document.getElementById('currProviderHeaders');
+  if (headersInput) {
+    headersInput.value = (p.custom_headers && Object.keys(p.custom_headers).length > 0)
+      ? JSON.stringify(p.custom_headers, null, 2)
+      : '';
+  }
+
+  renderCurrentProviderModels();
+}
+
+function updateUrlPreview(url) {
+  const preview = document.getElementById('currUrlPreview');
+  if (!preview) return;
+  const clean = (url || '').trim().replace(/\/+$/, '');
+  preview.innerText = clean ? `预览: ${clean}/chat/completions` : '预览: (请输入有效的 API 地址)';
+}
+
+function handleProviderNameChange(val) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (p) {
+    p.name = val.trim() || '未命名供应商';
+    renderProvidersList(document.getElementById('providerSearchInput')?.value || '');
+    renderModelRolesDropdowns();
+  }
+}
+
+function toggleCurrentProviderEnabled(checked) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (p) {
+    p.enabled = checked;
+    renderProvidersList(document.getElementById('providerSearchInput')?.value || '');
+    renderModelRolesDropdowns();
+    showToast(checked ? `已启用供应商【${p.name}】` : `已停用供应商【${p.name}】`);
+  }
+}
+
+function handleProviderKeyChange(val) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (p) p.api_key = val.trim();
+}
+
+function handleProviderUrlChange(val) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (p) p.base_url = val.trim();
+  updateUrlPreview(val);
+}
+
+function handleProviderTimeoutChange(val) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (p) p.timeout_seconds = parseInt(val, 10) || 60;
+}
+
+function handleProviderHeadersChange(val) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p) return;
+  try {
+    p.custom_headers = val.trim() ? JSON.parse(val.trim()) : {};
+  } catch (e) {
+    // wait for valid JSON
+  }
+}
+
+function toggleKeyVisibility() {
+  const keyInput = document.getElementById('currProviderKey');
+  if (!keyInput) return;
+  keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+}
+
+async function testCurrentProviderConn() {
+  const btn = document.getElementById('btnTestConn');
+  const urlInput = document.getElementById('currProviderUrl');
+  const keyInput = document.getElementById('currProviderKey');
+
+  const base_url = urlInput ? urlInput.value.trim() : '';
+  const api_key = keyInput ? keyInput.value.trim() : '';
+
+  if (!base_url) {
+    showToast('请先输入 API 地址 (Base URL)');
+    if (urlInput) urlInput.focus();
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = '检测中...';
+  }
+
+  try {
+    const resp = await fetch('/api/models/test-connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url, api_key, timeout_seconds: 8 })
+    });
+    const res = await resp.json();
+    if (res.status === 'ok') {
+      showToast(`✅ ${res.message || '连接测试成功！'}`);
+    } else if (res.status === 'warning') {
+      showToast(`⚠️ ${res.message || '服务已响应，但状态非 200'}`);
+    } else {
+      showToast(`❌ ${res.message || '连接失败，请检查网络或密钥'}`);
+    }
+  } catch (err) {
+    showToast(`❌ 网络异常: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = '检测';
+    }
+  }
+}
+
+async function fetchCurrentProviderModels() {
+  const btn = document.getElementById('btnFetchModels');
+  const urlInput = document.getElementById('currProviderUrl');
+  const keyInput = document.getElementById('currProviderKey');
+
+  const base_url = urlInput ? urlInput.value.trim() : '';
+  const api_key = keyInput ? keyInput.value.trim() : '';
+
+  if (!base_url) {
+    showToast('请先填写有效的 API 地址');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> 获取中...';
+  }
+
+  try {
+    const resp = await fetch('/api/models/fetch-remote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url, api_key, timeout_seconds: 15 })
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const fetchedModels = data.models || [];
+
+    if (fetchedModels.length === 0) {
+      showToast('上游接口返回空模型列表，您可点击【＋ 手动添加】');
+      return;
+    }
+
+    const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+    if (p) {
+      // Merge with existing selections if any
+      const existingMap = {};
+      (p.models || []).forEach(m => { existingMap[m.id] = m.selected; });
+
+      p.models = fetchedModels.map(m => ({
+        id: m.id,
+        name: m.name || m.id,
+        selected: existingMap[m.id] !== undefined ? existingMap[m.id] : true,
+        capabilities: m.capabilities || ['chat']
+      }));
+
+      renderCurrentProviderModels();
+      renderModelRolesDropdowns();
+      showToast(`🎉 成功获取 ${p.models.length} 个可用模型！已自动保留复选`);
+    }
+  } catch (err) {
+    showToast(`❌ 获取模型失败: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">🔄</span> 获取模型列表';
+    }
+  }
+}
+
+function promptAddCustomModel() {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p) return;
+
+  const modelId = prompt('请输入要添加的模型 ID (如 deepseek-chat、gpt-4o、qwen2.5:7b):');
+  if (!modelId || !modelId.trim()) return;
+
+  const cleanId = modelId.trim();
+  if (!p.models) p.models = [];
+
+  const existing = p.models.find(m => m.id === cleanId);
+  if (existing) {
+    existing.selected = true;
+    showToast(`模型【${cleanId}】已存在，已为您勾选`);
+  } else {
+    // Infer capabilities
+    const caps = ['chat'];
+    const lower = cleanId.toLowerCase();
+    if (lower.includes('vision') || lower.includes('vl') || lower.includes('4o')) caps.push('vision');
+    if (lower.includes('reasoner') || lower.includes('r1') || lower.includes('thinking')) caps.push('reasoning');
+    if (lower.includes('coder') || lower.includes('code') || lower.includes('deepseek')) caps.push('tools');
+
+    p.models.unshift({
+      id: cleanId,
+      name: cleanId,
+      selected: true,
+      capabilities: caps
+    });
+    showToast(`已成功添加模型【${cleanId}】`);
+  }
+
+  renderCurrentProviderModels();
+  renderModelRolesDropdowns();
+}
+
+function renderCurrentProviderModels(filterText = '') {
+  const container = document.getElementById('currModelListContainer');
+  const countBadge = document.getElementById('currModelCount');
+  if (!container) return;
+
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p || !p.models) {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 11.5px;">暂无模型，点击【获取模型列表】或【＋ 手动添加】</div>';
+    if (countBadge) countBadge.innerText = '0';
+    return;
+  }
+
+  const keyword = filterText.trim().toLowerCase();
+  const filtered = p.models.filter(m => {
+    if (!keyword) return true;
+    return m.id.toLowerCase().includes(keyword) || (m.name && m.name.toLowerCase().includes(keyword));
+  });
+
+  const selectedCount = p.models.filter(m => m.selected !== false).length;
+  if (countBadge) countBadge.innerText = `${selectedCount}/${p.models.length}`;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 11.5px;">
+        ${keyword ? '未找到匹配模型' : '暂无模型，点击【获取模型列表】拉取'}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(m => {
+    const isChecked = m.selected !== false;
+    const caps = m.capabilities || ['chat'];
+
+    const capIcons = [];
+    if (caps.includes('chat')) capIcons.push('<span class="cap-badge" title="支持对话">💬</span>');
+    if (caps.includes('vision')) capIcons.push('<span class="cap-badge" title="支持视觉多模态">👁️</span>');
+    if (caps.includes('reasoning')) capIcons.push('<span class="cap-badge" title="支持深度思考推理">🧠</span>');
+    if (caps.includes('tools')) capIcons.push('<span class="cap-badge" title="支持工具调用与代码">🔧</span>');
+    if (caps.includes('fast')) capIcons.push('<span class="cap-badge" title="低延迟快速模型">⚡</span>');
+
+    return `
+      <div class="model-item-card">
+        <div class="model-item-left">
+          <input type="checkbox" class="model-item-checkbox" ${isChecked ? 'checked' : ''} onchange="toggleModelSelection('${m.id}', this.checked)">
+          <span class="model-item-id" title="${m.id}">${m.name || m.id}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="model-caps">${capIcons.join('')}</div>
+          <button type="button" class="btn-del-model" onclick="deleteModelFromProvider('${m.id}')" title="从列表移除">✕</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterCurrentProviderModels(val) {
+  renderCurrentProviderModels(val);
+}
+
+function toggleModelSelection(modelId, checked) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p || !p.models) return;
+  const m = p.models.find(item => item.id === modelId);
+  if (m) {
+    m.selected = checked;
+    const countBadge = document.getElementById('currModelCount');
+    const selectedCount = p.models.filter(x => x.selected !== false).length;
+    if (countBadge) countBadge.innerText = `${selectedCount}/${p.models.length}`;
+    renderModelRolesDropdowns();
+  }
+}
+
+function deleteModelFromProvider(modelId) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p || !p.models) return;
+  p.models = p.models.filter(m => m.id !== modelId);
+  renderCurrentProviderModels();
+  renderModelRolesDropdowns();
+}
+
+// --------------------------------------------------------------------------
+// 8.2 Section 2: Model Roles Dynamic Dropdown Generator (对齐图2)
+// --------------------------------------------------------------------------
+
+function renderModelRolesDropdowns() {
+  const roleKeys = ['chat', 'summary', 'quant', 'debate', 'vision'];
+
+  // Collect all active models across all enabled providers
+  const availableOptions = [
+    { value: '', label: '-- 请选择模型 (未指定) --' }
+  ];
+
+  AppState.providers.forEach(p => {
+    if (!p.enabled) return;
+    (p.models || []).forEach(m => {
+      if (m.selected !== false) {
+        availableOptions.push({
+          value: `${m.id}|${p.provider_id}`,
+          label: `${m.name || m.id} | ${p.name}`,
+          provider_id: p.provider_id,
+          model_id: m.id
+        });
+      }
+    });
+  });
+
+  roleKeys.forEach(role => {
+    const select = document.getElementById(`roleSelect_${role}`);
+    if (!select) return;
+
+    select.innerHTML = availableOptions.map(opt => `
+      <option value="${opt.value}">${opt.label}</option>
+    `).join('');
+
+    // Restore configured value
+    const currentAssignment = AppState.modelRoles[role];
+    if (currentAssignment && currentAssignment.model_id && currentAssignment.provider_id) {
+      const targetVal = `${currentAssignment.model_id}|${currentAssignment.provider_id}`;
+      if (availableOptions.some(o => o.value === targetVal)) {
+        select.value = targetVal;
+        return;
+      }
+    }
+
+    // Smart default selection if unset and options available
+    if (availableOptions.length > 1 && !select.value) {
+      if (role === 'summary') {
+        const flashOpt = availableOptions.find(o => o.label.toLowerCase().includes('flash') || o.label.toLowerCase().includes('mini'));
+        if (flashOpt) select.value = flashOpt.value;
+      } else if (role === 'debate') {
+        const reasonOpt = availableOptions.find(o => o.label.toLowerCase().includes('reasoner') || o.label.toLowerCase().includes('r1') || o.label.toLowerCase().includes('o1'));
+        if (reasonOpt) select.value = reasonOpt.value;
+      } else if (role === 'vision') {
+        const visOpt = availableOptions.find(o => o.label.toLowerCase().includes('vision') || o.label.toLowerCase().includes('vl') || o.label.toLowerCase().includes('4o'));
+        if (visOpt) select.value = visOpt.value;
+      }
+      if (!select.value && availableOptions[1]) {
+        select.value = availableOptions[1].value;
+      }
+    }
+  });
+}
+
+function handleRoleChange(roleKey, compositeValue) {
+  if (!compositeValue) {
+    AppState.modelRoles[roleKey] = { provider_id: '', model_id: '' };
+    return;
+  }
+  const parts = compositeValue.split('|');
+  AppState.modelRoles[roleKey] = {
+    model_id: parts[0] || '',
+    provider_id: parts[1] || ''
+  };
+}
+
+async function saveSettings() {
+  syncCurrentProviderFormToState();
+
+  // 1. Save providers to backend and localStorage
+  try {
+    for (const p of AppState.providers) {
+      await fetch('/api/models/providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(p)
+      });
+    }
+    localStorage.setItem('astock_llm_providers', JSON.stringify(AppState.providers));
+  } catch (err) {
+    localStorage.setItem('astock_llm_providers', JSON.stringify(AppState.providers));
+  }
+
+  // 2. Save model roles to backend and localStorage
+  try {
+    await fetch('/api/models/roles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roles: AppState.modelRoles })
+    });
+    localStorage.setItem('astock_model_roles', JSON.stringify(AppState.modelRoles));
+  } catch (err) {
+    localStorage.setItem('astock_model_roles', JSON.stringify(AppState.modelRoles));
+  }
+
+  // 3. Save risk parameters if modified
+  const stampInput = document.getElementById('cfgStampDuty');
+  if (stampInput) AppState.riskParams.stampDuty = parseFloat(stampInput.value) || 0.05;
+  const commInput = document.getElementById('cfgCommission');
+  if (commInput) AppState.riskParams.commissionRate = (parseFloat(commInput.value) || 2.5) / 10000;
+  const minCommInput = document.getElementById('cfgMinComm');
+  if (minCommInput) AppState.riskParams.minCommission = parseFloat(minCommInput.value) || 5.0;
+
   closeSettingsModal();
-  showToast('系统设置已成功保存！大模型网关与实战风控已平滑热重载');
+  showToast('✅ 系统设置已成功保存！模型接入与角色分配已热重载生效');
 }
 
 // --------------------------------------------------------------------------
@@ -1261,6 +1935,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. Initial Tab & View Activation
   switchRightTab('dashboard');
   updateProjectedCalculator();
+
+  // 5. Initialize Model Providers and Roles settings
+  initProvidersSettings();
 });
 
 // Resize listener

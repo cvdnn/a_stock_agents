@@ -112,6 +112,28 @@ def _init_schemas(conn: sqlite3.Connection) -> None:
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_tasks_status ON task_records(status, created_at);
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS llm_providers (
+                provider_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                base_url TEXT NOT NULL,
+                api_key TEXT DEFAULT '',
+                enabled INTEGER DEFAULT 1,
+                models_json TEXT DEFAULT '[]',
+                custom_headers_json TEXT DEFAULT '{}',
+                timeout_seconds INTEGER DEFAULT 60,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS llm_model_roles (
+                role_key TEXT PRIMARY KEY,
+                provider_id TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+        """)
 
 
 
@@ -683,6 +705,169 @@ def list_task_records(
                 "elapsed_ms": r["elapsed_ms"],
             })
         return tasks
+    finally:
+        conn.close()
+
+
+# ==============================================================================
+# LLM Providers & Model Roles Persistence
+# ==============================================================================
+
+def list_providers(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """List all configured LLM providers."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM llm_providers ORDER BY created_at ASC;")
+        rows = cur.fetchall()
+        providers = []
+        for r in rows:
+            providers.append({
+                "provider_id": r["provider_id"],
+                "name": r["name"],
+                "base_url": r["base_url"],
+                "api_key": r["api_key"] or "",
+                "enabled": bool(r["enabled"]),
+                "models": json.loads(r["models_json"]) if r["models_json"] else [],
+                "custom_headers": json.loads(r["custom_headers_json"]) if r["custom_headers_json"] else {},
+                "timeout_seconds": r["timeout_seconds"] or 60,
+                "created_at": r["created_at"],
+                "updated_at": r["updated_at"],
+            })
+        return providers
+    finally:
+        conn.close()
+
+
+def get_provider_by_id(provider_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    """Retrieve single provider by provider_id."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM llm_providers WHERE provider_id = ?;", (provider_id,))
+        r = cur.fetchone()
+        if not r:
+            return None
+        return {
+            "provider_id": r["provider_id"],
+            "name": r["name"],
+            "base_url": r["base_url"],
+            "api_key": r["api_key"] or "",
+            "enabled": bool(r["enabled"]),
+            "models": json.loads(r["models_json"]) if r["models_json"] else [],
+            "custom_headers": json.loads(r["custom_headers_json"]) if r["custom_headers_json"] else {},
+            "timeout_seconds": r["timeout_seconds"] or 60,
+            "created_at": r["created_at"],
+            "updated_at": r["updated_at"],
+        }
+    finally:
+        conn.close()
+
+
+def save_provider(data: Dict[str, Any], db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Insert or update a provider."""
+    conn = get_connection(db_path)
+    now_iso = _get_utc_now_iso()
+    pid = data.get("provider_id") or f"prov_{uuid.uuid4().hex[:8]}"
+    name = data.get("name", "自定义供应商")
+    base_url = data.get("base_url", "").strip().rstrip("/")
+    api_key = data.get("api_key", "")
+    enabled = 1 if data.get("enabled", True) else 0
+    models = data.get("models", [])
+    custom_headers = data.get("custom_headers", {})
+    timeout_seconds = int(data.get("timeout_seconds", 60))
+
+    models_json = json.dumps(models, ensure_ascii=False)
+    headers_json = json.dumps(custom_headers, ensure_ascii=False)
+
+    try:
+        with conn:
+            cur = conn.cursor()
+            cur.execute("SELECT created_at FROM llm_providers WHERE provider_id = ?;", (pid,))
+            existing = cur.fetchone()
+            created_at = existing["created_at"] if existing else now_iso
+
+            conn.execute("""
+                INSERT INTO llm_providers (
+                    provider_id, name, base_url, api_key, enabled,
+                    models_json, custom_headers_json, timeout_seconds,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(provider_id) DO UPDATE SET
+                    name = excluded.name,
+                    base_url = excluded.base_url,
+                    api_key = excluded.api_key,
+                    enabled = excluded.enabled,
+                    models_json = excluded.models_json,
+                    custom_headers_json = excluded.custom_headers_json,
+                    timeout_seconds = excluded.timeout_seconds,
+                    updated_at = excluded.updated_at;
+            """, (
+                pid, name, base_url, api_key, enabled,
+                models_json, headers_json, timeout_seconds,
+                created_at, now_iso
+            ))
+        return get_provider_by_id(pid, db_path=db_path) or {}
+    finally:
+        conn.close()
+
+
+def delete_provider(provider_id: str, db_path: Optional[Path] = None) -> bool:
+    """Delete a provider by provider_id."""
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            conn.execute("DELETE FROM llm_providers WHERE provider_id = ?;", (provider_id,))
+            conn.execute("DELETE FROM llm_model_roles WHERE provider_id = ?;", (provider_id,))
+        return True
+    finally:
+        conn.close()
+
+
+def get_model_roles(db_path: Optional[Path] = None) -> Dict[str, Dict[str, str]]:
+    """
+    Get configured model roles mapping.
+    Default roles:
+      - chat: 默认助手 / Chat模型
+      - summary: 快速 / 标题概要模型
+      - quant: 算法量化模型
+      - debate: 深度推理 / 多空辩论模型
+      - vision: 多模态 / 图表视觉模型
+    """
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT role_key, provider_id, model_id FROM llm_model_roles;")
+        rows = cur.fetchall()
+        roles: Dict[str, Dict[str, str]] = {}
+        for r in rows:
+            roles[r["role_key"]] = {
+                "provider_id": r["provider_id"],
+                "model_id": r["model_id"],
+            }
+        return roles
+    finally:
+        conn.close()
+
+
+def save_model_roles(roles_dict: Dict[str, Dict[str, str]], db_path: Optional[Path] = None) -> Dict[str, Dict[str, str]]:
+    """Save or update model roles mapping."""
+    conn = get_connection(db_path)
+    now_iso = _get_utc_now_iso()
+    try:
+        with conn:
+            for role_key, val in roles_dict.items():
+                pid = val.get("provider_id", "")
+                mid = val.get("model_id", "")
+                conn.execute("""
+                    INSERT INTO llm_model_roles (role_key, provider_id, model_id, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(role_key) DO UPDATE SET
+                        provider_id = excluded.provider_id,
+                        model_id = excluded.model_id,
+                        updated_at = excluded.updated_at;
+                """, (role_key, pid, mid, now_iso))
+        return get_model_roles(db_path=db_path)
     finally:
         conn.close()
 

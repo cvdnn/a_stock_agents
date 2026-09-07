@@ -12,7 +12,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import VERSION, get_logger
-from server.api import chat_router, health_router, sessions_router, skills_router, tasks_router
+from server.api import (
+    chat_router,
+    health_router,
+    models_mgmt_router,
+    sessions_router,
+    skills_router,
+    tasks_router,
+)
 from server.config import server_settings
 from server.db import init_db
 from server.port_utils import remove_server_lockfile
@@ -55,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(skills_router)
     app.include_router(tasks_router)
+    app.include_router(models_mgmt_router)
 
 
     # Mount Static Web UI
