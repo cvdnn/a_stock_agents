@@ -66,6 +66,14 @@
   padding: 0;
 }
 
+html, body {
+  height: 100%;
+  height: 100vh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   background-color: var(--bg-canvas);
@@ -74,7 +82,6 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
 }
 
 /* Tabular numbers for financial metrics */
@@ -177,10 +184,12 @@ h1, h2, h3, h4 {
   display: inline-block;
 }
 
-/* Search Box */
+/* Search Box (靠右布局) */
 .header-search {
   position: relative;
-  width: 340px;
+  width: 300px;
+  margin-left: auto;
+  margin-right: 20px;
 }
 
 .header-search input {
@@ -290,51 +299,16 @@ h1, h2, h3, h4 {
   color: var(--text-title);
 }
 
-/* Top Sub-Nav in Market/Watchlist Views */
-.top-subnav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 24px;
-}
-
-.top-subnav-item {
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-body);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  position: relative;
-}
-
-.top-subnav-item:hover {
-  color: var(--primary);
-}
-
-.top-subnav-item.active {
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.top-subnav-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: -15px;
-  left: 14px;
-  right: 14px;
-  height: 2.5px;
-  background: var(--primary);
-  border-radius: 2px;
-}
 
 /* ==========================================================================
    Main App Layout
    ========================================================================== */
 .app-container {
   display: flex;
-  min-height: calc(100vh - 56px);
+  height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px);
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* Left Sidebar (左侧边栏) */
@@ -452,6 +426,8 @@ h1, h2, h3, h4 {
   flex: 1;
   padding: 16px 20px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   max-height: calc(100vh - 56px);
 }
 
@@ -575,6 +551,8 @@ h1, h2, h3, h4 {
   flex-direction: column;
   height: calc(100vh - 90px);
   position: relative;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .chat-banner {
@@ -649,6 +627,8 @@ h1, h2, h3, h4 {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1658,6 +1638,8 @@ input:checked + .slider:before {
 .watchlist-items {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1946,8 +1928,11 @@ input:checked + .slider:before {
 .app-container {
   display: grid;
   grid-template-columns: 240px 4fr 6fr;
-  height: calc(100vh - 50px);
+  height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px);
   overflow: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   background: var(--bg-body);
   transition: grid-template-columns 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
@@ -1959,16 +1944,62 @@ input:checked + .slider:before {
 
 .app-container.layout-chat-center .app-middle-chat {
   order: 2;
-  border-right: 1px solid var(--border-card);
+  border-right: none !important; /* 顶部连通：移除外层边框，避免打断顶部栏 */
   border-left: none;
+}
+
+/* 投研助手模式：分割线仅在顶部栏下方的内容区生效 */
+.app-container.layout-chat-center .chat-messages,
+.app-container.layout-chat-center .chat-input-bar {
+  border-right: 1px solid var(--border-card);
 }
 
 .app-container.layout-chat-center .app-right-details {
   order: 3;
 }
 
-.app-container.layout-chat-center.chat-collapsed {
-  grid-template-columns: 240px 42px 1fr;
+/* 投研助手模式：顶部栏长条连通布局，删除分隔线与工作台标题，收起按钮居右 */
+.app-container.layout-chat-center .workbench-header {
+  border-left: none !important;
+  justify-content: flex-end;
+}
+
+.app-container.layout-chat-center .workbench-header .workbench-header-left {
+  display: none !important;
+}
+
+/* 投研助手模式下工作台收起：AIChatUI 弹性平滑占满 100% 宽度 */
+.app-container.layout-chat-center.workbench-collapsed {
+  grid-template-columns: 240px 1fr 0px;
+}
+
+.app-container.layout-chat-center.workbench-collapsed .app-right-details {
+  display: none !important;
+}
+
+/* 投研助手模式下铁律：AIChatUI 始终常驻展示，隐藏 AIChatUI 自身的收起按钮 */
+.app-container.layout-chat-center .btn-collapse-chat {
+  display: none !important;
+}
+
+/* 投研助手模式下工作台收起时，在 AIChatUI 标题栏右侧展示展开小按钮 */
+.app-container.layout-chat-center.workbench-collapsed .btn-workbench-launcher {
+  display: inline-flex;
+  animation: launcherFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 投研助手模式下展示工作台的收起按钮，隐藏 Copilot 呼出按钮 */
+.app-container.layout-chat-center .btn-collapse-workbench {
+  display: inline-flex;
+}
+
+.app-container.layout-chat-center .btn-copilot-launcher {
+  display: none !important;
+}
+
+/* 业务主工作区模式下隐藏工作台收起按钮 */
+.app-container.layout-workspace-main .btn-collapse-workbench {
+  display: none !important;
 }
 
 /* 2. 业务主工作区模式 (Workspace-Centric Copilot Mode): 业务区在中间跃升为主工作区，AIChatUI 定位为 AI助手在右 (390px) */
@@ -1997,7 +2028,8 @@ input:checked + .slider:before {
 }
 
 /* 中间区域 Title 右侧 AI 助手呼出小按钮 */
-.btn-copilot-launcher {
+.btn-copilot-launcher,
+.btn-workbench-launcher {
   display: none;
   align-items: center;
   gap: 5px;
@@ -2015,27 +2047,32 @@ input:checked + .slider:before {
   box-shadow: 0 1px 3px rgba(22, 119, 255, 0.08);
 }
 
-.btn-copilot-launcher:hover {
+.btn-copilot-launcher:hover,
+.btn-workbench-launcher:hover {
   background: var(--primary);
   color: #FFFFFF;
   border-color: var(--primary);
   box-shadow: 0 3px 10px rgba(22, 119, 255, 0.28);
 }
 
-.copilot-btn-icon {
+.copilot-btn-icon,
+.workbench-btn-icon {
   font-size: 13px;
 }
 
-.copilot-btn-label {
+.copilot-btn-label,
+.workbench-btn-label {
   letter-spacing: 0.3px;
 }
 
-.copilot-btn-arrow {
+.copilot-btn-arrow,
+.workbench-btn-arrow {
   font-size: 10px;
   transition: transform 0.2s ease;
 }
 
-.btn-copilot-launcher:hover .copilot-btn-arrow {
+.btn-copilot-launcher:hover .copilot-btn-arrow,
+.btn-workbench-launcher:hover .workbench-btn-arrow {
   transform: translateX(-2px);
 }
 
@@ -2121,6 +2158,8 @@ input:checked + .slider:before {
 .sidebar-sessions-list {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -2283,6 +2322,8 @@ input:checked + .slider:before {
   background: #FFFFFF;
   border-right: 1px solid var(--border-card);
   overflow: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   position: relative;
   transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
@@ -2340,10 +2381,12 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  height: 50px;
+  padding: 0 16px;
   background: #FFFFFF;
   border-bottom: 1px solid var(--border-card);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .chat-simple-left {
@@ -2461,6 +2504,8 @@ input:checked + .slider:before {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 /* Linked Context Banner */
@@ -2571,136 +2616,94 @@ input:checked + .slider:before {
   flex-direction: column;
   background: #F8FAFD;
   overflow: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   position: relative;
 }
 
-/* Multi-Tab Bar (Pinned Top, Preserving Contents) */
-.right-tabs-bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px 0;
-  background: #FFFFFF;
-  border-bottom: 1px solid var(--border-card);
-  overflow-x: auto;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.right-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-body);
-  background: #F4F6FA;
-  border: 1px solid var(--border-light);
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  cursor: pointer;
-  transition: var(--transition-fast);
-  user-select: none;
-  position: relative;
-}
-
-.right-tab:hover {
-  color: var(--primary);
-  background: #E8F3FF;
-}
-
-.right-tab.active {
-  background: #FFFFFF;
-  color: var(--primary);
-  font-weight: 600;
-  border-color: var(--border-card);
-  border-bottom: 1px solid #FFFFFF;
-  margin-bottom: -1px;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.03);
-}
-
-.tab-close {
-  font-size: 12px;
-  color: var(--text-muted);
-  border-radius: 50%;
-  width: 14px;
-  height: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  transition: var(--transition-fast);
-  margin-left: 2px;
-}
-
-.tab-close:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: #F5222D;
-}
-
-/* Right Context Action Toolbar */
-.right-context-toolbar {
+/* Workbench / Workspace Header Bar */
+.workbench-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 14px;
+  height: 50px;
+  padding: 0 16px;
   background: #FFFFFF;
-  border-bottom: 1px solid var(--border-light);
-  font-size: 11.5px;
+  border-bottom: 1px solid var(--border-card);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
-.context-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-title);
-  font-weight: 500;
-}
-
-.context-bullet {
-  color: #52C41A;
-  font-size: 10px;
-}
-
-.context-actions {
+.workbench-header-left {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.context-act-btn {
+.workbench-icon-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: #E8F3FF;
+  color: var(--primary);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #BAE0FF;
+}
+
+.workbench-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+}
+
+.workbench-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-collapse-workbench {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   padding: 4px 10px;
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  border: 1px solid var(--border-card);
+  background: #F8FAFD;
+  color: var(--text-body);
+  font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition-fast);
-  border: 1px solid var(--border-card);
-  background: #FFFFFF;
-  color: var(--text-body);
 }
 
-.context-act-btn.primary {
+.btn-collapse-workbench:hover {
   background: #E8F3FF;
-  color: var(--primary);
   border-color: #BAE0FF;
-  font-weight: 600;
+  color: var(--primary);
 }
 
-.context-act-btn:hover {
-  border-color: var(--primary);
+.btn-collapse-workbench .collapse-icon {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.btn-collapse-workbench:hover .collapse-icon {
   color: var(--primary);
+  transform: translateX(2px);
 }
 
 /* Independent Scroll Viewport */
 .right-content-scroll {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   padding: 14px 16px;
   min-height: 0;
 }
@@ -3017,6 +3020,8 @@ input:checked + .slider:before {
   padding: 18px 20px;
   max-height: 70vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .modal-footer {

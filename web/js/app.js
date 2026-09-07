@@ -7,6 +7,7 @@ const AppState = {
   activeRightTab: 'dashboard', // 'dashboard' | 'market' | 'watchlist' | 'returns' | 'projected-action' etc.
   layoutMode: 'chat-center',   // 'chat-center' (投研助手居中) | 'workspace-main' (业务主工作区居中，AI助手在右)
   isCopilotCollapsed: false,
+  isWorkbenchCollapsed: false,
   selectedStock: '300750',
   isChatStreaming: false,
   apiBaseUrl: window.location.origin,
@@ -154,11 +155,11 @@ function startNewChat() {
             </div>
           </div>
           <div class="ai-content-body">
-            <p>您好！我是您的 A股智能量化投研助手。当前右侧已为您保持【整体投研盘面】，您可以：</p>
+            <p>您好！我是您的 A股智能量化投研助手。当前右侧已为您保持【工作台】，您可以：</p>
             <ul>
-              <li>点击右侧工具栏的 <strong>“💬 针对此内容提问”</strong> 一键诊断；</li>
-              <li>点击左侧菜单切换 <strong>市场行情、自选个股、收益分析</strong>；</li>
-              <li>提问任意个股，例如：“<em>分析中芯国际突破买点与保本价</em>”。</li>
+              <li>直接提问任意个股或策略，例如：“<em>分析中芯国际突破买点与保本价</em>”；</li>
+              <li>在右侧 <strong>【工作台】</strong> 查看整体大盘、自选异动与量化风控监控；</li>
+              <li>点击工作台右上角 <strong>[收起]</strong> 按钮，沉浸式专注于投研对话推演。</li>
             </ul>
           </div>
         </div>
@@ -201,7 +202,6 @@ function switchLayoutMode(mode) {
   const collapseIcon = document.getElementById('collapseIcon');
   const collapseText = document.getElementById('collapseText');
   const btnCollapse = document.getElementById('btnCollapseChat');
-  const btnExpandTab = document.getElementById('btnExpandChatTab');
 
   if (!container) return;
   AppState.layoutMode = mode;
@@ -210,17 +210,15 @@ function switchLayoutMode(mode) {
     container.classList.remove('layout-workspace-main');
     container.classList.add('layout-chat-center');
 
+    // 铁律：投研助手模式下 AIChatUI 始终展示，杜绝收起自身
+    container.classList.remove('chat-collapsed');
+    const chatCol = document.getElementById('appMiddleChat');
+    if (chatCol) chatCol.classList.remove('collapsed');
+
     if (chatTitle) chatTitle.innerText = '投研助手';
     if (chatStatus) {
       chatStatus.innerText = '● 在线';
       chatStatus.style.color = '#52C41A';
-    }
-    if (collapseIcon) collapseIcon.innerText = '◀';
-    if (collapseText) collapseText.innerText = '收起';
-    if (btnCollapse) btnCollapse.title = '收起投研助手';
-
-    if (btnExpandTab) {
-      btnExpandTab.style.display = container.classList.contains('chat-collapsed') ? 'inline-flex' : 'none';
     }
   } else {
     container.classList.remove('layout-chat-center');
@@ -234,8 +232,6 @@ function switchLayoutMode(mode) {
     if (collapseIcon) collapseIcon.innerText = '▶';
     if (collapseText) collapseText.innerText = '收起';
     if (btnCollapse) btnCollapse.title = '收起AI助手';
-
-    if (btnExpandTab) btnExpandTab.style.display = 'none';
   }
 
   // Trigger resize event for canvas charts
@@ -245,7 +241,7 @@ function switchLayoutMode(mode) {
 }
 
 // --------------------------------------------------------------------------
-// 3. Right Multi-Tab Management (保留当前右侧内容)
+// 3. Right Workbench & Multi-Tab Management
 // --------------------------------------------------------------------------
 const ViewDescriptions = {
   'dashboard': '整体投研盘面 (大盘/自选/持仓监控/策略开关)',
@@ -253,6 +249,14 @@ const ViewDescriptions = {
   'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
   'projected-action': '实战交易三原则指令单 (保本价进位试算器/三级止损)'
+};
+
+const ViewHeaderInfo = {
+  'dashboard': { title: '工作台', icon: '📊' },
+  'market': { title: '市场行情全景', icon: '📈' },
+  'watchlist': { title: '自选个股深度研判', icon: '⭐' },
+  'returns': { title: '投资收益全景分析', icon: '💰' },
+  'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️' }
 };
 
 function switchRightTab(tabId) {
@@ -264,12 +268,6 @@ function switchRightTab(tabId) {
   } else {
     switchLayoutMode('workspace-main');
   }
-
-  // 2. Update Tab Bar
-  document.querySelectorAll('.right-tab').forEach(tab => {
-    if (tab.dataset.tab === tabId) tab.classList.add('active');
-    else tab.classList.remove('active');
-  });
 
   // 2. Update Left Menu Active state if matching
   document.querySelectorAll('.sidebar-nav-section .nav-item').forEach(item => {
@@ -286,13 +284,15 @@ function switchRightTab(tabId) {
     targetPane.classList.add('active');
   }
 
-  // 4. Update Context Indicators
-  const desc = ViewDescriptions[tabId] || `自定义工作台 [${tabId}]`;
-  const viewNameElem = document.getElementById('currentViewName');
-  if (viewNameElem) viewNameElem.innerText = `当前展示：${desc}`;
+  // 4. Update Header Title and Icon
+  const info = ViewHeaderInfo[tabId] || { title: `工作台 [${tabId}]`, icon: '📊' };
+  const headerTitleElem = document.getElementById('workbenchHeaderTitle');
+  if (headerTitleElem) headerTitleElem.innerText = info.title;
+  const headerIconElem = document.getElementById('workbenchIconBadge');
+  if (headerIconElem) headerIconElem.innerText = info.icon;
 
   const linkedContextElem = document.getElementById('linkedContextText');
-  if (linkedContextElem) linkedContextElem.innerText = desc;
+  if (linkedContextElem) linkedContextElem.innerText = info.title;
 
   // 5. Re-render Canvas Charts for this tab
   setTimeout(() => {
@@ -300,24 +300,13 @@ function switchRightTab(tabId) {
   }, 40);
 }
 
-// Dynamically open a new tab on the right without closing previous ones
+// Dynamically open a new tab on the right
 function openRightTab(tabId, title, icon = '📑', isClosable = true) {
-  const tabsBar = document.getElementById('rightTabsBar');
-  if (!tabsBar) return;
-
-  let existingTab = tabsBar.querySelector(`.right-tab[data-tab="${tabId}"]`);
-  if (!existingTab) {
-    existingTab = document.createElement('div');
-    existingTab.className = 'right-tab';
-    existingTab.dataset.tab = tabId;
-    existingTab.onclick = () => switchRightTab(tabId);
-    existingTab.innerHTML = `
-      <span class="tab-icon">${icon}</span>
-      <span>${title}</span>
-      ${isClosable ? `<span class="tab-close" onclick="closeRightTab('${tabId}', event)" title="关闭标签">×</span>` : ''}
-    `;
-    tabsBar.appendChild(existingTab);
-  }
+  ViewHeaderInfo[tabId] = { title: title, icon: icon };
+  const headerTitleElem = document.getElementById('workbenchHeaderTitle');
+  if (headerTitleElem) headerTitleElem.innerText = title;
+  const headerIconElem = document.getElementById('workbenchIconBadge');
+  if (headerIconElem) headerIconElem.innerText = icon;
 
   switchRightTab(tabId);
 }
@@ -326,15 +315,9 @@ function openRightTab(tabId, title, icon = '📑', isClosable = true) {
 function closeRightTab(tabId, event) {
   if (event) event.stopPropagation();
 
-  const tabsBar = document.getElementById('rightTabsBar');
-  if (!tabsBar) return;
-
-  const targetTab = tabsBar.querySelector(`.right-tab[data-tab="${tabId}"]`);
-  if (targetTab) targetTab.remove();
-
   if (AppState.activeRightTab === tabId) {
     switchRightTab('dashboard');
-    showToast('已关闭投射标签，平滑返回【投研盘面】');
+    showToast('已关闭投射视窗，平滑返回【工作台】');
   }
 }
 
@@ -460,6 +443,11 @@ function projectToRight(cardType, payload = {}) {
     title = `📑 行情研报·深度版`;
   }
 
+  // 若处于投研助手模式且工作台已收起，自动展开工作台以展示投射内容
+  if (AppState.layoutMode === 'chat-center' && AppState.isWorkbenchCollapsed) {
+    toggleWorkbenchCollapse(false);
+  }
+
   // Open the tab preserving previous tabs
   openRightTab(tabId, title, '⛶', true);
 
@@ -482,10 +470,33 @@ function handleChatCollapseBtn() {
   if (AppState.layoutMode === 'workspace-main') {
     // Mode 2: 收起右侧 AI 助手
     toggleCopilot();
-  } else {
-    // Mode 1: 收起居中投研助手
-    toggleChatCollapse();
   }
+  // Mode 1: 铁律 — AIChatUI 在投研助手模式下始终展示，不执行收起自身
+}
+
+// Toggle Workbench collapse / expand (Mode 1: 投研助手模式下工作台的收起 / 展开)
+function toggleWorkbenchCollapse(forceState) {
+  const container = document.getElementById('appContainer') || document.querySelector('.app-container');
+  if (!container) return;
+
+  const willCollapse = typeof forceState === 'boolean'
+    ? forceState
+    : !container.classList.contains('workbench-collapsed');
+
+  if (willCollapse) {
+    container.classList.add('workbench-collapsed');
+    AppState.isWorkbenchCollapsed = true;
+    showToast('已收起工作台，投研助手全屏沉浸展现');
+  } else {
+    container.classList.remove('workbench-collapsed');
+    AppState.isWorkbenchCollapsed = false;
+    showToast('已展开工作台 (占比 60%)');
+  }
+
+  // Trigger resize event so Canvas charts smoothly re-render
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 320);
 }
 
 // Toggle AI Copilot on the right (Mode 2: 业务主工作区模式下的收起 / 展开)
@@ -513,31 +524,13 @@ function toggleCopilot(forceState) {
   }, 320);
 }
 
-// Toggle ChatUI collapse / expand (Mode 1: 投研助手居中模式下的收起 / 展开)
+// Toggle ChatUI collapse / expand (兼容性方法，Mode 1 强制保持 AIChatUI 常驻)
 function toggleChatCollapse() {
-  const container = document.getElementById('appContainer') || document.querySelector('.app-container');
-  const chatCol = document.getElementById('appMiddleChat');
-  const expandTabBtn = document.getElementById('btnExpandChatTab');
-
-  if (!container) return;
-
-  const isCollapsed = container.classList.toggle('chat-collapsed');
-  if (chatCol) chatCol.classList.toggle('collapsed', isCollapsed);
-
-  if (expandTabBtn) {
-    expandTabBtn.style.display = isCollapsed ? 'inline-flex' : 'none';
+  if (AppState.layoutMode === 'chat-center') {
+    // Mode 1 铁律：AIChatUI 始终展示
+    return;
   }
-
-  if (isCollapsed) {
-    showToast('已收起 AI 投研助手，右侧内容展示区已最大化展开');
-  } else {
-    showToast('已展开 AI 投研助手 (占比 40%)');
-  }
-
-  // Trigger resize event so Canvas charts smoothly re-render to new width
-  setTimeout(() => {
-    window.dispatchEvent(new Event('resize'));
-  }, 320);
+  toggleCopilot();
 }
 
 // Interactive Dynamic Calculator inside Projected View (math.ceil rule)

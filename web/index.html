@@ -16,15 +16,6 @@
       <div class="brand-icon">AI</div>
       <div class="brand-title">AI量化投资助手</div>
       <div class="brand-slogan">用AI洞察市场，让量化更简单</div>
-
-      <!-- Top Sub-Nav (快捷视图切换) -->
-      <nav class="top-subnav">
-        <div class="top-subnav-item active" data-tab="dashboard" onclick="switchRightTab('dashboard')">投研盘面</div>
-        <div class="top-subnav-item" data-tab="market" onclick="switchRightTab('market')">市场行情</div>
-        <div class="top-subnav-item" data-tab="watchlist" onclick="switchRightTab('watchlist')">自选个股</div>
-        <div class="top-subnav-item" data-tab="returns" onclick="switchRightTab('returns')">收益分析</div>
-        <div class="top-subnav-item" onclick="openSettingsModal()">系统设置</div>
-      </nav>
     </div>
 
     <!-- Search Input -->
@@ -129,6 +120,11 @@
             <h3 class="chat-simple-title" id="chatHeaderTitle">投研助手</h3>
             <span class="chat-status-dot" id="chatHeaderStatus">● 在线</span>
           </div>
+          <button class="btn-workbench-launcher" id="btnWorkbenchLauncher" onclick="toggleWorkbenchCollapse()" title="展开工作台">
+            <span class="workbench-btn-icon">📊</span>
+            <span class="workbench-btn-label">工作台</span>
+            <span class="workbench-btn-arrow">◀</span>
+          </button>
           <button class="btn-collapse-chat" id="btnCollapseChat" onclick="handleChatCollapseBtn()" title="收起">
             <span class="collapse-icon" id="collapseIcon">◀</span>
             <span class="collapse-text" id="collapseText">收起</span>
@@ -261,43 +257,16 @@
 
     <!-- 3. RIGHT COLUMN: 详细内容展示区 (多标签页保留机制 + 独立上下滑动) -->
     <section class="app-right-details">
-      <!-- 3.1 Pinned Multi-Tab Navigation Bar -->
-      <div class="right-tabs-bar" id="rightTabsBar">
-        <button class="btn-expand-chat-tab" id="btnExpandChatTab" onclick="toggleChatCollapse()" title="展开投研助手">
-          <span>▶</span>
-          <span>展开投研助手</span>
-        </button>
-        <div class="right-tab active" data-tab="dashboard" onclick="switchRightTab('dashboard')">
-          <span class="tab-icon">📊</span>
-          <span>投研盘面</span>
+      <!-- 3.1 Workbench / Workspace Header Bar -->
+      <div class="workbench-header" id="workbenchHeader">
+        <div class="workbench-header-left">
+          <div class="workbench-icon-badge" id="workbenchIconBadge">📊</div>
+          <h3 class="workbench-header-title" id="workbenchHeaderTitle">工作台</h3>
         </div>
-        <div class="right-tab" data-tab="market" onclick="switchRightTab('market')">
-          <span class="tab-icon">📈</span>
-          <span>市场行情</span>
-        </div>
-        <div class="right-tab" data-tab="watchlist" onclick="switchRightTab('watchlist')">
-          <span class="tab-icon">⭐</span>
-          <span>自选个股</span>
-        </div>
-        <div class="right-tab" data-tab="returns" onclick="switchRightTab('returns')">
-          <span class="tab-icon">💰</span>
-          <span>收益分析</span>
-        </div>
-        <!-- Dynamic projected tabs will be appended here -->
-      </div>
-
-      <!-- 3.2 Right Context Action Toolbar -->
-      <div class="right-context-toolbar" id="rightContextToolbar">
-        <div class="context-info">
-          <span class="context-bullet">●</span>
-          <span id="currentViewName">当前展示：整体投研盘面 (大盘/自选/持仓监控)</span>
-        </div>
-        <div class="context-actions">
-          <button class="context-act-btn primary" onclick="askAboutRightContent()">
-            <span>💬 针对此内容提问 AIChat</span>
-          </button>
-          <button class="context-act-btn" onclick="openModifyRightParam()">
-            <span>✏️ 修改右侧参数</span>
+        <div class="workbench-header-actions" id="workbenchHeaderActions">
+          <button class="btn-collapse-workbench" id="btnCollapseWorkbench" onclick="toggleWorkbenchCollapse()" title="收起工作台">
+            <span class="collapse-text">收起</span>
+            <span class="collapse-icon">▶</span>
           </button>
           <button class="btn-copilot-launcher" id="btnCopilotLauncher" onclick="toggleCopilot()" title="展开AI助手">
             <span class="copilot-btn-icon">🤖</span>
