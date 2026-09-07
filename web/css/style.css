@@ -3422,3 +3422,501 @@ input:checked + .slider:before {
   color: #F5222D;
 }
 
+/* ==========================================================================
+   投研助手改造样式：序号徽章、新建介绍与快捷操作、六大默认板块微组件
+   ========================================================================== */
+
+/* 1. 标题序号规范徽章 (1, 2-1, 2-2, 3-1, 3-2, 4) */
+.section-num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #E6F4FF;
+  color: #1677FF;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #BAE0FF;
+  margin-right: 4px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+/* 2. 新建投研助手：产品功能介绍与 3 大快捷操作卡片 */
+.welcome-intro-card {
+  background: #FFFFFF;
+  border: 1px solid #E4E8EE;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.welcome-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.welcome-avatar-pill {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #1677FF 0%, #36CFC9 100%);
+  color: #FFFFFF;
+  font-weight: 800;
+  font-size: 14px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.welcome-title-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.welcome-title-box h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+}
+
+.welcome-title-box p {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.welcome-feature-desc {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-body);
+  background: #F8FAFD;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border-left: 3px solid #1677FF;
+  margin-bottom: 14px;
+}
+
+.welcome-quick-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.welcome-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.welcome-quick-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E9F2;
+  border-radius: 8px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  position: relative;
+}
+
+.welcome-quick-card:hover {
+  border-color: #1677FF;
+  background: #F5F8FF;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.12);
+}
+
+.welcome-quick-icon {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.welcome-quick-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-title);
+  margin-bottom: 4px;
+}
+
+.welcome-quick-tip {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.welcome-quick-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1677FF;
+  background: #E6F4FF;
+  border: 1px solid #BAE0FF;
+  padding: 2px 10px;
+  border-radius: 4px;
+  margin-top: auto;
+  transition: all 0.15s ease;
+}
+
+.welcome-quick-card:hover .welcome-quick-btn {
+  background: #1677FF;
+  color: #FFFFFF;
+}
+
+/* 3. 板块 1: 投资概要微组件 */
+.overview-strip-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  background: #F9FBFE;
+  border: 1px solid #EBF1F8;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.overview-strip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.overview-strip-lbl {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.overview-strip-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+.overview-content-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 1.2fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.overview-donut-box {
+  width: 130px;
+  height: 130px;
+  position: relative;
+}
+
+.overview-holdings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overview-holding-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #F6F8FA;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+
+.overview-risk-box {
+  background: #FAFCFF;
+  border: 1px dashed #ADC6FF;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overview-risk-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1677FF;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.overview-risk-desc {
+  font-size: 11px;
+  color: var(--text-body);
+  line-height: 1.45;
+}
+
+/* 4. 板块 2-1: 大盘指数 (2x2 网格) */
+.indices-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.index-2x2-card {
+  background: #F9FBFE;
+  border: 1px solid #EBF0F8;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.index-2x2-card:hover {
+  border-color: #ADC6FF;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.08);
+}
+
+.index-2x2-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.index-2x2-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.index-2x2-val {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 3px 0 1px;
+}
+
+.index-2x2-change {
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  gap: 4px;
+}
+
+/* 5. 板块 2-2: 行情分析微组件 */
+.market-analysis-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sentiment-gauge-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #F9FAFC;
+  border: 1px solid #EEF2F6;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.sentiment-gauge-canvas-box {
+  width: 110px;
+  height: 65px;
+  flex-shrink: 0;
+}
+
+.sentiment-gauge-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sector-hot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sector-hot-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #F6F8FA;
+  font-size: 11.5px;
+}
+
+.sector-hot-name {
+  font-weight: 500;
+  color: var(--text-title);
+}
+
+/* 6. 板块 3-1: 自选指数与标的微组件 */
+.watchlist-indices-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.watchlist-idx-card {
+  background: #F8FAFD;
+  border: 1px solid #EBF1F8;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.watchlist-idx-title {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.watchlist-idx-val {
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+/* 7. 板块 3-2: 投资分析微组件 */
+.invest-analysis-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.invest-curve-box {
+  width: 100%;
+  height: 95px;
+  background: #FFFFFF;
+  border: 1px solid #EBF0F8;
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.invest-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.invest-metric-card {
+  background: #F9FAFC;
+  border: 1px solid #EBF0F5;
+  border-radius: 4px;
+  padding: 6px 4px;
+  text-align: center;
+}
+
+.invest-metric-lbl {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.invest-metric-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-title);
+  margin-top: 2px;
+}
+
+.invest-attribution-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-body);
+  padding: 4px 6px;
+  background: #F6F8FA;
+  border-radius: 4px;
+}
+
+/* 8. 板块 4: 盯盘微组件 */
+.monitor-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #52C41A;
+  background: #F6FFED;
+  border: 1px solid #B7EB8F;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  background: #52C41A;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+  animation: pulseLive 1.8s infinite;
+}
+
+@keyframes pulseLive {
+  0% { box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.6); }
+  70% { box-shadow: 0 0 0 6px rgba(82, 196, 26, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(82, 196, 26, 0); }
+}
+
+.monitor-stream-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.monitor-stream-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFFFFF;
+  border: 1px solid #EBF0F5;
+  border-left: 3px solid #1677FF;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  transition: all 0.15s ease;
+}
+
+.monitor-stream-item:hover {
+  background: #F8FAFD;
+  border-color: #ADC6FF;
+}
+
+.monitor-stream-item.stream-buy { border-left-color: #F5222D; }
+.monitor-stream-item.stream-main { border-left-color: #FA8C16; }
+.monitor-stream-item.stream-risk { border-left-color: #722ED1; }
+
+.monitor-stream-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.monitor-stream-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.tag-buy { background: #FFF1F0; color: #F5222D; border: 1px solid #FFA39E; }
+.tag-main { background: #FFF7E6; color: #FA8C16; border: 1px solid #FFD591; }
+.tag-risk { background: #F9F0FF; color: #722ED1; border: 1px solid #D3ADF7; }
+
+.monitor-stream-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+

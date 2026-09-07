@@ -131,105 +131,47 @@
           </button>
         </div>
 
-        <!-- Messages Thread -->
             <div class="chat-messages" id="chatMessages">
-              <!-- Default User Message -->
-              <div class="message-item message-user">
-                <div class="message-bubble-user">
-                  请分析当前A股市场行情，并给出明天的投资建议。
-                  <div class="message-timestamp">09:32</div>
-                </div>
-              </div>
-
-              <!-- Default AI Response -->
+              <!-- Welcome Introduction & Quick Action Buttons Card -->
               <div class="message-item message-ai">
-                <div class="message-bubble-ai">
-                  <!-- Header Block: 头像 + 标题 + 摘要 (仿照第2张图布局) -->
-                  <div class="ai-msg-header">
-                    <div class="ai-avatar-pill">AI</div>
-                    <div class="ai-msg-header-text">
-                      <h3 class="ai-msg-title">当前A股市场行情分析</h3>
-                      <p class="ai-msg-summary">两市成交放量破1.28万亿，科技成长主线共振领涨，短期延续震荡向上反弹格局</p>
+                <div class="message-bubble-ai welcome-intro-card">
+                  <div class="welcome-header">
+                    <div class="welcome-avatar-pill">AI</div>
+                    <div class="welcome-title-box">
+                      <h3>您好！我是您的 A股智能投研助手</h3>
+                      <p>高内聚自包含量化投研中枢 · 多智能体协同对抗研判 · 毫秒级盘面联动</p>
                     </div>
                   </div>
 
-                  <!-- 详细内容【在头像+标题+摘要】下方 -->
-                  <div class="ai-content-body">
-                    <div class="ai-report-section">
-                      <div class="ai-report-section-title">1. 整体走势</div>
-                      <p>今日上证指数收于 <strong class="text-up tabular-nums">3,426.56</strong> 点，涨幅 <strong class="text-up tabular-nums">+0.72%</strong>；深证成指收于 <strong class="text-up tabular-nums">10,892.14</strong> 点，涨幅 <strong class="text-up tabular-nums">+1.08%</strong>；创业板指收于 <strong class="text-up tabular-nums">2,289.76</strong> 点，涨幅 <strong class="text-up tabular-nums">+1.31%</strong>。两市成交额约 <strong>1.28万亿元</strong>，较昨日放量 12%，市场情绪回暖，资金呈现净流入。</p>
-                    </div>
-
-                    <div class="ai-report-section">
-                      <div class="ai-report-section-title">2. 主要板块表现</div>
-                      <ul>
-                        <li><strong>TMT板块</strong>：表现强势，AI、半导体、软件开发领涨。</li>
-                        <li><strong>金融板块</strong>：小幅上涨，券商、保险表现较好。</li>
-                        <li><strong>周期板块</strong>：有色、钢铁、煤炭涨幅居前。</li>
-                        <li><strong>消费板块</strong>：整体偏弱，食品饮料、家电表现分化。</li>
-                      </ul>
-                    </div>
-
-                    <div class="ai-report-section">
-                      <div class="ai-report-section-title">3. 技术面分析</div>
-                      <ul>
-                        <li><strong>上证指数</strong>：站上 5日/10日均线，MACD 金叉，短期有望延续反弹。</li>
-                        <li><strong>创业板指</strong>：突破前期压力位，量能放大，关注 2,300 点压力区间。</li>
-                      </ul>
-                    </div>
-
-                    <div class="ai-report-section">
-                      <div class="ai-report-section-title">4. 明日投资建议</div>
-                      <ul>
-                        <li>关注 <strong>AI、半导体、数字经济</strong> 等科技主线，逢低布局优质龙头。</li>
-                        <li>控制仓位，关注量能变化，警惕高位股回落风险。</li>
-                        <li>重点关注：<strong>中芯国际、海光信息、工业富联、立讯精密</strong> 等。</li>
-                      </ul>
-                    </div>
-
-                    <!-- 一句总结线 Highlight Card -->
-                    <div class="summary-highlight-card">
-                      <span class="summary-icon">📊</span>
-                      <div class="summary-text">
-                        <strong>一句总结线</strong>：市场短期延续震荡向上趋势，科技主线仍是核心，建议逢低布局，控制仓位，关注量能变化。
-                      </div>
-                    </div>
-
-                    <!-- 实战三原则合规风控卡片 (AGENTS.md铁律强制集成) -->
-                    <div class="risk-iron-card">
-                      <div class="risk-iron-header">🛡️ 实战交易三原则（执行动作单）</div>
-                      <div class="risk-iron-grid">
-                        <div class="risk-pill-box">
-                          <div class="risk-pill-title">最低保本卖出价</div>
-                          <div class="risk-pill-val tabular-nums">¥320.69 (税费向上进位)</div>
-                        </div>
-                        <div class="risk-pill-box">
-                          <div class="risk-pill-title">T1减仓线 (-5%)</div>
-                          <div class="risk-pill-val tabular-nums">¥304.16 (减仓50%)</div>
-                        </div>
-                        <div class="risk-pill-box">
-                          <div class="risk-pill-title">T2绝杀线 (-8%)</div>
-                          <div class="risk-pill-val tabular-nums">¥294.55 (无条件止损)</div>
-                        </div>
-                      </div>
-                        <div class="risk-card-actions">
-                          <button class="project-btn" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
-                            <span>⛶ 放大投射到右侧工作台</span>
-                          </button>
-                          <button class="project-btn secondary" onclick="openModifyRightParam()">
-                            <span>✏️ 修改风控参数</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                  <div class="welcome-feature-desc">
+                    基于全市场 4 级降级实时行情与工业级量化引擎，为您提供<strong>行情全景监测</strong>、<strong>多因子选股诊断</strong>、严格执行<strong>最低保本卖出价精算（ceil向上进位）</strong>与 <strong>T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损</strong>，并支持投资收益多维归因及全天候智能盯盘。
                   </div>
 
-                  <!-- Message Actions -->
-                  <div class="message-actions">
-                    <span class="action-chip" onclick="showToast('感谢反馈：已标记有用！')">👍 有用</span>
-                    <span class="action-chip" onclick="showToast('收到，模型将进一步修正权重')">👎 没用</span>
-                    <span class="action-chip" onclick="copyMessageText(this)">📋 复制</span>
-                    <span class="action-chip" onclick="regenerateLastMessage()">🔄 重新生成</span>
+                  <div class="welcome-quick-title">
+                    <span>⚡ 快捷操作推荐（点击直接发起智能体分析）：</span>
+                  </div>
+
+                  <div class="welcome-quick-grid">
+                    <div class="welcome-quick-card" onclick="executeQuickAction('评估持股策略')">
+                      <div class="welcome-quick-icon">🛡️</div>
+                      <div class="welcome-quick-name">评估持股策略</div>
+                      <div class="welcome-quick-tip">诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单</div>
+                      <div class="welcome-quick-btn">立即评估 &gt;</div>
+                    </div>
+
+                    <div class="welcome-quick-card" onclick="executeQuickAction('分析今日大盘行情')">
+                      <div class="welcome-quick-icon">📈</div>
+                      <div class="welcome-quick-name">分析今日大盘行情</div>
+                      <div class="welcome-quick-tip">四大指数走势研判、两市放量动能、情绪温度与主线轮动</div>
+                      <div class="welcome-quick-btn">一键分析 &gt;</div>
+                    </div>
+
+                    <div class="welcome-quick-card" onclick="executeQuickAction('收益分析')">
+                      <div class="welcome-quick-icon">💰</div>
+                      <div class="welcome-quick-name">收益分析</div>
+                      <div class="welcome-quick-tip">复盘资产净值走势、夏普比率、最大回撤与多因子收益归因</div>
+                      <div class="welcome-quick-btn">查看分析 &gt;</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -279,423 +221,450 @@
       <!-- 3.3 Independent Vertical Scroll Content Viewport -->
       <div class="right-content-scroll" id="rightContentScroll">
         
-        <!-- View Pane 1: 投研综合盘面 -->
+        <!-- View Pane 1: 投研助手综合工作台 (默认六大板块) -->
         <div class="right-pane active" id="pane-dashboard">
           <div class="dashboard-grid">
 
-            <!-- 1. 整体盘面 Widget -->
-            <div class="quant-card">
+            <!-- 1. 投资概要 (span 2 cols) -->
+            <div class="quant-card dashboard-full-col" id="section-portfolio-overview">
               <div class="card-header">
-                <div class="card-title">整体盘面</div>
-              </div>
-              <div class="card-tabs-row">
-                <div class="card-tabs">
-                  <div class="card-tab active">大盘</div>
-                  <div class="card-tab">行业</div>
-                  <div class="card-tab">概要</div>
-                  <div class="card-tab">排行榜</div>
-                  <div class="card-tab">主线</div>
-                  <div class="card-tab">规避</div>
+                <div class="card-title">
+                  <span class="section-num-badge">1</span>
+                  <span>投资概要</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="status-pill status-pill-success">● 账户风控正常</span>
+                  <div class="more-link" onclick="executeQuickAction('收益分析')">收益详情 &gt;</div>
                 </div>
               </div>
 
-              <!-- 3 Indices Cards -->
-              <div class="indices-mini-row">
-                <div class="index-mini-card">
-                  <div class="index-mini-name">上证指数</div>
-                  <div class="index-mini-val text-up tabular-nums">3,426.56</div>
-                  <div class="index-mini-change text-up tabular-nums">
+              <!-- 顶部核心资产指标横条 -->
+              <div class="overview-strip-grid">
+                <div class="overview-strip-item">
+                  <span class="overview-strip-lbl">总资产规模</span>
+                  <span class="overview-strip-val tabular-nums">¥454.24万</span>
+                </div>
+                <div class="overview-strip-item">
+                  <span class="overview-strip-lbl">持仓总市值 (72.3%)</span>
+                  <span class="overview-strip-val tabular-nums" style="color: #1677FF;">¥328.56万</span>
+                </div>
+                <div class="overview-strip-item">
+                  <span class="overview-strip-lbl">可用现金 (27.7%)</span>
+                  <span class="overview-strip-val tabular-nums" style="color: #4096FF;">¥125.68万</span>
+                </div>
+                <div class="overview-strip-item">
+                  <span class="overview-strip-lbl">今日盈亏</span>
+                  <span class="overview-strip-val text-up tabular-nums">+¥3.86万 (+1.18%)</span>
+                </div>
+                <div class="overview-strip-item">
+                  <span class="overview-strip-lbl">累计收益率</span>
+                  <span class="overview-strip-val text-up tabular-nums">+36.78%</span>
+                </div>
+                <div class="overview-strip-item">
+                  <span class="overview-strip-lbl">年化收益率</span>
+                  <span class="overview-strip-val text-up tabular-nums">+18.24%</span>
+                </div>
+              </div>
+
+              <!-- 中间内容：资产配置环形图 + 核心重仓持股 + 风控安全垫提示 -->
+              <div class="overview-content-row">
+                <div class="overview-donut-box">
+                  <canvas id="portfolioDonut" style="width: 100%; height: 100%;"></canvas>
+                </div>
+                <div class="overview-holdings-list">
+                  <div class="overview-holding-pill">
+                    <span style="font-weight:600;">宁德时代 (300750)</span>
+                    <span class="tabular-nums">持仓 35%</span>
+                    <span class="text-up tabular-nums">+12.4%</span>
+                  </div>
+                  <div class="overview-holding-pill">
+                    <span style="font-weight:600;">中芯国际 (688981)</span>
+                    <span class="tabular-nums">持仓 25%</span>
+                    <span class="text-up tabular-nums">+8.6%</span>
+                  </div>
+                  <div class="overview-holding-pill">
+                    <span style="font-weight:600;">海光信息 (688041)</span>
+                    <span class="tabular-nums">持仓 20%</span>
+                    <span class="text-up tabular-nums">+15.2%</span>
+                  </div>
+                </div>
+                <div class="overview-risk-box">
+                  <div class="overview-risk-title">
+                    <span>🛡️ 实战风控安全垫监测</span>
+                    <span style="font-size:10px; color:#52C41A; font-weight:normal;">(5只标的均高于保本线)</span>
+                  </div>
+                  <div class="overview-risk-desc">
+                    当前组合距离 T0 警戒线(-3%)平均缓冲空间为 <strong>+11.8%</strong>；全部标的已建立最低保本卖出价与分级止损预案，无触及预警。
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 4px;">
+                    <button class="btn-follow" style="padding: 2px 10px;" onclick="executeQuickAction('评估持股策略')">评估持股策略</button>
+                    <button class="btn-follow" style="padding: 2px 10px; color:#666; border-color:#DDD;" onclick="executeQuickAction('收益分析')">收益归因</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2-1. 大盘指数 (col 1) -->
+            <div class="quant-card" id="section-market-indices">
+              <div class="card-header">
+                <div class="card-title">
+                  <span class="section-num-badge">2-1</span>
+                  <span>大盘指数</span>
+                </div>
+                <div class="card-tabs-row" style="margin-bottom:0;">
+                  <div class="card-tabs">
+                    <div class="card-tab active">A股四大核心</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2x2 四大指数网格 -->
+              <div class="indices-grid-2x2">
+                <!-- 上证指数 -->
+                <div class="index-2x2-card">
+                  <div class="index-2x2-header">
+                    <span class="index-2x2-name">上证指数</span>
+                    <span class="bg-up-tag" style="font-size:10px; padding:1px 5px; border-radius:3px;">主板</span>
+                  </div>
+                  <div class="index-2x2-val text-up tabular-nums">3,426.56</div>
+                  <div class="index-2x2-change text-up tabular-nums">
                     <span>▲ +24.38</span>
                     <span>+0.72%</span>
                   </div>
                   <canvas id="sparklineSh" class="index-sparkline"></canvas>
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;">
+                    <span>今开 3,410.21</span>
+                    <span>成交 5,281亿</span>
+                  </div>
                 </div>
 
-                <div class="index-mini-card">
-                  <div class="index-mini-name">深证成指</div>
-                  <div class="index-mini-val text-up tabular-nums">10,892.14</div>
-                  <div class="index-mini-change text-up tabular-nums">
+                <!-- 深证成指 -->
+                <div class="index-2x2-card">
+                  <div class="index-2x2-header">
+                    <span class="index-2x2-name">深证成指</span>
+                    <span class="bg-up-tag" style="font-size:10px; padding:1px 5px; border-radius:3px;">深市</span>
+                  </div>
+                  <div class="index-2x2-val text-up tabular-nums">10,892.14</div>
+                  <div class="index-2x2-change text-up tabular-nums">
                     <span>▲ +116.24</span>
                     <span>+1.08%</span>
                   </div>
                   <canvas id="sparklineSz" class="index-sparkline"></canvas>
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;">
+                    <span>今开 10,780.32</span>
+                    <span>成交 6,723亿</span>
+                  </div>
                 </div>
 
-                <div class="index-mini-card">
-                  <div class="index-mini-name">创业板指</div>
-                  <div class="index-mini-val text-up tabular-nums">2,289.76</div>
-                  <div class="index-mini-change text-up tabular-nums">
+                <!-- 创业板指 -->
+                <div class="index-2x2-card">
+                  <div class="index-2x2-header">
+                    <span class="index-2x2-name">创业板指</span>
+                    <span class="bg-up-tag" style="font-size:10px; padding:1px 5px; border-radius:3px;">成长</span>
+                  </div>
+                  <div class="index-2x2-val text-up tabular-nums">2,289.76</div>
+                  <div class="index-2x2-change text-up tabular-nums">
                     <span>▲ +29.32</span>
                     <span>+1.31%</span>
                   </div>
                   <canvas id="sparklineCy" class="index-sparkline"></canvas>
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;">
+                    <span>今开 2,265.40</span>
+                    <span>成交 2,890亿</span>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Breadth Metrics Row -->
-              <div class="market-breadth-strip">
-                <div class="breadth-stat">
-                  <span>两市成交额</span>
-                  <strong class="tabular-nums">1.28万亿</strong>
-                  <span class="text-up tabular-nums" style="font-size:10px;">+12.0%</span>
-                </div>
-                <div class="breadth-stat">
-                  <span>上涨</span>
-                  <strong class="text-up tabular-nums">3,348</strong>
-                </div>
-                <div class="breadth-stat">
-                  <span>下跌</span>
-                  <strong class="text-down tabular-nums">1,105</strong>
-                </div>
-                <div class="breadth-stat">
-                  <span>涨停</span>
-                  <strong class="text-up tabular-nums">86</strong>
-                </div>
-                <div class="breadth-stat">
-                  <span>跌停</span>
-                  <strong class="text-down tabular-nums">0</strong>
+                <!-- 科创50 -->
+                <div class="index-2x2-card">
+                  <div class="index-2x2-header">
+                    <span class="index-2x2-name">科创50</span>
+                    <span class="bg-up-tag" style="font-size:10px; padding:1px 5px; border-radius:3px;">硬科技</span>
+                  </div>
+                  <div class="index-2x2-val text-up tabular-nums">1,012.35</div>
+                  <div class="index-2x2-change text-up tabular-nums">
+                    <span>▲ +18.42</span>
+                    <span>+1.85%</span>
+                  </div>
+                  <canvas id="sparklineKc" class="index-sparkline"></canvas>
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;">
+                    <span>今开 995.12</span>
+                    <span>成交 982亿</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- 2. 快捷入口 Widget -->
-            <div class="quant-card">
+            <!-- 2-2. 行情分析 (col 2) -->
+            <div class="quant-card" id="section-market-analysis">
               <div class="card-header">
-                <div class="card-title">快捷入口</div>
+                <div class="card-title">
+                  <span class="section-num-badge">2-2</span>
+                  <span>行情分析</span>
+                </div>
+                <div class="more-link" onclick="executeQuickAction('分析今日大盘行情')">AI深度研判 &gt;</div>
               </div>
-              <div class="quick-entry-grid">
-                <div class="quick-entry-btn" onclick="switchView('market')">
-                  <div class="quick-entry-icon icon-blue">📈</div>
-                  <div class="quick-entry-label">大盘分析</div>
+
+              <div class="market-analysis-layout">
+                <!-- 情绪仪表盘与两市数据条 -->
+                <div class="sentiment-gauge-strip">
+                  <div class="sentiment-gauge-canvas-box">
+                    <canvas id="dashboardSentimentGauge" style="width: 100%; height: 100%;"></canvas>
+                  </div>
+                  <div class="sentiment-gauge-meta">
+                    <div style="font-size: 12px; font-weight: 700; color: #F5222D;">78分 · 市场情绪亢温</div>
+                    <div style="font-size: 11px; color: #4E5969; line-height: 1.4;">
+                      两市总成交 <strong>1.28万亿</strong> (+12% 放量上攻)<br>
+                      上涨 <strong class="text-up">3,348</strong> 家，下跌 <strong class="text-down">1,105</strong> 家，涨停 <strong class="text-up">86</strong> 只
+                    </div>
+                  </div>
                 </div>
-                <div class="quick-entry-btn" onclick="switchView('market')">
-                  <div class="quick-entry-icon icon-orange">🔄</div>
-                  <div class="quick-entry-label">行业轮动</div>
+
+                <!-- 核心板块主线轮动 -->
+                <div class="sector-hot-list">
+                  <div class="sector-hot-item">
+                    <span class="sector-hot-name">半导体/CPO算力</span>
+                    <span class="text-up tabular-nums" style="font-weight:600;">+3.85%</span>
+                    <span class="text-up tabular-nums" style="font-size:11px;">主力净流入 +48.6亿</span>
+                  </div>
+                  <div class="sector-hot-item">
+                    <span class="sector-hot-name">人工智能/软件开发</span>
+                    <span class="text-up tabular-nums" style="font-weight:600;">+3.12%</span>
+                    <span class="text-up tabular-nums" style="font-size:11px;">主力净流入 +32.4亿</span>
+                  </div>
+                  <div class="sector-hot-item">
+                    <span class="sector-hot-name">智能网联汽车链</span>
+                    <span class="text-up tabular-nums" style="font-weight:600;">+1.68%</span>
+                    <span class="text-up tabular-nums" style="font-size:11px;">主力净流入 +15.2亿</span>
+                  </div>
                 </div>
-                <div class="quick-entry-btn" onclick="showToast('已加载5A多因子选股模型')">
-                  <div class="quick-entry-icon icon-green">🎯</div>
-                  <div class="quick-entry-label">选股模型</div>
-                </div>
-                <div class="quick-entry-btn" onclick="showToast('进入量化策略回测引擎')">
-                  <div class="quick-entry-icon icon-purple">⚡</div>
-                  <div class="quick-entry-label">量化策略</div>
-                </div>
-                <div class="quick-entry-btn" onclick="switchView('watchlist')">
-                  <div class="quick-entry-icon icon-blue">💰</div>
-                  <div class="quick-entry-label">资金流向</div>
-                </div>
-                <div class="quick-entry-btn" onclick="switchView('watchlist')">
-                  <div class="quick-entry-icon icon-cyan">📐</div>
-                  <div class="quick-entry-label">技术指标</div>
-                </div>
-                <div class="quick-entry-btn" onclick="showToast('风险预警：当前暂无持仓破位')">
-                  <div class="quick-entry-icon icon-orange">⚠️</div>
-                  <div class="quick-entry-label">风险预警</div>
-                </div>
-                <div class="quick-entry-btn" onclick="showToast('更多扩展工具与模型库')">
-                  <div class="quick-entry-icon icon-gray">㗊</div>
-                  <div class="quick-entry-label">更多</div>
+
+                <!-- AI量化快评 -->
+                <div style="background: #F0F6FF; border-left: 3px solid #1677FF; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #1D2129; line-height: 1.45;">
+                  <strong>AI量化研判</strong>：大盘放量突破 3,420 点颈线压力位，科技成长共振主升，短线做多情绪充沛，建议顺应主线回踩介入。
                 </div>
               </div>
             </div>
 
-            <!-- 3. 自选个股 Widget -->
-            <div class="quant-card">
+            <!-- 3-1. 自选指数 (col 1) -->
+            <div class="quant-card" id="section-watchlist-indices">
               <div class="card-header">
-                <div class="card-title">自选个股</div>
-                <div class="more-link" onclick="switchView('watchlist')">更多 &gt;</div>
+                <div class="card-title">
+                  <span class="section-num-badge">3-1</span>
+                  <span>自选指数</span>
+                </div>
+                <div class="more-link" onclick="switchRightTab('watchlist')">自选管理 &gt;</div>
               </div>
-              <div class="card-tabs-row">
-                <div class="card-tabs">
-                  <div class="card-tab active">异动</div>
-                  <div class="card-tab">资金流向</div>
-                  <div class="card-tab">主力</div>
+
+              <!-- 自选主题指数分时卡片 -->
+              <div class="watchlist-indices-strip">
+                <div class="watchlist-idx-card">
+                  <div class="watchlist-idx-title">
+                    <span>自选等权组合指数</span>
+                    <span class="text-up">+2.18%</span>
+                  </div>
+                  <div class="watchlist-idx-val text-up tabular-nums">1,248.60</div>
+                  <canvas id="sparklineCustomIdx1" class="index-sparkline" style="height: 24px;"></canvas>
+                </div>
+
+                <div class="watchlist-idx-card">
+                  <div class="watchlist-idx-title">
+                    <span>半导体科技指数</span>
+                    <span class="text-up">+3.62%</span>
+                  </div>
+                  <div class="watchlist-idx-val text-up tabular-nums">3,120.45</div>
+                  <canvas id="sparklineCustomIdx2" class="index-sparkline" style="height: 24px;"></canvas>
                 </div>
               </div>
 
+              <!-- 自选重点标的表格 -->
               <table class="stock-table">
                 <thead>
                   <tr>
-                    <th>名称</th>
-                    <th>最新价</th>
+                    <th>自选标的</th>
+                    <th>现价</th>
                     <th>涨跌幅</th>
                     <th>主力净流入</th>
-                    <th style="text-align: right;">操作</th>
+                    <th style="text-align: right;">诊断</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr onclick="selectWatchStock('688981')">
+                  <tr onclick="askStockPrompt('中芯国际', '688981', '98.60')">
                     <td class="stock-name-cell">
                       <span class="stock-name">中芯国际</span>
                       <span class="stock-code">688981</span>
                     </td>
                     <td class="tabular-nums" style="font-weight: 600;">98.60</td>
                     <td class="text-up tabular-nums" style="font-weight: 600;">+4.32%</td>
-                    <td class="text-up tabular-nums">12.36亿</td>
+                    <td class="text-up tabular-nums">+12.36亿</td>
                     <td style="text-align: right;">
-                      <button class="btn-follow">关注</button>
+                      <button class="btn-follow">诊断</button>
                     </td>
                   </tr>
-                  <tr onclick="selectWatchStock('688041')">
+                  <tr onclick="askStockPrompt('海光信息', '688041', '145.20')">
                     <td class="stock-name-cell">
                       <span class="stock-name">海光信息</span>
                       <span class="stock-code">688041</span>
                     </td>
                     <td class="tabular-nums" style="font-weight: 600;">145.20</td>
                     <td class="text-up tabular-nums" style="font-weight: 600;">+3.87%</td>
-                    <td class="text-up tabular-nums">8.76亿</td>
+                    <td class="text-up tabular-nums">+8.76亿</td>
                     <td style="text-align: right;">
-                      <button class="btn-follow">关注</button>
+                      <button class="btn-follow">诊断</button>
                     </td>
                   </tr>
-                  <tr onclick="selectWatchStock('601138')">
-                    <td class="stock-name-cell">
-                      <span class="stock-name">工业富联</span>
-                      <span class="stock-code">601138</span>
-                    </td>
-                    <td class="tabular-nums" style="font-weight: 600;">28.76</td>
-                    <td class="text-up tabular-nums" style="font-weight: 600;">+2.31%</td>
-                    <td class="text-up tabular-nums">5.12亿</td>
-                    <td style="text-align: right;">
-                      <button class="btn-follow">关注</button>
-                    </td>
-                  </tr>
-                  <tr onclick="selectWatchStock('002475')">
-                    <td class="stock-name-cell">
-                      <span class="stock-name">立讯精密</span>
-                      <span class="stock-code">002475</span>
-                    </td>
-                    <td class="tabular-nums" style="font-weight: 600;">32.18</td>
-                    <td class="text-up tabular-nums" style="font-weight: 600;">+1.95%</td>
-                    <td class="text-up tabular-nums">3.86亿</td>
-                    <td style="text-align: right;">
-                      <button class="btn-follow">关注</button>
-                    </td>
-                  </tr>
-                  <tr onclick="selectWatchStock('300750')">
+                  <tr onclick="askStockPrompt('宁德时代', '300750', '188.32')">
                     <td class="stock-name-cell">
                       <span class="stock-name">宁德时代</span>
                       <span class="stock-code">300750</span>
                     </td>
                     <td class="tabular-nums" style="font-weight: 600;">188.32</td>
                     <td class="text-up tabular-nums" style="font-weight: 600;">+1.68%</td>
-                    <td class="text-up tabular-nums">2.76亿</td>
+                    <td class="text-up tabular-nums">+2.76亿</td>
                     <td style="text-align: right;">
-                      <button class="btn-follow">关注</button>
+                      <button class="btn-follow">诊断</button>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <!-- 4. 持股/投资统计 Widget -->
-            <div class="quant-card">
+            <!-- 3-2. 投资分析 (col 2) -->
+            <div class="quant-card" id="section-investment-analysis">
               <div class="card-header">
-                <div class="card-title">持股/投资统计</div>
-                <div class="more-link" onclick="showToast('查看详细持仓诊断单')">查看详情 &gt;</div>
-              </div>
-              <div class="card-tabs-row">
-                <div class="card-tabs">
-                  <div class="card-tab active">概览</div>
-                  <div class="card-tab">成本</div>
-                  <div class="card-tab">预测</div>
-                  <div class="card-tab">量化</div>
-                  <div class="card-tab">收益</div>
+                <div class="card-title">
+                  <span class="section-num-badge">3-2</span>
+                  <span>投资分析</span>
                 </div>
+                <div class="more-link" onclick="executeQuickAction('收益分析')">归因研报 &gt;</div>
               </div>
 
-              <div class="portfolio-widget-body">
-                <div class="portfolio-chart-box">
-                  <canvas id="portfolioDonut" style="width: 100%; height: 100%;"></canvas>
-                </div>
-                <div class="portfolio-metrics">
-                  <div class="metric-row">
-                    <div class="metric-legend">
-                      <span class="legend-dot" style="background: #1677FF;"></span>
-                      <span>持仓市值</span>
-                    </div>
-                    <strong class="tabular-nums">328.56万</strong>
-                    <span class="tabular-nums text-muted">72.3%</span>
+              <div class="invest-analysis-layout">
+                <!-- 收益对比曲线画布 -->
+                <div class="invest-curve-box">
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-bottom: 2px;">
+                    <span>策略净值 vs 沪深300基准</span>
+                    <span class="text-up tabular-nums" style="font-weight: 600;">跑赢基准 +25.4%</span>
                   </div>
-                  <div class="metric-row">
-                    <div class="metric-legend">
-                      <span class="legend-dot" style="background: #4096FF;"></span>
-                      <span>可用现金</span>
-                    </div>
-                    <strong class="tabular-nums">125.68万</strong>
-                    <span class="tabular-nums text-muted">27.7%</span>
-                  </div>
+                  <canvas id="dashboardInvestCurve" style="width: 100%; height: 75px;"></canvas>
                 </div>
-              </div>
 
-              <div class="portfolio-stats-summary">
-                <div>
-                  <div class="stats-summary-val text-up tabular-nums">+36.78%</div>
-                  <div class="stats-summary-lbl">总收益</div>
+                <!-- 核心量化指标网格 -->
+                <div class="invest-metrics-grid">
+                  <div class="invest-metric-card">
+                    <div class="invest-metric-lbl">夏普比率</div>
+                    <div class="invest-metric-val tabular-nums" style="color: #1677FF;">1.84</div>
+                  </div>
+                  <div class="invest-metric-card">
+                    <div class="invest-metric-lbl">交易胜率</div>
+                    <div class="invest-metric-val tabular-nums text-up">68.5%</div>
+                  </div>
+                  <div class="invest-metric-card">
+                    <div class="invest-metric-lbl">最大回撤</div>
+                    <div class="invest-metric-val tabular-nums" style="color: #FA8C16;">-8.24%</div>
+                  </div>
+                  <div class="invest-metric-card">
+                    <div class="invest-metric-lbl">盈亏比</div>
+                    <div class="invest-metric-val tabular-nums">2.41</div>
+                  </div>
                 </div>
-                <div>
-                  <div class="stats-summary-val text-up tabular-nums">+18.24%</div>
-                  <div class="stats-summary-lbl">年化收益</div>
-                </div>
-                <div>
-                  <div class="stats-summary-val tabular-nums" style="color: #FA8C16;">-8.76%</div>
-                  <div class="stats-summary-lbl">最大回撤</div>
+
+                <!-- 多因子收益贡献归因 -->
+                <div class="invest-attribution-row">
+                  <span>行业主线配置贡献: <strong class="text-up tabular-nums">+14.2%</strong></span>
+                  <span>个股 Alpha 超额: <strong class="text-up tabular-nums">+18.6%</strong></span>
+                  <span>择时收益: <strong class="text-up tabular-nums">+3.98%</strong></span>
                 </div>
               </div>
             </div>
 
-            <!-- 5. 量化/盯盘/消息提醒 Widget -->
-            <div class="quant-card">
+            <!-- 4. 盯盘 (span 2 cols) -->
+            <div class="quant-card dashboard-full-col" id="section-realtime-monitor">
               <div class="card-header">
-                <div class="card-title">量化/盯盘/消息提醒</div>
-                <div class="more-link" onclick="showToast('查看盯盘规则库配置')">更多 &gt;</div>
-              </div>
-              <div class="card-tabs-row">
-                <div class="card-tabs">
-                  <div class="card-tab active">量化任务</div>
-                  <div class="card-tab">盯盘监控</div>
-                  <div class="card-tab">消息提醒</div>
+                <div class="card-title">
+                  <span class="section-num-badge">4</span>
+                  <span>盯盘</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="monitor-live-badge"><span class="live-dot"></span> 实时盯盘监控中 (延迟28ms)</span>
+                  <div class="more-link" onclick="showToast('已进入盯盘监控配置与报警通道')">规则配置 &gt;</div>
                 </div>
               </div>
 
-              <div class="strategy-switch-list">
-                <div class="strategy-switch-item">
-                  <div class="strategy-item-left">
-                    <div class="strategy-item-icon">📈</div>
-                    <div>
-                      <div class="strategy-item-title">趋势突破策略</div>
-                      <div class="strategy-item-desc">监控中 · 发现 <strong>3</strong> 只符合条件的个股</div>
-                    </div>
+              <!-- 盯盘预警即时事件流水 -->
+              <div class="monitor-stream-list">
+                <div class="monitor-stream-item stream-buy">
+                  <div class="monitor-stream-left">
+                    <span class="monitor-stream-tag tag-buy">买入信号</span>
+                    <span><strong>【中芯国际 688981】</strong> 放量突破前高平台 ¥98.20，5分钟大单净买入 1.25 亿元，触发趋势突破买点</span>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 11px; color: #86909C;">10:20</span>
-                    <label class="switch">
-                      <input type="checkbox" checked onchange="toggleStrategy('趋势突破', this)">
-                      <span class="slider"></span>
-                    </label>
-                  </div>
+                  <span class="monitor-stream-time tabular-nums">10:20:15</span>
                 </div>
 
-                <div class="strategy-switch-item">
-                  <div class="strategy-item-left">
-                    <div class="strategy-item-icon">🔄</div>
-                    <div>
-                      <div class="strategy-item-title">行业轮动策略</div>
-                      <div class="strategy-item-desc">运行中 · 本周收益 <strong class="text-up">+2.36%</strong></div>
-                    </div>
+                <div class="monitor-stream-item stream-main">
+                  <div class="monitor-stream-left">
+                    <span class="monitor-stream-tag tag-main">主力异动</span>
+                    <span><strong>【宁德时代 300750】</strong> 出现万手多笔大单密集吸筹，主力控盘评分上升至 85 分</span>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 11px; color: #86909C;">09:50</span>
-                    <label class="switch">
-                      <input type="checkbox" checked onchange="toggleStrategy('行业轮动', this)">
-                      <span class="slider"></span>
-                    </label>
-                  </div>
+                  <span class="monitor-stream-time tabular-nums">10:08:42</span>
                 </div>
 
-                <div class="strategy-switch-item">
-                  <div class="strategy-item-left">
-                    <div class="strategy-item-icon">⭐</div>
-                    <div>
-                      <div class="strategy-item-title">自选股预警</div>
-                      <div class="strategy-item-desc">监控中 · 触发 <strong>1</strong> 条预警</div>
-                    </div>
+                <div class="monitor-stream-item stream-risk">
+                  <div class="monitor-stream-left">
+                    <span class="monitor-stream-tag tag-risk">风控巡检</span>
+                    <span><strong>【立讯精密 002475】</strong> 盘中回踩 MA20 均线，距离 T0 警戒线(-3%)仍有 0.9% 安全缓冲</span>
                   </div>
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 11px; color: #86909C;">09:32</span>
-                    <label class="switch">
-                      <input type="checkbox" checked onchange="toggleStrategy('自选股预警', this)">
-                      <span class="slider"></span>
-                    </label>
+                  <span class="monitor-stream-time tabular-nums">09:48:10</span>
+                </div>
+              </div>
+
+              <!-- 4 大量化策略开关条 -->
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #F8FAFD; border: 1px solid #EBF1F8; border-radius: 6px; padding: 10px 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <div style="font-size: 11.5px; font-weight: 600; color: #1D2129;">趋势突破策略</div>
+                    <div style="font-size: 10.5px; color: #86909C;">监控中 · 3只标的</div>
                   </div>
+                  <label class="switch">
+                    <input type="checkbox" checked onchange="toggleStrategy('趋势突破', this)">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <div style="font-size: 11.5px; font-weight: 600; color: #1D2129;">行业主线轮动</div>
+                    <div style="font-size: 10.5px; color: #86909C;">本周超额 +2.36%</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" checked onchange="toggleStrategy('行业轮动', this)">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <div style="font-size: 11.5px; font-weight: 600; color: #1D2129;">实战保本与止损</div>
+                    <div style="font-size: 10.5px; color: #52C41A;">全仓风控在线</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" checked onchange="toggleStrategy('实战止损', this)">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <div style="font-size: 11.5px; font-weight: 600; color: #1D2129;">自选极速异动</div>
+                    <div style="font-size: 10.5px; color: #86909C;">毫秒级深度行情</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" checked onchange="toggleStrategy('自选股预警', this)">
+                    <span class="slider"></span>
+                  </label>
                 </div>
               </div>
             </div>
 
-            <!-- 6. 重点简报 Widget -->
-            <div class="quant-card">
-              <div class="card-header">
-                <div class="card-title">重点简报</div>
-                <div class="more-link" onclick="showToast('已加载全天快讯流')">更多 &gt;</div>
-              </div>
-              <div class="news-briefing-list">
-                <div class="news-briefing-item" onclick="showToast('查看快讯：AI板块持续走强')">
-                  <div class="news-index-badge">1</div>
-                  <div class="news-briefing-text">AI板块持续走强，多只算力股涨停</div>
-                  <div class="news-briefing-time tabular-nums">10:15</div>
-                </div>
-                <div class="news-briefing-item" onclick="showToast('查看快讯：北向资金流入')">
-                  <div class="news-index-badge">2</div>
-                  <div class="news-briefing-text">北向资金今日净买入52.36亿元</div>
-                  <div class="news-briefing-time tabular-nums">09:42</div>
-                </div>
-                <div class="news-briefing-item" onclick="showToast('查看快讯：证监会两融新规')">
-                  <div class="news-index-badge">3</div>
-                  <div class="news-briefing-text">证监会发布优化融资融券业务通知</div>
-                  <div class="news-briefing-time tabular-nums">09:20</div>
-                </div>
-                <div class="news-briefing-item" onclick="showToast('查看快讯：宁德时代中报')">
-                  <div class="news-index-badge">4</div>
-                  <div class="news-briefing-text">宁德时代上半年净利润同比增长15%</div>
-                  <div class="news-briefing-time tabular-nums">08:55</div>
-                </div>
-                <div class="news-briefing-item" onclick="showToast('查看快讯：美国PCE数据')">
-                  <div class="news-index-badge">5</div>
-                  <div class="news-briefing-text">美国PCE数据低于预期，市场风险偏好回升</div>
-                  <div class="news-briefing-time tabular-nums">08:30</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 7. 算法/战法模型 Widget (span 2 cols) -->
-            <div class="quant-card dashboard-full-col">
-              <div class="card-header">
-                <div class="card-title">算法/战法模型</div>
-                <div class="more-link" onclick="showToast('打开全部17大量化模型库')">更多 &gt;</div>
-              </div>
-              <div class="card-tabs-row">
-                <div class="card-tabs">
-                  <div class="card-tab active">选股模型</div>
-                  <div class="card-tab">量化模型</div>
-                  <div class="card-tab">战法模型</div>
-                </div>
-              </div>
-
-              <div class="algo-models-list">
-                <div class="algo-model-item">
-                  <div class="algo-model-left">
-                    <div class="algo-model-icon">🤖</div>
-                    <div>
-                      <div class="algo-model-name">AI智能选股模型</div>
-                      <div class="algo-model-desc">基于多因子+AI的选股策略，捕捉全天资金共振强品种</div>
-                    </div>
-                  </div>
-                  <button class="btn-use-model" onclick="switchView('chat'); appendChatMessage('user', '请运行【AI智能选股模型】并输出Top3标的'); streamAIResponse(PromptTemplates['选股模型'], '智能选股模型运行结果');">使用</button>
-                </div>
-
-                <div class="algo-model-item">
-                  <div class="algo-model-left">
-                    <div class="algo-model-icon">🐉</div>
-                    <div>
-                      <div class="algo-model-name">龙头战法模型</div>
-                      <div class="algo-model-desc">识别行业龙头，捕捉主升浪，执行龙头首阴与连板接力战法</div>
-                    </div>
-                  </div>
-                  <button class="btn-use-model" onclick="switchView('chat'); appendChatMessage('user', '请运行【龙头战法模型】评估当前科技主线龙头'); streamAIResponse(PromptTemplates['选股模型'], '龙头战法分析');">使用</button>
-                </div>
-
-                <div class="algo-model-item">
-                  <div class="algo-model-left">
-                    <div class="algo-model-icon">⏱️</div>
-                    <div>
-                      <div class="algo-model-name">量化择时模型</div>
-                      <div class="algo-model-desc">基于技术指标与市场情绪的择时买卖点策略，规避大幅回撤</div>
-                    </div>
-                  </div>
-                  <button class="btn-use-model" onclick="switchView('chat'); appendChatMessage('user', '请给出【量化择时模型】对大盘当前仓位控制意见'); streamAIResponse(PromptTemplates['技术指标'], '量化择时策略信号');">使用</button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

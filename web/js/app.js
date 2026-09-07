@@ -130,6 +130,54 @@ function selectSession(id) {
   }
 }
 
+// Generate standard Welcome & Quick Actions card HTML
+function getWelcomeMessageHtml() {
+  return `
+    <div class="message-item message-ai">
+      <div class="message-bubble-ai welcome-intro-card">
+        <div class="welcome-header">
+          <div class="welcome-avatar-pill">AI</div>
+          <div class="welcome-title-box">
+            <h3>您好！我是您的 A股智能投研助手</h3>
+            <p>高内聚自包含量化投研中枢 · 多智能体协同对抗研判 · 毫秒级盘面联动</p>
+          </div>
+        </div>
+
+        <div class="welcome-feature-desc">
+          基于全市场 4 级降级实时行情与工业级量化引擎，为您提供<strong>行情全景监测</strong>、<strong>多因子选股诊断</strong>、严格执行<strong>最低保本卖出价精算（ceil向上进位）</strong>与 <strong>T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损</strong>，并支持投资收益多维归因及全天候智能盯盘。
+        </div>
+
+        <div class="welcome-quick-title">
+          <span>⚡ 快捷操作推荐（点击直接发起智能体分析）：</span>
+        </div>
+
+        <div class="welcome-quick-grid">
+          <div class="welcome-quick-card" onclick="executeQuickAction('评估持股策略')">
+            <div class="welcome-quick-icon">🛡️</div>
+            <div class="welcome-quick-name">评估持股策略</div>
+            <div class="welcome-quick-tip">诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单</div>
+            <div class="welcome-quick-btn">立即评估 &gt;</div>
+          </div>
+
+          <div class="welcome-quick-card" onclick="executeQuickAction('分析今日大盘行情')">
+            <div class="welcome-quick-icon">📈</div>
+            <div class="welcome-quick-name">分析今日大盘行情</div>
+            <div class="welcome-quick-tip">四大指数走势研判、两市放量动能、情绪温度与主线轮动</div>
+            <div class="welcome-quick-btn">一键分析 &gt;</div>
+          </div>
+
+          <div class="welcome-quick-card" onclick="executeQuickAction('收益分析')">
+            <div class="welcome-quick-icon">💰</div>
+            <div class="welcome-quick-name">收益分析</div>
+            <div class="welcome-quick-tip">复盘资产净值走势、夏普比率、最大回撤与多因子收益归因</div>
+            <div class="welcome-quick-btn">查看分析 &gt;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // Start a new chat session
 function startNewChat() {
   const newSession = {
@@ -144,29 +192,60 @@ function startNewChat() {
 
   const chatMessages = document.getElementById('chatMessages');
   if (chatMessages) {
-    chatMessages.innerHTML = `
-      <div class="message-item message-ai">
-        <div class="message-bubble-ai">
-          <div class="ai-msg-header">
-            <div class="ai-avatar-pill">AI</div>
-            <div class="ai-msg-header-text">
-              <h3 class="ai-msg-title">智能投研助手就绪</h3>
-              <p class="ai-msg-summary">已开启新一轮多因子量化研判会话，支持随时针对右侧盘面提问与调参</p>
-            </div>
-          </div>
-          <div class="ai-content-body">
-            <p>您好！我是您的 A股智能量化投研助手。当前右侧已为您保持【工作台】，您可以：</p>
-            <ul>
-              <li>直接提问任意个股或策略，例如：“<em>分析中芯国际突破买点与保本价</em>”；</li>
-              <li>在右侧 <strong>【工作台】</strong> 查看整体大盘、自选异动与量化风控监控；</li>
-              <li>点击工作台右上角 <strong>[收起]</strong> 按钮，沉浸式专注于投研对话推演。</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    `;
+    chatMessages.innerHTML = getWelcomeMessageHtml();
   }
-  showToast('已创建新投研会话！右侧内容已完整保留');
+  
+  // 确保处于投研助手模式及默认板块
+  if (AppState.activeRightTab !== 'dashboard') {
+    switchRightTab('dashboard');
+  } else {
+    switchLayoutMode('chat-center');
+  }
+
+  showToast('已创建新投研会话！欢迎查阅功能介绍与快捷操作');
+}
+
+// 快捷操作响应调度器（评估持股策略、分析今日大盘行情、收益分析）
+function executeQuickAction(actionType) {
+  if (AppState.isChatStreaming) {
+    showToast('AI 智能体正在研判中，请稍候...');
+    return;
+  }
+
+  // 确保工作台处于展示状态且为投研助手居中模式
+  if (AppState.activeRightTab === 'dashboard') {
+    switchLayoutMode('chat-center');
+  }
+
+  if (actionType === '评估持股策略') {
+    const prompt = '请评估我的持股策略，对当前持仓标的进行量化健康度诊断，并根据实战三原则计算最低保本卖出价与三级风控止损阶梯。';
+    appendChatMessage('user', prompt);
+    const tpl = PromptTemplates['评估持股策略'] || PromptTemplates['行情分析'];
+    streamAIResponse(tpl, '持股策略与实战三原则量化诊断报告', '持仓综合评分88分，计算税费向上进位最低保本价与三级止损阶梯');
+    const sec = document.getElementById('section-portfolio-overview');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showToast('已发起【评估持股策略】量化诊断！');
+  } else if (actionType === '分析今日大盘行情') {
+    const prompt = '请深度分析今日A股大盘行情走势、两市成交量能、四大指数强弱分化与核心板块轮动主线。';
+    appendChatMessage('user', prompt);
+    if (typeof UIEngine !== 'undefined') {
+      executeA2UITask('分析今日大盘行情');
+    } else {
+      const tpl = PromptTemplates['行情分析'];
+      streamAIResponse(tpl, '今日A股大盘行情与主线轮动深度研判', '两市放量成交破1.28万亿，科技成长主线共振领涨，短期延续反弹');
+    }
+    const sec = document.getElementById('section-market-indices');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showToast('已发起【分析今日大盘行情】深度研判！');
+  } else if (actionType === '收益分析') {
+    const prompt = '请对当前投资组合进行全景收益分析，评估资产净值曲线、夏普比率、最大回撤以及多因子收益归因。';
+    appendChatMessage('user', prompt);
+    const tpl = PromptTemplates['收益分析'] || PromptTemplates['行情分析'];
+    streamAIResponse(tpl, '投资组合全景收益与多因子归因报告', '累计总收益 +36.78%，夏普比率 1.84，个股Alpha与行业配置贡献核心超额');
+    const sec = document.getElementById('section-investment-analysis');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showToast('已发起【收益分析】多维量化研判！');
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -595,14 +674,31 @@ function askAboutProjectedAction() {
 // --------------------------------------------------------------------------
 function renderTabCharts(tabId) {
   if (tabId === 'dashboard') {
+    // 1. 投资概要: 资产配置环形图
+    FinancialCharts.drawDonutChart('portfolioDonut', [
+      { name: '股票持仓', value: 328.56, color: '#1677FF' },
+      { name: '现金储备', value: 125.68, color: '#4096FF' }
+    ], { centerTitle: '总市值', centerValue: '328.56万' });
+
+    // 2-1. 大盘指数: 四大指数 Sparklines
     FinancialCharts.drawSparkline('sparklineSh', [3390, 3405, 3400, 3415, 3422, 3418, 3426.56], true);
     FinancialCharts.drawSparkline('sparklineSz', [10750, 10780, 10820, 10800, 10860, 10892.14], true);
     FinancialCharts.drawSparkline('sparklineCy', [2250, 2265, 2260, 2278, 2282, 2289.76], true);
+    FinancialCharts.drawSparkline('sparklineKc', [980, 992, 988, 1005, 1012.35], true);
 
-    FinancialCharts.drawDonutChart('portfolioDonut', [
-      { name: '持仓市值', value: 328.56, color: '#1677FF' },
-      { name: '现金', value: 125.68, color: '#4096FF' }
-    ], { centerTitle: '总市值', centerValue: '328.56万' });
+    // 2-2. 行情分析: 市场情绪仪表盘 (78分 亢温)
+    FinancialCharts.drawGauge('dashboardSentimentGauge', 78, { colorType: 'sentiment' });
+
+    // 3-1. 自选指数: 自选主题分时线
+    FinancialCharts.drawSparkline('sparklineCustomIdx1', [1220, 1228, 1235, 1230, 1242, 1248.60], true);
+    FinancialCharts.drawSparkline('sparklineCustomIdx2', [3010, 3045, 3080, 3065, 3105, 3120.45], true);
+
+    // 3-2. 投资分析: 策略净值 vs 沪深300 基准对比微曲线
+    FinancialCharts.drawEquityCurve('dashboardInvestCurve', 
+      [1.00, 1.05, 1.08, 1.15, 1.25, 1.34], 
+      [1.00, 1.01, 1.03, 1.05, 1.07, 1.09], 
+      ['3月', '5月', '7月', '9月']
+    );
   } 
   else if (tabId === 'market') {
     FinancialCharts.drawSparkline('marketSparkSh', [3395, 3408, 3402, 3418, 3426.56], true);
@@ -675,6 +771,84 @@ function generateKlines(basePrice = 320, count = 28, trend = 0.008) {
 // 7. Chat Engine & Typewriter Streaming
 // --------------------------------------------------------------------------
 const PromptTemplates = {
+  '评估持股策略': {
+    title: '持股策略与实战三原则量化诊断报告',
+    summary: '持仓组合综合健康度 88分，计算税费向上进位最低保本价与三级止损阶梯',
+    body: `
+      <div class="ai-report-section">
+        <div class="ai-report-section-title">1. 持仓组合结构画像</div>
+        <p>当前总资产规模 <strong>¥454.24万</strong>，持仓总市值 <strong>¥328.56万</strong>（仓位占比 72.3%），可用现金 <strong>¥125.68万</strong>（占比 27.7%）。持仓聚焦科技成长与新能源双主线：<strong>宁德时代(35%)、中芯国际(25%)、海光信息(20%)</strong>，仓位适度偏多，流动性充裕。</p>
+      </div>
+      <div class="ai-report-section">
+        <div class="ai-report-section-title">2. 持仓标的健康度诊断</div>
+        <ul>
+          <li><strong>宁德时代 (300750)</strong>：量化评分 92分。完成 60分钟水下二次金叉验底，主力超大单密集流入，处于安全边际支撑位上方。</li>
+          <li><strong>中芯国际 (688981)</strong>：量化评分 94分。放量突破前期颈线高位平台，量价共振显著，多头排列稳固。</li>
+          <li><strong>海光信息 (688041)</strong>：量化评分 89分。回踩 MA20 均线确认支撑，筹码集中度持续提升至 82%。</li>
+        </ul>
+      </div>
+      <div class="summary-highlight-card">
+        <span class="summary-icon">🛡️</span>
+        <div class="summary-text"><strong>策略诊断结论</strong>：持仓组合整体健康度优秀，处于安全垫区间（平均缓冲距离 +11.8%），建议保持底仓，待盘中拉升逐步止盈。</div>
+      </div>
+      <div class="risk-iron-card">
+        <div class="risk-iron-header">🛡️ 实战交易三原则（合规风控指令单）</div>
+        <div class="risk-iron-grid">
+          <div class="risk-pill-box">
+            <div class="risk-pill-title">最低保本卖出价</div>
+            <div class="risk-pill-val">¥320.69 (ceil进位)</div>
+          </div>
+          <div class="risk-pill-box">
+            <div class="risk-pill-title">T1减仓线 (-5%)</div>
+            <div class="risk-pill-val">¥304.16 (减仓50%)</div>
+          </div>
+          <div class="risk-pill-box">
+            <div class="risk-pill-title">T2绝杀线 (-8%)</div>
+            <div class="risk-pill-val">¥294.55 (坚决止损)</div>
+          </div>
+        </div>
+        <div class="risk-card-actions">
+          <button class="project-btn" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
+            <span>⛶ 放大投射到右侧工作台</span>
+          </button>
+          <button class="project-btn secondary" onclick="openModifyRightParam()">
+            <span>✏️ 修改风控参数</span>
+          </button>
+        </div>
+      </div>
+    `
+  },
+  '收益分析': {
+    title: '投资组合全景收益与多因子归因报告',
+    summary: '累计总收益 +36.78%，夏普比率 1.84，个股Alpha与行业配置贡献核心超额',
+    body: `
+      <div class="ai-report-section">
+        <div class="ai-report-section-title">1. 净值走势与超额收益</div>
+        <p>自建仓以来组合累计实现净值 <strong>1.368</strong>，总收益率 <strong class="text-up">+36.78%</strong>，年化收益率 <strong class="text-up">+18.24%</strong>，较沪深300基准累计超额收益达 <strong>+25.4%</strong>。</p>
+      </div>
+      <div class="ai-report-section">
+        <div class="ai-report-section-title">2. 风险与胜率核心量化指标</div>
+        <ul>
+          <li><strong>夏普比率 (Sharpe Ratio)</strong>：<strong>1.84</strong>（优于全市场 88% 的量化公募基准）。</li>
+          <li><strong>交易胜率 (Win Rate)</strong>：<strong>68.5%</strong>，平均盈亏比 <strong>2.41</strong>。</li>
+          <li><strong>最大回撤 (Max Drawdown)</strong>：<strong>-8.24%</strong>（发生在前期震荡验底期，现已完全修复创新高）。</li>
+          <li><strong>贝塔系数 (Beta)</strong>：<strong>0.82</strong>，防御性与回撤控制表现良好。</li>
+        </ul>
+      </div>
+      <div class="ai-report-section">
+        <div class="ai-report-section-title">3. Brinson 多因子收益归因</div>
+        <ul>
+          <li><strong>行业配置效应</strong>：贡献 <strong>+14.2%</strong>，核心超额来自超配半导体与人工智能算力链。</li>
+          <li><strong>个股选股 Alpha</strong>：贡献 <strong>+18.6%</strong>，核心重仓标的涨幅跑赢所属申万一级行业。</li>
+          <li><strong>择时与对冲收益</strong>：贡献 <strong>+3.98%</strong>，早盘分级止盈与水下二次金叉验底加仓成效显著。</li>
+        </ul>
+      </div>
+      <div class="summary-highlight-card">
+        <span class="summary-icon">💰</span>
+        <div class="summary-text"><strong>收益优化建议</strong>：多因子驱动健康，建议对涨幅超过30%的重仓个股适度兑现浮盈至现金储备，维持总仓位在 65%~75% 动态中性区间。</div>
+      </div>
+    `
+  },
   '行情分析': {
     title: '当前A股市场行情分析',
     summary: '两市成交放量破1.28万亿，科技成长主线共振领涨，短期延续震荡向上反弹格局',
@@ -967,7 +1141,11 @@ function handleSendChat() {
   }
 
   let tpl = PromptTemplates['行情分析'];
-  if (text.includes('指标') || text.includes('技术') || text.includes('金叉')) {
+  if (text.includes('持股') || text.includes('持仓') || text.includes('保本')) {
+    tpl = PromptTemplates['评估持股策略'];
+  } else if (text.includes('收益') || text.includes('盈亏') || text.includes('净值') || text.includes('归因')) {
+    tpl = PromptTemplates['收益分析'];
+  } else if (text.includes('指标') || text.includes('技术') || text.includes('金叉')) {
     tpl = PromptTemplates['技术指标'];
   } else if (text.includes('选股') || text.includes('模型') || text.includes('因子')) {
     tpl = PromptTemplates['选股模型'];
