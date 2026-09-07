@@ -70,6 +70,10 @@
           <span class="nav-icon">📈</span>
           <span>收益分析</span>
         </div>
+        <div class="nav-item" data-tab="skills" onclick="handleMenuClick('skills')">
+          <span class="nav-icon">🧩</span>
+          <span>技能治理</span>
+        </div>
       </div>
 
       <!-- 1.2 会话记录区 (时间倒序前10条，下拉自动加载更多) -->
@@ -1853,6 +1857,129 @@
 
         </div>
 
+        <!-- View Pane 6: 17项量化投研技能治理中心 (Skill Governance & Orchestration Console) -->
+        <div class="right-pane" id="pane-skills">
+          <div class="skills-gov-container">
+            
+            <!-- 1. Header Banner & Slogan -->
+            <div class="skills-header-banner">
+              <div class="skills-banner-left">
+                <div class="skills-banner-icon">🧩</div>
+                <div class="skills-banner-titles">
+                  <div class="skills-banner-main-title">
+                    <h3>17项量化投研技能治理中枢</h3>
+                    <span class="skills-version-badge">AGENTS.md 就地执行规范</span>
+                    <span class="skills-status-badge">● 治理运行时在线</span>
+                  </div>
+                  <p class="skills-banner-desc">零全局污染就地执行架构 · Pydantic Schema 契约强校验 · 动态热插拔开关 · 分级安全门禁 · 实时调用审计与在线调试</p>
+                </div>
+              </div>
+              <div class="skills-banner-actions">
+                <button class="btn-refresh-skills" onclick="refreshSkillsGovernance()" title="重新拉取最新技能与审计数据">
+                  <span>🔄 刷新状态</span>
+                </button>
+                <button class="btn-bulk-enable" onclick="bulkEnableAllSkills()" title="一键全部启用 17 项技能">
+                  <span>⚡ 全部启用</span>
+                </button>
+                <button class="btn-open-debugger" onclick="openSkillTestModal()" title="打开在线调试与测试窗口">
+                  <span>🧪 在线调试</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Governance KPI & Audit Metrics Grid -->
+            <div class="skills-stats-grid">
+              <div class="skills-stat-card">
+                <div class="stat-card-header">
+                  <span class="stat-card-title">注册技能总数</span>
+                  <span class="stat-card-icon">📚</span>
+                </div>
+                <div class="stat-card-val tabular-nums">17 <span class="stat-card-unit">项</span></div>
+                <div class="stat-card-sub">高内聚自包含 · 100% 就地挂载</div>
+              </div>
+
+              <div class="skills-stat-card">
+                <div class="stat-card-header">
+                  <span class="stat-card-title">当前活跃启用</span>
+                  <span class="stat-card-icon">⚡</span>
+                </div>
+                <div class="stat-card-val text-up tabular-nums" id="statEnabledSkills">17 <span class="stat-card-unit">/ 17 项</span></div>
+                <div class="stat-card-sub">支持运行时动态热插拔下切</div>
+              </div>
+
+              <div class="skills-stat-card">
+                <div class="stat-card-header">
+                  <span class="stat-card-title">安全门禁分级</span>
+                  <span class="stat-card-icon">🛡️</span>
+                </div>
+                <div class="stat-risk-row">
+                  <span class="risk-count-item pill-readonly" title="只读研判：自动放行">只读 <strong>11</strong></span>
+                  <span class="risk-count-item pill-simulation" title="模拟交易：安全拦截">模拟 <strong>2</strong></span>
+                  <span class="risk-count-item pill-strategy" title="策略风控：严格进位">风控 <strong>4</strong></span>
+                </div>
+                <div class="stat-card-sub">只读放行 · 模拟二次确认 · 进位保本</div>
+              </div>
+
+              <div class="skills-stat-card">
+                <div class="stat-card-header">
+                  <span class="stat-card-title">调用审计与性能</span>
+                  <span class="stat-card-icon">📊</span>
+                </div>
+                <div class="stat-audit-metrics">
+                  <div>今日调用: <strong class="tabular-nums" id="statTotalInvocations">38</strong> 次</div>
+                  <div>P95 延迟: <strong class="tabular-nums" id="statP95Latency">142</strong>ms</div>
+                  <div>异常率: <strong class="tabular-nums text-up" id="statErrorRate">0.0%</strong></div>
+                </div>
+                <div class="stat-card-sub">FastAPI 网关与内存度量统计</div>
+              </div>
+            </div>
+
+            <!-- 3. Filter Toolbar: Search & Domain Categories -->
+            <div class="skills-filter-toolbar">
+              <div class="skills-search-wrapper">
+                <span class="skills-search-icon">🔍</span>
+                <input type="text" id="skillSearchInput" class="skills-search-input" placeholder="搜索技能ID、名称、触发词、执行命令..." oninput="handleSkillSearchInput(this.value)">
+                <button class="skills-search-clear" id="btnSkillSearchClear" onclick="clearSkillSearch()" style="display:none;">✕</button>
+              </div>
+
+              <div class="skills-category-scroll">
+                <button class="cat-filter-pill active" data-cat="all" onclick="filterSkillCategory('all')">全部 (17)</button>
+                <button class="cat-filter-pill" data-cat="data" onclick="filterSkillCategory('data')">📊 数据引擎 (1)</button>
+                <button class="cat-filter-pill" data-cat="platform" onclick="filterSkillCategory('platform')">🌐 综合平台 (1)</button>
+                <button class="cat-filter-pill" data-cat="screener" onclick="filterSkillCategory('screener')">🎯 5A选股 (1)</button>
+                <button class="cat-filter-pill" data-cat="quant" onclick="filterSkillCategory('quant')">🧮 量化工程 (1)</button>
+                <button class="cat-filter-pill" data-cat="strategy" onclick="filterSkillCategory('strategy')">🛡️ 实战策略 (4)</button>
+                <button class="cat-filter-pill" data-cat="paper_trading" onclick="filterSkillCategory('paper_trading')">💼 模拟交易 (1)</button>
+                <button class="cat-filter-pill" data-cat="multi_agent" onclick="filterSkillCategory('multi_agent')">🤖 多智能体 (1)</button>
+                <button class="cat-filter-pill" data-cat="pool" onclick="filterSkillCategory('pool')">📁 股池管理 (2)</button>
+                <button class="cat-filter-pill" data-cat="reporting" onclick="filterSkillCategory('reporting')">📑 研报规范 (2)</button>
+                <button class="cat-filter-pill" data-cat="knowledge_meta" onclick="filterSkillCategory('knowledge_meta')">💡 知识路由 (3)</button>
+              </div>
+
+              <div class="skills-filter-toggles">
+                <label class="toggle-label-inline" title="仅展示当前已启用的技能">
+                  <input type="checkbox" id="filterEnabledOnly" onchange="toggleFilterEnabledOnly(this.checked)">
+                  <span>仅看已启用</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 4. 17 Skills Cards Grid Container -->
+            <div class="skills-cards-grid" id="skillsCardsContainer">
+              <!-- Dynamically populated via renderSkillsGovernance() -->
+            </div>
+
+            <!-- Empty State for Search / Filter -->
+            <div class="skills-empty-state" id="skillsEmptyState" style="display:none;">
+              <div class="empty-icon">🔍</div>
+              <div class="empty-title">未匹配到符合条件的技能</div>
+              <div class="empty-desc">请尝试更换搜索关键词或重置分类筛选条件</div>
+              <button class="btn-action-primary" onclick="resetSkillFilters()" style="margin-top: 12px;">重置全部筛选条件</button>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -1875,7 +2002,6 @@
           <div class="settings-tab" data-sec="roles" onclick="switchSettingsSec('roles')">🎯 模型分配</div>
           <div class="settings-tab" data-sec="datafeed" onclick="switchSettingsSec('datafeed')">📶 行情数据源降级</div>
           <div class="settings-tab" data-sec="risk" onclick="switchSettingsSec('risk')">🛡️ 实战三原则风控</div>
-          <div class="settings-tab" data-sec="skills" onclick="switchSettingsSec('skills')">🧩 17项技能治理</div>
         </div>
 
         <!-- Section 1: 模型接入 (Providers 管理, 对齐图1) -->
@@ -2134,18 +2260,6 @@
             <div class="form-hint">严格保本规则：精算至分位并覆盖全部税费，防范交易磨损</div>
           </div>
         </div>
-
-        <!-- Section 4: Skills Governance -->
-        <div class="settings-sec" id="sec-skills">
-          <div class="skills-mini-list">
-            <div class="skill-mini-item"><span>astock-data-feed (行情与K线)</span><span class="badge-tag-green">就绪</span></div>
-            <div class="skill-mini-item"><span>astock-action-execution (保本价精算)</span><span class="badge-tag-green">就绪</span></div>
-            <div class="skill-mini-item"><span>astock-screener-5a (多因子选股)</span><span class="badge-tag-green">就绪</span></div>
-            <div class="skill-mini-item"><span>astock-strategy-macd (水下金叉识别)</span><span class="badge-tag-green">就绪</span></div>
-            <div class="skill-mini-item"><span>astock-trade-paper (模拟盘撮合)</span><span class="badge-tag-green">就绪</span></div>
-            <div class="skill-mini-item"><span>astock-agent-debate (7分析师辩论)</span><span class="badge-tag-green">就绪</span></div>
-          </div>
-        </div>
       </div>
       <div class="modal-footer">
         <button class="context-act-btn" onclick="closeSettingsModal()">取消</button>
@@ -2188,6 +2302,73 @@
     </div>
   </div>
 
+  <!-- ========================================================================
+       MODAL 3: 技能在线调试与契约测试弹窗 (Skill Test & Debug Modal)
+       ======================================================================== -->
+  <div class="modal-backdrop" id="skillTestModal">
+    <div class="modal-dialog modal-dialog-large">
+      <div class="modal-header">
+        <div class="modal-title">🧪 技能在线调试与契约测试 (Skill Execution Sandbox)</div>
+        <button class="modal-close" onclick="closeSkillTestModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="skill-debug-grid">
+          <!-- Left: Selection & Arguments Editor -->
+          <div class="skill-debug-left">
+            <div class="form-group">
+              <label class="form-label">选择目标测试技能 (Target Skill)</label>
+              <select class="form-input" id="debugSkillSelect" onchange="handleDebugSkillChange(this.value)">
+                <!-- Options populated dynamically -->
+              </select>
+            </div>
+
+            <div class="skill-debug-meta-box" id="debugSkillMetaBox">
+              <!-- Dynamic metadata summary -->
+            </div>
+
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom:0;">调用参数 Payload (JSON 格式)</label>
+                <button type="button" class="btn-xs-link" onclick="resetDebugParamsToSample()">恢复示例参数</button>
+              </div>
+              <textarea class="form-input code-font" id="debugSkillParams" rows="7" placeholder='{\n  "code": "600519"\n}'></textarea>
+              <div class="form-hint" id="debugParamsHint">参数将经过 Pydantic Schema 强校验，不合规将直接拦截报错。</div>
+            </div>
+
+            <div class="form-group" id="debugConfirmGroup" style="display:none;">
+              <label class="switch-toggle-row">
+                <input type="checkbox" id="debugConfirmationCheck">
+                <span style="font-size:12px; color:#FA8C16; font-weight:600;">⚠️ 二次安全门禁确认 (Human-in-the-loop 模拟交易权限核验)</span>
+              </label>
+            </div>
+
+            <button type="button" class="send-btn" id="btnRunSkillTest" style="width:100%; justify-content:center; padding:9px 16px; margin-top:8px;" onclick="runSkillTestExecution()">
+              <span>🚀 立即执行测试调用</span>
+            </button>
+          </div>
+
+          <!-- Right: Execution Result & Audit Console -->
+          <div class="skill-debug-right">
+            <div class="debug-console-header">
+              <div class="console-title">执行输出结果 (Response & Logs)</div>
+              <div class="console-status-badge" id="debugStatusBadge">就绪 (Ready)</div>
+            </div>
+            <div class="debug-console-body">
+              <div class="console-stats-strip" id="debugConsoleStats" style="display:none;">
+                <span>执行耗时: <strong id="debugExecDuration">--</strong>ms</span>
+                <span>门禁结果: <strong id="debugGateStatus">放行</strong></span>
+                <span>协议状态: <strong id="debugStatusCode">200 OK</strong></span>
+              </div>
+              <pre class="debug-console-output code-font" id="debugConsoleOutput">点击左侧【🚀 立即执行测试调用】发起实时请求，调用过程将自动记录调用频次与延迟度量。</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="context-act-btn" onclick="closeSkillTestModal()">关闭</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>

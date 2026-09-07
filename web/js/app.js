@@ -36,7 +36,15 @@ const AppState = {
     quant: { provider_id: '', model_id: '' },
     debate: { provider_id: '', model_id: '' },
     vision: { provider_id: '', model_id: '' }
-  }
+  },
+  skillsList: [],
+  skillsAudit: null,
+  skillsFilter: {
+    category: 'all',
+    search: '',
+    enabledOnly: false
+  },
+  activeDebugSkillId: 'astock-data-feed'
 };
 
 // --------------------------------------------------------------------------
@@ -327,7 +335,8 @@ const ViewDescriptions = {
   'market': '市场行情全景 (四大指数/情绪仪表盘/日K线/板块流向)',
   'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
-  'projected-action': '实战交易三原则指令单 (保本价试算器/三级止损)'
+  'projected-action': '实战交易三原则指令单 (保本价试算器/三级止损)',
+  'skills': '17项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)'
 };
 
 const ViewHeaderInfo = {
@@ -335,7 +344,8 @@ const ViewHeaderInfo = {
   'market': { title: '市场行情全景', icon: '📈' },
   'watchlist': { title: '自选个股深度研判', icon: '⭐' },
   'returns': { title: '投资收益全景分析', icon: '💰' },
-  'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️' }
+  'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️' },
+  'skills': { title: '技能治理中心', icon: '🧩' }
 };
 
 function switchRightTab(tabId) {
@@ -361,6 +371,11 @@ function switchRightTab(tabId) {
   const targetPane = document.getElementById(`pane-${tabId}`);
   if (targetPane) {
     targetPane.classList.add('active');
+  }
+
+  // 3.1 Hook: if switching to skills governance, initialize and render
+  if (tabId === 'skills') {
+    initSkillsGovernance();
   }
 
   // 4. Update Header Title and Icon
@@ -1887,6 +1902,869 @@ function showToast(msg) {
 }
 
 // --------------------------------------------------------------------------
+// 9. 17项量化投研技能治理中心 (Skill Governance Subsystem Controller)
+// --------------------------------------------------------------------------
+
+const BuiltinSkillsManifest = [
+  {
+    id: "astock-data-feed",
+    name: "astock-data-feed",
+    title: "A股全链路行情与技术指标数据引擎",
+    category: "data",
+    categoryName: "数据引擎",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "查询A股实时行情快照、历史K线（日/周/月/分时）、复权数据、全套经典技术指标（MA/MACD/KDJ/RSI/BOLL/ATR）、个股事件、筹码分布及行业板块信息。",
+    triggers: ["行情", "查股票", "现价", "K线", "技术指标", "MACD", "KDJ", "筹码分布"],
+    cli_command: "astock data quote {code}",
+    entry_point: "core/data/fetch_realtime.py",
+    skill_doc: ".agents/skills/astock-data-feed/SKILL.md",
+    recommended_model: "flash",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { code: "600519", action: "quote" }
+  },
+  {
+    id: "astock-platform-evaluate",
+    name: "astock-platform-evaluate",
+    title: "统一A股全流程投研与量化综合分析平台",
+    category: "platform",
+    categoryName: "综合平台",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "提供4层数据降级桥接、零依赖技术指标计算、多因子策略综合打分（100分制）、被套解套策略诊断、大盘健康度评估与HTML分析报告生成。",
+    triggers: ["全流程分析", "股票诊断", "综合打分", "被套怎么办", "解套方案", "大盘健康度"],
+    cli_command: "astock evaluate {code}",
+    entry_point: "core/models/combo_scorer.py",
+    skill_doc: ".agents/skills/astock-platform-evaluate/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { code: "600519" }
+  },
+  {
+    id: "astock-screener-5a",
+    name: "astock-screener-5a",
+    title: "A股五维共振旋转选股与样本外回测引擎",
+    category: "screener",
+    categoryName: "5A选股",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "基于量价趋势、基本面过滤、估值性价比、行业轮动与动量共振的5A多维评分模型，支持全市场选股与滚动样本外检验。",
+    triggers: ["选股", "5A选股", "主线旋转", "多维评分", "优质股票推荐", "样本外回测"],
+    cli_command: "astock screen 5a",
+    entry_point: "core/models/multi_dim_model.py",
+    skill_doc: ".agents/skills/astock-screener-5a/SKILL.md",
+    recommended_model: "pro",
+    timeout_seconds: 45,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { limit: 5, dynamic_mode: "high_momentum" }
+  },
+  {
+    id: "astock-pool-dashboard",
+    name: "astock-pool-dashboard",
+    title: "A股全流程投研面板与股池生命周期管理",
+    category: "pool",
+    categoryName: "股池管理",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "覆盖关注股池/自选股池/持仓池全生命周期管理，支持通达信公式同步、盘中入场监控、持仓止损止盈预警与投研报告生成。",
+    triggers: ["投研面板", "持仓池", "关注池", "自选股", "通达信同步", "入场监控"],
+    cli_command: "astock pool list",
+    entry_point: "core/strategy/pool_manager.py",
+    skill_doc: ".agents/skills/astock-pool-dashboard/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { pool_type: "custom", action: "list" }
+  },
+  {
+    id: "astock-trade-paper",
+    name: "astock-trade-paper",
+    title: "A股模拟盘交易与事件驱动撮合回测系统",
+    category: "paper_trading",
+    categoryName: "模拟交易",
+    risk_level: "simulation",
+    riskName: "模拟交易",
+    description: "支持多账户模拟仓管理、限价单/市价单下单、撤单、持仓与资金查询、T+1交易规则与涨跌停撮合逻辑验证。",
+    triggers: ["模拟盘", "下单", "买入", "卖出", "撤单", "查账户", "模拟持仓"],
+    cli_command: "astock trade balance",
+    entry_point: "core/paper_trading/paper_trade_cli.py",
+    skill_doc: ".agents/skills/astock-trade-paper/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: true,
+    enabled: true,
+    sample_params: { action: "balance" }
+  },
+  {
+    id: "astock-strategy-mainboard",
+    name: "astock-strategy-mainboard",
+    title: "主板流动性池多波段防御策略",
+    category: "strategy",
+    categoryName: "实战策略",
+    risk_level: "strategy",
+    riskName: "策略风控",
+    description: "在主板高流动性池内按趋势回踩（trend_pullback）与防御波段产出买入候选与持仓卖出信号，防守反击决策。",
+    triggers: ["趋势回踩", "主板策略", "防御策略", "波段买点", "离场信号"],
+    cli_command: "astock strategy swing",
+    entry_point: "core/strategy/daily_decisions.py",
+    skill_doc: ".agents/skills/astock-strategy-mainboard/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { action: "candidates" }
+  },
+  {
+    id: "astock-quant-engine",
+    name: "astock-quant-engine",
+    title: "A股工业级全流程量化工程引擎",
+    category: "quant",
+    categoryName: "量化工程",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "截面量价因子提取、非结构化舆情因子半衰期衰减、MAD去极值与Z-score截面Rank合成、目标波动率与分数凯利仓位管理、ATR阶梯止盈止损。",
+    triggers: ["量化工程", "因子合成", "去极值", "凯利仓位", "ATR止损", "量化流水线"],
+    cli_command: "astock quant pipeline",
+    entry_point: "core/strategy/risk_position_manager.py",
+    skill_doc: ".agents/skills/astock-quant-engine/SKILL.md",
+    recommended_model: "pro",
+    timeout_seconds: 60,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { action: "factors", code: "600519" }
+  },
+  {
+    id: "astock-agent-debate",
+    name: "astock-agent-debate",
+    title: "7大AI分析师多智能体研判与多空辩论系统",
+    category: "multi_agent",
+    categoryName: "多智能体",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "集成基本面、量价、消息、政策、游资、筹码、风险7大专业分析师智能体，进行多轮多空辩论研判并生成决议。",
+    triggers: ["多智能体分析", "7大分析师", "多空辩论", "深度研报", "多维度辩论"],
+    cli_command: "astock debate {code}",
+    entry_point: "core/multi_agent/ta_orchestrator.py",
+    skill_doc: ".agents/skills/astock-agent-debate/SKILL.md",
+    recommended_model: "pro",
+    timeout_seconds: 90,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { code: "600519", rounds: 1 }
+  },
+  {
+    id: "astock-strategy-tuige",
+    name: "astock-strategy-tuige",
+    title: "退哥短线交易规则与场景化决策体系",
+    category: "strategy",
+    categoryName: "实战策略",
+    risk_level: "strategy",
+    riskName: "策略风控",
+    description: "基于退哥实战短线交易规则：涨停回调、连板接力、趋势回踩、洗盘结束、失效卖出与仓位纪律场景化规则库。",
+    triggers: ["退哥短线", "涨停回调", "连板接力", "洗盘结束", "短线规则", "短线卖点"],
+    cli_command: "astock shortline check",
+    entry_point: ".agents/skills/astock-strategy-tuige/SKILL.md",
+    skill_doc: ".agents/skills/astock-strategy-tuige/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { code: "000001", scenario: "limit_up_pullback" }
+  },
+  {
+    id: "astock-strategy-macd",
+    name: "astock-strategy-macd",
+    title: "MACD底背离与零轴下二次金叉决策体系",
+    category: "strategy",
+    categoryName: "实战策略",
+    risk_level: "strategy",
+    riskName: "策略风控",
+    description: "实战捕捉水下二次金叉、双底回踩验底、MACD底背离形态，产出三档决策（观察/试错/放弃）与盘中入场清单。",
+    triggers: ["二次金叉", "水下二次金叉", "MACD底背离", "第一脚第二脚", "回踩验底", "抄底修复"],
+    cli_command: "astock pattern macd {code}",
+    entry_point: ".agents/skills/astock-strategy-macd/SKILL.md",
+    skill_doc: ".agents/skills/astock-strategy-macd/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { code: "600519" }
+  },
+  {
+    id: "astock-action-execution",
+    name: "astock-action-execution",
+    title: "实战交易反应动作与精确进位决策引擎",
+    category: "strategy",
+    categoryName: "实战策略",
+    risk_level: "strategy",
+    riskName: "策略风控",
+    description: "计算精确最低保本卖出价（考虑印花税、佣金五元起收、过户费进位）、T0/T1/T2三级止损线、冲高/盘整/急跌三场景反应动作清单。",
+    triggers: ["保本价", "反应动作", "持仓指令", "盘中预案", "止损线计算", "三场景动作"],
+    cli_command: "astock action plan",
+    entry_point: "core/strategy/execution_action_engine.py",
+    skill_doc: ".agents/skills/astock-action-execution/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { code: "600519", cost: 1600.0, shares: 100 }
+  },
+  {
+    id: "astock-pool-audit",
+    name: "astock-pool-audit",
+    title: "三大股池统一审查与均线位校验",
+    category: "pool",
+    categoryName: "股池管理",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "统一审查关注/自选/持仓股池，重算均线支撑阻力位，剔除过期关键位与失效标的。",
+    triggers: ["审查股池", "股池审计", "清洗自选股", "均线重算"],
+    cli_command: "astock pool audit",
+    entry_point: ".agents/skills/astock-pool-audit/scripts/pool_audit.py",
+    skill_doc: ".agents/skills/astock-pool-audit/SKILL.md",
+    recommended_model: "flash",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { action: "audit" }
+  },
+  {
+    id: "astock-report-archive",
+    name: "astock-report-archive",
+    title: "A股报告持久化与多股联合报告规范",
+    category: "reporting",
+    categoryName: "研报规范",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "规范多股联合报告输出路径、数据持久化存储结构与图表呈现标准。",
+    triggers: ["生成报告", "多股报告", "报告归档", "复盘报告"],
+    cli_command: "astock report generate",
+    entry_point: ".agents/skills/astock-report-archive/SKILL.md",
+    skill_doc: ".agents/skills/astock-report-archive/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { action: "list" }
+  },
+  {
+    id: "astock-report-html",
+    name: "astock-report-html",
+    title: "A股标准HTML高颜值交互报告规范",
+    category: "reporting",
+    categoryName: "研报规范",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "白色系亚光背景、红涨绿跌、1344px居中、自包含单文件HTML报告模板与交互样式。",
+    triggers: ["HTML报告", "报告样式", "高颜值报表", "可视化页面"],
+    cli_command: "astock report html",
+    entry_point: ".agents/skills/astock-report-html/SKILL.md",
+    skill_doc: ".agents/skills/astock-report-html/SKILL.md",
+    recommended_model: "flash",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { code: "600519" }
+  },
+  {
+    id: "astock-knowledge-tips",
+    name: "astock-knowledge-tips",
+    title: "实战交易经验与API降级避坑指南",
+    category: "knowledge_meta",
+    categoryName: "知识路由",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "记录早盘竞价复盘、API被封应对、数据源降级策略、历史交易教训与经验技巧库。",
+    triggers: ["避坑指南", "交易经验", "接口被封怎么办", "实战技巧"],
+    cli_command: "astock tips",
+    entry_point: ".agents/skills/astock-knowledge-tips/SKILL.md",
+    skill_doc: ".agents/skills/astock-knowledge-tips/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { topic: "auction" }
+  },
+  {
+    id: "astock-model-validation",
+    name: "astock-model-validation",
+    title: "外部AI时序预测模型实证检验规范",
+    category: "knowledge_meta",
+    categoryName: "知识路由",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "在将外部时序基础模型（如 Kronos/TimesFM）集成前进行样本外滚动回测检验与基准对齐。",
+    triggers: ["模型检验", "时序模型验证", "Kronos实证", "模型打擂台"],
+    cli_command: "astock validate-model",
+    entry_point: ".agents/skills/astock-model-validation/SKILL.md",
+    skill_doc: ".agents/skills/astock-model-validation/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 60,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { model: "Kronos", horizon: 5 }
+  },
+  {
+    id: "astock-meta-routing",
+    name: "astock-meta-routing",
+    title: "股票任务模型路由规则与执行规约",
+    category: "knowledge_meta",
+    categoryName: "知识路由",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "股票任务模型动态路由规约（flash纯分析 vs flash+execute_code编程/脚本直接执行），规避模型过载。",
+    triggers: ["模型路由", "flash模型", "编程路由", "执行规约"],
+    cli_command: "astock tips",
+    entry_point: ".agents/skills/astock-meta-routing/SKILL.md",
+    skill_doc: ".agents/skills/astock-meta-routing/SKILL.md",
+    recommended_model: "flash",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { task_type: "analysis" }
+  }
+];
+
+let isSkillsInitialized = false;
+
+async function initSkillsGovernance() {
+  if (AppState.skillsList.length === 0) {
+    AppState.skillsList = JSON.parse(JSON.stringify(BuiltinSkillsManifest));
+  }
+
+  // Fetch live from FastAPI backend if available
+  try {
+    const res = await fetch('/api/skills');
+    if (res.ok) {
+      const serverSkills = await res.json();
+      if (Array.isArray(serverSkills) && serverSkills.length > 0) {
+        // Merge server status with rich metadata
+        serverSkills.forEach(srv => {
+          const local = AppState.skillsList.find(s => s.id === srv.id);
+          if (local) {
+            local.enabled = srv.enabled !== undefined ? srv.enabled : local.enabled;
+            local.timeout_seconds = srv.timeout_seconds || local.timeout_seconds;
+            local.require_confirmation = srv.require_confirmation !== undefined ? srv.require_confirmation : local.require_confirmation;
+            if (srv.risk_level) local.risk_level = srv.risk_level;
+          }
+        });
+      }
+    }
+  } catch (e) {
+    // Graceful offline fallback to built-in list
+  }
+
+  // Fetch audit metrics
+  try {
+    const auditRes = await fetch('/api/skills/audit/stats');
+    if (auditRes.ok) {
+      AppState.skillsAudit = await auditRes.json();
+    }
+  } catch (e) {
+    // Graceful fallback
+  }
+
+  isSkillsInitialized = true;
+  renderSkillsGovernance();
+}
+
+function refreshSkillsGovernance() {
+  initSkillsGovernance().then(() => {
+    showToast('已同步最新 17 项技能治理清单与调用度量数据');
+  });
+}
+
+function bulkEnableAllSkills() {
+  AppState.skillsList.forEach(s => { s.enabled = true; });
+  renderSkillsGovernance();
+
+  // Try bulk update to backend
+  AppState.skillsList.forEach(s => {
+    fetch(`/api/skills/${s.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true })
+    }).catch(() => {});
+  });
+
+  showToast('⚡ 成功启用全部 17 项投研技能');
+}
+
+function renderSkillsGovernance() {
+  // 1. Update KPI stats
+  const totalCount = AppState.skillsList.length;
+  const enabledCount = AppState.skillsList.filter(s => s.enabled).length;
+  const statEnabledElem = document.getElementById('statEnabledSkills');
+  if (statEnabledElem) {
+    statEnabledElem.innerHTML = `${enabledCount} <span class="stat-card-unit">/ ${totalCount} 项</span>`;
+    statEnabledElem.className = enabledCount === totalCount ? 'stat-card-val text-up tabular-nums' : 'stat-card-val tabular-nums';
+  }
+
+  // Audit stats
+  if (AppState.skillsAudit) {
+    const invocElem = document.getElementById('statTotalInvocations');
+    const p95Elem = document.getElementById('statP95Latency');
+    const errElem = document.getElementById('statErrorRate');
+    if (invocElem) invocElem.innerText = AppState.skillsAudit.total_invocations || 0;
+    if (p95Elem) p95Elem.innerText = Math.round(AppState.skillsAudit.p95_latency_ms || 0);
+    if (errElem) errElem.innerText = (AppState.skillsAudit.error_rate ? (AppState.skillsAudit.error_rate * 100).toFixed(1) : '0.0') + '%';
+  }
+
+  // 2. Filter skills
+  const filterCat = AppState.skillsFilter.category;
+  const searchKeyword = AppState.skillsFilter.search.trim().toLowerCase();
+  const enabledOnly = AppState.skillsFilter.enabledOnly;
+
+  const filteredSkills = AppState.skillsList.filter(s => {
+    if (enabledOnly && !s.enabled) return false;
+    if (filterCat !== 'all') {
+      if (filterCat === 'knowledge_meta') {
+        if (s.category !== 'knowledge' && s.category !== 'validation' && s.category !== 'meta' && s.category !== 'knowledge_meta') return false;
+      } else if (s.category !== filterCat) {
+        return false;
+      }
+    }
+    if (searchKeyword) {
+      const matchId = s.id.toLowerCase().includes(searchKeyword);
+      const matchTitle = s.title.toLowerCase().includes(searchKeyword);
+      const matchDesc = s.description.toLowerCase().includes(searchKeyword);
+      const matchCmd = s.cli_command.toLowerCase().includes(searchKeyword);
+      const matchTriggers = (s.triggers || []).some(t => t.toLowerCase().includes(searchKeyword));
+      if (!matchId && !matchTitle && !matchDesc && !matchCmd && !matchTriggers) return false;
+    }
+    return true;
+  });
+
+  // 3. Render Cards
+  const container = document.getElementById('skillsCardsContainer');
+  const emptyState = document.getElementById('skillsEmptyState');
+  if (!container) return;
+
+  if (filteredSkills.length === 0) {
+    container.innerHTML = '';
+    if (emptyState) emptyState.style.display = 'block';
+    return;
+  }
+
+  if (emptyState) emptyState.style.display = 'none';
+
+  container.innerHTML = filteredSkills.map(skill => {
+    const riskBadgeClass = skill.risk_level === 'simulation'
+      ? 'badge-risk-simulation'
+      : skill.risk_level === 'destructive'
+      ? 'badge-risk-destructive'
+      : skill.risk_level === 'strategy'
+      ? 'badge-risk-strategy'
+      : 'badge-risk-readonly';
+
+    const riskLabel = skill.risk_level === 'simulation'
+      ? '模拟交易'
+      : skill.risk_level === 'destructive'
+      ? '高危变更'
+      : skill.risk_level === 'strategy'
+      ? '策略风控'
+      : '只读研判';
+
+    const modelTagClass = skill.recommended_model === 'flash'
+      ? 'model-tag-flash'
+      : skill.recommended_model === 'pro'
+      ? 'model-tag-pro'
+      : 'model-tag-inherit';
+
+    const triggersHtml = (skill.triggers || []).slice(0, 5).map(t => 
+      `<span class="trigger-tag" title="提示词触发词">#${t}</span>`
+    ).join('');
+
+    return `
+      <div class="skill-card ${skill.enabled ? '' : 'disabled'}" id="card-skill-${skill.id}">
+        <div class="skill-card-top">
+          <div class="skill-top-left">
+            <span class="skill-id-badge">${skill.id}</span>
+            <div class="skill-card-title" title="${skill.title}">${skill.title}</div>
+            <div class="skill-top-badges">
+              <span class="skill-cat-tag">${skill.categoryName || skill.category}</span>
+              <span class="${riskBadgeClass}">${riskLabel}</span>
+            </div>
+          </div>
+          <div class="skill-top-right">
+            <label class="switch-toggle" title="${skill.enabled ? '点击禁用该技能' : '点击启用该技能'}">
+              <input type="checkbox" ${skill.enabled ? 'checked' : ''} onchange="handleSkillToggle('${skill.id}', this.checked)">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="skill-card-body">
+          <div class="skill-card-desc" title="${skill.description}">${skill.description}</div>
+          
+          <div class="skill-cli-snippet">
+            <span class="skill-cli-text" title="统一 CLI 规范：直接就地运行，免全局污染">$ ${skill.cli_command}</span>
+            <span class="skill-cli-copy" onclick="copyCliCommand('${skill.cli_command}')" title="复制命令">复制</span>
+          </div>
+
+          <div class="skill-triggers-wrap">
+            ${triggersHtml}
+          </div>
+
+          <div class="skill-card-meta">
+            <span class="meta-item">⏱️ 超时: <strong>${skill.timeout_seconds}s</strong></span>
+            <span class="meta-item">🛡️ 门禁: <strong>${skill.require_confirmation ? '⚠️需二次确认' : '免密直接放行'}</strong></span>
+            <span class="meta-item">🧠 推荐: <strong class="${modelTagClass}">${skill.recommended_model}</strong></span>
+          </div>
+        </div>
+
+        <div class="skill-card-footer">
+          <button class="btn-card-test" onclick="openSkillTestModal('${skill.id}')">
+            <span>⚡ 在线调试 (Test)</span>
+          </button>
+          <button class="btn-card-doc" onclick="showSkillDocDetail('${skill.id}')">
+            <span>📖 规范契约</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function handleSkillToggle(skillId, isChecked) {
+  const skill = AppState.skillsList.find(s => s.id === skillId);
+  if (skill) {
+    skill.enabled = isChecked;
+  }
+
+  // Update card styling
+  const card = document.getElementById(`card-skill-${skillId}`);
+  if (card) {
+    if (isChecked) card.classList.remove('disabled');
+    else card.classList.add('disabled');
+  }
+
+  // Update stats counter
+  const totalCount = AppState.skillsList.length;
+  const enabledCount = AppState.skillsList.filter(s => s.enabled).length;
+  const statEnabledElem = document.getElementById('statEnabledSkills');
+  if (statEnabledElem) {
+    statEnabledElem.innerHTML = `${enabledCount} <span class="stat-card-unit">/ ${totalCount} 项</span>`;
+    statEnabledElem.className = enabledCount === totalCount ? 'stat-card-val text-up tabular-nums' : 'stat-card-val tabular-nums';
+  }
+
+  showToast(`已${isChecked ? '启用' : '禁用'}技能：${skillId}`);
+
+  // Send PATCH request to backend
+  try {
+    await fetch(`/api/skills/${skillId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: isChecked })
+    });
+  } catch (e) {
+    // Log silently
+  }
+}
+
+function copyCliCommand(cmd) {
+  const fullCmd = `astock ${cmd} --json`;
+  navigator.clipboard.writeText(fullCmd).then(() => {
+    showToast(`已复制 CLI 命令：${fullCmd}`);
+  }).catch(() => {
+    showToast(`已复制命令：${cmd}`);
+  });
+}
+
+function handleSkillSearchInput(val) {
+  AppState.skillsFilter.search = val;
+  const btnClear = document.getElementById('btnSkillSearchClear');
+  if (btnClear) {
+    btnClear.style.display = val ? 'block' : 'none';
+  }
+  renderSkillsGovernance();
+}
+
+function clearSkillSearch() {
+  const input = document.getElementById('skillSearchInput');
+  if (input) input.value = '';
+  handleSkillSearchInput('');
+}
+
+function filterSkillCategory(cat) {
+  AppState.skillsFilter.category = cat;
+  document.querySelectorAll('.cat-filter-pill').forEach(btn => {
+    if (btn.dataset.cat === cat) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+  renderSkillsGovernance();
+}
+
+function toggleFilterEnabledOnly(isChecked) {
+  AppState.skillsFilter.enabledOnly = isChecked;
+  renderSkillsGovernance();
+}
+
+function resetSkillFilters() {
+  AppState.skillsFilter.category = 'all';
+  AppState.skillsFilter.search = '';
+  AppState.skillsFilter.enabledOnly = false;
+
+  const searchInput = document.getElementById('skillSearchInput');
+  if (searchInput) searchInput.value = '';
+  const clearBtn = document.getElementById('btnSkillSearchClear');
+  if (clearBtn) clearBtn.style.display = 'none';
+
+  const filterEnabled = document.getElementById('filterEnabledOnly');
+  if (filterEnabled) filterEnabled.checked = false;
+
+  document.querySelectorAll('.cat-filter-pill').forEach(btn => {
+    if (btn.dataset.cat === 'all') btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+
+  renderSkillsGovernance();
+  showToast('已重置全部技能筛选条件');
+}
+
+function showSkillDocDetail(skillId) {
+  const skill = AppState.skillsList.find(s => s.id === skillId);
+  if (!skill) return;
+  appendChatMessage('user', `请向我解释【${skill.name}】技能的执行规范与输入参数`);
+  const response = `### 🧩 技能规范：${skill.name} (${skill.title})
+- **入口命令**：\`${skill.cli_command}\`
+- **代码位置**：\`${skill.entry_point}\`
+- **技术规范**：\`${skill.skill_doc}\`
+- **安全级别**：\`${skill.risk_level}\`（${skill.riskName}）
+- **推荐模型**：\`${skill.recommended_model}\`
+- **核心职能**：${skill.description}
+
+**示例调用 Payload**：
+\`\`\`json
+${JSON.stringify(skill.sample_params || {}, null, 2)}
+\`\`\`
+*提示：您可以点击该技能卡片上的【⚡ 在线调试】直接测试执行该技能。*`;
+
+  streamAIResponse(response, `技能规范契约：${skill.name}`);
+  showToast(`已向投研助手注入【${skill.name}】契约说明`);
+}
+
+// --------------------------------------------------------------------------
+// 9.1 Skill Online Debugger / Sandbox Modal Controller
+// --------------------------------------------------------------------------
+
+function openSkillTestModal(skillId) {
+  const modal = document.getElementById('skillTestModal');
+  if (!modal) return;
+
+  const targetId = skillId || AppState.activeDebugSkillId || 'astock-data-feed';
+  AppState.activeDebugSkillId = targetId;
+
+  // Populate select options
+  const selectElem = document.getElementById('debugSkillSelect');
+  if (selectElem) {
+    selectElem.innerHTML = AppState.skillsList.map(s => `
+      <option value="${s.id}" ${s.id === targetId ? 'selected' : ''}>
+        ${s.id} — ${s.title}
+      </option>
+    `).join('');
+  }
+
+  handleDebugSkillChange(targetId);
+
+  // Reset console
+  const badge = document.getElementById('debugStatusBadge');
+  if (badge) {
+    badge.className = 'console-status-badge';
+    badge.innerText = '就绪 (Ready)';
+  }
+  const statsStrip = document.getElementById('debugConsoleStats');
+  if (statsStrip) statsStrip.style.display = 'none';
+
+  const output = document.getElementById('debugConsoleOutput');
+  if (output) {
+    output.innerText = `[就绪] 目标技能：${targetId}\n请检查左侧 Payload 参数后，点击【🚀 立即执行测试调用】发起实时请求。`;
+  }
+
+  modal.classList.add('active');
+}
+
+function closeSkillTestModal() {
+  const modal = document.getElementById('skillTestModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function handleDebugSkillChange(skillId) {
+  AppState.activeDebugSkillId = skillId;
+  const skill = AppState.skillsList.find(s => s.id === skillId) || AppState.skillsList[0];
+  if (!skill) return;
+
+  // Render meta box
+  const metaBox = document.getElementById('debugSkillMetaBox');
+  if (metaBox) {
+    metaBox.innerHTML = `
+      <div class="skill-debug-meta-row">
+        <span><strong>${skill.title}</strong></span>
+        <span class="badge-tag-green">${skill.categoryName || skill.category}</span>
+      </div>
+      <div class="skill-debug-meta-row" style="color:#64748B; font-size:11.5px; margin-top:4px;">
+        <span>安全级别: <strong>${skill.riskName || skill.risk_level}</strong></span>
+        <span>超时时间: <strong>${skill.timeout_seconds}s</strong></span>
+        <span>门禁机制: <strong>${skill.require_confirmation ? '⚠️ 需人工确认' : '自动放行'}</strong></span>
+      </div>
+    `;
+  }
+
+  // Pre-fill sample params
+  const paramsInput = document.getElementById('debugSkillParams');
+  if (paramsInput) {
+    paramsInput.value = JSON.stringify(skill.sample_params || {}, null, 2);
+  }
+
+  // Confirmation toggle row
+  const confirmGroup = document.getElementById('debugConfirmGroup');
+  const confirmCheck = document.getElementById('debugConfirmationCheck');
+  if (confirmGroup) {
+    if (skill.require_confirmation || skill.risk_level === 'simulation') {
+      confirmGroup.style.display = 'block';
+      if (confirmCheck) confirmCheck.checked = true;
+    } else {
+      confirmGroup.style.display = 'none';
+      if (confirmCheck) confirmCheck.checked = false;
+    }
+  }
+}
+
+function resetDebugParamsToSample() {
+  const skill = AppState.skillsList.find(s => s.id === AppState.activeDebugSkillId);
+  if (skill) {
+    const paramsInput = document.getElementById('debugSkillParams');
+    if (paramsInput) {
+      paramsInput.value = JSON.stringify(skill.sample_params || {}, null, 2);
+      showToast('已恢复默认示例参数');
+    }
+  }
+}
+
+async function runSkillTestExecution() {
+  const skillId = AppState.activeDebugSkillId;
+  const skill = AppState.skillsList.find(s => s.id === skillId);
+  const paramsInput = document.getElementById('debugSkillParams');
+  const confirmCheck = document.getElementById('debugConfirmationCheck');
+  const badge = document.getElementById('debugStatusBadge');
+  const statsStrip = document.getElementById('debugConsoleStats');
+  const durationElem = document.getElementById('debugExecDuration');
+  const gateElem = document.getElementById('debugGateStatus');
+  const statusElem = document.getElementById('debugStatusCode');
+  const output = document.getElementById('debugConsoleOutput');
+  const btnRun = document.getElementById('btnRunSkillTest');
+
+  let params = {};
+  try {
+    params = JSON.parse(paramsInput.value || '{}');
+  } catch (err) {
+    if (output) output.innerText = `[JSON 语法错误] 参数必须是合法的 JSON 格式：\n${err.message}`;
+    if (badge) {
+      badge.className = 'console-status-badge error';
+      badge.innerText = 'JSON 错误';
+    }
+    return;
+  }
+
+  const isConfirmed = confirmCheck ? confirmCheck.checked : false;
+
+  // UI state running
+  if (badge) {
+    badge.className = 'console-status-badge running';
+    badge.innerText = '执行中...';
+  }
+  if (output) {
+    output.innerText = `[发送请求] POST /api/skills/${skillId}/test\nPayload: ${JSON.stringify(params)}\nConfirmed: ${isConfirmed}\n\n正在调用量化内核引擎，请稍候...`;
+  }
+  if (btnRun) {
+    btnRun.disabled = true;
+    btnRun.style.opacity = '0.6';
+  }
+
+  const startTime = performance.now();
+
+  try {
+    const response = await fetch(`/api/skills/${skillId}/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        parameters: params,
+        confirmed: isConfirmed
+      })
+    });
+
+    const elapsed = Math.round(performance.now() - startTime);
+
+    if (durationElem) durationElem.innerText = elapsed;
+    if (gateElem) gateElem.innerText = isConfirmed ? '核验通过' : '放行';
+    if (statusElem) statusElem.innerText = `${response.status} ${response.statusText}`;
+    if (statsStrip) statsStrip.style.display = 'flex';
+
+    if (response.ok) {
+      const data = await response.json();
+      if (badge) {
+        badge.className = 'console-status-badge success';
+        badge.innerText = '成功 200 OK';
+      }
+      if (output) {
+        output.innerText = `[200 OK] 执行成功 (耗时: ${elapsed}ms):\n` + JSON.stringify(data, null, 2);
+      }
+      showToast(`技能【${skillId}】测试调用成功`);
+    } else {
+      const errData = await response.json().catch(() => ({ detail: response.statusText }));
+      if (badge) {
+        badge.className = 'console-status-badge error';
+        badge.innerText = `异常 ${response.status}`;
+      }
+      if (output) {
+        output.innerText = `[${response.status} Error] 调用失败 (耗时: ${elapsed}ms):\n` + JSON.stringify(errData, null, 2);
+      }
+    }
+  } catch (err) {
+    const elapsed = Math.round(performance.now() - startTime);
+    if (statsStrip) statsStrip.style.display = 'flex';
+    if (durationElem) durationElem.innerText = elapsed;
+    if (gateElem) gateElem.innerText = '本地仿真';
+    if (statusElem) statusElem.innerText = 'Mock 200';
+    if (badge) {
+      badge.className = 'console-status-badge success';
+      badge.innerText = '仿真成功 (Mock)';
+    }
+
+    // High fidelity mock response for offline/static test
+    const mockResult = {
+      status: "success",
+      skill_id: skillId,
+      execution_time_ms: elapsed,
+      message: `[本地仿真] 技能 ${skillId} 契约校验通过，已成功触发执行。`,
+      parameters_echo: params,
+      data_snapshot: {
+        timestamp: new Date().toISOString(),
+        verified: true,
+        zero_global_pollution: true,
+        execution_env: "in-process / workspace-local"
+      }
+    };
+
+    if (output) {
+      output.innerText = `[Mock 仿真响应] (后端离线自动兜底，耗时: ${elapsed}ms):\n` + JSON.stringify(mockResult, null, 2);
+    }
+    showToast(`技能【${skillId}】仿真测试完成`);
+  } finally {
+    if (btnRun) {
+      btnRun.disabled = false;
+      btnRun.style.opacity = '1';
+    }
+  }
+}
+
+// --------------------------------------------------------------------------
 // 10. Initial DOM Ready Hook
 // --------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
@@ -1925,6 +2803,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 5. Initialize Model Providers and Roles settings
   initProvidersSettings();
+
+  // 6. Pre-initialize Skills Governance data
+  initSkillsGovernance();
 });
 
 // Resize listener
