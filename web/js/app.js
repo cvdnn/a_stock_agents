@@ -865,6 +865,87 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam) {
   }, 500);
 }
 
+// --------------------------------------------------------------------------
+// 7.1 Agent2UI (A2UI) Task Pipeline Execution
+// --------------------------------------------------------------------------
+function executeA2UITask(promptText = '分析市场行情') {
+  AppState.isChatStreaming = true;
+  const taskId = 'a2ui_' + Date.now();
+
+  const isStock = promptText.includes('宁德') || promptText.includes('中芯') || promptText.includes('海光');
+  const stockName = isStock ? '宁德时代 (300750)' : 'A股市场大盘全景';
+  const title = `${stockName} 深度量化研报`;
+
+  // Stage 0: 骨架屏预占位 (约50ms, 零CLS)
+  const layoutMeta = {
+    title: title,
+    icon: isStock ? '⚡' : '📊',
+    workbench_tab: {
+      tab_id: 'tab_' + taskId,
+      tab_title: isStock ? '🛡️ 宁德时代研报' : '📊 市场行情全景',
+      closable: true
+    }
+  };
+
+  const skeletonTree = [
+    { slot_id: 'radar', component: 'MarketRadar', height: 52 },
+    { slot_id: 'candle', component: 'CandleMatrix', height: 260 },
+    { slot_id: 'risk', component: 'RiskBreakevenCalc', height: 110 }
+  ];
+
+  UIEngine.mountSkeleton(taskId, 'both_linked', layoutMeta, skeletonTree);
+
+  // Stage 1: 快数据水合 (180ms)
+  setTimeout(() => {
+    UIEngine.hydrateFast(taskId, 'radar', {
+      indices: [
+        { name: '上证指数', price: 3426.56, change_pct: 0.72 },
+        { name: '深证成指', price: 10892.14, change_pct: 1.08 },
+        { name: '创业板指', price: 2289.76, change_pct: 1.31 }
+      ],
+      sentiment: { score: 78, text: '78分 贪婪 / 亢温' },
+      total_volume: '1.28万亿元'
+    });
+  }, 180);
+
+  // Stage 2: 打字机流式输出文本 (350ms - 850ms)
+  const reportNarrative = `【A2UI 渐进式研报】基于多因子量化模型与盘面数据深度研判：今日两市成交突破 1.28 万亿，科技成长主线共振领涨。均线呈多头排列，零轴下方二次金叉验底形态确认。实战交易严格执行保本价进位与三级止损阶梯防守。`;
+  let idx = 0;
+  setTimeout(() => {
+    const timer = setInterval(() => {
+      if (idx < reportNarrative.length) {
+        UIEngine.streamTextDelta(taskId, reportNarrative.slice(idx, idx + 4));
+        idx += 4;
+      } else {
+        clearInterval(timer);
+      }
+    }, 15);
+  }, 350);
+
+  // Stage 3: 重型图表水合 (1000ms)
+  setTimeout(() => {
+    UIEngine.hydrateHeavy(taskId, 'radar');
+    UIEngine.hydrateHeavy(taskId, 'candle', {
+      benchmark: isStock ? '宁德时代 (300750)' : '上证指数 (000001)'
+    });
+  }, 1000);
+
+  // Stage 4: 实战动作单与保本算价器水合 (1250ms)
+  setTimeout(() => {
+    const cost = isStock ? 320.0 : 3400.0;
+    const shares = 1000;
+    UIEngine.hydrateFast(taskId, 'risk', { cost, shares });
+    UIEngine.hydrateHeavy(taskId, 'risk', { cost, shares });
+
+    UIEngine.hydrateActionSheet(taskId, [
+      { type: 'project', label: '⛶ 放大投射到工作台', target_tab: 'tab_' + taskId },
+      { type: 'prompt', label: '💬 追问主力资金流向', secondary: true, prompt: `请深度拆解【${stockName}】的主力超大单净流入与筹码集中度分布。` }
+    ]);
+
+    AppState.isChatStreaming = false;
+  }, 1250);
+}
+
 function handleSendChat() {
   if (AppState.isChatStreaming) return;
 
@@ -874,6 +955,16 @@ function handleSendChat() {
 
   appendChatMessage('user', text);
   input.value = '';
+
+  // Route to A2UI Engine if recognized
+  if (typeof UIEngine !== 'undefined' && (
+      text.includes('行情') || text.includes('大盘') || text.includes('分析') ||
+      text.includes('市场') || text.includes('诊断') || text.includes('5A') ||
+      text.includes('选股') || text.includes('宁德') || text.includes('指标')
+  )) {
+    executeA2UITask(text);
+    return;
+  }
 
   let tpl = PromptTemplates['行情分析'];
   if (text.includes('指标') || text.includes('技术') || text.includes('金叉')) {
@@ -979,9 +1070,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.prompt-pill').forEach(pill => {
     pill.addEventListener('click', () => {
       const key = pill.innerText.replace(/\[|\]/g, '').trim();
-      const content = PromptTemplates[key] || PromptTemplates['行情分析'];
       appendChatMessage('user', `请帮我执行【${key}】并出具研报`);
-      streamAIResponse(content, `${key} 深度诊断`);
+      if (typeof UIEngine !== 'undefined') {
+        executeA2UITask(key);
+      } else {
+        const content = PromptTemplates[key] || PromptTemplates['行情分析'];
+        streamAIResponse(content, `${key} 深度诊断`);
+      }
     });
   });
 

@@ -324,3 +324,4 @@
 | **针对中右提问与参数修改** | `web/index.html`<br>`web/js/app.js` | `askAboutRightContent`, `askStockPrompt`, `applyRightParamForm` |
 | **保本价进位与滑块试算器** | `web/index.html`<br>`web/js/app.js` | `updateProjectedCalculator`, `#resBreakeven`, `math.ceil` |
 | **收益分析与 Canvas 图表** | `web/index.html`<br>`web/js/charts.js` | `drawEquityCurve`, `drawMonthlyPnLChart`, `.returns-overview-grid` |
+| **Agent2UI 动态驱动与组件库** | `docs/specs/agent2ui-framework-specification.md`<br>`web/js/app.js` | `UIEngine`, `SkeletonOrchestrator`, `ProgressiveHydrator`, `@a2ui/pack-astock` |

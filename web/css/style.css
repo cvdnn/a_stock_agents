@@ -3161,3 +3161,264 @@ input:checked + .slider:before {
   border-radius: 3px;
   font-weight: 600;
 }
+
+/* ==========================================================================
+   Agent2UI (A2UI) Engine - Skeleton Screen & Progressive Hydration Styles
+   ========================================================================== */
+
+/* 1. Shimmer Pulse Animation */
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #F0F2F5 25%, #E4E7ED 37%, #F0F2F5 63%);
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.4s ease infinite;
+  border-radius: 6px;
+}
+
+.a2ui-skeleton-slot {
+  width: 100%;
+  margin-bottom: 12px;
+  transition: all 0.25s ease;
+}
+
+/* Domain Specific Skeletons */
+.radar-skeleton.compact {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  height: 52px;
+}
+
+.radar-skeleton.expanded {
+  height: 120px;
+}
+
+.candle-skeleton.compact {
+  height: 60px;
+}
+
+.candle-skeleton.expanded {
+  height: 280px;
+}
+
+.risk-skeleton.compact {
+  height: 80px;
+}
+
+.risk-skeleton.expanded {
+  height: 140px;
+}
+
+/* 2. A2UI Card in AIChat Message Stream */
+.a2ui-card {
+  margin-top: 10px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.25s ease;
+}
+
+.a2ui-card:hover {
+  border-color: #ADC6FF;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.08);
+}
+
+.a2ui-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #F0F4F8;
+}
+
+.a2ui-card-title-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.a2ui-card-icon {
+  font-size: 16px;
+}
+
+.a2ui-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1D2129;
+}
+
+.a2ui-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #E8F3FF;
+  color: #1677FF;
+  border: 1px solid #ADC6FF;
+  font-weight: 600;
+}
+
+.a2ui-stage-badge.done {
+  background: #F6FFED;
+  color: #52C41A;
+  border-color: #B7EB8F;
+}
+
+.a2ui-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #EBF0F5;
+}
+
+/* 3. A2UI Domain Components - Stock Research Pack */
+/* MarketRadar Component */
+.radar-compact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.radar-chip {
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.radar-chip.up {
+  background: #FFF1F0;
+  border-color: #FFA39E;
+  color: #F5222D;
+}
+
+.radar-chip.down {
+  background: #F6FFED;
+  border-color: #B7EB8F;
+  color: #52C41A;
+}
+
+.chip-name {
+  font-size: 11px;
+  color: #4E5969;
+  font-weight: 600;
+}
+
+.chip-price {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.chip-pct {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.radar-expanded-dashboard {
+  background: #FFFFFF;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 14px;
+  border: 1px solid #EBF0F5;
+}
+
+.radar-expanded-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.radar-expanded-header h4 {
+  font-size: 14px;
+  color: #1D2129;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sparkline-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.sparkline-item {
+  background: #F8FAFD;
+  border: 1px solid #DFE6EF;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.sparkline-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+/* CandleMatrix Component */
+.candle-expanded-card {
+  background: #FFFFFF;
+  border: 1px solid #EBF0F5;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+/* Calculator & Action Sheet Component */
+.calc-expanded-card {
+  background: #F8FAFD;
+  border: 1px solid #DFE6EF;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.calc-slider-group {
+  margin: 12px 0;
+}
+
+.calc-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.calc-slider-row input[type="range"] {
+  flex: 1;
+}
+
+.calc-result-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: #FFFFFF;
+  border: 1px solid #ADC6FF;
+  border-radius: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.calc-result-preview strong {
+  font-size: 16px;
+  color: #F5222D;
+}
+
