@@ -9,6 +9,7 @@
 const AStockMarketRadar = {
   name: 'MarketRadar',
   category: 'astock',
+  description: '核心大盘指数走势与资金情绪全景雷达',
 
   renderSkeleton(mode) {
     if (mode === 'compact') {
@@ -102,6 +103,7 @@ const AStockMarketRadar = {
 const AStockCandleMatrix = {
   name: 'CandleMatrix',
   category: 'astock',
+  description: '28日日K线蜡烛图与成交量能矩阵',
 
   renderSkeleton(mode) {
     if (mode === 'compact') {
@@ -160,6 +162,7 @@ const AStockCandleMatrix = {
 const AStockRiskBreakevenCalc = {
   name: 'RiskBreakevenCalc',
   category: 'astock',
+  description: '实战交易三原则合规保本价进位与动态滑块试算器',
 
   calculateBreakeven(cost, shares) {
     // AGENTS.md 铁律：印花税0.05%、佣金万2.5最低5元、过户费双向0.002%
@@ -283,10 +286,31 @@ const AStockRiskBreakevenCalc = {
 };
 
 // --------------------------------------------------------------------------
-// 4. Auto-register all domain components into UIEngine
+// 4. Domain Pack Definition & Registration
 // --------------------------------------------------------------------------
-if (typeof UIEngine !== 'undefined') {
-  UIEngine.registerComponent('MarketRadar', AStockMarketRadar);
-  UIEngine.registerComponent('CandleMatrix', AStockCandleMatrix);
-  UIEngine.registerComponent('RiskBreakevenCalc', AStockRiskBreakevenCalc);
+const AStockPack = {
+  namespace: 'astock',
+  title: 'A股量化投研组件包',
+  version: '1.0.0',
+  description: '包含大盘全景雷达、K线量价矩阵与保本进位试算器，严格执行 AGENTS.md 规范',
+  components: {
+    MarketRadar: AStockMarketRadar,
+    CandleMatrix: AStockCandleMatrix,
+    RiskBreakevenCalc: AStockRiskBreakevenCalc
+  }
+};
+
+// Universal safe registration: supports out-of-order & asynchronous loading
+if (typeof defineA2UIPack === 'function') {
+  defineA2UIPack(AStockPack);
+} else if (typeof UIEngine !== 'undefined' && typeof UIEngine.registerPack === 'function') {
+  UIEngine.registerPack(AStockPack);
+} else {
+  window.__A2UI_PENDING_PACKS__ = window.__A2UI_PENDING_PACKS__ || [];
+  window.__A2UI_PENDING_PACKS__.push(AStockPack);
 }
+
+// Global exports for backwards-compatibility & direct access
+window.AStockMarketRadar = AStockMarketRadar;
+window.AStockCandleMatrix = AStockCandleMatrix;
+window.AStockRiskBreakevenCalc = AStockRiskBreakevenCalc;

@@ -303,5 +303,6 @@ export interface A2UIComponent<TProps = any> {
 | **A2UI Core Engine** | `web/js/app.js` (`UIEngine`) | 流式解调、骨架编排调度器、Tab 路由器、动作总线 |
 | **金融图表渲染底座** | `web/js/charts.js` (`FinancialCharts`) | Canvas K线蜡烛图、火花线、情绪温度计、净值曲线 |
 | **组件库规范与契约** | `docs/specs/agent2ui-framework-specification.md` | 本文档，作为通用 A2UI 框架与股票投研示范库标准基准 |
+| **组件注册与发现机制** | `docs/specs/a2ui-component-registry-specification.md` | 模块化子目录规范、时序解耦缓冲池、双重寻址与约定式动态发现 |
 | **交互与视觉规范** | `docs/specs/ui-design-specification.md` | 浅色金融商务风格、双向独立滚动、从左到右弹出动画规范 |
 | **风控计算契约** | `AGENTS.md` | 保本卖出价 `math.ceil` 进位算法、三级风控阶梯、三场景动作单 |
