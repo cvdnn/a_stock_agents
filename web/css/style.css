@@ -726,7 +726,7 @@ h1, h2, h3, h4 {
 /* Highlight "一句总结线" Card */
 .summary-highlight-card {
   background: #F0F6FF;
-  border-left: 3px solid var(--primary);
+  border: 1px solid #D6E4FF;
   border-radius: 4px;
   padding: 8px 12px;
   margin: 10px 0;
@@ -1690,7 +1690,6 @@ input:checked + .slider:before {
 
 .watchlist-item-card.active {
   background: #EFF6FF;
-  border-left: 3px solid var(--primary);
 }
 
 /* Stock Main Detail Center Column */
@@ -1912,7 +1911,6 @@ input:checked + .slider:before {
 .toast {
   background: #FFFFFF;
   border: 1px solid var(--border-card);
-  border-left: 4px solid var(--primary);
   box-shadow: var(--shadow-float);
   border-radius: 6px;
   padding: 10px 14px;
@@ -3529,7 +3527,7 @@ input:checked + .slider:before {
   background: #F8FAFD;
   padding: 10px 14px;
   border-radius: 6px;
-  border-left: 3px solid #1677FF;
+  border: 1px solid #EBF1F8;
   margin-bottom: 14px;
 }
 
@@ -3974,7 +3972,6 @@ input:checked + .slider:before {
   justify-content: space-between;
   background: #FFFFFF;
   border: 1px solid #EBF0F5;
-  border-left: 3px solid #1677FF;
   border-radius: 4px;
   padding: 8px 12px;
   font-size: 11.5px;
@@ -3985,10 +3982,6 @@ input:checked + .slider:before {
   background: #F8FAFD;
   border-color: #ADC6FF;
 }
-
-.monitor-stream-item.stream-buy { border-left-color: #F5222D; }
-.monitor-stream-item.stream-main { border-left-color: #FA8C16; }
-.monitor-stream-item.stream-risk { border-left-color: #722ED1; }
 
 .monitor-stream-left {
   display: flex;

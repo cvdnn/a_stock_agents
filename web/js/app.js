@@ -2812,3 +2812,16 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('resize', () => {
   renderTabCharts(AppState.activeRightTab);
 });
+
+// Watchlist Stock Selector
+function selectWatchStock(code) {
+  AppState.selectedStock = code;
+  document.querySelectorAll('.watchlist-item-card').forEach(card => {
+    if (card.dataset.code === code) {
+      card.classList.add('active');
+    } else {
+      card.classList.remove('active');
+    }
+  });
+}
+window.selectWatchStock = selectWatchStock;
