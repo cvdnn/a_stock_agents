@@ -35,7 +35,7 @@
 | **指标库零依赖与筹码模型验证** | `scripts/core/indicators/` | ✅ 100% | 纯 Python 零编译指标库，换手率沉淀筹码模型测试通过 | 2026-09-03 |
 | **5A 共振选股与多因子流水线** | `scripts/core/models/five_dim_model.py` | ✅ 100% | 动量、估值、质量、量价、轮动五维打分与滚动 IC 验证 | 2026-09-03 |
 | **Almgren-Chriss 平方根冲击撮合** | `scripts/core/paper_trading/engine.py` | ✅ 100% | 模拟撮合滑点严格遵循市场冲击理论与 T+1 硬约束 | 2026-09-04 |
-| **自动化测试回归基线** | `tests/test_models.py`, `test_indicators.py` | ✅ 100% | 算法各层级单元测试与回测验证 100% 绿灯通过 | 2026-09-07 |
+| **自动化测试回归基线** | `tests/test_models_suite.py`, `tests/test_indicators.py`, `tests/test_quality_gates.py` | ✅ 100% | 算法各层级单元测试与回测验证 100% 绿灯通过 | 2026-09-07 |
 
 ---
 
@@ -52,7 +52,7 @@ timeline
       5A 共振模型与撮合引擎落地 : 2026-09-04
     section M3 交付与治理
       治理指南抽取至 guidelines : 2026-09-08
-      实施看板交付基线 : 2026-09-08
+      实施基线交付验收 : 2026-09-08
 ```
 
 ---
@@ -66,7 +66,7 @@ timeline
    ```
 2. **算法回归测试执行**：
    ```powershell
-   python -m pytest tests/test_models.py tests/test_indicators.py
+   python -m pytest tests/test_models_suite.py tests/test_indicators.py tests/test_quality_gates.py
    # 结果：100% 通过
    ```
 
@@ -74,5 +74,6 @@ timeline
 
 ## 五、 执行变更日志 (Execution Changelog)
 
+- **2026-09-08 (v1.3)**：校准实施任务映射测试套件路径至 `tests/test_models_suite.py` 与 ALCM 质量门禁测试套件。
 - **2026-09-08 (v1.2)**：按规范治理要求重构，将算法审查与治理指南抽离至 `docs/guidelines/algorithm-governance.md`，本文件重塑为实施看板。
 - **2026-09-02 (v1.0)**：完成全量 44 项算法审查与 ALCM 治理框架方案。

@@ -31,7 +31,7 @@
 | 实施任务项 | 代码映射路径 | 实施状态 | 验收说明与测试基准 | 交付日期 |
 |:---|:---|:---:|:---|:---:|
 | **保本价精算核心算法实现** | `scripts/core/strategy/execution_action_engine.py` | ✅ 100% | 实现 `calc_min_breakeven_price`，向上精确进位至分位 | 2026-09-02 |
-| **黄金测试用例基准验证** | `tests/test_execution_action_engine.py` | ✅ 100% | 验证中国中车(6.1411->6.15)、紫金矿业、恒瑞医药等 5 组实盘案例 | 2026-09-02 |
+| **黄金测试用例基准验证** | `tests/test_strategy_suite.py` | ✅ 100% | 验证中国中车(6.1411->6.15)、紫金矿业、恒瑞医药等 5 组实盘案例 | 2026-09-02 |
 | **实战动作单 CLI 命令接入** | `scripts/core/cli.py` (`astock action plan`) | ✅ 100% | 输入成本与股数，直接输出带向上进位说明的实操保本卖出价 | 2026-09-02 |
 | **HTML 交互研报 10 列持仓表** | `scripts/core/reporting/html_reporter.py` | ✅ 100% | 持仓明细表第 4 列强制展示「最低保本卖出价」 | 2026-09-03 |
 | **前端 A2UI 紧凑卡片组件** | `web/js/components/astock.js` | ✅ 100% | 前端卡片直观显示保本价，去除冗余进位文本，保持紧凑 | 2026-09-07 |
@@ -63,7 +63,7 @@ timeline
    - 中国中车（5,000股，成本 ¥6.1411）：理论未进位 ¥6.1463 $\longrightarrow$ **输出 ¥6.15**，挂单卖出产生净利润 +¥18.51，零亏损。
 2. **回归自动化测试执行**：
    ```powershell
-   python -m pytest tests/test_execution_action_engine.py
+   python -m pytest tests/test_strategy_suite.py
    # 结果：100% 通过
    ```
 
@@ -71,6 +71,7 @@ timeline
 
 ## 五、 执行变更日志 (Execution Changelog)
 
+- **2026-09-08 (v1.4)**：校准实施任务映射测试套件路径至 `tests/test_strategy_suite.py`。
 - **2026-09-08 (v1.3)**：按规范治理要求重构，将业务算法规则抽离至 `docs/guidelines/breakeven-calculation-rules.md`，本文件重塑为实施看板。
 - **2026-09-07 (v1.2)**：前端组件卡片优化，精简进位文本展示。
 - **2026-09-02 (v1.0)**：初始创建，实现全摩擦成本向上进位算法与测试套件。

@@ -67,7 +67,7 @@ timeline
    ```
 2. **自动化测试执行**：
    ```powershell
-   python -m pytest tests/test_execution_action_engine.py
+   python -m pytest tests/test_strategy_suite.py
    # 结果：100% 通过
    ```
 
@@ -75,6 +75,7 @@ timeline
 
 ## 五、 执行变更日志 (Execution Changelog)
 
+- **2026-09-08 (v1.4)**：校准验收测试命令至重构后的领域标准测试套件 `tests/test_strategy_suite.py`。
 - **2026-09-08 (v1.3)**：按规范治理要求重构，将实战交易规则与操作定义抽离至 `docs/guidelines/trading-execution-rules.md`，本文件重塑为实施看板。
 - **2026-09-07 (v1.2)**：优化 Web 前端三原则快捷操作展示为紧凑卡片。
 - **2026-09-01 (v1.0)**：初始创建，确立交易三原则与六大反应动作基线。

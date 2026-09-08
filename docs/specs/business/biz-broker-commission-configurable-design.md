@@ -33,9 +33,9 @@
 | **全局配置项与结构化解析** | `config/config.yaml`, `scripts/core/config.py` | ✅ 100% | 支持 `get_market_config()` 与 `save_market_config()`，单元测试覆盖 | 2026-09-02 |
 | **保本精算引擎移除硬编码** | `scripts/core/strategy/execution_action_engine.py` | ✅ 100% | 动态接入全局配置，正确处理最低 5 元门槛 | 2026-09-02 |
 | **风控与解套做T接入** | `scripts/core/strategy/risk_position_manager.py` | ✅ 100% | 读取全局费率计算做 T 收益与保本位 | 2026-09-02 |
-| **模拟撮合与事件回测接入** | `scripts/core/paper_trading/engine.py`, `a_stocks_backtest.py` | ✅ 100% | 撮合手续费计入单笔最低 5 元保底与动态佣金率 | 2026-09-02 |
+| **模拟撮合与事件回测接入** | `scripts/core/paper_trading/engine.py`, `scripts/core/commands/cmd_backtest.py` | ✅ 100% | 撮合手续费计入单笔最低 5 元保底与动态佣金率 | 2026-09-02 |
 | **CLI 费率管理子命令** | `scripts/core/cli.py` (`astock config market`) | ✅ 100% | 支持命令行直接修改与交互式向导配置 | 2026-09-02 |
-| **单元测试套件覆盖** | `tests/test_config.py` | ✅ 100% | 针对读写持久化、边界回退与免五场景全部测试通过 | 2026-09-02 |
+| **单元测试套件覆盖** | `tests/test_strategy_suite.py`, `tests/test_data_suite.py` | ✅ 100% | 针对读写持久化、边界回退与免五场景全部测试通过 | 2026-09-02 |
 
 ---
 
@@ -66,7 +66,7 @@ timeline
    ```
 2. **单元测试回归验证**：
    ```powershell
-   python -m pytest tests/test_config.py
+   python -m pytest tests/test_strategy_suite.py
    # 结果：100% 通过
    ```
 
@@ -74,5 +74,6 @@ timeline
 
 ## 五、 执行变更日志 (Execution Changelog)
 
+- **2026-09-08 (v1.3)**：校准实施任务映射代码与测试路径至 `scripts/core/commands/cmd_backtest.py` 与 `tests/test_strategy_suite.py`。
 - **2026-09-08 (v1.2)**：按规范治理要求重构，将业务规则定义抽离至 `docs/guidelines/broker-commission-rules.md`，本文件重塑为实施看板。
 - **2026-09-02 (v1.0)**：初始创建，完成全库券商费率配置化重构。

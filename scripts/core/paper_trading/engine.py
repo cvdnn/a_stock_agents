@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import math
 import sqlite3
 import threading
@@ -11,7 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, time as time_type
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Iterator
 
 import pandas as pd
 
@@ -199,10 +200,19 @@ class PaperTradingEngine:
         self._lock = threading.RLock()
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(self.db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
+
+    def close(self) -> None:
+        """Explicitly release resources if needed."""
+        pass
 
     def _init_db(self) -> None:
         with self._connect() as conn:
