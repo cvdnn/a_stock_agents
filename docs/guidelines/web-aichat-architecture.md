@@ -30,6 +30,7 @@ flowchart TB
         UI_Gov["Skill 独立治理中心 (顶部菜单栏常驻)\n(17项技能看板 / 动态启停开关 / Schema 参数调试终端 / 审计监控 / 热重载)"]
         UI_Report["交互式研报预览中心\n(K线缩放联动 / 5A雷达图 / 实时筹码 / 保本操作单)"]
         UI_Pool["股票池与交易看板\n(自选·关注·持仓拖拽管理 / 模拟盘委托)"]
+        UI_AtOp["@操作符数据注册中心 (AtOperatorRegistry)\n(三大股池标的 / 引用·技能·算法条目 / 输入层操作符检索与回填)"]
     end
 
     subgraph ServerGateway["服务网关与运行时 (FastAPI Backend)"]
