@@ -115,10 +115,14 @@ a_stock_agents/
 │   │   ├── monitor/         # 盘中守护与交易日历门控
 │   │   └── reporting/       # 交互式单文件 HTML 研报渲染器
 │   ├── server/              # FastAPI 服务网关与 Web 交互中枢
-│   │   ├── app.py           # 统一应用入口
-│   │   ├── agent_runner.py  # 原生轻量 ReAct Agent 运行时
-│   │   ├── sse_manager.py   # SSE 打字机流式广播管理器
-│   │   └── api/             # 领域 RESTful 路由集合
+│   │   ├── app.py           # 统一应用入口与 FastAPI 装配
+│   │   ├── run.py           # 服务启动入口
+│   │   ├── db.py            # SQLite 会话与配置持久化
+│   │   ├── models.py        # 共享数据契约模型
+│   │   ├── agent/           # 原生 ReAct 智能体运行时 (react_runner, tools, events)
+│   │   ├── api/             # 领域 RESTful 与 SSE 路由 (chat, models_mgmt, skills)
+│   │   ├── llm/             # 大模型服务商适配与工厂 (factory, providers)
+│   │   └── tasks/           # 异步任务与定时调度中枢
 │   └── tools/               # 辅助工程与运维脚本
 ├── web/                     # 现代金融浅色风格 Web 投研前端
 │   ├── index.html           # 现代单页 WebApp 主视图

@@ -31,10 +31,10 @@
 | 架构实施任务 | 负责模块 / 代码映射路径 | 实施状态 | 验收说明与测试基准 | 交付日期 |
 |:---|:---|:---:|:---|:---:|
 | **FastAPI 异步服务网关** | `scripts/server/app.py`, `scripts/server/api/` | ✅ 100% | 支持 REST API 路由装载与跨域配置，高并发异步调度就绪 | 2026-09-06 |
-| **原生 ReAct 智能体运行时** | `scripts/server/agent_runner.py` | ✅ 100% | 实现 COT 推理、工具选择、结果反写思考环路 | 2026-09-06 |
-| **SSE 流式广播管理器** | `scripts/server/sse_manager.py` | ✅ 100% | 验证 `thought`, `tool_call`, `text`, `a2ui_render` 事件帧顺序流式推送 | 2026-09-06 |
+| **原生 ReAct 智能体运行时** | `scripts/server/agent/react_runner.py` | ✅ 100% | 实现 COT 推理、工具选择、结果反写思考环路 | 2026-09-06 |
+| **SSE 流式广播管理器** | `scripts/server/api/chat.py`, `scripts/server/agent/events.py` | ✅ 100% | 验证 `thought`, `tool_call`, `text`, `a2ui_render` 事件帧顺序流式推送 | 2026-09-06 |
 | **17项技能治理中心前端化** | `web/index.html`, `web/js/app.js`, `web/css/style.css` | ✅ 100% | 顶栏菜单常驻「🛡️ 技能治理」，包含状态矩阵、参数调试、启停切换与热重载 | 2026-09-07 |
-| **会话历史与持久化存储** | `scripts/server/database.py`, `chats.db` | ✅ 100% | SQLite 数据库存储多轮对话记录，前端左侧会话历史列表倒序加载 | 2026-09-07 |
+| **会话历史与持久化存储** | `scripts/server/db.py`, `chats.db` | ✅ 100% | SQLite 数据库存储多轮对话记录，前端左侧会话历史列表倒序加载 | 2026-09-07 |
 
 ---
 
@@ -67,6 +67,7 @@ timeline
 
 ## 五、 执行变更日志 (Execution Changelog)
 
+- **2026-09-08 (v1.5)**：审查校准：校正代码映射路径至实际工程文件（`agent/react_runner.py`、`api/chat.py`、`db.py`）。
 - **2026-09-08 (v1.4)**：按规范治理要求重构，将系统架构定义抽离至 `docs/guidelines/web-aichat-architecture.md`，本文件重塑为实施与任务执行跟踪看板。
 - **2026-09-07 (v1.3)**：完成技能治理中心自工具箱迁移至菜单栏顶部的全套前端与后端通信落地。
 - **2026-09-05 (v1.0)**：初始创建，规划独立 Web AIChat 与技能治理系统架构。

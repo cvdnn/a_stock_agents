@@ -25,7 +25,7 @@
 |:---:|:---|:---|:---|:---:|:---|
 | `SPEC-ARCH-001`| 独立 Web AIChatUI 与 Skill 治理系统架构 | [`architecture/arch-web-aichat-and-skill-governance.md`](architecture/arch-web-aichat-and-skill-governance.md) | [`web-aichat-architecture.md`](../guidelines/web-aichat-architecture.md) | ✅ 100% 基线 | FastAPI 服务网关、原生 ReAct 智能体运行时、SSE 流式打字机通信与 17 项技能治理中心 |
 | `SPEC-ARCH-002`| 大模型双轨接入与多业务场景角色分配架构 | [`architecture/arch-llm-provider-and-role-allocation.md`](architecture/arch-llm-provider-and-role-allocation.md) | [`llm-provider-architecture.md`](../guidelines/llm-provider-architecture.md) | ✅ 100% 基线 | Providers 管理与 Roles 业务角色双轨解耦、网络延迟探测、防 CORS 发现代理与 SQLite 持久化 |
-| `SPEC-ARCH-003`| Token 链路安全网关与本地化审计 Agent 架构 | [`architecture/arch-token-security-gateway.md`](architecture/arch-token-security-gateway.md) | [`token-security-architecture.md`](../guidelines/token-security-architecture.md) | 🔄 原型验证 | 控制平面与执行平面物理分离、上行脱敏、下行过滤、只存 SHA-256 指纹的不可篡改审计日志 |
+| `SPEC-ARCH-003`| Token 链路安全网关与本地化审计 Agent 架构 | [`architecture/arch-token-security-gateway.md`](architecture/arch-token-security-gateway.md) | [`token-security-architecture.md`](../guidelines/token-security-architecture.md) | 📋 规划中 (RFC) | 控制平面与执行平面物理分离、上行脱敏、下行过滤、只存 SHA-256 指纹的不可篡改审计日志 |
 
 ### 4. A2UI 框架设计 (`a2ui/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |

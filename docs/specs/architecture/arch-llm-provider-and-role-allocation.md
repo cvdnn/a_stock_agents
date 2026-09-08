@@ -30,11 +30,11 @@
 
 | 实施任务项 | 代码映射路径 | 实施状态 | 验收说明与测试基准 | 交付日期 |
 |:---|:---|:---:|:---|:---:|
-| **Providers 数据表与持久化** | `scripts/server/database.py`, `chats.db` | ✅ 100% | SQLite 维护 `llm_providers` 与 `llm_model_roles` 表结构 | 2026-09-07 |
-| **提供商 CRUD 与防 CORS 代理** | `scripts/server/api/models.py` | ✅ 100% | 实现 `/providers`, `/test-connection`, `/fetch-remote` 接口 | 2026-09-07 |
-| **五大场景角色绑定接口** | `scripts/server/api/models.py` | ✅ 100% | 实现 `/roles` 读取与更新，支持热切换 | 2026-09-07 |
+| **Providers 数据表与持久化** | `scripts/server/db.py`, `chats.db` | ✅ 100% | SQLite 维护 `llm_providers` 与 `llm_model_roles` 表结构 | 2026-09-07 |
+| **提供商 CRUD 与防 CORS 代理** | `scripts/server/api/models_mgmt.py` | ✅ 100% | 实现 `/providers`, `/test-connection`, `/fetch-remote` 接口 | 2026-09-07 |
+| **五大场景角色绑定接口** | `scripts/server/api/models_mgmt.py` | ✅ 100% | 实现 `/roles` 读取与更新，支持热切换 | 2026-09-07 |
 | **系统设置中心前端双栏** | `web/index.html`, `web/js/app.js` | ✅ 100% | 包含【模型接入】与【模型分配】两大独立配置面板与连通性测试按钮 | 2026-09-07 |
-| **运行时多模型解析工厂** | `scripts/server/models.py` | ✅ 100% | 智能体在 `quant`, `debate` 等场景调用时自动路由到分配的专属模型 | 2026-09-07 |
+| **运行时多模型解析工厂** | `scripts/server/llm/factory.py`, `scripts/server/models.py` | ✅ 100% | 智能体在 `quant`, `debate` 等场景调用时自动路由到分配的专属模型 | 2026-09-07 |
 
 ---
 
@@ -67,5 +67,6 @@ timeline
 
 ## 五、 执行变更日志 (Execution Changelog)
 
+- **2026-09-08 (v1.3)**：审查校准：校正代码映射路径至实际工程文件（`db.py`、`api/models_mgmt.py`、`llm/factory.py`）。
 - **2026-09-08 (v1.2)**：按规范治理要求重构，将技术设计定义抽离至 `docs/guidelines/llm-provider-architecture.md`，本文件重塑为实施看板。
 - **2026-09-07 (v1.0)**：初始创建，确立大模型双轨制接入与角色分配设计基线。
