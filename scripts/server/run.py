@@ -33,7 +33,7 @@ from server.port_utils import find_free_port, remove_server_lockfile, write_serv
 def main():
     parser = argparse.ArgumentParser(description="Start A-Stock Agents Web API Server")
     parser.add_argument("--host", type=str, default=server_settings.host, help="Host to bind (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=server_settings.port, help="Port to bind (default: 8000; use 0 for ephemeral auto-hunt)")
+    parser.add_argument("--port", type=int, default=server_settings.port, help="Port to bind (default: 6300; use 0 for ephemeral auto-hunt)")
     parser.add_argument("--reload", action="store_true", default=server_settings.reload, help="Enable auto-reload")
     args = parser.parse_args()
 

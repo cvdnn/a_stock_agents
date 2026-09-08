@@ -331,10 +331,10 @@ def build_parser() -> argparse.ArgumentParser:
     srv_sub = p_srv.add_subparsers(dest="server_cmd")
     p_srv_start = srv_sub.add_parser("start", help="启动 Web 后端服务", parents=[common_parser])
     p_srv_start.add_argument("--host", default="127.0.0.1", help="监听地址 (默认 127.0.0.1)")
-    p_srv_start.add_argument("--port", type=int, default=8000, help="监听端口 (默认 8000)")
+    p_srv_start.add_argument("--port", type=int, default=6300, help="监听端口 (默认 6300)")
     p_srv_start.add_argument("--reload", action="store_true", help="热重载模式")
     p_srv_status = srv_sub.add_parser("status", help="检查服务运行状态", parents=[common_parser])
-    p_srv_status.add_argument("--url", default="http://127.0.0.1:8000", help="服务基础地址")
+    p_srv_status.add_argument("--url", default="http://127.0.0.1:6300", help="服务基础地址")
     srv_sub.add_parser("preview", help="在默认浏览器中打开 Web UI 预览", parents=[common_parser])
 
     # ui
@@ -510,7 +510,7 @@ def main():
         if server_cmd == "start":
             import uvicorn
             host = getattr(args, "host", "127.0.0.1")
-            port = getattr(args, "port", 8000)
+            port = getattr(args, "port", 6300)
             reload = getattr(args, "reload", False)
             if getattr(args, "json", False):
                 print(json.dumps({"status": "starting", "host": host, "port": port}, ensure_ascii=False))
@@ -519,7 +519,7 @@ def main():
             uvicorn.run("server.app:app", host=host, port=port, reload=reload, log_level="info")
         elif server_cmd == "status":
             import requests
-            base_url = getattr(args, "url", "http://127.0.0.1:8000").rstrip("/")
+            base_url = getattr(args, "url", "http://127.0.0.1:6300").rstrip("/")
             try:
                 r = requests.get(f"{base_url}/api/health", timeout=3)
                 data = r.json()

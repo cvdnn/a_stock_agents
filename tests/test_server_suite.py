@@ -224,9 +224,13 @@ class TestFastAPIRoutes:
         with TestClient(app) as client:
             r1 = client.get("/")
             assert r1.status_code == 200
-            data1 = r1.json()
-            assert data1["name"] == "A-Stock Agents Web API"
-            assert data1["status"] == "online"
+            assert "AI量化投资助手" in r1.text or "A-Stock Agents" in r1.text
+
+            r_api = client.get("/api")
+            assert r_api.status_code == 200
+            data_api = r_api.json()
+            assert data_api["name"] == "A-Stock Agents Web API Gateway"
+            assert data_api["status"] == "online"
 
             r2 = client.get("/api/health")
             assert r2.status_code == 200

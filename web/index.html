@@ -281,7 +281,7 @@
                   <span>投资概要</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="status-pill status-pill-success">● 账户风控正常</span>
+                  <span class="status-pill status-pill-success" id="ovRiskStatus">● 账户风控正常</span>
                   <div class="more-link" onclick="executeQuickAction('收益分析')">收益详情 &gt;</div>
                 </div>
               </div>
@@ -290,27 +290,27 @@
               <div class="overview-strip-grid">
                 <div class="overview-strip-item">
                   <span class="overview-strip-lbl">总资产规模</span>
-                  <span class="overview-strip-val tabular-nums">¥454.24万</span>
+                  <span class="overview-strip-val tabular-nums" id="ovTotalAssets">¥454.24万</span>
                 </div>
                 <div class="overview-strip-item">
-                  <span class="overview-strip-lbl">持仓总市值 (72.3%)</span>
-                  <span class="overview-strip-val tabular-nums" style="color: #1677FF;">¥328.56万</span>
+                  <span class="overview-strip-lbl" id="ovPositionRatioLbl">持仓总市值 (72.3%)</span>
+                  <span class="overview-strip-val tabular-nums" style="color: #1677FF;" id="ovPositionMarketVal">¥328.56万</span>
                 </div>
                 <div class="overview-strip-item">
-                  <span class="overview-strip-lbl">可用现金 (27.7%)</span>
-                  <span class="overview-strip-val tabular-nums" style="color: #4096FF;">¥125.68万</span>
+                  <span class="overview-strip-lbl" id="ovCashRatioLbl">可用现金 (27.7%)</span>
+                  <span class="overview-strip-val tabular-nums" style="color: #4096FF;" id="ovCash">¥125.68万</span>
                 </div>
                 <div class="overview-strip-item">
                   <span class="overview-strip-lbl">今日盈亏</span>
-                  <span class="overview-strip-val text-up tabular-nums">+¥3.86万 (+1.18%)</span>
+                  <span class="overview-strip-val text-up tabular-nums" id="ovTodayPnl">+¥3.86万 (+1.18%)</span>
                 </div>
                 <div class="overview-strip-item">
                   <span class="overview-strip-lbl">累计收益率</span>
-                  <span class="overview-strip-val text-up tabular-nums">+36.78%</span>
+                  <span class="overview-strip-val text-up tabular-nums" id="ovAccumReturn">+36.78%</span>
                 </div>
                 <div class="overview-strip-item">
                   <span class="overview-strip-lbl">年化收益率</span>
-                  <span class="overview-strip-val text-up tabular-nums">+18.24%</span>
+                  <span class="overview-strip-val text-up tabular-nums" id="ovAnnualReturn">+18.24%</span>
                 </div>
               </div>
 
@@ -319,7 +319,7 @@
                 <div class="overview-donut-box">
                   <canvas id="portfolioDonut" style="width: 100%; height: 100%;"></canvas>
                 </div>
-                <div class="overview-holdings-list">
+                <div class="overview-holdings-list" id="ovHoldingsList">
                   <div class="overview-holding-pill">
                     <span style="font-weight:600;">宁德时代 (300750)</span>
                     <span class="tabular-nums">持仓 35%</span>
@@ -339,9 +339,9 @@
                 <div class="overview-risk-box">
                   <div class="overview-risk-title">
                     <span>🛡️ 实战风控安全垫监测</span>
-                    <span style="font-size:10px; color:#52C41A; font-weight:normal;">(5只标的均高于保本线)</span>
+                    <span style="font-size:10px; color:#52C41A; font-weight:normal;" id="ovCushionTitle">(5只标的均高于保本线)</span>
                   </div>
-                  <div class="overview-risk-desc">
+                  <div class="overview-risk-desc" id="ovCushionDesc">
                     当前组合距离 T0 警戒线(-3%)平均缓冲空间为 <strong>+11.8%</strong>；全部标的已建立最低保本卖出价与分级止损预案，无触及预警。
                   </div>
                   <div style="display: flex; gap: 8px; margin-top: 4px;">
@@ -367,20 +367,20 @@
               </div>
 
               <!-- 2x2 四大指数网格 -->
-              <div class="indices-grid-2x2">
+              <div class="indices-grid-2x2" id="dashboardIndicesGrid">
                 <!-- 上证指数 -->
                 <div class="index-2x2-card">
                   <div class="index-2x2-header">
                     <span class="index-2x2-name">上证指数</span>
                     <span class="bg-up-tag" style="font-size:10px; padding:1px 5px; border-radius:3px;">主板</span>
                   </div>
-                  <div class="index-2x2-val text-up tabular-nums">3,426.56</div>
-                  <div class="index-2x2-change text-up tabular-nums">
+                  <div class="index-2x2-val text-up tabular-nums" id="dashIndexShVal">3,426.56</div>
+                  <div class="index-2x2-change text-up tabular-nums" id="dashIndexShChange">
                     <span>▲ +24.38</span>
                     <span>+0.72%</span>
                   </div>
                   <canvas id="sparklineSh" class="index-sparkline"></canvas>
-                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;" id="dashIndexShMeta">
                     <span>今开 3,410.21</span>
                     <span>成交 5,281亿</span>
                   </div>
@@ -392,13 +392,13 @@
                     <span class="index-2x2-name">深证成指</span>
                     <span class="bg-up-tag" style="font-size:10px; padding:1px 5px; border-radius:3px;">深市</span>
                   </div>
-                  <div class="index-2x2-val text-up tabular-nums">10,892.14</div>
-                  <div class="index-2x2-change text-up tabular-nums">
+                  <div class="index-2x2-val text-up tabular-nums" id="dashIndexSzVal">10,892.14</div>
+                  <div class="index-2x2-change text-up tabular-nums" id="dashIndexSzChange">
                     <span>▲ +116.24</span>
                     <span>+1.08%</span>
                   </div>
                   <canvas id="sparklineSz" class="index-sparkline"></canvas>
-                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;" id="dashIndexSzMeta">
                     <span>今开 10,780.32</span>
                     <span>成交 6,723亿</span>
                   </div>
@@ -410,13 +410,13 @@
                     <span class="index-2x2-name">创业板指</span>
                     <span class="bg-up-tag" style="font-size:10px; padding:1px 5px; border-radius:3px;">成长</span>
                   </div>
-                  <div class="index-2x2-val text-up tabular-nums">2,289.76</div>
-                  <div class="index-2x2-change text-up tabular-nums">
+                  <div class="index-2x2-val text-up tabular-nums" id="dashIndexCyVal">2,289.76</div>
+                  <div class="index-2x2-change text-up tabular-nums" id="dashIndexCyChange">
                     <span>▲ +29.32</span>
                     <span>+1.31%</span>
                   </div>
                   <canvas id="sparklineCy" class="index-sparkline"></canvas>
-                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;" id="dashIndexCyMeta">
                     <span>今开 2,265.40</span>
                     <span>成交 2,890亿</span>
                   </div>
@@ -428,13 +428,13 @@
                     <span class="index-2x2-name">科创50</span>
                     <span class="bg-up-tag" style="font-size:10px; padding:1px 5px; border-radius:3px;">硬科技</span>
                   </div>
-                  <div class="index-2x2-val text-up tabular-nums">1,012.35</div>
-                  <div class="index-2x2-change text-up tabular-nums">
+                  <div class="index-2x2-val text-up tabular-nums" id="dashIndexKcVal">1,012.35</div>
+                  <div class="index-2x2-change text-up tabular-nums" id="dashIndexKcChange">
                     <span>▲ +18.42</span>
                     <span>+1.85%</span>
                   </div>
                   <canvas id="sparklineKc" class="index-sparkline"></canvas>
-                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-top: 4px;" id="dashIndexKcMeta">
                     <span>今开 995.12</span>
                     <span>成交 982亿</span>
                   </div>
@@ -459,8 +459,8 @@
                     <canvas id="dashboardSentimentGauge" style="width: 100%; height: 100%;"></canvas>
                   </div>
                   <div class="sentiment-gauge-meta">
-                    <div style="font-size: 12px; font-weight: 700; color: #F5222D;">78分 · 市场情绪亢温</div>
-                    <div style="font-size: 11px; color: #4E5969; line-height: 1.4;">
+                    <div style="font-size: 12px; font-weight: 700; color: #F5222D;" id="dashSentimentScoreText">78分 · 市场情绪亢温</div>
+                    <div style="font-size: 11px; color: #4E5969; line-height: 1.4;" id="dashSentimentMetaDesc">
                       两市总成交 <strong>1.28万亿</strong> (+12% 放量上攻)<br>
                       上涨 <strong class="text-up">3,348</strong> 家，下跌 <strong class="text-down">1,105</strong> 家，涨停 <strong class="text-up">86</strong> 只
                     </div>
@@ -468,7 +468,7 @@
                 </div>
 
                 <!-- 核心板块主线轮动 -->
-                <div class="sector-hot-list">
+                <div class="sector-hot-list" id="dashSectorHotList">
                   <div class="sector-hot-item">
                     <span class="sector-hot-name">半导体/CPO算力</span>
                     <span class="text-up tabular-nums" style="font-weight:600;">+3.85%</span>
@@ -487,7 +487,7 @@
                 </div>
 
                 <!-- AI量化快评 -->
-                <div style="background: #F0F6FF; border: 1px solid #D6E4FF; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #1D2129; line-height: 1.45;">
+                <div style="background: #F0F6FF; border: 1px solid #D6E4FF; padding: 6px 10px; border-radius: 4px; font-size: 11px; color: #1D2129; line-height: 1.45;" id="dashAiCommentary">
                   <strong>AI量化研判</strong>：大盘放量突破 3,420 点颈线压力位，科技成长共振主升，短线做多情绪充沛，建议顺应主线回踩介入。
                 </div>
               </div>
@@ -507,19 +507,19 @@
               <div class="watchlist-indices-strip">
                 <div class="watchlist-idx-card">
                   <div class="watchlist-idx-title">
-                    <span>自选等权组合指数</span>
-                    <span class="text-up">+2.18%</span>
+                    <span id="dashCustomIdx1Title">自选等权组合指数</span>
+                    <span class="text-up" id="dashCustomIdx1Change">+2.18%</span>
                   </div>
-                  <div class="watchlist-idx-val text-up tabular-nums">1,248.60</div>
+                  <div class="watchlist-idx-val text-up tabular-nums" id="dashCustomIdx1Val">1,248.60</div>
                   <canvas id="sparklineCustomIdx1" class="index-sparkline" style="height: 24px;"></canvas>
                 </div>
 
                 <div class="watchlist-idx-card">
                   <div class="watchlist-idx-title">
-                    <span>半导体科技指数</span>
-                    <span class="text-up">+3.62%</span>
+                    <span id="dashCustomIdx2Title">半导体科技指数</span>
+                    <span class="text-up" id="dashCustomIdx2Change">+3.62%</span>
                   </div>
-                  <div class="watchlist-idx-val text-up tabular-nums">3,120.45</div>
+                  <div class="watchlist-idx-val text-up tabular-nums" id="dashCustomIdx2Val">3,120.45</div>
                   <canvas id="sparklineCustomIdx2" class="index-sparkline" style="height: 24px;"></canvas>
                 </div>
               </div>
@@ -535,7 +535,7 @@
                     <th style="text-align: right;">诊断</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="dashWatchlistTableBody">
                   <tr onclick="askStockPrompt('中芯国际', '688981', '98.60')">
                     <td class="stock-name-cell">
                       <span class="stock-name">中芯国际</span>
@@ -591,7 +591,7 @@
                 <div class="invest-curve-box">
                   <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: #86909C; margin-bottom: 2px;">
                     <span>策略净值 vs 沪深300基准</span>
-                    <span class="text-up tabular-nums" style="font-weight: 600;">跑赢基准 +25.4%</span>
+                    <span class="text-up tabular-nums" style="font-weight: 600;" id="dashAttributionExcess">跑赢基准 +25.4%</span>
                   </div>
                   <canvas id="dashboardInvestCurve" style="width: 100%; height: 75px;"></canvas>
                 </div>
@@ -600,24 +600,24 @@
                 <div class="invest-metrics-grid">
                   <div class="invest-metric-card">
                     <div class="invest-metric-lbl">夏普比率</div>
-                    <div class="invest-metric-val tabular-nums" style="color: #1677FF;">1.84</div>
+                    <div class="invest-metric-val tabular-nums" style="color: #1677FF;" id="dashSharpeVal">1.84</div>
                   </div>
                   <div class="invest-metric-card">
                     <div class="invest-metric-lbl">交易胜率</div>
-                    <div class="invest-metric-val tabular-nums text-up">68.5%</div>
+                    <div class="invest-metric-val tabular-nums text-up" id="dashWinRateVal">68.5%</div>
                   </div>
                   <div class="invest-metric-card">
                     <div class="invest-metric-lbl">最大回撤</div>
-                    <div class="invest-metric-val tabular-nums" style="color: #FA8C16;">-8.24%</div>
+                    <div class="invest-metric-val tabular-nums" style="color: #FA8C16;" id="dashMaxDdVal">-8.24%</div>
                   </div>
                   <div class="invest-metric-card">
                     <div class="invest-metric-lbl">盈亏比</div>
-                    <div class="invest-metric-val tabular-nums">2.41</div>
+                    <div class="invest-metric-val tabular-nums" id="dashPlRatioVal">2.41</div>
                   </div>
                 </div>
 
                 <!-- 多因子收益贡献归因 -->
-                <div class="invest-attribution-row">
+                <div class="invest-attribution-row" id="dashAttributionRow">
                   <span>行业主线配置贡献: <strong class="text-up tabular-nums">+14.2%</strong></span>
                   <span>个股 Alpha 超额: <strong class="text-up tabular-nums">+18.6%</strong></span>
                   <span>择时收益: <strong class="text-up tabular-nums">+3.98%</strong></span>
@@ -633,13 +633,13 @@
                   <span>盯盘</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="monitor-live-badge"><span class="live-dot"></span> 实时盯盘监控中 (延迟28ms)</span>
+                  <span class="monitor-live-badge" id="dashMonitorLiveBadge"><span class="live-dot"></span> 实时盯盘监控中 (延迟28ms)</span>
                   <div class="more-link" onclick="showToast('已进入盯盘监控配置与报警通道')">规则配置 &gt;</div>
                 </div>
               </div>
 
               <!-- 盯盘预警即时事件流水 -->
-              <div class="monitor-stream-list">
+              <div class="monitor-stream-list" id="dashMonitorStreamList">
                 <div class="monitor-stream-item stream-buy">
                   <div class="monitor-stream-left">
                     <span class="monitor-stream-tag tag-buy">买入信号</span>
@@ -666,7 +666,7 @@
               </div>
 
               <!-- 4 大量化策略开关条 -->
-              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #F8FAFD; border: 1px solid #EBF1F8; border-radius: 6px; padding: 10px 12px;">
+              <div id="dashStrategiesContainer" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #F8FAFD; border: 1px solid #EBF1F8; border-radius: 6px; padding: 10px 12px;">
                 <div style="display: flex; align-items: center; justify-content: space-between;">
                   <div>
                     <div style="font-size: 11.5px; font-weight: 600; color: #1D2129;">趋势突破策略</div>
@@ -728,17 +728,17 @@
                 <span class="market-index-title">上证指数</span>
                 <span class="bg-up-tag" style="font-size:10px; padding:2px 6px; border-radius:3px;">主板</span>
               </div>
-              <div class="market-index-price text-up tabular-nums">3,426.56</div>
-              <div class="market-index-change text-up tabular-nums">
+              <div class="market-index-price text-up tabular-nums" id="mktShPrice">3,426.56</div>
+              <div class="market-index-change text-up tabular-nums" id="mktShChange">
                 <span>▲ +24.38</span>
                 <span>+0.72%</span>
               </div>
               <canvas id="marketSparkSh" style="width: 100%; height: 26px; margin: 4px 0;"></canvas>
               <div class="market-index-stats">
-                <div>今开 <span>3,410.21</span></div>
-                <div>最高 <span>3,432.76</span></div>
-                <div>昨收 <span>3,402.18</span></div>
-                <div>成交 <span>5,281亿</span></div>
+                <div>今开 <span id="mktShOpen">3,410.21</span></div>
+                <div>最高 <span id="mktShHigh">3,432.76</span></div>
+                <div>昨收 <span id="mktShPreClose">3,402.18</span></div>
+                <div>成交 <span id="mktShTurnover">5,281亿</span></div>
               </div>
             </div>
 
@@ -748,17 +748,17 @@
                 <span class="market-index-title">深证成指</span>
                 <span class="bg-up-tag" style="font-size:10px; padding:2px 6px; border-radius:3px;">深市</span>
               </div>
-              <div class="market-index-price text-up tabular-nums">10,892.14</div>
-              <div class="market-index-change text-up tabular-nums">
+              <div class="market-index-price text-up tabular-nums" id="mktSzPrice">10,892.14</div>
+              <div class="market-index-change text-up tabular-nums" id="mktSzChange">
                 <span>▲ +116.24</span>
                 <span>+1.08%</span>
               </div>
               <canvas id="marketSparkSz" style="width: 100%; height: 26px; margin: 4px 0;"></canvas>
               <div class="market-index-stats">
-                <div>今开 <span>10,780.32</span></div>
-                <div>最高 <span>10,912.65</span></div>
-                <div>昨收 <span>10,775.90</span></div>
-                <div>成交 <span>6,723亿</span></div>
+                <div>今开 <span id="mktSzOpen">10,780.32</span></div>
+                <div>最高 <span id="mktSzHigh">10,912.65</span></div>
+                <div>昨收 <span id="mktSzPreClose">10,775.90</span></div>
+                <div>成交 <span id="mktSzTurnover">6,723亿</span></div>
               </div>
             </div>
 
@@ -768,17 +768,17 @@
                 <span class="market-index-title">创业板指</span>
                 <span class="bg-up-tag" style="font-size:10px; padding:2px 6px; border-radius:3px;">成长</span>
               </div>
-              <div class="market-index-price text-up tabular-nums">2,289.76</div>
-              <div class="market-index-change text-up tabular-nums">
+              <div class="market-index-price text-up tabular-nums" id="mktCyPrice">2,289.76</div>
+              <div class="market-index-change text-up tabular-nums" id="mktCyChange">
                 <span>▲ +29.32</span>
                 <span>+1.31%</span>
               </div>
               <canvas id="marketSparkCy" style="width: 100%; height: 26px; margin: 4px 0;"></canvas>
               <div class="market-index-stats">
-                <div>今开 <span>2,258.43</span></div>
-                <div>最高 <span>2,301.24</span></div>
-                <div>昨收 <span>2,260.44</span></div>
-                <div>成交 <span>2,510亿</span></div>
+                <div>今开 <span id="mktCyOpen">2,258.43</span></div>
+                <div>最高 <span id="mktCyHigh">2,301.24</span></div>
+                <div>昨收 <span id="mktCyPreClose">2,260.44</span></div>
+                <div>成交 <span id="mktCyTurnover">2,510亿</span></div>
               </div>
             </div>
 
@@ -788,17 +788,17 @@
                 <span class="market-index-title">科创50</span>
                 <span class="bg-up-tag" style="font-size:10px; padding:2px 6px; border-radius:3px;">硬科技</span>
               </div>
-              <div class="market-index-price text-up tabular-nums">969.43</div>
-              <div class="market-index-change text-up tabular-nums">
+              <div class="market-index-price text-up tabular-nums" id="mktKcPrice">969.43</div>
+              <div class="market-index-change text-up tabular-nums" id="mktKcChange">
                 <span>▲ +12.87</span>
                 <span>+1.34%</span>
               </div>
               <canvas id="marketSparkKc" style="width: 100%; height: 26px; margin: 4px 0;"></canvas>
               <div class="market-index-stats">
-                <div>今开 <span>956.20</span></div>
-                <div>最高 <span>974.35</span></div>
-                <div>昨收 <span>956.56</span></div>
-                <div>成交 <span>1,152亿</span></div>
+                <div>今开 <span id="mktKcOpen">956.20</span></div>
+                <div>最高 <span id="mktKcHigh">974.35</span></div>
+                <div>昨收 <span id="mktKcPreClose">956.56</span></div>
+                <div>成交 <span id="mktKcTurnover">1,152亿</span></div>
               </div>
             </div>
 
@@ -811,28 +811,30 @@
               <div class="sentiment-details-grid">
                 <div>
                   <div style="color: #86909C; font-size: 10px;">涨停</div>
-                  <strong class="text-up tabular-nums">86</strong>
+                  <strong class="text-up tabular-nums" id="mktLimitUpCount">86</strong>
                 </div>
                 <div>
                   <div style="color: #86909C; font-size: 10px;">跌停</div>
-                  <strong class="text-down tabular-nums">6</strong>
+                  <strong class="text-down tabular-nums" id="mktLimitDownCount">6</strong>
                 </div>
                 <div>
                   <div style="color: #86909C; font-size: 10px;">两市成交</div>
-                  <strong class="tabular-nums">1.20万亿</strong>
+                  <strong class="tabular-nums" id="mktTotalTurnover">1.20万亿</strong>
                 </div>
                 <div>
                   <div style="color: #86909C; font-size: 10px;">上涨家数</div>
-                  <strong class="text-up tabular-nums">3,426</strong>
+                  <strong class="text-up tabular-nums" id="mktUpCount">3,426</strong>
                 </div>
                 <div>
                   <div style="color: #86909C; font-size: 10px;">平盘</div>
-                  <strong class="tabular-nums">892</strong>
+                  <strong class="tabular-nums" id="mktFlatCount">892</strong>
                 </div>
                 <div>
                   <div style="color: #86909C; font-size: 10px;">下跌家数</div>
-                  <strong class="text-down tabular-nums">892</strong>
+                  <strong class="text-down tabular-nums" id="mktDownCount">892</strong>
                 </div>
+              </div>
+            </div>
               </div>
             </div>
 
@@ -893,15 +895,15 @@
               <div class="kline-legend">
                 <div class="kline-legend-item" style="color: #FF7A45;">
                   <span>MA5:</span>
-                  <span class="tabular-nums">3,410.32</span>
+                  <span class="tabular-nums" id="mktKlineMa5">3,410.32</span>
                 </div>
                 <div class="kline-legend-item" style="color: #13C2C2;">
                   <span>MA10:</span>
-                  <span class="tabular-nums">3,398.76</span>
+                  <span class="tabular-nums" id="mktKlineMa10">3,398.76</span>
                 </div>
                 <div class="kline-legend-item" style="color: #722ED1;">
                   <span>MA20:</span>
-                  <span class="tabular-nums">3,376.21</span>
+                  <span class="tabular-nums" id="mktKlineMa20">3,376.21</span>
                 </div>
               </div>
 
@@ -923,7 +925,7 @@
                 </div>
               </div>
 
-              <div class="sector-grid">
+              <div class="sector-grid" id="mktSectorGrid">
                 <div class="sector-tile">
                   <div class="sector-name">半导体</div>
                   <div class="sector-change tabular-nums">+4.23%</div>
@@ -973,7 +975,7 @@
                 <div class="card-title">今日要闻</div>
                 <div class="more-link">更多 &gt;</div>
               </div>
-              <div class="news-briefing-list">
+              <div class="news-briefing-list" id="mktNewsList">
                 <div class="news-briefing-item">
                   <span class="tabular-nums" style="color: #86909C; font-size: 11px;">09:32</span>
                   <div class="news-briefing-text">外资连续3日净买入A股 重点加仓科技板块</div>
@@ -999,7 +1001,7 @@
               <!-- Hot Concepts Tag Cloud -->
               <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #F0F2F5;">
                 <div style="font-size: 12px; font-weight: 600; color: #1D2129; margin-bottom: 8px;">热门概念</div>
-                <div class="concept-tag-cloud">
+                <div class="concept-tag-cloud" id="mktHotConcepts">
                   <span class="concept-tag">AI</span>
                   <span class="concept-tag">半导体</span>
                   <span class="concept-tag">机器人</span>
@@ -1041,7 +1043,7 @@
                     <th>涨跌额</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="mktGainersBody">
                   <tr>
                     <td><span class="news-index-badge">1</span></td>
                     <td><strong>N万达轴承</strong><div class="stock-code">920002</div></td>
@@ -1104,7 +1106,7 @@
                     <th>涨跌额</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="mktLosersBody">
                   <tr>
                     <td><span class="news-index-badge">1</span></td>
                     <td><strong>*ST东方</strong><div class="stock-code">600811</div></td>
@@ -1166,7 +1168,7 @@
                     <th>涨跌幅</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody id="mktNorthboundBody">
                   <tr>
                     <td><span class="news-index-badge">1</span></td>
                     <td><strong>宁德时代</strong><div class="stock-code">300750</div></td>
@@ -1230,7 +1232,7 @@
               <input type="text" placeholder="搜索股票/代码/名称...">
             </div>
 
-            <div class="watchlist-items">
+            <div class="watchlist-items" id="watchStockList">
               <div class="watchlist-item-card" data-code="600519" onclick="selectWatchStock('600519')">
                 <div>
                   <div style="font-weight: 600; color: #1D2129;">贵州茅台</div>
@@ -1372,8 +1374,8 @@
             <div class="stock-hero-card">
               <div class="stock-hero-header">
                 <div class="stock-title-row">
-                  <span class="stock-hero-name">宁德时代</span>
-                  <span class="stock-hero-code">300750</span>
+                  <span class="stock-hero-name" id="watchHeroName">宁德时代</span>
+                  <span class="stock-hero-code" id="watchHeroCode">300750</span>
                   <span class="stock-tag-pill">深股通</span>
                   <span class="stock-tag-pill">融资融券</span>
                   <span class="stock-tag-pill">MSCI</span>
@@ -1385,8 +1387,8 @@
               </div>
 
               <div class="stock-hero-price-row">
-                <div class="stock-hero-price text-up tabular-nums">328.56</div>
-                <div class="stock-hero-delta text-up tabular-nums">
+                <div class="stock-hero-price text-up tabular-nums" id="watchHeroPrice">328.56</div>
+                <div class="stock-hero-delta text-up tabular-nums" id="watchHeroDelta">
                   <span>▲ +8.39</span>
                   <span>+2.77%</span>
                 </div>
@@ -1396,27 +1398,27 @@
               <div class="stock-hero-grid">
                 <div class="stock-grid-item">
                   <span class="stock-grid-lbl">今开</span>
-                  <span class="stock-grid-val text-up tabular-nums">322.00</span>
+                  <span class="stock-grid-val text-up tabular-nums" id="watchHeroOpen">322.00</span>
                 </div>
                 <div class="stock-grid-item">
                   <span class="stock-grid-lbl">最高</span>
-                  <span class="stock-grid-val text-up tabular-nums">332.60</span>
+                  <span class="stock-grid-val text-up tabular-nums" id="watchHeroHigh">332.60</span>
                 </div>
                 <div class="stock-grid-item">
                   <span class="stock-grid-lbl">最低</span>
-                  <span class="stock-grid-val text-down tabular-nums">318.45</span>
+                  <span class="stock-grid-val text-down tabular-nums" id="watchHeroLow">318.45</span>
                 </div>
                 <div class="stock-grid-item">
                   <span class="stock-grid-lbl">昨收</span>
-                  <span class="stock-grid-val tabular-nums">320.17</span>
+                  <span class="stock-grid-val tabular-nums" id="watchHeroPreClose">320.17</span>
                 </div>
                 <div class="stock-grid-item">
                   <span class="stock-grid-lbl">成交量</span>
-                  <span class="stock-grid-val tabular-nums">42.36万手</span>
+                  <span class="stock-grid-val tabular-nums" id="watchHeroVol">42.36万手</span>
                 </div>
                 <div class="stock-grid-item">
                   <span class="stock-grid-lbl">成交额</span>
-                  <span class="stock-grid-val tabular-nums">138.66亿元</span>
+                  <span class="stock-grid-val tabular-nums" id="watchHeroAmount">138.66亿元</span>
                 </div>
               </div>
             </div>
@@ -1453,20 +1455,20 @@
 
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div style="font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
-                  <div><span style="color: #86909C;">所属行业：</span><strong>电池</strong></div>
-                  <div><span style="color: #86909C;">所属概念：</span>新能源车、锂电池、固态电池、储能</div>
-                  <div><span style="color: #86909C;">流通市值：</span><span class="tabular-nums">7,654.32亿</span></div>
-                  <div><span style="color: #86909C;">总市值：</span><span class="tabular-nums">9,832.17亿</span></div>
-                  <div><span style="color: #86909C;">市盈率(TTM)：</span><span class="tabular-nums">18.76</span></div>
-                  <div><span style="color: #86909C;">市净率：</span><span class="tabular-nums">4.32</span></div>
-                  <div><span style="color: #86909C;">52周最高：</span><span class="tabular-nums">332.60</span></div>
-                  <div><span style="color: #86909C;">52周最低：</span><span class="tabular-nums">169.80</span></div>
+                  <div><span style="color: #86909C;">所属行业：</span><strong id="watchMetaIndustry">电池</strong></div>
+                  <div><span style="color: #86909C;">所属概念：</span><span id="watchMetaConcepts">新能源车、锂电池、固态电池、储能</span></div>
+                  <div><span style="color: #86909C;">流通市值：</span><span class="tabular-nums" id="watchMetaFloatCap">7,654.32亿</span></div>
+                  <div><span style="color: #86909C;">总市值：</span><span class="tabular-nums" id="watchMetaTotalCap">9,832.17亿</span></div>
+                  <div><span style="color: #86909C;">市盈率(TTM)：</span><span class="tabular-nums" id="watchMetaPe">18.76</span></div>
+                  <div><span style="color: #86909C;">市净率：</span><span class="tabular-nums" id="watchMetaPb">4.32</span></div>
+                  <div><span style="color: #86909C;">52周最高：</span><span class="tabular-nums" id="watchMeta52High">332.60</span></div>
+                  <div><span style="color: #86909C;">52周最低：</span><span class="tabular-nums" id="watchMeta52Low">169.80</span></div>
                 </div>
 
                 <!-- Timeline of Events -->
                 <div>
                   <div style="font-size: 12px; font-weight: 600; color: #1D2129; margin-bottom: 4px;">近期重要事件</div>
-                  <div class="timeline-list">
+                  <div class="timeline-list" id="watchEventsTimeline">
                     <div class="timeline-item">
                       <div class="timeline-date">2026-08-26 · 机构调研</div>
                       <div class="timeline-content">近30家顶级机构现场调研，关注全固态电池量产</div>
@@ -1496,7 +1498,7 @@
             <!-- 资金流向 -->
             <div class="quant-card" style="margin-bottom: 0;">
               <div class="card-header">
-                <div class="card-title">资金流向 (2026-08-27)</div>
+                <div class="card-title">资金流向</div>
                 <div class="more-link">更多 &gt;</div>
               </div>
               <div style="display: flex; align-items: center; gap: 12px;">
@@ -1504,11 +1506,11 @@
                   <canvas id="fundFlowDonut" style="width: 100%; height: 100%;"></canvas>
                 </div>
                 <div style="flex: 1; font-size: 11px; display: flex; flex-direction: column; gap: 4px;">
-                  <div style="display:flex; justify-content:space-between;"><span style="color:#F5222D;">● 主力净流入</span> <strong class="tabular-nums">12.36亿 (8.49%)</strong></div>
-                  <div style="display:flex; justify-content:space-between;"><span style="color:#CF1322;">● 超大单净流入</span> <span class="tabular-nums">7.23亿 (4.96%)</span></div>
-                  <div style="display:flex; justify-content:space-between;"><span style="color:#FA541C;">● 大单净流入</span> <span class="tabular-nums">5.13亿 (3.49%)</span></div>
-                  <div style="display:flex; justify-content:space-between;"><span style="color:#52C41A;">● 中单净流出</span> <span class="tabular-nums">-4.21亿 (-2.87%)</span></div>
-                  <div style="display:flex; justify-content:space-between;"><span style="color:#389E0D;">● 小单净流出</span> <span class="tabular-nums">-8.15亿 (-5.58%)</span></div>
+                  <div style="display:flex; justify-content:space-between;"><span style="color:#F5222D;">● 主力净流入</span> <strong class="tabular-nums" id="watchFundMainInflow">12.36亿 (8.49%)</strong></div>
+                  <div style="display:flex; justify-content:space-between;"><span style="color:#CF1322;">● 超大单净流入</span> <span class="tabular-nums" id="watchFundSuperInflow">7.23亿 (4.96%)</span></div>
+                  <div style="display:flex; justify-content:space-between;"><span style="color:#FA541C;">● 大单净流入</span> <span class="tabular-nums" id="watchFundLargeInflow">5.13亿 (3.49%)</span></div>
+                  <div style="display:flex; justify-content:space-between;"><span style="color:#52C41A;">● 中单净流出</span> <span class="tabular-nums" id="watchFundMidInflow">-4.21亿 (-2.87%)</span></div>
+                  <div style="display:flex; justify-content:space-between;"><span style="color:#389E0D;">● 小单净流出</span> <span class="tabular-nums" id="watchFundSmallInflow">-8.15亿 (-5.58%)</span></div>
                 </div>
               </div>
 
@@ -1552,15 +1554,15 @@
               <div style="display: flex; justify-content: space-around; font-size: 11px; text-align: center; margin: 6px 0;">
                 <div>
                   <div style="color: #86909C; font-size: 10px;">主力持仓</div>
-                  <strong class="tabular-nums">12.76亿</strong>
+                  <strong class="tabular-nums" id="watchMainHoldings">12.76亿</strong>
                 </div>
                 <div>
                   <div style="color: #86909C; font-size: 10px;">主力占比</div>
-                  <strong class="tabular-nums">8.46%</strong>
+                  <strong class="tabular-nums" id="watchMainRatio">8.46%</strong>
                 </div>
                 <div>
                   <div style="color: #86909C; font-size: 10px;">筹码集中度</div>
-                  <strong class="tabular-nums">71.26%</strong>
+                  <strong class="tabular-nums" id="watchMainConcentration">71.26%</strong>
                 </div>
               </div>
               <canvas id="mainHoldingsBar" style="width: 100%; height: 50px;"></canvas>
@@ -1572,7 +1574,7 @@
                 <div class="card-title" style="color: #1677FF;">AI分析结论</div>
                 <div class="more-link" style="color: #1677FF;" onclick="switchView('chat')">查看详细研报 &gt;</div>
               </div>
-              <p style="font-size: 12px; color: #1D2129; line-height: 1.6;">
+              <p style="font-size: 12px; color: #1D2129; line-height: 1.6;" id="watchAiConclusion">
                 宁德时代当前处于上升通道，量比配合良好，主力资金持续净流入，短期有望继续走强，关注 <strong>320.00元</strong> 支撑位，若放量突破 <strong>332.00元</strong>，有望挑战 <strong>350.00元</strong> 压力位。
               </p>
               <div style="display: flex; gap: 6px; margin-top: 8px;">
@@ -1594,32 +1596,32 @@
               <div class="returns-kpi-row">
                 <div class="returns-kpi-card">
                   <div class="kpi-label">累计总收益率</div>
-                  <div class="kpi-val text-up tabular-nums">+34.28%</div>
-                  <div class="kpi-sub">基准超额 <span class="text-up tabular-nums">+25.63%</span></div>
+                  <div class="kpi-val text-up tabular-nums" id="retAccumReturnVal">+34.28%</div>
+                  <div class="kpi-sub">基准超额 <span class="text-up tabular-nums" id="retBenchmarkExcessVal">+25.63%</span></div>
                 </div>
                 <div class="returns-kpi-card">
                   <div class="kpi-label">年化收益率</div>
-                  <div class="kpi-val text-up tabular-nums">+42.15%</div>
+                  <div class="kpi-val text-up tabular-nums" id="retAnnualReturnVal">+42.15%</div>
                   <div class="kpi-sub">近1年滚动测算</div>
                 </div>
                 <div class="returns-kpi-card">
                   <div class="kpi-label">交易胜率</div>
-                  <div class="kpi-val text-up tabular-nums">68.5%</div>
-                  <div class="kpi-sub">54 胜 / 25 负 (79笔)</div>
+                  <div class="kpi-val text-up tabular-nums" id="retWinRateVal">68.5%</div>
+                  <div class="kpi-sub" id="retWinLossCount">54 胜 / 25 负 (79笔)</div>
                 </div>
                 <div class="returns-kpi-card">
                   <div class="kpi-label">夏普比率 (Sharpe)</div>
-                  <div class="kpi-val tabular-nums" style="color:#1677FF;">1.84</div>
+                  <div class="kpi-val tabular-nums" style="color:#1677FF;" id="retSharpeVal">1.84</div>
                   <div class="kpi-sub">风险调整收益优秀</div>
                 </div>
                 <div class="returns-kpi-card">
                   <div class="kpi-label">最大回撤 (MaxDD)</div>
-                  <div class="kpi-val text-down tabular-nums">-8.24%</div>
+                  <div class="kpi-val text-down tabular-nums" id="retMaxDrawdownVal">-8.24%</div>
                   <div class="kpi-sub">严守 -8% 绝杀线</div>
                 </div>
                 <div class="returns-kpi-card">
                   <div class="kpi-label">盈亏比 (P/L Ratio)</div>
-                  <div class="kpi-val tabular-nums" style="color:#722ED1;">2.35</div>
+                  <div class="kpi-val tabular-nums" style="color:#722ED1;" id="retPlRatioVal">2.35</div>
                   <div class="kpi-sub">平均盈利 / 平均亏损</div>
                 </div>
               </div>
@@ -1656,7 +1658,7 @@
                   <div class="card-title">🧠 策略收益贡献分布与因子暴露</div>
                   <span class="more-link" onclick="askAboutRightContent()">💬 提问优化策略配置 &gt;</span>
                 </div>
-                <div class="strategy-contrib-grid">
+                <div class="strategy-contrib-grid" id="retStrategyContribGrid">
                   <div class="strategy-contrib-item">
                     <div class="contrib-header">
                       <span>5A多因子旋转选股策略</span>
@@ -1711,7 +1713,7 @@
                       <th>即时动作</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody id="retPositionsTableBody">
                     <tr>
                       <td>
                         <div class="stock-cell-name">宁德时代</div>
@@ -2427,6 +2429,7 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Charts & App Scripts -->
+  <script src="js/api.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/ui_engine.js"></script>
   <script src="js/components/astock.js"></script>

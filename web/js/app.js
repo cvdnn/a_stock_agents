@@ -132,6 +132,7 @@ function setupSessionInfiniteScroll() {
 
 // Select a session
 function selectSession(id) {
+  AppState.currentSessionId = id;
   document.querySelectorAll('.session-item').forEach(item => {
     if (item.dataset.id === id) item.classList.add('active');
     else item.classList.remove('active');
@@ -187,10 +188,22 @@ function getWelcomeMessageHtml() {
 }
 
 // Start a new chat session
-function startNewChat() {
+async function startNewChat() {
+  let newId = 's_' + Date.now();
+  const title = '新建投研对话 ' + new Date().toLocaleTimeString().slice(0, 5);
+  if (window.AStockAPI) {
+    try {
+      const res = await window.AStockAPI.createSession(title);
+      if (res && res.session_id) newId = res.session_id;
+    } catch (e) {
+      console.warn('createSession fallback:', e);
+    }
+  }
+  AppState.currentSessionId = newId;
+
   const newSession = {
-    id: 's_' + Date.now(),
-    title: '新建投研对话 ' + new Date().toLocaleTimeString().slice(0, 5),
+    id: newId,
+    title: title,
     time: '刚刚',
     tab: 'dashboard'
   };
@@ -388,9 +401,18 @@ function switchRightTab(tabId) {
   const linkedContextElem = document.getElementById('linkedContextText');
   if (linkedContextElem) linkedContextElem.innerText = info.title;
 
-  // 5. Re-render Canvas Charts for this tab
+  // 5. Re-render Canvas Charts and fetch dynamic data for this tab
   setTimeout(() => {
     renderTabCharts(tabId);
+    if (tabId === 'dashboard') {
+      loadDashboardData();
+    } else if (tabId === 'market') {
+      loadMarketData();
+    } else if (tabId === 'watchlist') {
+      loadWatchlistData(AppState.selectedStock);
+    } else if (tabId === 'returns') {
+      loadReturnsData();
+    }
   }, 40);
 }
 
@@ -685,69 +707,624 @@ function askAboutProjectedAction() {
 }
 
 // --------------------------------------------------------------------------
-// 6. Canvas Charts Rendering
+// 6. Dynamic Backend Data Loaders & Canvas Charts Rendering
 // --------------------------------------------------------------------------
+
+// 6.1 Initialize Chat Sessions from Backend Database
+async function initSessionsFromBackend() {
+  if (!window.AStockAPI) return;
+  try {
+    const sessions = await window.AStockAPI.listSessions(30, 0);
+    if (Array.isArray(sessions) && sessions.length > 0) {
+      HistoricalSessions.length = 0;
+      sessions.forEach(s => {
+        HistoricalSessions.push({
+          id: s.session_id,
+          title: s.title,
+          time: s.time || (s.created_at ? s.created_at.slice(5, 16) : '刚刚'),
+          tab: s.tab || 'dashboard'
+        });
+      });
+      AppState.loadedSessionCount = Math.min(10, HistoricalSessions.length);
+      AppState.currentSessionId = HistoricalSessions[0].id;
+      renderSessionList();
+    }
+  } catch (err) {
+    console.warn('initSessionsFromBackend error:', err);
+  }
+}
+
+// 6.2 Load Dashboard Data (Tab 1: 投研助手工作台)
+async function loadDashboardData() {
+  if (!window.AStockAPI) return;
+  try {
+    // 1. Portfolio Overview
+    const portRes = await window.AStockAPI.getPortfolioOverview();
+    if (portRes && portRes.data) {
+      const p = portRes.data;
+      const totalEl = document.getElementById('dashTotalAssets');
+      if (totalEl) totalEl.innerText = `¥${(p.total_assets / 10000).toFixed(2)}万`;
+      const stockEl = document.getElementById('dashStockValue');
+      if (stockEl) stockEl.innerText = `¥${(p.stock_value / 10000).toFixed(2)}万`;
+      const cashEl = document.getElementById('dashCashValue');
+      if (cashEl) cashEl.innerText = `¥${(p.cash_value / 10000).toFixed(2)}万`;
+      const marginEl = document.getElementById('dashSafetyMargin');
+      if (marginEl) marginEl.innerText = `+${p.safety_margin}%`;
+      const healthEl = document.getElementById('dashHealthScore');
+      if (healthEl) healthEl.innerText = `${p.health_score}分`;
+
+      if (Array.isArray(p.allocation) && document.getElementById('portfolioDonut')) {
+        FinancialCharts.drawDonutChart('portfolioDonut', p.allocation, {
+          centerTitle: '总市值',
+          centerValue: `${(p.stock_value / 10000).toFixed(2)}万`
+        });
+      }
+    }
+
+    // 2. Indices
+    const idxRes = await window.AStockAPI.getIndices();
+    if (idxRes && idxRes.data) {
+      const { sh, sz, cy, kc } = idxRes.data;
+      if (sh) {
+        const pEl = document.getElementById('dashShPrice');
+        if (pEl) pEl.innerText = sh.price.toFixed(2);
+        const cEl = document.getElementById('dashShChange');
+        if (cEl) cEl.innerText = `${sh.change >= 0 ? '+' : ''}${sh.change_pct.toFixed(2)}%`;
+        if (Array.isArray(sh.sparkline)) FinancialCharts.drawSparkline('sparklineSh', sh.sparkline, sh.change >= 0);
+      }
+      if (sz) {
+        const pEl = document.getElementById('dashSzPrice');
+        if (pEl) pEl.innerText = sz.price.toFixed(2);
+        const cEl = document.getElementById('dashSzChange');
+        if (cEl) cEl.innerText = `${sz.change >= 0 ? '+' : ''}${sz.change_pct.toFixed(2)}%`;
+        if (Array.isArray(sz.sparkline)) FinancialCharts.drawSparkline('sparklineSz', sz.sparkline, sz.change >= 0);
+      }
+      if (cy) {
+        const pEl = document.getElementById('dashCyPrice');
+        if (pEl) pEl.innerText = cy.price.toFixed(2);
+        const cEl = document.getElementById('dashCyChange');
+        if (cEl) cEl.innerText = `${cy.change >= 0 ? '+' : ''}${cy.change_pct.toFixed(2)}%`;
+        if (Array.isArray(cy.sparkline)) FinancialCharts.drawSparkline('sparklineCy', cy.sparkline, cy.change >= 0);
+      }
+      if (kc) {
+        const pEl = document.getElementById('dashKcPrice');
+        if (pEl) pEl.innerText = kc.price.toFixed(2);
+        const cEl = document.getElementById('dashKcChange');
+        if (cEl) cEl.innerText = `${kc.change >= 0 ? '+' : ''}${kc.change_pct.toFixed(2)}%`;
+        if (Array.isArray(kc.sparkline)) FinancialCharts.drawSparkline('sparklineKc', kc.sparkline, kc.change >= 0);
+      }
+    }
+
+    // 3. Sentiment
+    const sentRes = await window.AStockAPI.getSentiment();
+    if (sentRes && sentRes.data) {
+      const s = sentRes.data;
+      const scoreEl = document.getElementById('dashSentimentScoreText');
+      if (scoreEl) scoreEl.innerText = `${s.score}分 · ${s.score_text}`;
+      const descEl = document.getElementById('dashSentimentMetaDesc');
+      if (descEl) {
+        descEl.innerHTML = `两市总成交 <strong>${s.total_turnover}</strong> (${s.turnover_change})<br>上涨 <strong class="text-up">${s.up_count.toLocaleString()}</strong> 家，下跌 <strong class="text-down">${s.down_count.toLocaleString()}</strong> 家，涨停 <strong class="text-up">${s.limit_up}</strong> 只`;
+      }
+      const aiEl = document.getElementById('dashAiCommentary');
+      if (aiEl) {
+        aiEl.innerHTML = `<strong>AI量化研判</strong>：${s.ai_comment}`;
+      }
+      if (document.getElementById('dashboardSentimentGauge')) {
+        FinancialCharts.drawGauge('dashboardSentimentGauge', s.score, { colorType: 'sentiment' });
+      }
+    }
+
+    // 4. Custom Indices & Watchlist table
+    const watchRes = await window.AStockAPI.getWatchlist();
+    if (watchRes && Array.isArray(watchRes.data)) {
+      const tbody = document.getElementById('dashWatchlistTableBody');
+      if (tbody) {
+        const topStocks = watchRes.data.slice(0, 4);
+        tbody.innerHTML = topStocks.map(stock => {
+          const isUp = stock.change_pct >= 0;
+          const sign = isUp ? '+' : '';
+          const cls = isUp ? 'text-up' : 'text-down';
+          return `
+            <tr onclick="askStockPrompt('${stock.name}', '${stock.code}', '${stock.price.toFixed(2)}')">
+              <td class="stock-name-cell">
+                <span class="stock-name">${stock.name}</span>
+                <span class="stock-code">${stock.code}</span>
+              </td>
+              <td class="tabular-nums" style="font-weight: 600;">${stock.price.toFixed(2)}</td>
+              <td class="${cls} tabular-nums" style="font-weight: 600;">${sign}${stock.change_pct.toFixed(2)}%</td>
+              <td class="${cls} tabular-nums">${stock.main_inflow || '--'}</td>
+              <td style="text-align: right;">
+                <button class="btn-follow">诊断</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+    FinancialCharts.drawSparkline('sparklineCustomIdx1', [1220, 1228, 1235, 1230, 1242, 1248.60], true);
+    FinancialCharts.drawSparkline('sparklineCustomIdx2', [3010, 3045, 3080, 3065, 3105, 3120.45], true);
+
+    // 5. Investment Analysis
+    const anaRes = await window.AStockAPI.getPortfolioAnalysis();
+    if (anaRes && anaRes.data) {
+      const k = anaRes.data.kpis;
+      if (k) {
+        const shp = document.getElementById('dashSharpeVal');
+        if (shp) shp.innerText = k.sharpe.toFixed(2);
+        const win = document.getElementById('dashWinRateVal');
+        if (win) win.innerText = `${k.win_rate.toFixed(1)}%`;
+        const mdd = document.getElementById('dashMaxDdVal');
+        if (mdd) mdd.innerText = `${k.max_drawdown.toFixed(2)}%`;
+        const plr = document.getElementById('dashPlRatioVal');
+        if (plr) plr.innerText = k.pl_ratio.toFixed(2);
+        const exc = document.getElementById('dashAttributionExcess');
+        if (exc) exc.innerText = `跑赢基准 +${k.benchmark_excess.toFixed(1)}%`;
+      }
+      if (anaRes.data.equity_curve && document.getElementById('dashboardInvestCurve')) {
+        const eq = anaRes.data.equity_curve;
+        FinancialCharts.drawEquityCurve('dashboardInvestCurve', eq.strategy, eq.benchmark, eq.labels);
+      }
+    }
+
+    // 6. Monitor Stream
+    const monRes = await window.AStockAPI.getMonitorStream();
+    if (monRes && monRes.data) {
+      const m = monRes.data;
+      const badge = document.getElementById('dashMonitorLiveBadge');
+      if (badge) {
+        badge.innerHTML = `<span class="live-dot"></span> 实时盯盘监控中 (延迟${m.latency_ms}ms)`;
+      }
+      const streamList = document.getElementById('dashMonitorStreamList');
+      if (streamList && Array.isArray(m.events)) {
+        streamList.innerHTML = m.events.map(ev => {
+          let itemClass = 'stream-buy';
+          let tagClass = 'tag-buy';
+          if (ev.type === 'main') { itemClass = 'stream-main'; tagClass = 'tag-main'; }
+          else if (ev.type === 'risk') { itemClass = 'stream-risk'; tagClass = 'tag-risk'; }
+          return `
+            <div class="monitor-stream-item ${itemClass}">
+              <div class="monitor-stream-left">
+                <span class="monitor-stream-tag ${tagClass}">${ev.tag}</span>
+                <span><strong>【${ev.title}】</strong> ${ev.desc}</span>
+              </div>
+              <span class="monitor-stream-time tabular-nums">${ev.time}</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  } catch (err) {
+    console.warn('loadDashboardData error:', err);
+  }
+}
+
+// 6.3 Load Market Data (Tab 2: 市场行情全景)
+async function loadMarketData() {
+  if (!window.AStockAPI) return;
+  try {
+    // 1. Indices
+    const idxRes = await window.AStockAPI.getIndices();
+    if (idxRes && idxRes.data) {
+      const { sh, sz, cy, kc } = idxRes.data;
+      const bindMktIdx = (prefix, data, canvasId) => {
+        if (!data) return;
+        const p = document.getElementById(prefix + 'Price');
+        if (p) p.innerText = data.price.toFixed(2);
+        const c = document.getElementById(prefix + 'Change');
+        if (c) {
+          const isUp = data.change >= 0;
+          const arrow = isUp ? '▲ +' : '▼ ';
+          c.innerHTML = `<span>${arrow}${Math.abs(data.change).toFixed(2)}</span><span>${isUp ? '+' : ''}${data.change_pct.toFixed(2)}%</span>`;
+          c.className = `market-index-change ${isUp ? 'text-up' : 'text-down'} tabular-nums`;
+        }
+        const o = document.getElementById(prefix + 'Open');
+        if (o) o.innerText = data.open.toFixed(2);
+        const h = document.getElementById(prefix + 'High');
+        if (h) h.innerText = data.high.toFixed(2);
+        const pc = document.getElementById(prefix + 'PreClose');
+        if (pc) pc.innerText = data.pre_close.toFixed(2);
+        const to = document.getElementById(prefix + 'Turnover');
+        if (to) to.innerText = data.turnover;
+        if (Array.isArray(data.sparkline)) {
+          FinancialCharts.drawSparkline(canvasId, data.sparkline, data.change >= 0);
+        }
+      };
+      bindMktIdx('mktSh', sh, 'marketSparkSh');
+      bindMktIdx('mktSz', sz, 'marketSparkSz');
+      bindMktIdx('mktCy', cy, 'marketSparkCy');
+      bindMktIdx('mktKc', kc, 'marketSparkKc');
+    }
+
+    // 2. Sentiment
+    const sentRes = await window.AStockAPI.getSentiment();
+    if (sentRes && sentRes.data) {
+      const s = sentRes.data;
+      const lu = document.getElementById('mktLimitUpCount');
+      if (lu) lu.innerText = s.limit_up;
+      const ld = document.getElementById('mktLimitDownCount');
+      if (ld) ld.innerText = s.limit_down;
+      const tt = document.getElementById('mktTotalTurnover');
+      if (tt) tt.innerText = s.total_turnover;
+      const uc = document.getElementById('mktUpCount');
+      if (uc) uc.innerText = s.up_count.toLocaleString();
+      const fc = document.getElementById('mktFlatCount');
+      if (fc) fc.innerText = s.flat_count.toLocaleString();
+      const dc = document.getElementById('mktDownCount');
+      if (dc) dc.innerText = s.down_count.toLocaleString();
+      if (document.getElementById('sentimentGauge')) {
+        FinancialCharts.drawSentimentGauge('sentimentGauge', s.score);
+      }
+    }
+
+    // 3. Kline
+    const klineRes = await window.AStockAPI.getKline('000001');
+    if (klineRes) {
+      const ma5 = document.getElementById('mktKlineMa5');
+      if (ma5 && klineRes.ma5) ma5.innerText = klineRes.ma5.toFixed(2);
+      const ma10 = document.getElementById('mktKlineMa10');
+      if (ma10 && klineRes.ma10) ma10.innerText = klineRes.ma10.toFixed(2);
+      const ma20 = document.getElementById('mktKlineMa20');
+      if (ma20 && klineRes.ma20) ma20.innerText = klineRes.ma20.toFixed(2);
+      if (Array.isArray(klineRes.klines) && document.getElementById('marketKlineCanvas')) {
+        FinancialCharts.drawCandlestickChart('marketKlineCanvas', klineRes.klines, { showVolume: true });
+      }
+    }
+
+    // 4. Ranks & Sectors & News & Concepts
+    const rankRes = await window.AStockAPI.getRanks();
+    if (rankRes && rankRes.data) {
+      const { gainers, losers, northbound, sectors, news, concepts } = rankRes.data;
+      const gb = document.getElementById('mktGainersBody');
+      if (gb && Array.isArray(gainers)) {
+        gb.innerHTML = gainers.map(item => `
+          <tr>
+            <td><span class="news-index-badge">${item.rank}</span></td>
+            <td><strong>${item.name}</strong><div class="stock-code">${item.code}</div></td>
+            <td class="text-up tabular-nums" style="font-weight:600;">${item.price.toFixed(2)}</td>
+            <td class="text-up tabular-nums" style="font-weight:600;">+${item.change_pct.toFixed(2)}%</td>
+            <td class="text-up tabular-nums">+${item.change_amount.toFixed(2)}</td>
+          </tr>
+        `).join('');
+      }
+      const lb = document.getElementById('mktLosersBody');
+      if (lb && Array.isArray(losers)) {
+        lb.innerHTML = losers.map(item => `
+          <tr>
+            <td><span class="news-index-badge">${item.rank}</span></td>
+            <td><strong>${item.name}</strong><div class="stock-code">${item.code}</div></td>
+            <td class="text-down tabular-nums" style="font-weight:600;">${item.price.toFixed(2)}</td>
+            <td class="text-down tabular-nums" style="font-weight:600;">${item.change_pct.toFixed(2)}%</td>
+            <td class="text-down tabular-nums">${item.change_amount.toFixed(2)}</td>
+          </tr>
+        `).join('');
+      }
+      const nb = document.getElementById('mktNorthboundBody');
+      if (nb && Array.isArray(northbound)) {
+        nb.innerHTML = northbound.map(item => `
+          <tr>
+            <td><span class="news-index-badge">${item.rank}</span></td>
+            <td><strong>${item.name}</strong><div class="stock-code">${item.code}</div></td>
+            <td class="text-up tabular-nums" style="font-weight:600;">${item.net_inflow.toFixed(2)}</td>
+            <td class="text-up tabular-nums">+${item.change_pct.toFixed(2)}%</td>
+          </tr>
+        `).join('');
+      }
+      const sg = document.getElementById('mktSectorGrid');
+      if (sg && Array.isArray(sectors)) {
+        sg.innerHTML = sectors.map(item => `
+          <div class="sector-tile">
+            <div class="sector-name">${item.name}</div>
+            <div class="sector-change tabular-nums">+${item.change_pct.toFixed(2)}%</div>
+          </div>
+        `).join('');
+      }
+      const nl = document.getElementById('mktNewsList');
+      if (nl && Array.isArray(news)) {
+        nl.innerHTML = news.map(item => `
+          <div class="news-briefing-item">
+            <span class="tabular-nums" style="color: #86909C; font-size: 11px;">${item.time}</span>
+            <div class="news-briefing-text">${item.title}</div>
+          </div>
+        `).join('');
+      }
+      const hc = document.getElementById('mktHotConcepts');
+      if (hc && Array.isArray(concepts)) {
+        hc.innerHTML = concepts.map(c => `<span class="concept-tag">${c}</span>`).join('');
+      }
+    }
+  } catch (err) {
+    console.warn('loadMarketData error:', err);
+  }
+}
+
+// 6.4 Load Watchlist Data (Tab 3: 自选个股深度研判)
+async function loadWatchlistData(selectedCode) {
+  if (!window.AStockAPI) return;
+  const code = selectedCode || AppState.selectedStock || '300750';
+  AppState.selectedStock = code;
+
+  try {
+    // 1. Render Watchlist Sidebar
+    const watchRes = await window.AStockAPI.getWatchlist();
+    if (watchRes && Array.isArray(watchRes.data)) {
+      const container = document.getElementById('watchStockList');
+      if (container) {
+        container.innerHTML = watchRes.data.map(stock => {
+          const isActive = stock.code === code ? 'active' : '';
+          const isUp = stock.change_pct >= 0;
+          const cls = isUp ? 'text-up' : 'text-down';
+          const sign = isUp ? '+' : '';
+          return `
+            <div class="watchlist-item-card ${isActive}" data-code="${stock.code}" onclick="selectWatchStock('${stock.code}')">
+              <div>
+                <div style="font-weight: 600; color: #1D2129;">${stock.name}</div>
+                <div class="stock-code">${stock.code}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="tabular-nums" style="font-weight: 600;">${stock.price.toFixed(2)}</div>
+                <div class="${cls} tabular-nums" style="font-size: 11px;">${sign}${stock.change_pct.toFixed(2)}%</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // 2. Fetch Stock Detail
+    const detailRes = await window.AStockAPI.getStockDetail(code);
+    if (detailRes && detailRes.data) {
+      const d = detailRes.data;
+      const isUp = d.change >= 0;
+      const sign = isUp ? '+' : '';
+      const arrow = isUp ? '▲ +' : '▼ ';
+      const cls = isUp ? 'text-up' : 'text-down';
+
+      // Hero Card
+      const nameEl = document.getElementById('watchHeroName');
+      if (nameEl) nameEl.innerText = d.name;
+      const codeEl = document.getElementById('watchHeroCode');
+      if (codeEl) codeEl.innerText = d.code;
+      const priceEl = document.getElementById('watchHeroPrice');
+      if (priceEl) { priceEl.innerText = d.price.toFixed(2); priceEl.className = `stock-hero-price ${cls} tabular-nums`; }
+      const deltaEl = document.getElementById('watchHeroDelta');
+      if (deltaEl) {
+        deltaEl.innerHTML = `<span>${arrow}${Math.abs(d.change).toFixed(2)}</span><span>${sign}${d.change_pct.toFixed(2)}%</span>`;
+        deltaEl.className = `stock-hero-delta ${cls} tabular-nums`;
+      }
+      const openEl = document.getElementById('watchHeroOpen');
+      if (openEl) openEl.innerText = d.open.toFixed(2);
+      const highEl = document.getElementById('watchHeroHigh');
+      if (highEl) highEl.innerText = d.high.toFixed(2);
+      const lowEl = document.getElementById('watchHeroLow');
+      if (lowEl) lowEl.innerText = d.low.toFixed(2);
+      const pcEl = document.getElementById('watchHeroPreClose');
+      if (pcEl) pcEl.innerText = d.pre_close.toFixed(2);
+      const volEl = document.getElementById('watchHeroVol');
+      if (volEl) volEl.innerText = d.volume;
+      const amtEl = document.getElementById('watchHeroAmount');
+      if (amtEl) amtEl.innerText = d.turnover;
+
+      // Meta
+      const indEl = document.getElementById('watchMetaIndustry');
+      if (indEl) indEl.innerText = d.industry;
+      const concEl = document.getElementById('watchMetaConcepts');
+      if (concEl && Array.isArray(d.concepts)) concEl.innerText = d.concepts.join('、');
+      const fcEl = document.getElementById('watchMetaFloatCap');
+      if (fcEl) fcEl.innerText = d.float_cap;
+      const tcEl = document.getElementById('watchMetaTotalCap');
+      if (tcEl) tcEl.innerText = d.total_cap;
+      const peEl = document.getElementById('watchMetaPe');
+      if (peEl) peEl.innerText = d.pe.toFixed(2);
+      const pbEl = document.getElementById('watchMetaPb');
+      if (pbEl) pbEl.innerText = d.pb.toFixed(2);
+      const h52El = document.getElementById('watchMeta52High');
+      if (h52El) h52El.innerText = d.high_52w.toFixed(2);
+      const l52El = document.getElementById('watchMeta52Low');
+      if (l52El) l52El.innerText = d.low_52w.toFixed(2);
+
+      // Events
+      const evEl = document.getElementById('watchEventsTimeline');
+      if (evEl && Array.isArray(d.events)) {
+        evEl.innerHTML = d.events.map(e => `
+          <div class="timeline-item">
+            <div class="timeline-date">${e.date} · ${e.title}</div>
+            <div class="timeline-content">${e.desc}</div>
+          </div>
+        `).join('');
+      }
+
+      // Capital Flow
+      if (d.capital_flow) {
+        const cf = d.capital_flow;
+        const mf = document.getElementById('watchFundMainInflow');
+        if (mf) mf.innerText = `${cf.main_inflow} (${cf.main_ratio})`;
+        const sf = document.getElementById('watchFundSuperInflow');
+        if (sf) sf.innerText = `${cf.super_large_inflow} (${cf.super_large_ratio})`;
+        const lf = document.getElementById('watchFundLargeInflow');
+        if (lf) lf.innerText = `${cf.large_inflow} (${cf.large_ratio})`;
+        const mdf = document.getElementById('watchFundMidInflow');
+        if (mdf) mdf.innerText = `${cf.mid_inflow} (${cf.mid_ratio})`;
+        const smf = document.getElementById('watchFundSmallInflow');
+        if (smf) smf.innerText = `${cf.small_inflow} (${cf.small_ratio})`;
+
+        if (document.getElementById('fundFlowDonut')) {
+          FinancialCharts.drawDonutChart('fundFlowDonut', [
+            { name: '超大单', value: 45, color: '#F5222D' },
+            { name: '大单', value: 25, color: '#FF7875' },
+            { name: '中单', value: 18, color: '#52C41A' },
+            { name: '小单', value: 12, color: '#86909C' }
+          ], { centerTitle: '主力流入', centerValue: cf.main_inflow });
+        }
+        if (document.getElementById('fundFlowTrendLine')) {
+          FinancialCharts.drawTrendLine('fundFlowTrendLine', [2.5, 4.8, -1.2, 8.6, 12.36], ['08-21', '08-22', '08-25', '08-26', '08-27']);
+        }
+      }
+
+      // Main Tracking
+      if (d.main_tracking) {
+        const mt = d.main_tracking;
+        const mh = document.getElementById('watchMainHoldings');
+        if (mh) mh.innerText = mt.holdings;
+        const mr = document.getElementById('watchMainRatio');
+        if (mr) mr.innerText = `${mt.ratio.toFixed(2)}%`;
+        const mc = document.getElementById('watchMainConcentration');
+        if (mc) mc.innerText = `${mt.concentration.toFixed(2)}%`;
+        if (document.getElementById('mainControlGauge')) {
+          FinancialCharts.drawSentimentGauge('mainControlGauge', mt.score);
+        }
+      }
+
+      // Conclusion
+      const concP = document.getElementById('watchAiConclusion');
+      if (concP && d.ai_conclusion) concP.innerText = d.ai_conclusion;
+
+      // Kline
+      const klineRes = await window.AStockAPI.getKline(code, 'day', 28);
+      if (klineRes && Array.isArray(klineRes.klines) && document.getElementById('stockKlineCanvas')) {
+        FinancialCharts.drawCandlestickChart('stockKlineCanvas', klineRes.klines, { showVolume: true });
+      }
+    }
+  } catch (err) {
+    console.warn('loadWatchlistData error:', err);
+  }
+}
+
+// 6.5 Load Returns Data (Tab 4: 投资收益全景分析)
+async function loadReturnsData() {
+  if (!window.AStockAPI) return;
+  try {
+    const anaRes = await window.AStockAPI.getPortfolioAnalysis();
+    if (anaRes && anaRes.data) {
+      const { kpis, equity_curve, monthly_pnl, strategy_contrib, positions } = anaRes.data;
+      if (kpis) {
+        const acc = document.getElementById('retAccumReturnVal');
+        if (acc) acc.innerText = `+${kpis.accum_return.toFixed(2)}%`;
+        const exc = document.getElementById('retBenchmarkExcessVal');
+        if (exc) exc.innerText = `+${kpis.benchmark_excess.toFixed(2)}%`;
+        const ann = document.getElementById('retAnnualReturnVal');
+        if (ann) ann.innerText = `+${kpis.annual_return.toFixed(2)}%`;
+        const win = document.getElementById('retWinRateVal');
+        if (win) win.innerText = `${kpis.win_rate.toFixed(1)}%`;
+        const wlc = document.getElementById('retWinLossCount');
+        if (wlc) wlc.innerText = `${kpis.win_count} 胜 / ${kpis.loss_count} 负 (${kpis.total_trades}笔)`;
+        const shp = document.getElementById('retSharpeVal');
+        if (shp) shp.innerText = kpis.sharpe.toFixed(2);
+        const mdd = document.getElementById('retMaxDrawdownVal');
+        if (mdd) mdd.innerText = `${kpis.max_drawdown.toFixed(2)}%`;
+        const plr = document.getElementById('retPlRatioVal');
+        if (plr) plr.innerText = kpis.pl_ratio.toFixed(2);
+      }
+
+      // Equity Curve
+      if (equity_curve && document.getElementById('equityCurveCanvas')) {
+        FinancialCharts.drawEquityCurve('equityCurveCanvas', equity_curve.strategy, equity_curve.benchmark, equity_curve.labels);
+      }
+      // Monthly PnL
+      if (Array.isArray(monthly_pnl) && document.getElementById('monthlyPnLCanvas')) {
+        FinancialCharts.drawMonthlyPnLChart('monthlyPnLCanvas', monthly_pnl);
+      }
+
+      // Strategy Contributions
+      const scGrid = document.getElementById('retStrategyContribGrid');
+      if (scGrid && Array.isArray(strategy_contrib)) {
+        scGrid.innerHTML = strategy_contrib.map(sc => `
+          <div class="strategy-contrib-item">
+            <div class="contrib-header">
+              <span>${sc.name}</span>
+              <strong class="text-up tabular-nums">+${sc.return_pct.toFixed(2)}% (占比 ${sc.weight_pct}%)</strong>
+            </div>
+            <div class="contrib-bar-wrap"><div class="contrib-bar-fill" style="width: ${sc.weight_pct}%; background: ${sc.color};"></div></div>
+          </div>
+        `).join('');
+      }
+
+      // Positions Table
+      const posTbody = document.getElementById('retPositionsTableBody');
+      if (posTbody && Array.isArray(positions)) {
+        posTbody.innerHTML = positions.map(pos => {
+          const isUp = pos.profit_rate >= 0;
+          const cls = isUp ? 'text-up' : 'text-down';
+          const sign = isUp ? '+' : '';
+          return `
+            <tr>
+              <td>
+                <div class="stock-cell-name">${pos.name}</div>
+                <div class="stock-cell-code">${pos.code}</div>
+              </td>
+              <td class="tabular-nums">${pos.shares.toLocaleString()} 股</td>
+              <td class="tabular-nums">¥${pos.cost_price.toFixed(2)}</td>
+              <td class="tabular-nums ${cls}" style="font-weight:700;">¥${pos.current_price.toFixed(2)}</td>
+              <td class="${cls} tabular-nums" style="font-weight:700;">${sign}${pos.profit_rate.toFixed(2)}% (${sign}¥${pos.unrealized_pnl.toLocaleString()})</td>
+              <td class="tabular-nums" style="color:#1677FF; font-weight:700;">¥${pos.breakeven_price.toFixed(2)}</td>
+              <td><span style="color:${pos.risk_status.includes('警戒') ? '#FA8C16' : '#52C41A'}; font-weight:600;">${pos.risk_status}</span></td>
+              <td><span class="tag-chip">${pos.strategy_source}</span></td>
+              <td>
+                <button class="action-btn" onclick="askStockPrompt('${pos.name}', '${pos.code}', '${pos.current_price.toFixed(2)}')">💬 提问</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+  } catch (err) {
+    console.warn('loadReturnsData error:', err);
+  }
+}
+
+// 6.6 Load All Backend Data in Parallel
+async function loadAllBackendData() {
+  await Promise.allSettled([
+    initSessionsFromBackend(),
+    loadDashboardData(),
+    loadMarketData(),
+    loadWatchlistData(),
+    loadReturnsData()
+  ]);
+}
+
+// 6.7 Canvas Charts Dispatcher
 function renderTabCharts(tabId) {
   if (tabId === 'dashboard') {
-    // 1. 投资概要: 资产配置环形图
     FinancialCharts.drawDonutChart('portfolioDonut', [
       { name: '股票持仓', value: 328.56, color: '#1677FF' },
       { name: '现金储备', value: 125.68, color: '#4096FF' }
     ], { centerTitle: '总市值', centerValue: '328.56万' });
-
-    // 2-1. 大盘指数: 四大指数 Sparklines
     FinancialCharts.drawSparkline('sparklineSh', [3390, 3405, 3400, 3415, 3422, 3418, 3426.56], true);
     FinancialCharts.drawSparkline('sparklineSz', [10750, 10780, 10820, 10800, 10860, 10892.14], true);
     FinancialCharts.drawSparkline('sparklineCy', [2250, 2265, 2260, 2278, 2282, 2289.76], true);
     FinancialCharts.drawSparkline('sparklineKc', [980, 992, 988, 1005, 1012.35], true);
-
-    // 2-2. 行情分析: 市场情绪仪表盘 (78分 亢温)
     FinancialCharts.drawGauge('dashboardSentimentGauge', 78, { colorType: 'sentiment' });
-
-    // 3-1. 自选指数: 自选主题分时线
     FinancialCharts.drawSparkline('sparklineCustomIdx1', [1220, 1228, 1235, 1230, 1242, 1248.60], true);
     FinancialCharts.drawSparkline('sparklineCustomIdx2', [3010, 3045, 3080, 3065, 3105, 3120.45], true);
-
-    // 3-2. 投资分析: 策略净值 vs 沪深300 基准对比微曲线
     FinancialCharts.drawEquityCurve('dashboardInvestCurve', 
       [1.00, 1.05, 1.08, 1.15, 1.25, 1.34], 
       [1.00, 1.01, 1.03, 1.05, 1.07, 1.09], 
       ['3月', '5月', '7月', '9月']
     );
-  } 
-  else if (tabId === 'market') {
+  } else if (tabId === 'market') {
     FinancialCharts.drawSparkline('marketSparkSh', [3395, 3408, 3402, 3418, 3426.56], true);
     FinancialCharts.drawSparkline('marketSparkSz', [10760, 10795, 10830, 10892.14], true);
     FinancialCharts.drawSparkline('marketSparkCy', [2260, 2272, 2265, 2280, 2289.76], true);
     FinancialCharts.drawSparkline('marketSparkKc', [980, 992, 988, 1005, 1012.35], true);
-
     FinancialCharts.drawSentimentGauge('marketSentimentGauge', 78);
-
     const klines = generateKlines(3400, 28, 0.006);
     FinancialCharts.drawCandlestickChart('marketMainCandle', klines, { showVolume: true });
-  }
-  else if (tabId === 'watchlist') {
+  } else if (tabId === 'watchlist') {
     const klines = generateKlines(315, 28, 0.009);
     FinancialCharts.drawCandlestickChart('stockDetailCandle', klines, { showVolume: true });
-
     FinancialCharts.drawDonutChart('capitalFlowDonut', [
       { name: '超大单', value: 45, color: '#F5222D' },
       { name: '大单', value: 25, color: '#FF7875' },
       { name: '中单', value: 18, color: '#52C41A' },
       { name: '小单', value: 12, color: '#86909C' }
     ], { centerTitle: '主力流入', centerValue: '+12.36亿' });
-
     FinancialCharts.drawTrendLine('flowTrendLine', [2.5, 4.8, -1.2, 8.6, 12.36], ['08-21', '08-22', '08-25', '08-26', '08-27']);
     FinancialCharts.drawSentimentGauge('mainForceGauge', 85);
-  }
-  else if (tabId === 'returns') {
-    // Strategy equity curve vs Benchmark 沪深300
+  } else if (tabId === 'returns') {
     const strategyEquity = [1.00, 1.02, 1.01, 1.05, 1.08, 1.06, 1.12, 1.15, 1.18, 1.16, 1.22, 1.25, 1.28, 1.30, 1.34];
     const benchmarkEquity = [1.00, 1.01, 0.99, 1.02, 1.03, 1.01, 1.04, 1.05, 1.04, 1.02, 1.05, 1.06, 1.07, 1.08, 1.09];
     const labels = ['3月', '4月', '5月', '6月', '7月', '8月', '9月'];
     FinancialCharts.drawEquityCurve('equityCurveCanvas', strategyEquity, benchmarkEquity, labels);
-
-    // Monthly PnL
     const monthlyPnL = [
       { month: '1月', pnl: 4.8 },
       { month: '2月', pnl: 6.2 },
@@ -2094,36 +2671,129 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
 
   appendChatMessage('ai', '<span style="color:#86909C;">AI正在综合大盘、资金流、筹码与技术指标进行深度研判...</span>', msgMeta);
 
-  setTimeout(() => {
+  const queryText = metaParam.userText || title;
+  const activeSessionId = AppState.currentSessionId || (HistoricalSessions[0] ? HistoricalSessions[0].id : null);
+
+  // If AStockAPI is available and user query / prompt text is provided, attempt backend SSE
+  if (window.AStockAPI && activeSessionId && metaParam.useApi !== false) {
+    let accumulatedText = '';
     const container = document.getElementById(msgId);
-    if (!container) return;
+    const toolStatus = container ? container.querySelector('#toolStatus') : null;
+    const contentBody = container ? container.querySelector('.ai-content-body') : null;
 
-    const toolStatus = container.querySelector('#toolStatus');
-    if (toolStatus) {
-      toolStatus.innerHTML = `
-        <span style="color:#52C41A; font-weight:700;">✓</span>
-        <span>已完成数据调取与实战三原则保本价精算（含全部税费保本测算）</span>
-      `;
-    }
-
-    const contentBody = container.querySelector('.ai-content-body');
-    contentBody.innerHTML = '';
-
-    let idx = 0;
-    const speed = 12;
-    const interval = setInterval(() => {
-      idx += 3;
-      if (idx >= fullText.length) {
-        clearInterval(interval);
-        contentBody.innerHTML = fullText;
-        AppState.isChatStreaming = false;
-      } else {
-        contentBody.innerHTML = fullText.slice(0, idx) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
+    const fallbackTypewriter = () => {
+      if (!container) return;
+      if (toolStatus) {
+        toolStatus.innerHTML = `
+          <span style="color:#52C41A; font-weight:700;">✓</span>
+          <span>已完成数据调取与实战三原则保本价精算（含全部税费保本测算）</span>
+        `;
       }
-      const scrollBox = document.getElementById('chatMessages');
-      if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
-    }, speed);
-  }, 500);
+      if (contentBody) {
+        contentBody.innerHTML = '';
+        let idx = 0;
+        const speed = 12;
+        const interval = setInterval(() => {
+          idx += 3;
+          if (idx >= fullText.length) {
+            clearInterval(interval);
+            contentBody.innerHTML = fullText;
+            AppState.isChatStreaming = false;
+          } else {
+            contentBody.innerHTML = fullText.slice(0, idx) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
+          }
+          const scrollBox = document.getElementById('chatMessages');
+          if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
+        }, speed);
+      }
+    };
+
+    window.AStockAPI.streamChatCompletions(
+      queryText,
+      activeSessionId,
+      'mock',
+      {
+        onSessionCreated: (s) => {
+          AppState.currentSessionId = s.session_id;
+        },
+        onThought: (thought) => {
+          if (toolStatus) {
+            toolStatus.innerHTML = `
+              <span class="tool-badge-running"></span>
+              <span>${thought}</span>
+            `;
+          }
+        },
+        onToolCall: (tool) => {
+          if (toolStatus) {
+            toolStatus.innerHTML = `
+              <span style="color:#52C41A; font-weight:700;">✓</span>
+              <span>调用技能 [${tool.skill_id || tool.tool_name}]：${tool.action || '执行量化运算与保本精算'}</span>
+            `;
+          }
+        },
+        onDelta: (delta) => {
+          if (contentBody) {
+            if (accumulatedText === '') contentBody.innerHTML = '';
+            accumulatedText += delta;
+            contentBody.innerHTML = accumulatedText + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
+            const scrollBox = document.getElementById('chatMessages');
+            if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
+          }
+        },
+        onDone: (data) => {
+          if (contentBody) {
+            contentBody.innerHTML = accumulatedText || fullText;
+          }
+          if (toolStatus) {
+            toolStatus.innerHTML = `
+              <span style="color:#52C41A; font-weight:700;">✓</span>
+              <span>已完成数据调取与实战三原则保本价精算（含全部税费保本测算）</span>
+            `;
+          }
+          AppState.isChatStreaming = false;
+        },
+        onError: (err) => {
+          console.warn('streamChatCompletions fallback:', err);
+          fallbackTypewriter();
+        }
+      }
+    ).catch(err => {
+      console.warn('streamChatCompletions catch fallback:', err);
+      fallbackTypewriter();
+    });
+  } else {
+    setTimeout(() => {
+      const container = document.getElementById(msgId);
+      if (!container) return;
+
+      const toolStatus = container.querySelector('#toolStatus');
+      if (toolStatus) {
+        toolStatus.innerHTML = `
+          <span style="color:#52C41A; font-weight:700;">✓</span>
+          <span>已完成数据调取与实战三原则保本价精算（含全部税费保本测算）</span>
+        `;
+      }
+
+      const contentBody = container.querySelector('.ai-content-body');
+      contentBody.innerHTML = '';
+
+      let idx = 0;
+      const speed = 12;
+      const interval = setInterval(() => {
+        idx += 3;
+        if (idx >= fullText.length) {
+          clearInterval(interval);
+          contentBody.innerHTML = fullText;
+          AppState.isChatStreaming = false;
+        } else {
+          contentBody.innerHTML = fullText.slice(0, idx) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
+        }
+        const scrollBox = document.getElementById('chatMessages');
+        if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
+      }, speed);
+    }, 500);
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -4327,9 +4997,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 4. Initial Tab & View Activation
+  // 4. Initial Tab & View Activation and Backend Data Loading
   switchRightTab('dashboard');
   updateProjectedCalculator();
+  loadAllBackendData();
 
   // 5. Initialize Model Providers and Roles settings
   initProvidersSettings();
@@ -4353,5 +5024,6 @@ function selectWatchStock(code) {
       card.classList.remove('active');
     }
   });
+  loadWatchlistData(code);
 }
 window.selectWatchStock = selectWatchStock;

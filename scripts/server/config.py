@@ -19,7 +19,7 @@ DEFAULT_DB_PATH = PROJECT_ROOT / "output" / "cache" / "chats.db"
 class ServerSettings(BaseModel):
     """Configuration settings for FastAPI server and Agent runtime."""
     host: str = Field(default="127.0.0.1", description="Server listening host")
-    port: int = Field(default=8000, description="Server listening port")
+    port: int = Field(default=6300, description="Server listening port")
     reload: bool = Field(default=False, description="Enable auto-reload on code change")
     cors_origins: List[str] = Field(
         default=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173", "*"],
@@ -69,7 +69,7 @@ def load_server_settings() -> ServerSettings:
 
     return ServerSettings(
         host=os.getenv("A_STOCK_SERVER_HOST", "127.0.0.1"),
-        port=int(os.getenv("A_STOCK_SERVER_PORT", "8000")),
+        port=int(os.getenv("A_STOCK_SERVER_PORT", "6300")),
         reload=os.getenv("A_STOCK_SERVER_RELOAD", "false").lower() in ("true", "1", "yes"),
         cors_origins=cors_origins,
         db_path=db_path,
