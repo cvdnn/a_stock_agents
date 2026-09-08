@@ -197,18 +197,11 @@ python verify.py
 
 ### 1. Google Antigravity / Gemini CLI
 - 将本项目根目录作为 Workspace 打开。
-- Antigravity 自动识别工作区内 [`.agents/skills/`](file:///c:/Users/cvdnn/coding/a_stock_agents/.agents/skills) 的 17 项技能。
-- 对话中直接输入自然语言，例如：“帮我分析茅台行情”、“5A选股”、“测算买入成本1500元的保本价”，智能体将自动路由至对应技能并调用 CLI 获取结构化数据。
+- Antigravity 自动识别工作区内 [`.agents/skills/`](../.agents/skills) 的 17 项技能。
+- 支持在侧边栏或对话中直接按需激活任一技能，底层通过统一 CLI 就地执行，输出标准 JSON / Markdown 结果。
 
-### 2. Hermes Agent
-- 直接在项目根目录下启动会话：
-  ```bash
-  hermes --skills-dir ./.agents/skills
-  ```
-- Hermes 自动按需读取系统提示词并执行量化子进程。
-
-### 3. OpenAI Codex / Claude Code / Cursor / Cline
-- 项目根目录已提供标准化 [`AGENTS.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/AGENTS.md) 与 [`CLAUDE.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/CLAUDE.md)。
+### 2. Hermes / Codex / Claude Code
+- 项目根目录已提供标准化 [`AGENTS.md`](../AGENTS.md) 与 [`CLAUDE.md`](../CLAUDE.md)。
 - 智能体直接遵循规约，严禁自行编写网页爬虫脚本，统一直接调用 `./bin/astock <subcommand> --json` 获取输出。
 
 ---

@@ -1,117 +1,76 @@
-# A股最低保本卖出价量化精算与精确进位业务规则规范 (Breakeven Price Calculation Rules)
+# 最低保本卖出价精算与精确进位实施看板 (Breakeven Price Calculation Execution Spec)
 
-- **规范分类**：业务规则
+- **规范分类**：业务规则 (Business Rules)
 - **规范编号**：SPEC-BIZ-002
-- **文档版本**：v1.2
-- **当前状态**：正式规范 (Production Baseline)
-- **创建日期**：2026-09-02（修订日期：2026-09-07）
+- **文档版本**：v1.3
+- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **创建日期**：2026-09-02（修订日期：2026-09-08）
 - **适用范围**：A股量化实战交易动作中枢、保本价试算器、HTML交互研报持仓明细表与模拟撮合风控
-- **关联设计**：[`biz-broker-commission-configurable-design.md`](biz-broker-commission-configurable-design.md)、[`biz-trading-execution-and-risk-control.md`](biz-trading-execution-and-risk-control.md)、[`../../../AGENTS.md`](../../../AGENTS.md)
+- **权威设计指南**：[`docs/guidelines/breakeven-calculation-rules.md`](../../guidelines/breakeven-calculation-rules.md)
+
+> 🔗 **权威规范与规则定义直达**：  
+> 本文件为 **最低保本卖出价量化精算与向上进位实施落地与任务执行跟踪看板**。关于全流程摩擦税费精算数学模型、二分法求解原理、强制向上精确进位至分 (`math.ceil`) 规则等完整定义，请查阅权威指南：  
+> 👉 [**《A股最低保本卖出价量化精算与精确进位业务规则》(breakeven-calculation-rules.md)**](../../guidelines/breakeven-calculation-rules.md)
 
 ---
 
-## 0. 核心原则与铁律 (The Breakeven Iron Law)
+## 一、 规范简要名称与核心要点
 
-> 📌 **核心铁律**：按全摩擦税费公式得出理论保本价后，**必须均强制向上精确进位到 0.01 元 (`math.ceil`)**。实战挂单与止盈止损参考一律采用进位后价格，杜绝任何四舍五入，确保 100% 绝对无损保本。
-
----
-
-## 1. 费率参数标准 (Market Fee Parameters)
-
-全市场交易摩擦成本动态支持通过 `config/config.yaml` 配置化（参见 [`biz-broker-commission-configurable-design.md`](biz-broker-commission-configurable-design.md)），标准基准参数如下：
-
-| 费用项 | 费率标准 | 收取方向 | 最低门槛 / 规则说明 |
-|:---|:---:|:---:|:---|
-| **印花税** | 万分之 5.0 ($0.00050$) | **单边收取（仅卖出收取）** | 无最低收费门槛 |
-| **券商佣金** | 万分之 2.5 ($0.00025$)（默认） | 双边收取（买入 + 卖出） | **单笔最低 5.00 元起收**（支持免五配置） |
-| **过户费** | 万分之 0.1 ($0.00001$) | 双边收取（沪深两市均收） | 无门槛 |
+- **规范名称**：最低保本卖出价量化精算与精确进位业务规则规范
+- **核心定位**：确保交易员与量化系统在卖出平仓时 100% 覆盖全部买卖双向税费，杜绝任何微小亏损。
+- **关键设计要点**：
+  1. [绝对无损保本铁律](../../guidelines/breakeven-calculation-rules.md#一-核心原则与进位铁律-the-breakeven-iron-law)：必须均强制向上精确进位至 0.01 元 (`math.ceil`)，坚决杜绝四舍五入；
+  2. [全摩擦税费覆盖](../../guidelines/breakeven-calculation-rules.md#二-费率参数标准-market-fee-parameters)：严格计入卖出印花税（0.05%）、券商佣金（万2.5/保底5元）、过户费（十万分之1）；
+  3. [精确数学建模求解](../../guidelines/breakeven-calculation-rules.md#三-保本价精算与进位算法数学模型)：以净收入函数单调性为基础，进行高精度收敛并严格进位；
+  4. [持仓明细与动作单全链路接入](../../guidelines/breakeven-calculation-rules.md#四-python-标准工程实现)：所有个股分析报告、动作单与持仓卡片必须明确展示最低保本卖出价。
 
 ---
 
-## 2. 保本价精算与进位算法数学模型
+## 二、 任务实施与执行进度矩阵 (Task Implementation Matrix)
 
-### 2.1 理论全成本计算（买入总支出）
-$$\text{BuyPrincipal} = \text{Cost} \times \text{Shares}$$
-$$\text{BuyComm} = \max(\text{BuyPrincipal} \times \text{CommissionRate}, \text{MinCommission})$$
-$$\text{BuyTransfer} = \text{BuyPrincipal} \times \text{TransferRate}$$
-$$\text{TotalBuyCost} = \text{BuyPrincipal} + \text{BuyComm} + \text{BuyTransfer}$$
-
-### 2.2 理论未进位保本价 ($P_{\text{raw}}$)
-卖出时扣除卖出佣金、印花税、过户费后的净收入必须 $\ge \text{TotalBuyCost}$：
-$$\text{Denom} = 1 - \text{CommissionRate} - \text{StampTaxRate} - \text{TransferRate}$$
-$$P_{\text{raw}} = \frac{\text{TotalBuyCost} + (\text{若卖出佣金不足最低佣金需补足之差额})}{\text{Shares} \times \text{Denom}}$$
-
-### 2.3 强制向上精确进位至 0.01 元规则 ($P_{\text{breakeven}}$)
-$$P_{\text{breakeven}} = \frac{\lceil \text{round}(P_{\text{raw}}, 4) \times 100 \rceil}{100.0}$$
-
-**实战案例验证**：
-* 案例 1：理论计算为 `¥6.1413` $\longrightarrow$ **`¥6.15`**
-* 案例 2：理论计算为 `¥6.1463` $\longrightarrow$ **`¥6.15`**
-* 案例 3：**中国中车**（5,000股，成本 ¥6.1411）：理论值 `¥6.1463` $\longrightarrow$ **`¥6.15`**（挂单 ¥6.15 卖出可净落袋 +¥18.51 利润，绝不产生微亏）
-* 案例 4：**紫金矿业**（1,500股，成本 ¥31.1163）：理论值 `¥31.1399` $\longrightarrow$ **`¥31.14`**
-* 案例 5：**恒瑞医药**（200股，成本 ¥88.4427）：理论值 `¥88.5387` $\longrightarrow$ **`¥88.54`**
+| 实施任务项 | 代码映射路径 | 实施状态 | 验收说明与测试基准 | 交付日期 |
+|:---|:---|:---:|:---|:---:|
+| **保本价精算核心算法实现** | `scripts/core/strategy/execution_action_engine.py` | ✅ 100% | 实现 `calc_min_breakeven_price`，向上精确进位至分位 | 2026-09-02 |
+| **黄金测试用例基准验证** | `tests/test_execution_action_engine.py` | ✅ 100% | 验证中国中车(6.1411->6.15)、紫金矿业、恒瑞医药等 5 组实盘案例 | 2026-09-02 |
+| **实战动作单 CLI 命令接入** | `scripts/core/cli.py` (`astock action plan`) | ✅ 100% | 输入成本与股数，直接输出带向上进位说明的实操保本卖出价 | 2026-09-02 |
+| **HTML 交互研报 10 列持仓表** | `scripts/core/reporting/html_reporter.py` | ✅ 100% | 持仓明细表第 4 列强制展示「最低保本卖出价」 | 2026-09-03 |
+| **前端 A2UI 紧凑卡片组件** | `web/js/components/astock.js` | ✅ 100% | 前端卡片直观显示保本价，去除冗余进位文本，保持紧凑 | 2026-09-07 |
 
 ---
 
-## 3. Python 标准工程实现
+## 三、 里程碑推进情况 (Milestone Progress)
 
-位于 `scripts/core/strategy/execution_action_engine.py`：
-
-```python
-import math
-from typing import Optional
-from scripts.core.config import get_market_config
-
-def calc_min_breakeven_price(
-    cost: float,
-    shares: int,
-    commission_rate: Optional[float] = None,
-    min_commission: Optional[float] = None,
-    stamp_tax_rate: Optional[float] = None,
-    transfer_fee_rate: Optional[float] = None,
-) -> float:
-    """
-    计算最低保本卖出价（严格计入全流程摩擦税费后，强制向上精确进位至 0.01 元）。
-    """
-    if cost <= 0 or shares <= 0:
-        return cost
-        
-    cfg = get_market_config()
-    comm_rate = commission_rate if commission_rate is not None else cfg.get("commission_rate", 0.00025)
-    min_comm = min_commission if min_commission is not None else cfg.get("min_commission", 5.0)
-    tax_rate = stamp_tax_rate if stamp_tax_rate is not None else cfg.get("tax_rate_sell", 0.0005)
-    trans_rate = transfer_fee_rate if transfer_fee_rate is not None else cfg.get("transfer_fee_rate", 0.00001)
-
-    buy_principal = cost * shares
-    buy_comm = max(buy_principal * comm_rate, min_comm)
-    buy_transfer = buy_principal * trans_rate
-    total_buy = buy_principal + buy_comm + buy_transfer
-
-    def net_revenue(p: float) -> float:
-        sell = p * shares
-        sc = max(sell * comm_rate, min_comm)
-        st = sell * tax_rate
-        sf = sell * trans_rate
-        return sell - sc - st - sf
-
-    # 二分查找理论价格
-    lo, hi = cost * 0.8, cost * 1.8
-    for _ in range(60):
-        mid = (lo + hi) / 2.0
-        if net_revenue(mid) >= total_buy:
-            hi = mid
-        else:
-            lo = mid
-            
-    # 核心进位逻辑：向上精确取整到 0.01 元
-    breakeven_price = math.ceil(round(hi, 4) * 100) / 100.0
-    return breakeven_price
+```mermaid
+timeline
+    title SPEC-BIZ-002 实施里程碑演进
+    section M1 算法研发
+      全摩擦精算模型确立 : 2026-09-01
+      math.ceil 向上进位实现 : 2026-09-02
+    section M2 全链路集成
+      CLI 动作单与测试用例 : 2026-09-02
+      HTML 交互研报接入 : 2026-09-03
+      A2UI 前端紧凑卡片上线 : 2026-09-07
+    section M3 交付与治理
+      规则抽取至 guidelines : 2026-09-08
+      实施基线交付验收 : 2026-09-08
 ```
 
 ---
 
-## 4. 前端展示去术语化准则 (Presentation Guidelines)
+## 四、 质量验收与验证证据 (Verification Evidence)
 
-遵循《Web UI 界面设计与交互规范》：
-1. **底层计算严格执行**：算法与状态机一律采用 `math.ceil` / `Math.ceil` 进位；
-2. **用户界面文案净化**：表头与标签统一使用标准金融词汇 `最低保本卖出价` 或 `保本参考价`，杜绝出现 `(ceil)`、`(math.ceil)` 等代码调试后缀。
+1. **实战黄金案例验证结果**：
+   - 中国中车（5,000股，成本 ¥6.1411）：理论未进位 ¥6.1463 $\longrightarrow$ **输出 ¥6.15**，挂单卖出产生净利润 +¥18.51，零亏损。
+2. **回归自动化测试执行**：
+   ```powershell
+   python -m pytest tests/test_execution_action_engine.py
+   # 结果：100% 通过
+   ```
+
+---
+
+## 五、 执行变更日志 (Execution Changelog)
+
+- **2026-09-08 (v1.3)**：按规范治理要求重构，将业务算法规则抽离至 `docs/guidelines/breakeven-calculation-rules.md`，本文件重塑为实施看板。
+- **2026-09-07 (v1.2)**：前端组件卡片优化，精简进位文本展示。
+- **2026-09-02 (v1.0)**：初始创建，实现全摩擦成本向上进位算法与测试套件。

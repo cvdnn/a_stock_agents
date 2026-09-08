@@ -354,24 +354,35 @@ flowchart TB
 
 ## 八、项目技术文档体系
 
-本项目全量文档统一遵循**领域分层**与 **`kebab-case` 小写短横线**标准化命名规范：
+本项目全量文档统一遵循**知识定义（`guidelines/`）与实施进度（`specs/`）双层解耦架构**与 **`kebab-case` 小写短横线**标准化命名规范：
 
+### 1. 规范、指南、架构与规则权威知识库 (`docs/guidelines/` - SSOT)
+| 类别 | 知识库入口 | 对应实施看板 | 核心内容与定位 |
+|---|---|:---:|---|
+| **知识库总览** | [`docs/guidelines/README.md`](docs/guidelines/README.md) | [`docs/specs/README.md`](docs/specs/README.md) | 全景分类矩阵（规范·指南·架构·规则）与演进规约 |
+| **工程规范** | [`docs/guidelines/project-structure-specification.md`](docs/guidelines/project-structure-specification.md) | [`SPEC-ENG-001`](docs/specs/engineering/eng-project-structure-and-workspace.md) | 零全局污染、SSOT、跨平台 CLI 门面与数据隔离规范 |
+| **A2UI规范** | [`docs/guidelines/a2ui-component-registry-specification.md`](docs/guidelines/a2ui-component-registry-specification.md) | [`SPEC-A2UI-002`](docs/specs/a2ui/a2ui-component-registry-specification.md) | A2UI 组件包契约、时序解耦未决队列与自省清单规范 |
+| **界面指南** | [`docs/guidelines/ui-design-guide.md`](docs/guidelines/ui-design-guide.md) | [`SPEC-UI-001`](docs/specs/ui/ui-design-and-interaction-specification.md) | 浅色金融风格、红涨绿跌、双模视口与卡片轻量边框指南 |
+| **算法治理** | [`docs/guidelines/algorithm-governance.md`](docs/guidelines/algorithm-governance.md) | [`SPEC-ALGO-001`](docs/specs/algorithm/algo-lifecycle-and-governance-specification.md) | 44 项量化算法全景清单、AlgoRegistry 2.0 与四道质量门禁 |
+| **代码审查** | [`docs/guidelines/code-review.md`](docs/guidelines/code-review.md) | - | 代码质量基准、安全红线与质量审查报告标准 |
+| **测试规约** | [`docs/guidelines/testing-guide.md`](docs/guidelines/testing-guide.md) | - | 10 大核心领域回归测试架构与临时用例即测即删铁律 |
+| **命名范式** | [`docs/guidelines/naming-conventions.md`](docs/guidelines/naming-conventions.md) | - | 消除文件名版本化侵入与模型演进四大设计范式 (SSOT) |
+| **系统架构** | [`docs/guidelines/web-aichat-architecture.md`](docs/guidelines/web-aichat-architecture.md) | [`SPEC-ARCH-001`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 17 技能治理架构 |
+| **系统架构** | [`docs/guidelines/llm-provider-architecture.md`](docs/guidelines/llm-provider-architecture.md) | [`SPEC-ARCH-002`](docs/specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与业务场景角色绑定 (Roles) 架构 |
+| **系统架构** | [`docs/guidelines/token-security-architecture.md`](docs/guidelines/token-security-architecture.md) | [`SPEC-ARCH-003`](docs/specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离与指纹审计架构 |
+| **A2UI架构** | [`docs/guidelines/a2ui-framework-architecture.md`](docs/guidelines/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](docs/specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 前端渲染引擎、WebApp Shell 硬锁定与五阶段渐进水合 |
+| **业务规则** | [`docs/guidelines/breakeven-calculation-rules.md`](docs/guidelines/breakeven-calculation-rules.md) | [`SPEC-BIZ-002`](docs/specs/business/biz-breakeven-price-calculation-rules.md) | 最低保本卖出价精算公式与向上进位至分位 (`math.ceil`) 规则 |
+| **业务规则** | [`docs/guidelines/broker-commission-rules.md`](docs/guidelines/broker-commission-rules.md) | [`SPEC-BIZ-001`](docs/specs/business/biz-broker-commission-configurable-design.md) | 券商佣金及市场费率配置化、动态热重载与未配置友好提示 |
+| **业务规则** | [`docs/guidelines/trading-execution-rules.md`](docs/guidelines/trading-execution-rules.md) | [`SPEC-BIZ-003`](docs/specs/business/biz-trading-execution-and-risk-control.md) | 实战交易三原则、六大交易反应动作与 T0/T1/T2 止损阶梯 |
+
+### 2. 规范实施进度看板与实战索引
 | 领域分类 | 入口文件 | 核心说明 |
 |---|---|---|
 | **知识速查全景** | [`docs/index.md`](docs/index.md) | 系统导图、6大引擎与 17 技能架构速查 |
 | **快速上手向导** | [`docs/quickstart.md`](docs/quickstart.md) | 环境安装、依赖配置、自检与核心命令演示 |
-| **代码审查规范** | [`docs/guidelines/code-review.md`](docs/guidelines/code-review.md) | 代码质量基准、安全红线与审查报告 |
-| **回归测试指南** | [`docs/guidelines/testing-guide.md`](docs/guidelines/testing-guide.md) | TDD 测试先行与临时用例即测即删铁律 |
-| **命名与设计范式** | [`docs/guidelines/naming-conventions.md`](docs/guidelines/naming-conventions.md) | 源码/文档规范与模型演进四大范式 (SSOT) |
-| **规范总览中心** | [`docs/specs/README.md`](docs/specs/README.md) | 规范文档命名规则、SPEC 矩阵与 6 大领域规范导航 |
-| **工程结构设计规范** | [`docs/specs/engineering/eng-project-structure-and-workspace.md`](docs/specs/engineering/eng-project-structure-and-workspace.md) | 项目工程结构、就地运行底座与跨平台 CLI 规范 (SPEC-ENG-001) |
-| **Web UI 设计规范** | [`docs/specs/ui/ui-design-and-interaction-specification.md`](docs/specs/ui/ui-design-and-interaction-specification.md) | 现代浅色金融风格、双模视口与连通长顶栏规范 (SPEC-UI-001) |
-| **系统架构设计规范** | [`docs/specs/architecture/arch-web-aichat-and-skill-governance.md`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI 与 17 项技能治理系统架构规范 (SPEC-ARCH-001) |
-| **A2UI 动态前端框架** | [`docs/specs/a2ui/a2ui-framework-engine-specification.md`](docs/specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 核心动态渲染引擎与 1:1 骨架屏规范 (SPEC-A2UI-001) |
-| **券商费率配置规范** | [`docs/specs/business/biz-broker-commission-configurable-design.md`](docs/specs/business/biz-broker-commission-configurable-design.md) | 券商佣金及费率参数配置化与首次使用提示设计规范 (SPEC-BIZ-001) |
-| **保本价精算业务规则** | [`docs/specs/business/biz-breakeven-price-calculation-rules.md`](docs/specs/business/biz-breakeven-price-calculation-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位 (SPEC-BIZ-002) |
-| **实战交易动作与风控** | [`docs/specs/business/biz-trading-execution-and-risk-control.md`](docs/specs/business/biz-trading-execution-and-risk-control.md) | 六大实战反应动作、三场景动作单与三级止损阶梯 (SPEC-BIZ-003) |
-| **算法全生命周期治理** | [`docs/specs/algorithm/algo-lifecycle-and-governance-specification.md`](docs/specs/algorithm/algo-lifecycle-and-governance-specification.md) | 44项算法全景清单、四道质量门禁规范与ALCM治理方案 (SPEC-ALGO-001) |
+| **规范实施总览** | [`docs/specs/README.md`](docs/specs/README.md) | 6 大领域规范实施落地进度追踪总看板 (SPEC-INDEX) |
+| **实战交易手册** | [`docs/trading/execution-manual.md`](docs/trading/execution-manual.md) | 六大实战反应动作与挂单纪律实操指南 |
+| **保本精算速查** | [`docs/trading/breakeven-rules.md`](docs/trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与进位速查表 |
 
 ---
 

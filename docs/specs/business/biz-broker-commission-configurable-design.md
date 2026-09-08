@@ -1,98 +1,78 @@
-# 券商佣金及费率参数配置化与首次使用提示设计规范 (Broker Commission & Fees Configurable Design)
+# 券商佣金及费率参数配置化实施看板 (Broker Commission Configurable Execution Spec)
 
-- **规范分类**：业务规则
+- **规范分类**：业务规则 (Business Rules)
 - **规范编号**：SPEC-BIZ-001
-- **文档版本**：v1.1
-- **当前状态**：正式规范 (Production Baseline)
-- **创建日期**：2026-09-02（修订日期：2026-09-07）
+- **文档版本**：v1.2
+- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **创建日期**：2026-09-02（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 交易成本精算、实战动作单生成、模拟盘撮合引擎与策略回测模块
-- **关联设计**：[`biz-breakeven-price-calculation-rules.md`](biz-breakeven-price-calculation-rules.md)、[`biz-trading-execution-and-risk-control.md`](biz-trading-execution-and-risk-control.md)、[`../../../config/config.yaml`](../../../config/config.yaml)
+- **权威设计指南**：[`docs/guidelines/broker-commission-rules.md`](../../guidelines/broker-commission-rules.md)
+
+> 🔗 **权威规范与规则定义直达**：  
+> 本文件为 **券商佣金及费率参数配置化实施落地与任务执行跟踪看板**。关于全市场摩擦费率基准、配置项读取与热重载接口、未配置友好引导规则等完整细节，请查阅权威指南：  
+> 👉 [**《券商佣金及市场交易费率参数配置化业务规则》(broker-commission-rules.md)**](../../guidelines/broker-commission-rules.md)
 
 ---
 
-## 0. 设计目的与目标
+## 一、 规范简要名称与核心要点
 
-彻底消除代码库中券商佣金（万2.5及最低5元起收）等交易费率的硬编码与不一致问题，建立全局统一的市场费率配置中心，支持 CLI 交互配置与持久化，并在用户未配置/首次触发保本价计算时提供显式智能提示。
-
----
-
-## 1. 背景与现状问题
-
-### 1.1 核心问题审计
-1. **多处硬编码与费率冲突**：
-   - `scripts/core/strategy/execution_action_engine.py` 早期硬编码 `COMMISSION_RATE = 0.00012` (万1.2) 和 `MIN_COMMISSION = 5.0`，与 `config/config.yaml` 中的 `0.00025` (万2.5) 不一致。
-   - `scripts/core/strategy/risk_position_manager.py` 内部写死 `max(5.0, cost * 0.00025)`。
-   - `scripts/core/paper_trading/engine.py` 硬编码 `DEFAULT_COMMISSION_RATE = 0.00012`。
-   - `scripts/core/paper_trading/a_stocks_backtest.py` 遗漏了单笔最低 5 元佣金的保底逻辑。
-   - `scripts/core/models/multi_dim_model_v3.py` 参数独立写死在构造函数中。
-2. **对最低成本价/保本价精度的直接危害**：
-   - A股不同投资者的券商佣金费率差异较大（从万分之1到万分之3不等，部分支持免五/无最低5元限制）。
-   - 保本卖出价公式依赖于买入与卖出两端的精确摩擦成本扣除：
-     $$P_{\text{raw}} = \frac{\text{TotalBuyCost} + \text{SellDeductions}}{\text{Shares}}$$
-   - 若使用错误的硬编码费率（如按万1.2计算实盘万2.5），会导致算出的「最低保本卖出价」偏低，用户挂单卖出后依然产生微亏。
-3. **缺乏状态追踪与用户引导**：
-   - 系统未记录用户是否已核对/配置过自己的真实券商费率。
+- **规范名称**：券商佣金及费率参数配置化与首次使用提示设计规范
+- **核心定位**：彻底消除系统各子模块中券商佣金（万2.5/最低5元）的硬编码，实现全局配置统一与个性化费率支持。
+- **关键设计要点**：
+  1. [全局统一费率配置中心 (`config.yaml`)](../../guidelines/broker-commission-rules.md#二-全局配置规范-configconfigyaml)：印花税、佣金比例、过户费率、单笔最低5元保底统一管理；
+  2. [免五与个性化费率支持](../../guidelines/broker-commission-rules.md#二-全局配置规范-configconfigyaml)：支持高频交易用户将 `min_commission` 设为 `0.0`；
+  3. [内存热重载与单一真理来源 (SSOT)](../../guidelines/broker-commission-rules.md#三-python-核心访问与热重载接口-scriptscoreconfigpy)：修改后即时生效，杜绝各业务模块数值分叉；
+  4. [首次使用未配置友好引导](../../guidelines/broker-commission-rules.md#三-python-核心访问与热重载接口-scriptscoreconfigpy)：`is_user_configured` 为 `false` 时显式输出配置向导提示。
 
 ---
 
-## 2. 系统架构与设计细节
+## 二、 任务实施与执行进度矩阵 (Task Implementation Matrix)
 
-### 2.1 全局配置中心升级 (`scripts/core/config.py` 与 `config/config.yaml`)
-在 `market` 配置块中增加状态字段并提供标准存取接口：
+| 实施任务项 | 代码映射路径 | 实施状态 | 验收说明与测试基准 | 交付日期 |
+|:---|:---|:---:|:---|:---:|
+| **全局配置项与结构化解析** | `config/config.yaml`, `scripts/core/config.py` | ✅ 100% | 支持 `get_market_config()` 与 `save_market_config()`，单元测试覆盖 | 2026-09-02 |
+| **保本精算引擎移除硬编码** | `scripts/core/strategy/execution_action_engine.py` | ✅ 100% | 动态接入全局配置，正确处理最低 5 元门槛 | 2026-09-02 |
+| **风控与解套做T接入** | `scripts/core/strategy/risk_position_manager.py` | ✅ 100% | 读取全局费率计算做 T 收益与保本位 | 2026-09-02 |
+| **模拟撮合与事件回测接入** | `scripts/core/paper_trading/engine.py`, `a_stocks_backtest.py` | ✅ 100% | 撮合手续费计入单笔最低 5 元保底与动态佣金率 | 2026-09-02 |
+| **CLI 费率管理子命令** | `scripts/core/cli.py` (`astock config market`) | ✅ 100% | 支持命令行直接修改与交互式向导配置 | 2026-09-02 |
+| **单元测试套件覆盖** | `tests/test_config.py` | ✅ 100% | 针对读写持久化、边界回退与免五场景全部测试通过 | 2026-09-02 |
 
-```yaml
-market:
-  default_benchmark: "sh000001"
-  tax_rate_sell: 0.0005       # 卖出印花税 0.05% (万5)
-  commission_rate: 0.00025    # 券商佣金 万2.5 (默认)
-  transfer_fee_rate: 0.00001   # 过户费 十万分之1 (沪深双向)
-  min_commission: 5.0         # 佣金最低 5 元起收 (免五用户可设为 0.0)
-  breakeven_ceil_cent: true   # 最低保本卖出价必须向上精确进位到分
-  is_user_configured: false   # 用户是否已确认/自定义过费率
+---
+
+## 三、 里程碑推进情况 (Milestone Progress)
+
+```mermaid
+timeline
+    title SPEC-BIZ-001 实施里程碑演进
+    section M1 基础改造
+      审计定位硬编码 : 2026-09-01
+      config.yaml 费率中心落定 : 2026-09-02
+    section M2 跨模块接入
+      执行中枢与撮合引擎统一 : 2026-09-02
+      CLI config market 命令交付 : 2026-09-02
+    section M3 交付与治理
+      规则抽取至 guidelines : 2026-09-08
+      实施基线交付验收 : 2026-09-08
 ```
 
-**提供统一配置函数**：
-- `get_market_config() -> dict`：获取当前生效的市场费率（含默认回退）。
-- `save_market_config(...) -> dict`：更新 `config.yaml`，同步热重载内存中的 `GLOBAL_CONFIG`，并将 `is_user_configured` 设为 `true`。
-- `check_market_config_prompt() -> Tuple[bool, str]`：检查 `is_user_configured`，若未配置则生成友好提示文本。
+---
+
+## 四、 质量验收与验证证据 (Verification Evidence)
+
+1. **CLI 费率查看与修改测试**：
+   ```powershell
+   python scripts/core/cli.py config market --commission 0.00025 --min-commission 5.0
+   # 验证输出: 费率更新成功，is_user_configured 标记为 True
+   ```
+2. **单元测试回归验证**：
+   ```powershell
+   python -m pytest tests/test_config.py
+   # 结果：100% 通过
+   ```
 
 ---
 
-## 2.2 交易决策与精确保本算法重构 (`scripts/core/strategy/execution_action_engine.py`)
-1. **移除顶部硬编码常量**，改由 `get_market_config()` 统一提供。
-2. **重构 `calc_min_breakeven_price` 算法**：
-   - 支持动态传入 `commission_rate`, `min_commission`, `stamp_tax_rate`, `transfer_fee_rate`。
-   - 保证买卖双向均严格遵循 $\max(\text{成交金额} \times \text{佣金率}, \text{最低佣金})$。
-   - 保留严密的向上精确取整至分（0.01 元）逻辑。
-3. **未配置提醒注入**：
-   - 当 `is_user_configured` 为 `False` 时，在生成的决策单/卡片中包含「💡 费率未确认提醒」，告知用户当前按万2.5默认计算。
+## 五、 执行变更日志 (Execution Changelog)
 
----
-
-## 2.3 业务与回测模块统一接入
-1. `scripts/core/strategy/risk_position_manager.py`：读取 `get_market_config()` 替代硬编码。
-2. `scripts/core/paper_trading/engine.py`：读取 `get_market_config()` 替代硬编码。
-3. `scripts/core/paper_trading/a_stocks_backtest.py`：计算佣金时补充 `min_commission` 逻辑。
-4. `scripts/core/models/multi_dim_model_v3.py`：接入统一配置中心。
-5. `.agents/skills/` 对应就地技能：同步调用核心统一 API。
-
----
-
-## 2.4 CLI 命令设计 (`scripts/core/cli.py`)
-支持 `config market` 子命令：
-
-```bash
-# 查看当前费率配置及配置状态
-python scripts/core/cli.py config market
-
-# 命令行一键配置券商佣金 (如万2.5，最低5元)
-python scripts/core/cli.py config market --commission 0.00025 --min-commission 5.0
-
-# 针对免五高频交易者一键配置 (如万1，免五)
-python scripts/core/cli.py config market --commission 0.00010 --min-commission 0.0
-
-# 交互式向导配置
-python scripts/core/cli.py config market --interactive
-```
-
-并在 `python scripts/core/cli.py action plan` 计算保本价等业务命令中，若未配置过，输出引导提示。
+- **2026-09-08 (v1.2)**：按规范治理要求重构，将业务规则定义抽离至 `docs/guidelines/broker-commission-rules.md`，本文件重塑为实施看板。
+- **2026-09-02 (v1.0)**：初始创建，完成全库券商费率配置化重构。

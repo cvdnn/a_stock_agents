@@ -37,7 +37,7 @@
 当策略或算法需要升级演进、支持多版本对比（如 A/B Testing、新旧算法回测）时，必须采用以下设计范式，严禁新建物理文件：
 
 ### 范式 1：模型注册表与工厂模式 (Model Registry & Factory Pattern)
-在 [`core/models/registry.py`](file:///Users/handy/workon/a_stock_agents/core/models/registry.py) 集中注册所有模型。外部通过模型标识符（或别名）获取实例：
+在 [`scripts/core/models/registry.py`](../../scripts/core/models/registry.py) 集中注册所有模型。外部通过模型标识符（或别名）获取实例：
 
 ```python
 from core.models import ModelRegistry, get_model
@@ -138,28 +138,22 @@ sequenceDiagram
    - 严禁出现 `_v1`, `_v2`, `_new`, `_final` 等临时后缀。
    - 所有架构决策（ADR / RFC）、技术规格说明与业务算法规则统一归档于 `docs/specs/`，遵循下述 6 大分类与标准命名前缀规约。
 
-### 2. 规范文档命名规约 (Specification Naming Rules)
+### 2. 知识库与实施看板双层架构 (Guidelines vs Specs Architecture)
 
-归档于 `docs/specs/` 的设计规范严格遵循**“分层目录 + 前缀自解释 + 元数据头契约”**三重标准：
+为了实现“设计规范高内聚沉淀”与“工程任务实施进度可观测”的解耦治理，文档体系严格划分两大中心：
 
-1. **六大核心领域子目录与统一定界前缀**：
-   - **`engineering/` (`eng-`)**：项目工程结构规范（零全局污染、SSOT单一真理来源、跨平台 CLI、数据隔离）
-   - **`ui/` (`ui-`)**：UI 界面设计规范（浅色金融风格、红涨绿跌、无竖条轻量边框、双模视口）
-   - **`architecture/` (`arch-`)**：系统架构设计规范（FastAPI网关、Agent运行时、Skill治理、多模型双轨制、Token安全）
-   - **`a2ui/` (`a2ui-`)**：A2UI 框架规范（A2UI渲染引擎、1:1骨架屏、渐进式水合、组件库模块化注册与时序解耦）
-   - **`business/` (`biz-`)**：业务规则规范（全摩擦费率配置化、最低保本价进位算法、交易三原则与三级止损）
-   - **`algorithm/` (`algo-`)**：算法规则规范（44项算法资产全景清单、AlgoRegistry 2.0、ALCM四道质量门禁）
+1. **`docs/guidelines/`（规范、指南、架构与规则知识库 - SSOT）**：
+   - 作为系统唯一的权威知识定义中心，承载**规范 (Specification)**、**指南 (Guide)**、**架构 (Architecture)** 与 **规则 (Rules)** 的完整技术规格与契约。
+   - 遵循统一命名范式：`{domain_slug}-{category_suffix}.md`
+     - `-specification.md`：工程技术规格与标准（如 `project-structure-specification.md`、`a2ui-component-registry-specification.md`）
+     - `-guide.md` / `-governance.md`：设计、交互与治理指南（如 `ui-design-guide.md`、`code-review.md`、`testing-guide.md`、`algorithm-governance.md`）
+     - `-architecture.md`：系统架构设计（如 `web-aichat-architecture.md`、`llm-provider-architecture.md`、`token-security-architecture.md`、`a2ui-framework-architecture.md`）
+     - `-rules.md`：量化数学与交易业务规则（如 `breakeven-calculation-rules.md`、`broker-commission-rules.md`、`trading-execution-rules.md`）
 
-2. **物理命名范式**：
-   ```text
-   {category_prefix}-{domain_slug}-{doc_type}.md
-   ```
-   - `category_prefix`：取自 `eng-`、`ui-`、`arch-`、`a2ui-`、`biz-`、`algo-`；
-   - `domain_slug`：全小写短横线（kebab-case）领域语义；
-   - `doc_type`：`-specification.md`（体系规格）、`-design.md`（技术方案/ADR）、`-rules.md`（核心业务/算法规则）。
-
-3. **元数据头部契约**：
-   每个规范文档第一行必须声明统一头部元数据（规范分类、规范编号如 `SPEC-ENG-001`、版本、当前状态、适用范围与关联文档）。
+2. **`docs/specs/`（规范与任务实施执行看板 - Execution Tracking Hub）**：
+   - 作为工程落地、任务分解、执行状态与测试验证证据的看板中心。
+   - 按 6 大领域子目录归档（`engineering/`、`ui/`、`architecture/`、`a2ui/`、`business/`、`algorithm/`），统一采用 `SPEC-{CATEGORY}-{SEQ}` 编号。
+   - 文档内简要显示规范核心定位，并通过显式超链接直达 `docs/guidelines/` 详实内容，主体聚焦于**实施任务矩阵、里程碑推进、代码落地映射与回归测试证据**。
 
 ### 3. 标准领域分层结构 (Standard Directory Taxonomy)
 
@@ -167,19 +161,30 @@ sequenceDiagram
 docs/
 ├── index.md                      # [根级索引] 全景速查图谱与知识导航
 ├── quickstart.md                 # [根级入口] 快速上手与环境自检向导
-├── guidelines/                   # [工程指南] 开发流程、质量审查与命名准则
-│   ├── code-review.md            # 代码审查标准与红线清单
-│   ├── testing-guide.md          # 回归测试架构与规约
-│   ├── algorithm-governance.md   # 算法全生命周期治理指南
-│   └── naming-conventions.md     # 本命名规约 (SSOT)
-├── specs/                        # [规范中心] 6 大领域规范体系 (SPEC-INDEX)
-│   ├── README.md                 # 规范总览矩阵与命名规则说明
-│   ├── engineering/              # [01.工程结构] eng-project-structure-and-workspace.md
-│   ├── ui/                       # [02.UI设计] ui-design-and-interaction-specification.md
-│   ├── architecture/             # [03.系统架构] arch-web-aichat, arch-llm-provider, arch-token-gateway
-│   ├── a2ui/                     # [04.A2UI框架] a2ui-framework-engine, a2ui-component-registry
-│   ├── business/                 # [05.业务规则] biz-broker-commission, biz-breakeven, biz-trading-execution
-│   └── algorithm/                # [06.算法规则] algo-lifecycle-and-governance-specification.md
+├── guidelines/                   # [权威知识库] 规范、指南、架构与规则定义 (SSOT)
+│   ├── README.md                 # 知识导航中心与分类矩阵
+│   ├── project-structure-specification.md # [规范] 工程结构与智能体工作区
+│   ├── a2ui-component-registry-specification.md # [规范] A2UI 组件库与注册机制
+│   ├── ui-design-guide.md        # [指南] Web UI 界面设计与交互指南
+│   ├── algorithm-governance.md   # [指南] 算法审查与生命周期治理
+│   ├── code-review.md            # [指南] 代码审查标准与红线清单
+│   ├── testing-guide.md          # [指南] 回归测试架构与规约
+│   ├── naming-conventions.md     # [指南] 本架构命名规约 (SSOT)
+│   ├── web-aichat-architecture.md# [架构] 独立 Web AIChat 与技能治理
+│   ├── llm-provider-architecture.md # [架构] 大模型双轨接入与角色分配
+│   ├── token-security-architecture.md # [架构] Token 安全网关与审计
+│   ├── a2ui-framework-architecture.md # [架构] A2UI 前端渲染引擎框架
+│   ├── breakeven-calculation-rules.md # [规则] 最低保本价精算与进位规则
+│   ├── broker-commission-rules.md# [规则] 券商佣金及市场费率配置规则
+│   └── trading-execution-rules.md# [规则] 实战交易反应动作与风控规则
+├── specs/                        # [实施看板] 6 大领域实施与执行进度中心
+│   ├── README.md                 # 实施总览矩阵与进度追踪看板
+│   ├── engineering/              # [01.工程结构实施] eng-project-structure-and-workspace.md (SPEC-ENG-001)
+│   ├── ui/                       # [02.UI设计实施] ui-design-and-interaction-specification.md (SPEC-UI-001)
+│   ├── architecture/             # [03.系统架构实施] arch-web-aichat, arch-llm-provider, arch-token-gateway
+│   ├── a2ui/                     # [04.A2UI框架实施] a2ui-framework-engine, a2ui-component-registry
+│   ├── business/                 # [05.业务规则实施] biz-broker-commission, biz-breakeven, biz-trading-execution
+│   └── algorithm/                # [06.算法规则实施] algo-lifecycle-and-governance-specification.md
 ├── trading/                      # [量化实战] 实操手册与速查指引
 │   ├── execution-manual.md       # 实战交易反应动作与执行操作指引
 │   └── breakeven-rules.md        # 最低保本价精算数学公式速查
