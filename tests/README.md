@@ -29,22 +29,23 @@
 
 | 测试套件文件 | 覆盖子系统 / 模块 | 核心回归验证范围 |
 |---|---|---|
-| [`test_commands_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_commands_suite.py) | `scripts/core/commands/` & `scripts/core/cli.py` | 32 个模块化子命令注册、参数解析分发、SSOT forwarder 委托转发 |
-| [`test_data_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_data_suite.py) | `core/data/` & `core/config.py` | `QuoteDict` 代码为主键多别名索引、防注入白名单、市场前缀推导、费率常量 SSOT |
-| [`test_indicators.py`](file:///Users/handy/workon/a_stock_agents/tests/test_indicators.py) | `core/indicators/` | 技术指标计算（MA/MACD/KDJ/RSI/BOLL/ATR）、缺口回补方向判断、短序列边界保护 |
-| [`test_models_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_models_suite.py) | `core/models/` | 单调趋势评分、缺失维度百分制归一化、板块 TOP10 布尔匹配、中位数填补、指数区分 |
-| [`test_strategy_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_strategy_suite.py) | `core/strategy/` | `position_manager` 纯数据服务解耦、动作引擎真实契约、网格中轴、顶背离算法、解套分析 |
-| [`test_paper_trading_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_paper_trading_suite.py) | `core/paper_trading/` | 多标的回测引擎、主板10%/双创20%/北交30%涨跌停封板拦截、T+1 状态机、回测指标防御 |
-| [`test_security_suite.py`](file:///Users/handy/workon/a_stock_agents/tests/test_security_suite.py) | `core/reporting/` & `bin/` | HTML 报告 XSS 转义防御、更新解压 Zip Slip 路径穿越防护、敏感凭据脱敏保护 |
-| [`test_monitor.py`](file:///Users/handy/workon/a_stock_agents/tests/test_monitor.py) | `core/monitor/` | 交易日历网关（开盘/闭市/周末状态机）、状态去重存储、桌面通知降级 |
-| [`test_pool_schema.py`](file:///Users/handy/workon/a_stock_agents/tests/test_pool_schema.py) | `core/strategy/pool_schema.py` | 股票池 CSV 字段契约、空数据行写入防护、板块准入与黑名单过滤规则 |
-| [`test_custom_output.py`](file:///Users/handy/workon/a_stock_agents/tests/test_custom_output.py) | `core/config.py` | 自定义输出目录隔离、环境变量覆盖（`ASTOCK_OUTPUT_DIR`）与初始模板生成 |
+| [`test_commands_suite.py`](test_commands_suite.py) | `scripts/core/commands/` & `scripts/core/cli.py` | 32 个模块化子命令注册、参数解析分发、SSOT forwarder 委托转发 |
+| [`test_data_suite.py`](test_data_suite.py) | `core/data/` & `core/config.py` | `QuoteDict` 代码为主键多别名索引、防注入白名单、市场前缀推导、费率常量 SSOT |
+| [`test_indicators.py`](test_indicators.py) | `core/indicators/` | 技术指标计算（MA/MACD/KDJ/RSI/BOLL/ATR）、缺口回补方向判断、短序列边界保护 |
+| [`test_models_suite.py`](test_models_suite.py) | `core/models/` | 单调趋势评分、缺失维度百分制归一化、板块 TOP10 布尔匹配、中位数填补、指数区分 |
+| [`test_strategy_suite.py`](test_strategy_suite.py) | `core/strategy/` | `position_manager` 纯数据服务解耦、动作引擎真实契约、网格中轴、顶背离算法、解套分析 |
+| [`test_paper_trading_suite.py`](test_paper_trading_suite.py) | `core/paper_trading/` | 多标的回测引擎、主板10%/双创20%/北交30%涨跌停封板拦截、T+1 状态机、回测指标防御 |
+| [`test_security_suite.py`](test_security_suite.py) | `core/reporting/` & `bin/` | HTML 报告 XSS 转义防御、更新解压 Zip Slip 路径穿越防护、敏感凭据脱敏保护 |
+| [`test_monitor.py`](test_monitor.py) | `core/monitor/` | 交易日历网关（开盘/闭市/周末状态机）、状态去重存储、桌面通知降级 |
+| [`test_pool_schema.py`](test_pool_schema.py) | `core/strategy/pool_schema.py` | 股票池 CSV 字段契约、空数据行写入防护、板块准入与黑名单过滤规则 |
+| [`test_custom_output.py`](test_custom_output.py) | `core/config.py` | 自定义输出目录隔离、环境变量覆盖（`ASTOCK_OUTPUT_DIR`）与初始模板生成 |
+| [`test_at_operator.js`](test_at_operator.js) | `web/` (前端交互、富文本输入、工作台联动) | @操作符浮窗布局与焦点、四大分类、三大股池多维排序、退格原子化删除、工作台数据提取与联动 |
 
 ---
 
 ## 三、运行回归测试
 
-### 1. 运行全量测试（基线测试）
+### 1. 运行全量 Python 测试（基线测试）
 ```bash
 pytest -v
 ```
@@ -64,7 +65,13 @@ pytest tests/test_commands_suite.py -v
 pytest tests/test_paper_trading_suite.py -v
 ```
 
-### 3. 查看测试覆盖率报告（需 pytest-cov）
+### 3. 运行前端交互与 DOM 回归测试 (Node.js)
+```bash
+# 验证 @操作符浮窗、富文本输入框、三大股池多维展示与工作台联动
+node tests/test_at_operator.js
+```
+
+### 4. 查看测试覆盖率报告（需 pytest-cov）
 ```bash
 pytest --cov=scripts/core --cov=bin tests/
 ```

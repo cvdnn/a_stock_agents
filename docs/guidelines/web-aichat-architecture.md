@@ -121,3 +121,12 @@ flowchart TB
   - `Level 1（只读研报类）`：直接放行；
   - `Level 2（模拟盘写入类）`：强制经过 Human-in-the-loop 前端弹窗二次确认；
   - `Level 3（实盘交易通道）`：系统当前物理阻断，禁止任何自动委托。
+
+### 3. @操作符任务分发与工作台联动中枢 (At-Operator Dispatch & Workbench Linking)
+前端在用户提交消息后，由 `handleSendChat` 解析文本中的 `@` 实体并委托 `executeOperatorTask` 实施四向精准路由：
+- **`@股票` 路由**：提取标的名称与代码，直连实战三原则决策引擎，生成包含最低保本卖出价精算与三级止损阶梯的个股深度诊断研报；
+- **`@引用` 路由**：调用 `extractWorkbenchSectionData` 实时采集右侧工作台对应板块 DOM 数据（盘面全景/快捷操作/自选异动/策略回测/模拟资产/实战风控），联动触发工作台平滑滚动定位与脉冲高亮视觉反馈（`highlightWorkbenchSection`），将快照数据内嵌至提问上下文；
+- **`@技能` 路由**：自动绑定并激活 17 项量化投研技能对应的专有 Prompt 模板与执行流水线；
+- **`@算法` 路由**：绑定工业级量化工程因子算法（MAD去极值、Z-score截面Rank、换手率沉淀、ATR阶梯止盈止损等）进行动态仿真测算；
+- **元数据与徽标回显**：用户消息渲染时由 `formatUserContentWithAtBadges` 呈现内联彩色标签，服务端流式返回（`streamAIResponse`）携带 `meta.operators` 数据，在消息气泡底栏同步渲染操作符调用徽章。
+

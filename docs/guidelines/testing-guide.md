@@ -43,6 +43,7 @@ tests/
 ├── test_monitor.py             # 监控守护（交易日历状态机、状态去重持久化、通知降级）
 ├── test_pool_schema.py         # 股票池Schema（CSV写入参数倒置保护、板块黑名单）
 ├── test_custom_output.py       # 运行环境隔离（ASTOCK_OUTPUT_DIR 自定义目录与模板初始化）
+├── test_at_operator.js         # 前端交互与输入中枢（@操作符浮窗、三大股池多维排序、退格原子删除、工作台联动）
 └── README.md                   # 测试目录规约说明文档
 ```
 
@@ -52,7 +53,7 @@ tests/
 
 ### 1. 全量回归测试
 ```bash
-# 执行全量单元测试与回归测试（输出详细结果）
+# 执行全量 Python 核心量化引擎与后端回归测试（输出详细结果）
 pytest -v
 
 # 遇到首个失败立即中断（快速调试）
@@ -75,6 +76,12 @@ pytest tests/test_paper_trading_suite.py -v
 
 # 验证系统安全防护
 pytest tests/test_security_suite.py -v
+```
+
+### 3. 前端交互与 DOM 回归测试
+```bash
+# 执行前端 @操作符、富文本输入框、三大股池展示与工作台联动自动化回归测试 (Node.js)
+node tests/test_at_operator.js
 ```
 
 ---

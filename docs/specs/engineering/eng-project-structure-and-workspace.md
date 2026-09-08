@@ -2,7 +2,7 @@
 
 - **规范分类**：项目工程结构 (Engineering)
 - **规范编号**：SPEC-ENG-001
-- **文档版本**：v1.1
+- **文档版本**：v1.2
 - **实施状态**：正式基线 (Production Baseline) | 100% 已交付
 - **创建日期**：2026-09-07（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 代码库物理组织、环境编排、智能体工作区契约与跨平台发行底座
@@ -34,7 +34,7 @@
 | **全平台 CLI 启动器构建** | `bin/astock`, `bin/astock.cmd`, `scripts/core/cli.py` | ✅ 100% | Linux/macOS 与 Windows 统一转发至统一 CLI 入口并通过 `--json` 测试 | 2026-09-07 |
 | **路径动态解析改造** | `scripts/core/config.py`, `scripts/core/data/` | ✅ 100% | 消除全库硬编码 `/Users/handy` 与软链接，使用 `pathlib.Path` 自适应 | 2026-09-07 |
 | **用户私有数据隔离** | `output/` (`pools/`, `positions/`, `reports/`) | ✅ 100% | `.gitignore` 严格忽略用户私有数据，`bin/pack.py` 纯净打包排除 | 2026-09-07 |
-| **自动化测试与就绪性自检** | `tests/test_cli.py`, `verify.py` | ✅ 100% | 11 项全流程就绪性检查与 CLI 回归测试 100% 绿灯通过 | 2026-09-07 |
+| **自动化测试与就绪性自检** | `tests/test_commands_suite.py`, `tests/test_at_operator.js`, `verify.py` | ✅ 100% | Python 命令调度回归与 Node 前端 DOM 交互回归 100% 绿灯通过 | 2026-09-08 |
 
 ---
 
@@ -52,6 +52,8 @@ timeline
     section M3 基线固化
       规范与进度看板解耦 : 2026-09-08
       生产基线交付验收 : 2026-09-08
+    section M4 双轨测试矩阵
+      Python与前端Node双轨测试就位 : 2026-09-08
 ```
 
 ---
@@ -65,13 +67,17 @@ timeline
    ```
 2. **自动化测试套件执行**：
    ```powershell
-   python -m pytest tests/test_cli.py
+   python -m pytest tests/test_commands_suite.py
    # 结果：PASSED (100% 通过)
+
+   node tests/test_at_operator.js
+   # 结果：100% PASS (40项断言全部通过)
    ```
 
 ---
 
 ## 五、 执行变更日志 (Execution Changelog)
 
+- **2026-09-08 (v1.2)**：校准自动化测试映射路径至 `tests/test_commands_suite.py` 并收录前端交互回归套件 `tests/test_at_operator.js`。
 - **2026-09-08 (v1.1)**：按规范治理要求重构，将技术规格定义抽离至 `docs/guidelines/project-structure-specification.md`，本文件重塑为实施与任务执行跟踪看板。
 - **2026-09-07 (v1.0)**：初始创建，确立工程目录拓扑、零全局污染与统一 CLI 架构基线。

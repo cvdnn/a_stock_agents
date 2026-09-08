@@ -109,11 +109,12 @@
 
 ### 3. 输入区域交互契约 (Chat Input Contract)
 
-#### 3.1 富文本输入框 (Rich Text Input)
+#### 3.1 富文本输入框与 DOM 兼容契约 (Rich Text Input & DOM Compatibility)
 - **技术实现**：采用 `<div contenteditable="true">` 替代传统 `<textarea>`，以支持内嵌高亮 @token 标签节点；
 - **占位提示**：通过 `data-placeholder` 属性 + CSS `::before` 伪元素实现，当输入框为空时展示提示文案（如 `请输入您的问题，或输入 @ 快速插入股票、引用、技能与算法操作符...`）；
 - **尺寸约束**：最小高度 `38px`，最大高度 `120px`，溢出时自动展示垂直滚动条（`overflow-y: auto`）；
-- **行为规范**：`Enter` 键直接提交（等效点击提交按钮），`Shift+Enter` 换行。
+- **行为规范**：`Enter` 键直接提交（等效点击提交按钮），`Shift+Enter` 换行；
+- **DOM 兼容层 (`setupChatInputCompatibility`)**：通过 `Object.defineProperty` 代理 `chatInput.value` 的 getter/setter，分别委托给 `getChatInputPlainText`（提取包含 `@名称(代码)` 的纯文本）与 `setChatInputFromText`（将文本内 `@token` 还原为内联高亮节点），确保与旧有表单处理逻辑零破坏兼容。
 
 #### 3.2 @Token 高亮加粗标签 (At-Token Inline Badge)
 - 当用户通过 @操作符浮窗选中某个条目后，在输入框光标处插入一个**不可部分编辑的原子化内联标签**（`<span class="at-token" contenteditable="false">`）；
@@ -128,13 +129,15 @@
 #### 3.3 退格原子化删除机制 (Backspace Atomic Deletion)
 - @token 为**不可拆分的原子节点**：光标紧邻 @token 右侧时按 Backspace，整个标签连同其前置空格**一次性整体删除**；
 - 删除后光标自动归位至前一个节点末尾（文本节点或前一个 @token 之后）；
-- 多余空白文本节点自动合并清理，保持 DOM 结构整洁。
+- 多余空白文本节点自动合并清理，保持 DOM 结构整洁；
+- 具备纯文本正则降级兜底机制（匹配末尾 `@token` 并原子回退）。
 
-#### 3.4 底部微功能工具栏 (Input Toolbar)
+#### 3.4 底部微功能工具栏与现代 CSS 规范 (Input Toolbar & CSS Standards)
 - 工具栏仅保留两个精简按钮：
   - **`[+] 扩展`**：预留扩展功能面板入口；
   - **`[@] 操作符`**：点击触发 @操作符浮窗（等效在输入框中键入 `@`）；
-- **提交按钮**：品牌渐变蓝底色，文案为「提交」，hover 采用 `filter: brightness(1.08)` 提亮（而非切换 `background` 属性，以避免渐变背景重绘闪动）。
+- **提交按钮**：品牌渐变蓝底色，文案为「提交」，hover 采用 `filter: brightness(1.1)` 提亮（而非切换 `background` 属性，以避免渐变背景重绘闪动）；
+- **多行截断标准 CSS 属性**：所有涉及文本截断的样式必须双写标准 `line-clamp: 1` 与 `-webkit-line-clamp: 1`，消除现代浏览器 vendorPrefix 兼容性警告。
 
 ---
 
@@ -231,9 +234,9 @@
 ```
 
 - **股池胶囊徽章 (Pool Badge)**：
-  - 持仓股：红色底 `background: #FFF1F0; color: #CF1322; border: #FFA39E`，文案「持仓 xx%」
-  - 自选股：橙色底 `background: #FFF7E6; color: #D46B08; border: #FFD591`，文案「自选」
-  - 关注股：蓝色底 `background: #E6F4FF; color: #0958D9; border: #91CAFF`，文案「关注」
+  - 持仓股：**暖橙底** `background: #FFF7E6; color: #D46B08; border: 1px solid #FFD591;`，文案「持仓 xx%」（*严格规避与 A 股红涨绿跌之红色相冲突*）；
+  - 自选股：**科技蓝底** `background: #EDF5FF; color: #1677FF; border: 1px solid #ADC6FF;`，文案「自选」；
+  - 关注股：**紫罗兰底** `background: #F9F0FF; color: #722ED1; border: 1px solid #D3ADF7;`，文案「关注」。
 - **涨跌幅标签**：遵循红涨绿跌铁律，上涨 `#F5222D` 红底、下跌 `#52C41A` 绿底、平盘 `#64748B` 灰底，带 `+`/`-` 前缀号。
 
 #### 6.2 非股票类标的卡片（引用/技能/算法）

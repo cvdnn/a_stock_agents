@@ -125,14 +125,25 @@ a_stock_agents/
 │   │   └── tasks/           # 异步任务与定时调度中枢
 │   └── tools/               # 辅助工程与运维脚本
 ├── web/                     # 现代金融浅色风格 Web 投研前端
-│   ├── index.html           # 现代单页 WebApp 主视图
-│   ├── css/                 # 样式系统 (app.css, layout.css, components.css)
+│   ├── index.html           # 现代单页 WebApp 主视图 (含 @操作符双栏浮窗与富文本输入框)
+│   ├── css/                 # 样式系统 (style.css 金融色系、卡片、浮窗与标准属性)
 │   └── js/                  # 前端控制逻辑与组件库
-│       ├── app.js           # 业务主控制器
+│       ├── app.js           # 业务主控制器 (AtOperatorRegistry、AtOperatorController、会话调度)
 │       ├── charts.js        # 金融级 Canvas 图表
 │       ├── ui_engine.js     # A2UI 核心动态调度与组件治理中枢
 │       └── components/      # A2UI 领域组件包目录 (astock.js 等)
-└── tests/                   # 10 大核心领域回归测试套件 (TDD 契约)
+└── tests/                   # 核心领域回归测试套件 (Python 全量 + Node.js 前端交互)
+    ├── test_commands_suite.py # 命令行总调度与子命令委托
+    ├── test_data_suite.py   # 数据与配置基础设施
+    ├── test_indicators.py   # 技术指标计算引擎
+    ├── test_models_suite.py # 选股与多因子模型
+    ├── test_strategy_suite.py # 实战策略与风控动作
+    ├── test_paper_trading_suite.py # 模拟盘撮合与回测
+    ├── test_security_suite.py # 安全脱敏与防御
+    ├── test_monitor.py      # 盘中监控守护
+    ├── test_pool_schema.py  # 股票池 Schema 校验
+    ├── test_custom_output.py# 隔离环境与输出校验
+    └── test_at_operator.js  # 前端 @操作符、股池排序、DOM退格与工作台联动测试
 ```
 
 ---
@@ -152,10 +163,10 @@ a_stock_agents/
 ### 3. Web 服务与网关层 (`scripts/server/` & `web/`)
 - 采用 FastAPI 构建异步高并发网关，提供统一 REST API 与 SSE 长连接；
 - 内置原生 ReAct Agent 推理循环，消除对第三方商业 Agent 平台的强绑定；
-- Web 前端采用原生 Vanilla JavaScript 保持轻量与零编译构建依赖。
+- Web 前端采用原生 Vanilla JavaScript 保持轻量与零编译构建依赖，集成 @操作符浮窗、富文本输入框与工作台联动中枢。
 
 ### 4. 测试套件层 (`tests/`)
-- 维护 10 大核心领域（数据、指标、模型、策略、模拟盘、风控、治理、CLI、API、A2UI）的确定性断言；
+- 维护 Python 核心量化引擎全量测试与 Node.js 前端 DOM 交互测试的确定性断言；
 - 贯彻“测试先行，即测即删”铁律，保护基线测试永远处于 100% 绿灯幂等状态。
 
 ---
