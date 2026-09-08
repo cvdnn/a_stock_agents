@@ -947,6 +947,1056 @@ const PromptTemplates = {
   }
 };
 
+// ==========================================================================
+// 【@操作符】机制：数据注册中心与交互控制器 (AtOperatorRegistry & Controller)
+// ==========================================================================
+
+const AtOperatorRegistry = {
+  watchlist: [
+    { name: '比亚迪',   code: '002594', pinyin: 'byd',       insertText: '@比亚迪(002594)',   desc: '观察自选 · 新能源汽车 · 产业链龙头核心标的', icon: '🚗', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: 285.60, costPrice: 285.60, changePct: 1.86, pe: 21.2 },
+    { name: '贵州茅台', code: '600519', pinyin: 'gzmt mt',   insertText: '@贵州茅台(600519)', desc: '核心持仓 · 白酒龙头 · 消费大市值防御底仓', icon: '🍶', pool: 'holding', tag: '持仓35%', isHolding: true, holdingRatio: '35%', currentPrice: 1408.00, costPrice: 1350.00, changePct: 0.72, pe: 20.8 },
+    { name: '海光信息', code: '688041', pinyin: 'hgxx',      insertText: '@海光信息(688041)', desc: '潜伏关注 · CPU/DCU算力 · 国产替代核心标的', icon: '💽', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: 145.20, costPrice: 138.50, changePct: 3.25, pe: 55.3 },
+    { name: '宁德时代', code: '300750', pinyin: 'ndsd nd',   insertText: '@宁德时代(300750)', desc: '核心持仓 · 动力电池 · 创业板成长先导标的', icon: '🔋', pool: 'holding', tag: '持仓25%', isHolding: true, holdingRatio: '25%', currentPrice: 218.50, costPrice: 205.00, changePct: 2.15, pe: 18.4 },
+    { name: '中国平安', code: '601318', pinyin: 'zgpa pa',   insertText: '@中国平安(601318)', desc: '观察自选 · 金融权重 · 高股息红利震荡防守', icon: '🛡️', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: 46.80, costPrice: 45.20, changePct: -0.42, pe: 8.5 },
+    { name: '中信证券', code: '600030', pinyin: 'zxzq zx',   insertText: '@中信证券(600030)', desc: '观察自选 · 券商龙头 · 市场情绪与流动性温度计', icon: '📊', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: 24.50, costPrice: 23.80, changePct: 1.12, pe: 14.6 },
+    { name: '中芯国际', code: '688981', pinyin: 'zxgj smic', insertText: '@中芯国际(688981)', desc: '潜伏关注 · 半导体芯片 · 科创硬科技放量突破', icon: '💾', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: 98.60, costPrice: 92.50, changePct: 4.18, pe: 42.0 },
+    { name: '中际旭创', code: '300308', pinyin: 'zjxc xc',   insertText: '@中际旭创(300308)', desc: '潜伏关注 · CPO光模块 · 科技突破动量先锋', icon: '⚡', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: 142.30, costPrice: 135.00, changePct: -1.25, pe: 32.1 }
+  ],
+  stock: [
+    // 1. 【持仓股】(Holding)
+    { name: '贵州茅台', code: '600519', pinyin: 'gzmt mt',   insertText: '@贵州茅台(600519)', desc: '白酒龙头 · 消费主线 · 大市值防御底仓', icon: '🍶', pool: 'holding', tag: '持仓35%', isHolding: true, holdingRatio: '35%', currentPrice: 1408.00, costPrice: 1350.00, changePct: 0.72, pe: 20.8 },
+    { name: '宁德时代', code: '300750', pinyin: 'ndsd nd',   insertText: '@宁德时代(300750)', desc: '创业板指 · 动力电池 · 趋势回踩成长先导', icon: '🔋', pool: 'holding', tag: '持仓25%', isHolding: true, holdingRatio: '25%', currentPrice: 218.50, costPrice: 205.00, changePct: 2.15, pe: 18.4 },
+    // 2. 【自选股】(Watchlist)
+    { name: '比亚迪',   code: '002594', pinyin: 'byd',       insertText: '@比亚迪(002594)',   desc: '新能源汽车 · 产业链龙头 · 主板稳健波段', icon: '🚗', pool: 'watchlist', tag: '高端制造', isHolding: false, currentPrice: 285.60, costPrice: 285.60, changePct: 1.86, pe: 21.2 },
+    { name: '长江电力', code: '600900', pinyin: 'cjdl',      insertText: '@长江电力(600900)', desc: '公用事业水利发电 · 极致防御高红利资产', icon: '💧', pool: 'watchlist', tag: '红利防守', isHolding: false, currentPrice: 28.50, costPrice: 27.20, changePct: 0.35, pe: 19.4 },
+    { name: '东方财富', code: '300059', pinyin: 'dfcf dc',   insertText: '@东方财富(300059)', desc: '互联网券商 · 散户资金与换手先导', icon: '💻', pool: 'watchlist', tag: '金融科技', isHolding: false, currentPrice: 18.20, costPrice: 17.50, changePct: 2.45, pe: 28.3 },
+    { name: '赛力斯',   code: '601127', pinyin: 'sls',       insertText: '@赛力斯(601127)',   desc: '华为智选车链 · 高流动性活跃主线', icon: '🏎️', pool: 'watchlist', tag: '华为链', isHolding: false, currentPrice: 92.40, costPrice: 88.60, changePct: -1.07, pe: 35.0 },
+    { name: '中国平安', code: '601318', pinyin: 'zgpa pa',   insertText: '@中国平安(601318)', desc: '金融权重 · 高股息红利 · 震荡防御', icon: '🛡️', pool: 'watchlist', tag: '高股息', isHolding: false, currentPrice: 46.80, costPrice: 45.20, changePct: -0.42, pe: 8.5 },
+    { name: '中信证券', code: '600030', pinyin: 'zxzq zx',   insertText: '@中信证券(600030)', desc: '券商龙头 · 市场情绪与流动性温度计', icon: '📊', pool: 'watchlist', tag: '大金融', isHolding: false, currentPrice: 24.50, costPrice: 23.80, changePct: 1.12, pe: 14.6 },
+    { name: '紫金矿业', code: '601899', pinyin: 'zjky',      insertText: '@紫金矿业(601899)', desc: '有色金属铜金龙头 · 大宗商品对冲周期', icon: '⛏️', pool: 'watchlist', tag: '资源周期', isHolding: false, currentPrice: 17.60, costPrice: 16.80, changePct: 0.57, pe: 13.1 },
+    // 3. 【关注股】(Focus)
+    { name: '创业板指', code: '399006', pinyin: 'cybz cy',   insertText: '@创业板指(399006)', desc: '高成长科技创新创业板龙头标尺', icon: '🚀', pool: 'focus', tag: '科技成长', isHolding: false, currentPrice: 2289.76, costPrice: null, changePct: 1.31, pe: 26.8 },
+    { name: '工业富联', code: '601138', pinyin: 'gyfl',      insertText: '@工业富联(601138)', desc: 'AI算力服务器基建龙头 · 全球算力代工', icon: '🏭', pool: 'focus', tag: 'AI硬件', isHolding: false, currentPrice: 23.80, costPrice: 22.50, changePct: -0.83, pe: 16.2 },
+    { name: '海光信息', code: '688041', pinyin: 'hgxx',      insertText: '@海光信息(688041)', desc: '国产CPU/DCU算力芯片 · 关键核心技术自主', icon: '💽', pool: 'focus', tag: '国产算力', isHolding: false, currentPrice: 145.20, costPrice: 138.50, changePct: 3.25, pe: 55.3 },
+    { name: '沪深300',  code: '000300', pinyin: 'hs300',     insertText: '@沪深300(000300)',  desc: '核心宽基指数基准 · 蓝筹权重配置', icon: '📈', pool: 'focus', tag: '核心指数', isHolding: false, currentPrice: 3950.00, costPrice: null, changePct: 0.95, pe: 12.0 },
+    { name: '科创50',   code: '000688', pinyin: 'kc50 kc',   insertText: '@科创50(000688)',   desc: '硬科技八大行业龙头综合指数', icon: '🔬', pool: 'focus', tag: '硬科技', isHolding: false, currentPrice: 1012.30, costPrice: null, changePct: 1.68, pe: 38.5 },
+    { name: '上证指数', code: '000001', pinyin: 'szzs sh',   insertText: '@上证指数(000001)', desc: '沪市大盘基准走势 · 市场整体温度', icon: '🏛️', pool: 'focus', tag: '大盘基准', isHolding: false, currentPrice: 3426.56, costPrice: null, changePct: 0.72, pe: 13.5 },
+    { name: '中芯国际', code: '688981', pinyin: 'zxgj smic', insertText: '@中芯国际(688981)', desc: '半导体芯片制造龙头 · 科创板核心硬科技', icon: '💾', pool: 'focus', tag: '半导体', isHolding: false, currentPrice: 98.60, costPrice: 92.50, changePct: 4.18, pe: 42.0 },
+    { name: '中际旭创', code: '300308', pinyin: 'zjxc xc',   insertText: '@中际旭创(300308)', desc: 'CPO算力光模块 · 科技突破核心标的', icon: '⚡', pool: 'focus', tag: '算力硬件', isHolding: false, currentPrice: 142.30, costPrice: 135.00, changePct: -1.25, pe: 32.1 }
+  ],
+  reference: [
+    { name: '投资概要', code: 'ref_portfolio', insertText: '@投资概要', desc: '提取右侧板块1：总资产¥454.24万、持仓市值、可用现金与风控安全垫', icon: '💼', tag: '右侧板块1' },
+    { name: '大盘指数', code: 'ref_indices',   insertText: '@大盘指数', desc: '提取右侧板块2-1：上证3426.56(+0.72%)、深成指、创业板指等核心点位', icon: '📈', tag: '右侧板块2-1' },
+    { name: '行情分析', code: 'ref_market',    insertText: '@行情分析', desc: '提取右侧板块2-2：两市成交1.28万亿、78分亢温情绪仪表盘与板块资金流', icon: '🔥', tag: '右侧板块2-2' },
+    { name: '自选指数', code: 'ref_watchlist', insertText: '@自选指数', desc: '提取右侧板块3-1：自选等权组合(+2.18%)与中芯/海光/宁德重点标的', icon: '⭐', tag: '右侧板块3-1' },
+    { name: '投资分析', code: 'ref_invest',    insertText: '@投资分析', desc: '提取右侧板块3-2：夏普比率1.84、胜率68.5%与多因子超额超准归因', icon: '📊', tag: '右侧板块3-2' },
+    { name: '实时盯盘', code: 'ref_monitor',   insertText: '@实时盯盘', desc: '提取右侧板块4：盘中放量突破与大单异动流水、4大策略在线监控', icon: '⚡', tag: '右侧板块4' }
+  ],
+  skill: [
+    { name: 'astock-data-feed', code: 'skill_data', insertText: '@astock-data-feed', desc: '4级降级实时行情与日K线，经典技术指标与筹码', icon: '📡', tag: '数据基座' },
+    { name: 'astock-platform-evaluate', code: 'skill_eval', insertText: '@astock-platform-evaluate', desc: '100分制量化打分、解套决策树与大盘健康度研判', icon: '⚖️', tag: '综合评估' },
+    { name: 'astock-screener-5a', code: 'skill_5a', insertText: '@astock-screener-5a', desc: '量价/基本面/估值/主线旋转 5 维共振多因子选股模型', icon: '🎯', tag: '多因子选股' },
+    { name: 'astock-quant-engine', code: 'skill_quant', insertText: '@astock-quant-engine', desc: '工业级截面量价因子、MAD去极值与滚动IC合成', icon: '⚙️', tag: '量化工程' },
+    { name: 'astock-action-execution', code: 'skill_action', insertText: '@astock-action-execution', desc: '全部税费向上进位(ceil)最低保本价与三级风控阶梯', icon: '🛡️', tag: '实战风控' },
+    { name: 'astock-strategy-macd', code: 'skill_macd', insertText: '@astock-strategy-macd', desc: '水下二次金叉与MACD底背离经典形态识别算法', icon: '〽️', tag: '经典形态' },
+    { name: 'astock-strategy-tuige', code: 'skill_tuige', insertText: '@astock-strategy-tuige', desc: '退哥短线规则、涨停回调、连板接力与龙头首阴', icon: '⚡', tag: '短线规则' },
+    { name: 'astock-strategy-mainboard', code: 'skill_mainboard', insertText: '@astock-strategy-mainboard', desc: '聚焦主板大市值流动性品种的多波段防御回踩策略', icon: '🌊', tag: '波段防御' },
+    { name: 'astock-agent-debate', code: 'skill_debate', insertText: '@astock-agent-debate', desc: '基本面/量价/政策/游资/筹码/风控 7 角色对抗研判', icon: '👥', tag: '多智能体' },
+    { name: 'astock-trade-paper', code: 'skill_paper', insertText: '@astock-trade-paper', desc: '考虑市场冲击滑点与 T+1 硬约束的模拟撮合交易', icon: '💼', tag: '模拟交易' }
+  ],
+  algorithm: [
+    { name: '5A共振多因子模型', code: 'algo_5a', insertText: '@5A共振多因子模型', desc: '量价、基本面、估值、资金与主线5维正交旋转评分', icon: '🌪️', tag: '多因子' },
+    { name: 'MAD去极值与截面Z-score', code: 'algo_mad', insertText: '@MAD去极值与截面Z-score', desc: '中位数绝对偏差去极值 + 截面标准化与分位数Rank', icon: '📐', tag: '数据清洗' },
+    { name: '目标波动率与凯利仓位', code: 'algo_kelly', insertText: '@目标波动率与凯利仓位', desc: '动态对冲波动率与最优化杠杆仓位分配数学模型', icon: '🎲', tag: '仓位分配' },
+    { name: '水下二次金叉判别算法', code: 'algo_macd_two', insertText: '@水下二次金叉判别算法', desc: 'DIFF零轴下方双波谷极值对比与波段间距硬过滤', icon: '🔱', tag: '形态判别' },
+    { name: '真实滑点冲击撮合', code: 'algo_slippage', insertText: '@真实滑点冲击撮合', desc: '基于L2订单簿深度与成交量比率的对数滑点冲击', icon: '📉', tag: '撮合仿真' },
+    { name: '阶梯移动止损算法', code: 'algo_stoploss', insertText: '@阶梯移动止损算法', desc: '依据最新高点与ATR阶梯式上移保本线与止盈线', icon: '🪜', tag: '动态风控' },
+    { name: '因子IC/IR时序滚动回测', code: 'algo_ic_ir', insertText: '@因子IC/IR时序滚动回测', desc: '信息系数(IC)、信息比率(IR)与因子半衰期时序追踪', icon: '📊', tag: '因子检验' }
+  ]
+};
+
+const AtOperatorController = {
+  isOpen: false,
+  focusPane: 'menu', // 'menu' | 'content'
+  menuIndex: 0,
+  selectedIndex: 0,
+  activeCategory: 'stock',
+  stockSearchQuery: '',
+  categories: [
+    { id: 'stock',     name: '股票', icon: '📈', count: 17 },
+    { id: 'reference', name: '引用', icon: '📄', count: 6 },
+    { id: 'skill',     name: '技能', icon: '⚡', count: 10 },
+    { id: 'algorithm', name: '算法', icon: '🧠', count: 7 }
+  ],
+
+  init() {
+    // 按照【持仓股】【自选股】【关注股】三大股池顺序叠加，股池中股票按照名称排序
+    const poolPriority = { 'holding': 1, 'watchlist': 2, 'focus': 3 };
+    AtOperatorRegistry.stock.sort((a, b) => {
+      const pA = poolPriority[a.pool] || 99;
+      const pB = poolPriority[b.pool] || 99;
+      if (pA !== pB) return pA - pB;
+      return a.name.localeCompare(b.name, 'zh-Hans-CN');
+    });
+    if (AtOperatorRegistry.watchlist) {
+      AtOperatorRegistry.watchlist.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+    }
+
+    this.renderSidebar();
+    this.renderContent();
+
+    const popup = document.getElementById('atOperatorPopup');
+    if (popup) {
+      // 阻止浮窗内部点击冒泡至 document，杜绝点击浮窗内任何元素导致意外关闭
+      popup.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    // 绑定股票搜索框动态匹配
+    const searchInput = document.getElementById('atStockSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.handleStockSearchInput(e.target.value);
+      });
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          const items = this.getFilteredItems();
+          if (items.length) {
+            this.selectedIndex = 0;
+            this.updateItemSelection();
+            searchInput.blur();
+            if (popup) popup.focus();
+          }
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          this.focusPane = 'menu';
+          this.renderSidebar();
+          this.renderContent();
+          searchInput.blur();
+          if (popup) popup.focus();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          this.selectCurrentItem();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.close();
+        }
+      });
+    }
+
+    // 全局方向键与操作键接管：当浮窗开启时，立即响应键盘上下左右、Enter、Escape 操作
+    document.addEventListener('keydown', (e) => {
+      if (!this.isOpen) return;
+      const searchInput = document.getElementById('atStockSearchInput');
+      if (document.activeElement === searchInput) {
+        // 搜索输入框内部键入交由 searchInput 自身 keydown 处理
+        return;
+      }
+      const navKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'];
+      if (navKeys.includes(e.key)) {
+        e.preventDefault();
+        this.handleKeyDown(e);
+      }
+    }, true);
+
+    // 点击外部区域自动关闭浮窗（安全防御，防止 detached DOM 误触发）
+    document.addEventListener('click', (e) => {
+      if (this.isOpen) {
+        const popup = document.getElementById('atOperatorPopup');
+        const atBtn = document.getElementById('btnAtTrigger');
+        // 忽略已从 DOM 树移除的节点（如动态刷新的元素）
+        if (!document.contains(e.target)) return;
+        const path = e.composedPath ? e.composedPath() : [];
+        if (popup && (popup.contains(e.target) || path.includes(popup))) return;
+        if (atBtn && (atBtn.contains(e.target) || path.includes(atBtn))) return;
+        this.close();
+      }
+    });
+  },
+
+  open(catId = null) {
+    const popup = document.getElementById('atOperatorPopup');
+    if (!popup) return;
+
+    if (catId && AtOperatorRegistry[catId]) {
+      this.activeCategory = catId;
+      this.menuIndex = this.categories.findIndex(c => c.id === catId);
+      if (this.menuIndex < 0) this.menuIndex = 0;
+    } else {
+      this.activeCategory = 'stock';
+      this.menuIndex = 0;
+    }
+
+    // @后弹窗焦点落在菜单栏上
+    this.focusPane = 'menu';
+    this.selectedIndex = 0;
+    this.stockSearchQuery = '';
+
+    const searchInput = document.getElementById('atStockSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    this.renderSidebar();
+    this.renderContent();
+    popup.style.display = 'flex';
+    this.isOpen = true;
+
+    // 将焦点立即移到浮窗上，确保方向键即时可操作
+    popup.setAttribute('tabindex', '-1');
+    popup.focus();
+
+    const atBtn = document.getElementById('btnAtTrigger');
+    if (atBtn) atBtn.classList.add('active');
+  },
+
+  close() {
+    const popup = document.getElementById('atOperatorPopup');
+    if (!popup) return;
+    popup.style.display = 'none';
+    this.isOpen = false;
+    this.focusPane = 'menu';
+    this.stockSearchQuery = '';
+
+    const atBtn = document.getElementById('btnAtTrigger');
+    if (atBtn) atBtn.classList.remove('active');
+
+    const input = document.getElementById('chatInput');
+    if (input) input.focus();
+  },
+
+  toggle(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (this.isOpen) {
+      this.close();
+    } else {
+      this.open();
+    }
+  },
+
+  // 点击浮窗菜单栏项：展开右侧内容，阻止冒泡，不作为点击回填！
+  handleMenuClick(e, catId, idx) {
+    if (e) {
+      if (e.stopPropagation) e.stopPropagation();
+      if (e.preventDefault) e.preventDefault();
+    }
+    this.focusPane = 'menu';
+    this.menuIndex = idx;
+    this.setCategory(catId);
+    const popup = document.getElementById('atOperatorPopup');
+    if (popup) popup.focus();
+  },
+
+  setCategory(catId) {
+    if (!AtOperatorRegistry[catId]) return;
+    this.activeCategory = catId;
+    this.selectedIndex = 0;
+    this.renderSidebar();
+    this.renderContent();
+  },
+
+  focusSearch() {
+    const searchInput = document.getElementById('atStockSearchInput');
+    if (searchInput) {
+      this.focusPane = 'content';
+      searchInput.focus();
+      if (this.stockSearchQuery) {
+        this.handleStockSearchInput(searchInput.value);
+      }
+    }
+  },
+
+  handleStockSearchInput(query) {
+    this.stockSearchQuery = (query || '').trim().toLowerCase();
+    this.selectedIndex = 0;
+    const clearBtn = document.getElementById('atStockSearchClear');
+    if (clearBtn) {
+      clearBtn.style.display = this.stockSearchQuery ? 'inline-block' : 'none';
+    }
+    this.renderItemsList();
+    this.updateItemSelection();
+  },
+
+  clearStockSearch() {
+    this.stockSearchQuery = '';
+    const searchInput = document.getElementById('atStockSearchInput');
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+    }
+    const clearBtn = document.getElementById('atStockSearchClear');
+    if (clearBtn) clearBtn.style.display = 'none';
+    this.selectedIndex = 0;
+    this.renderItemsList();
+    this.updateItemSelection();
+  },
+
+  getFilteredItems() {
+    const rawItems = AtOperatorRegistry[this.activeCategory] || [];
+    if (this.activeCategory === 'stock' && this.stockSearchQuery) {
+      const q = this.stockSearchQuery;
+      return rawItems.filter(item => {
+        const codeMatch = item.code && item.code.toLowerCase().includes(q);
+        const nameMatch = item.name && item.name.toLowerCase().includes(q);
+        const pinyinMatch = item.pinyin && item.pinyin.toLowerCase().includes(q);
+        const tagMatch = item.tag && item.tag.toLowerCase().includes(q);
+        return codeMatch || nameMatch || pinyinMatch || tagMatch;
+      });
+    }
+    return rawItems;
+  },
+
+  renderSidebar() {
+    const sidebar = document.getElementById('atPopupSidebar');
+    if (!sidebar) return;
+
+    if (this.focusPane === 'menu') {
+      sidebar.classList.add('pane-active');
+    } else {
+      sidebar.classList.remove('pane-active');
+    }
+
+    sidebar.innerHTML = this.categories.map((cat, idx) => {
+      const isActive = cat.id === this.activeCategory;
+      const isFocused = this.focusPane === 'menu' && idx === this.menuIndex;
+      let classes = 'at-cat-item';
+      if (isActive) classes += ' active';
+      if (isFocused) classes += ' menu-focused';
+
+      return `
+        <div class="${classes}" onclick="AtOperatorController.handleMenuClick(event, '${cat.id}', ${idx})" title="${cat.name}">
+          <div class="at-cat-item-left">
+            <span>${cat.icon}</span>
+            <span>${cat.name}</span>
+          </div>
+          <span class="at-cat-count">${AtOperatorRegistry[cat.id] ? AtOperatorRegistry[cat.id].length : cat.count}</span>
+        </div>
+      `;
+    }).join('');
+  },
+
+  renderContent() {
+    const searchWrap = document.getElementById('atStockSearchWrap');
+    if (searchWrap) {
+      if (this.activeCategory === 'stock') {
+        searchWrap.style.display = 'flex';
+      } else {
+        searchWrap.style.display = 'none';
+      }
+    }
+
+    const contentWrapper = document.getElementById('atPopupContentWrapper');
+    if (contentWrapper) {
+      if (this.focusPane === 'content') {
+        contentWrapper.classList.add('pane-active');
+      } else {
+        contentWrapper.classList.remove('pane-active');
+      }
+    }
+
+    this.renderItemsList();
+    this.updateItemSelection();
+  },
+
+  renderItemsList() {
+    const content = document.getElementById('atPopupContent');
+    if (!content) return;
+
+    const items = this.getFilteredItems();
+    if (!items.length) {
+      content.innerHTML = `
+        <div style="padding: 30px 10px; text-align: center; color: #94A3B8; font-size: 12px;">
+          <div style="font-size: 20px; margin-bottom: 6px;">🔍</div>
+          <div>未找到与 "${this.stockSearchQuery}" 匹配的股票或代码</div>
+        </div>
+      `;
+      return;
+    }
+
+    content.innerHTML = items.map((item, idx) => {
+      const isSelected = this.focusPane === 'content' && idx === this.selectedIndex;
+
+      // 股票类型标的 (具有现价 currentPrice)
+      if (item.currentPrice !== undefined) {
+        // 股池状态胶囊徽章标识：持仓股【持仓 xx%】、自选股【自选】、关注股【关注】，位置同【持仓xx%】，不同色彩区分
+        let holdingBadgeHtml = '';
+        if (item.pool === 'holding' || item.isHolding) {
+          holdingBadgeHtml = `<span class="at-holding-badge holding">持仓 ${item.holdingRatio || ''}</span>`;
+        } else if (item.pool === 'watchlist') {
+          holdingBadgeHtml = `<span class="at-holding-badge watchlist">自选</span>`;
+        } else if (item.pool === 'focus') {
+          holdingBadgeHtml = `<span class="at-holding-badge focus">关注</span>`;
+        }
+
+        // 今日涨幅 (红涨绿跌，置于第二行最右侧)
+        let changeTagHtml = '';
+        if (item.changePct !== undefined) {
+          const isUp = item.changePct > 0;
+          const isDown = item.changePct < 0;
+          const changeClass = isUp ? 'up' : (isDown ? 'down' : 'flat');
+          const sign = isUp ? '+' : '';
+          changeTagHtml = `<span class="at-change-tag ${changeClass}">${sign}${item.changePct.toFixed(2)}%</span>`;
+        }
+
+        const costStr = (item.costPrice !== null && item.costPrice !== undefined)
+          ? `¥${item.costPrice.toFixed(2)}`
+          : (item.isHolding ? '--' : `¥${item.currentPrice.toFixed(2)}`);
+
+        // 截图规范：左侧图标 + 三行式一体化排版 (标题行 / 实时价+成本价+涨跌幅 / 题材描述行)
+        return `
+          <div class="at-item-card stock-card ${isSelected ? 'selected' : ''}" 
+               onclick="AtOperatorController.selectItemByIndex(${idx})" 
+               onmouseenter="if (AtOperatorController.focusPane === 'content') { AtOperatorController.selectedIndex = ${idx}; AtOperatorController.updateItemSelection(); }">
+            <div class="at-item-icon">${item.icon}</div>
+            <div class="at-item-info">
+              <div class="at-item-header-line">
+                <span class="at-item-name">${item.name}</span>
+                ${item.code ? `<span class="at-item-code">(${item.code})</span>` : ''}
+                ${holdingBadgeHtml}
+              </div>
+              <div class="at-item-price-row">
+                <div class="at-item-price-line">
+                  <span>实时价: <strong class="price-val">¥${item.currentPrice.toFixed(2)}</strong></span>
+                  <span class="price-sep">|</span>
+                  <span>成本价: <strong class="cost-val">${costStr}</strong></span>
+                </div>
+                ${changeTagHtml}
+              </div>
+              <div class="at-item-desc" title="${item.desc}">${item.desc}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 非股票类型标的 (引用/技能/算法)
+      return `
+        <div class="at-item-card non-stock-card ${isSelected ? 'selected' : ''}" 
+             onclick="AtOperatorController.selectItemByIndex(${idx})" 
+             onmouseenter="if (AtOperatorController.focusPane === 'content') { AtOperatorController.selectedIndex = ${idx}; AtOperatorController.updateItemSelection(); }">
+          <div class="at-item-card-left">
+            <div class="at-item-icon">${item.icon}</div>
+            <div class="at-item-info">
+              <div class="at-item-header-line">
+                <span class="at-item-name">${item.name}</span>
+                ${item.code ? `<span class="at-item-code">(${item.code})</span>` : ''}
+              </div>
+              <div class="at-item-desc" title="${item.desc}">${item.desc}</div>
+            </div>
+          </div>
+          <div class="at-item-card-right">
+            <span class="at-item-tag">${item.tag}</span>
+            <span class="at-item-select-check">✔</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  updateItemSelection() {
+    const content = document.getElementById('atPopupContent');
+    if (!content) return;
+    const cards = content.querySelectorAll('.at-item-card');
+    cards.forEach((card, idx) => {
+      if (this.focusPane === 'content' && idx === this.selectedIndex) {
+        card.classList.add('selected');
+        card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else {
+        card.classList.remove('selected');
+      }
+    });
+  },
+
+  handleKeyDown(e) {
+    if (!this.isOpen) return;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.close();
+      return;
+    }
+
+    // 焦点在菜单栏上：上下选菜单，右箭头进入内容区
+    if (this.focusPane === 'menu') {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.menuIndex = (this.menuIndex + 1) % this.categories.length;
+        this.activeCategory = this.categories[this.menuIndex].id;
+        this.selectedIndex = 0;
+        this.renderSidebar();
+        this.renderContent();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.menuIndex = (this.menuIndex - 1 + this.categories.length) % this.categories.length;
+        this.activeCategory = this.categories[this.menuIndex].id;
+        this.selectedIndex = 0;
+        this.renderSidebar();
+        this.renderContent();
+      } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        e.preventDefault();
+        this.focusPane = 'content';
+        this.selectedIndex = 0;
+        this.renderSidebar();
+        this.renderContent();
+      }
+      return;
+    }
+
+    // 焦点在内容区上：左箭头返回菜单栏，上下选条目，Enter确认回填
+    if (this.focusPane === 'content') {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        this.focusPane = 'menu';
+        this.renderSidebar();
+        this.renderContent();
+        const searchInput = document.getElementById('atStockSearchInput');
+        if (searchInput) searchInput.blur();
+        const popup = document.getElementById('atOperatorPopup');
+        if (popup) popup.focus();
+        return;
+      }
+
+      const items = this.getFilteredItems();
+      if (!items.length) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.selectedIndex = (this.selectedIndex + 1) % items.length;
+        this.updateItemSelection();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.selectedIndex = (this.selectedIndex - 1 + items.length) % items.length;
+        this.updateItemSelection();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        this.selectCurrentItem();
+      }
+    }
+  },
+
+  selectItemByIndex(idx) {
+    this.focusPane = 'content';
+    this.selectedIndex = idx;
+    this.selectCurrentItem();
+  },
+
+  selectCurrentItem() {
+    const items = this.getFilteredItems();
+    const item = items[this.selectedIndex];
+    if (!item) return;
+
+    this.backfillToInput(item, this.activeCategory);
+    this.close();
+  },
+
+  backfillToInput(item, catId) {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+
+    input.focus();
+
+    // 创建高亮加粗标签节点
+    const tokenSpan = document.createElement('span');
+    tokenSpan.className = `at-token at-token-${catId}`;
+    tokenSpan.contentEditable = 'false';
+    tokenSpan.dataset.category = catId;
+    tokenSpan.dataset.value = item.insertText.replace(/^@/, '');
+    tokenSpan.innerText = item.insertText;
+
+    // 单个空格文本节点（严格只保留一个自然空格）
+    const spaceNode = document.createTextNode('\u00A0');
+
+    // 检查光标位置或选区
+    const sel = window.getSelection();
+    let range = null;
+    if (sel && sel.rangeCount > 0) {
+      range = sel.getRangeAt(0);
+      if (!input.contains(range.commonAncestorContainer)) {
+        range = null;
+      }
+    }
+
+    if (!range) {
+      range = document.createRange();
+      range.selectNodeContents(input);
+      range.collapse(false);
+    }
+
+    // 若当前光标前紧挨着 '@' 字符，则将其消除
+    if (range.startContainer.nodeType === Node.TEXT_NODE) {
+      const textNode = range.startContainer;
+      const offset = range.startOffset;
+      if (offset > 0 && textNode.textContent.charAt(offset - 1) === '@') {
+        textNode.textContent = textNode.textContent.slice(0, offset - 1) + textNode.textContent.slice(offset);
+        range.setStart(textNode, offset - 1);
+        range.setEnd(textNode, offset - 1);
+      }
+    }
+
+    range.deleteContents();
+    range.insertNode(spaceNode);
+    range.insertNode(tokenSpan);
+
+    // 将光标严格移动至空格节点之后
+    const newRange = document.createRange();
+    newRange.setStartAfter(spaceNode);
+    newRange.setEndAfter(spaceNode);
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+
+    // 规范化多余空格，确保操作符后严格只保留一个空格
+    this.normalizeInputSpaces(input);
+
+    showToast(`已成功插入操作符【${item.insertText}】`);
+  },
+
+  normalizeInputSpaces(input) {
+    const walker = document.createTreeWalker(input, NodeFilter.SHOW_TEXT, null, false);
+    let node;
+    while ((node = walker.nextNode())) {
+      const prev = node.previousSibling;
+      if (prev && prev.nodeType === Node.ELEMENT_NODE && prev.classList && prev.classList.contains('at-token')) {
+        node.textContent = node.textContent.replace(/^[\s\u00A0]+/, '\u00A0');
+      }
+    }
+  }
+};
+
+window.AtOperatorController = AtOperatorController;
+window.openAtPopup = (catId = null) => AtOperatorController.open(catId);
+window.closeAtPopup = () => AtOperatorController.close();
+window.toggleAtPopup = (e) => AtOperatorController.toggle(e);
+
+function focusChatInput() {
+  const input = document.getElementById('chatInput');
+  if (input) input.focus();
+}
+window.focusChatInput = focusChatInput;
+
+function clearChatInput() {
+  const input = document.getElementById('chatInput');
+  if (input) {
+    input.innerHTML = '';
+    input.focus();
+    showToast('输入框已清空');
+  }
+}
+window.clearChatInput = clearChatInput;
+
+// ==========================================================================
+// 输入框兼容层 (支持 .value 双向透明访问与富文本回填)
+// ==========================================================================
+
+function getChatInputPlainText(elem) {
+  if (!elem) return '';
+  let result = '';
+  function traverse(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      result += node.textContent;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      if (node.classList.contains('at-token')) {
+        result += node.innerText.trim();
+      } else if (node.tagName === 'BR') {
+        result += '\n';
+      } else {
+        for (let child of node.childNodes) {
+          traverse(child);
+        }
+      }
+    }
+  }
+  traverse(elem);
+  return result.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function setChatInputFromText(elem, text) {
+  if (!elem) return;
+  elem.innerHTML = '';
+  if (!text) return;
+
+  const regex = /(@[^\s]+)/g;
+  let lastIdx = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    const textBefore = text.slice(lastIdx, match.index);
+    if (textBefore) {
+      elem.appendChild(document.createTextNode(textBefore));
+    }
+    const tokenStr = match[1];
+    const span = document.createElement('span');
+    span.className = 'at-token';
+    if (tokenStr.includes('60') || tokenStr.includes('30') || tokenStr.includes('00') || tokenStr.includes('68')) {
+      span.classList.add('at-token-stock');
+    } else if (tokenStr.includes('投资概要') || tokenStr.includes('大盘指数') || tokenStr.includes('行情分析') || tokenStr.includes('自选指数') || tokenStr.includes('投资分析') || tokenStr.includes('盯盘') || tokenStr.includes('工作台')) {
+      span.classList.add('at-token-ref');
+    } else if (tokenStr.includes('astock')) {
+      span.classList.add('at-token-skill');
+    } else if (tokenStr.includes('持仓') || tokenStr.includes('自选') || tokenStr.includes('关注')) {
+      span.classList.add('at-token-watchlist');
+    } else {
+      span.classList.add('at-token-algo');
+    }
+    span.contentEditable = 'false';
+    span.innerText = tokenStr;
+    elem.appendChild(span);
+    elem.appendChild(document.createTextNode('\u00A0'));
+    lastIdx = regex.lastIndex;
+  }
+
+  const remaining = text.slice(lastIdx);
+  if (remaining) {
+    elem.appendChild(document.createTextNode(remaining));
+  }
+}
+
+// ==========================================================================
+// 【@操作符】原子化连带删除机制 (Backspace 退格处理)
+// 当光标落在【@操作符+空格】后，按退格键时，空格与【@操作符】一同删除
+// ==========================================================================
+
+function handleChatInputBackspace(e, input) {
+  if (!input) input = document.getElementById('chatInput');
+  if (!input) return false;
+
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || !sel.isCollapsed) {
+    return false;
+  }
+
+  const range = sel.getRangeAt(0);
+  if (!input.contains(range.startContainer)) {
+    return false;
+  }
+
+  const container = range.startContainer;
+  const offset = range.startOffset;
+
+  // 辅助判断节点是否为 @操作符 span
+  function isAtToken(node) {
+    return !!(node && node.nodeType === Node.ELEMENT_NODE && node.classList && node.classList.contains('at-token'));
+  }
+
+  // 辅助判断字符是否为空格 (普通空格 \u0020 或 NBSP \u00A0)
+  function isSpaceChar(ch) {
+    return ch === ' ' || ch === '\u00A0' || /\s/.test(ch);
+  }
+
+  // 辅助向前跳过空文本节点
+  function getPrevNonEmptySibling(node) {
+    let p = node ? node.previousSibling : null;
+    while (p && p.nodeType === Node.TEXT_NODE && p.textContent === '') {
+      p = p.previousSibling;
+    }
+    return p;
+  }
+
+  let tokenToDelete = null;
+  let textNodeToTrim = null;
+  let plainTextMatch = null;
+  let cursorTarget = null;
+
+  // 防御：若光标意外落在 .at-token 内部
+  let current = container;
+  while (current && current !== input) {
+    if (isAtToken(current)) {
+      tokenToDelete = current;
+      const next = current.nextSibling;
+      if (next && next.nodeType === Node.TEXT_NODE && next.textContent.length > 0 && isSpaceChar(next.textContent.charAt(0))) {
+        textNodeToTrim = { node: next, index: 0 };
+      }
+      break;
+    }
+    current = current.parentNode;
+  }
+
+  // 情况 1: 光标在容器元素中 (offset 是子节点序号)
+  if (!tokenToDelete && container.nodeType === Node.ELEMENT_NODE) {
+    if (offset > 0) {
+      const prevChild = container.childNodes[offset - 1];
+      if (prevChild) {
+        if (prevChild.nodeType === Node.TEXT_NODE) {
+          const text = prevChild.textContent;
+          if (text.length > 0 && isSpaceChar(text.charAt(text.length - 1))) {
+            const tokenNode = getPrevNonEmptySibling(prevChild);
+            if (isAtToken(tokenNode)) {
+              tokenToDelete = tokenNode;
+              textNodeToTrim = { node: prevChild, index: text.length - 1 };
+              const nodeBefore = getPrevNonEmptySibling(tokenNode);
+              if (nodeBefore) {
+                cursorTarget = { node: nodeBefore, after: true };
+              } else if (text.length > 1) {
+                cursorTarget = { node: prevChild, offset: text.length - 1 };
+              } else {
+                cursorTarget = { node: input, start: true };
+              }
+            }
+          }
+        } else if (isAtToken(prevChild)) {
+          // 光标紧跟在 .at-token 后面（无空格）
+          tokenToDelete = prevChild;
+          const nodeBefore = getPrevNonEmptySibling(prevChild);
+          cursorTarget = nodeBefore ? { node: nodeBefore, after: true } : { node: input, start: true };
+        }
+      }
+    }
+  }
+
+  // 情况 2: 光标在文本节点内部
+  if (!tokenToDelete && container.nodeType === Node.TEXT_NODE) {
+    const text = container.textContent;
+
+    if (offset > 0) {
+      const prevChar = text.charAt(offset - 1);
+      if (isSpaceChar(prevChar)) {
+        // 2.1 文本节点开头的空格，且前一个兄弟节点是 .at-token
+        if (offset === 1) {
+          const prev = getPrevNonEmptySibling(container);
+          if (isAtToken(prev)) {
+            tokenToDelete = prev;
+            textNodeToTrim = { node: container, index: 0 };
+            const nodeBefore = getPrevNonEmptySibling(prev);
+            if (container.textContent.length > 1) {
+              cursorTarget = { node: container, offset: 0 };
+            } else if (nodeBefore) {
+              cursorTarget = { node: nodeBefore, after: true };
+            } else {
+              cursorTarget = { node: input, start: true };
+            }
+          }
+        }
+
+        // 2.2 纯文本形式的 "@操作符 + 空格"
+        if (!tokenToDelete) {
+          const textBefore = text.slice(0, offset);
+          const match = textBefore.match(/(@[^\s\u00A0]+)[\s\u00A0]$/);
+          if (match) {
+            plainTextMatch = {
+              node: container,
+              offset: offset,
+              length: match[0].length
+            };
+          }
+        }
+      }
+    } else if (offset === 0) {
+      // 2.3 光标在文本节点起点 (offset === 0)
+      const prev = getPrevNonEmptySibling(container);
+      if (prev) {
+        if (prev.nodeType === Node.TEXT_NODE) {
+          const prevText = prev.textContent;
+          if (prevText.length > 0 && isSpaceChar(prevText.charAt(prevText.length - 1))) {
+            const tokenNode = getPrevNonEmptySibling(prev);
+            if (isAtToken(tokenNode)) {
+              tokenToDelete = tokenNode;
+              textNodeToTrim = { node: prev, index: prevText.length - 1 };
+              cursorTarget = { node: container, offset: 0 };
+            }
+          }
+        } else if (isAtToken(prev)) {
+          // 直接紧随 .at-token
+          tokenToDelete = prev;
+          cursorTarget = { node: container, offset: 0 };
+        }
+      }
+    }
+  }
+
+  // 执行原子化连带删除
+  if (tokenToDelete) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const nodeBefore = getPrevNonEmptySibling(tokenToDelete);
+
+    // 1. 缩减或删除空格文本节点
+    if (textNodeToTrim) {
+      const tn = textNodeToTrim.node;
+      const idx = textNodeToTrim.index;
+      const original = tn.textContent;
+      const updated = original.slice(0, idx) + original.slice(idx + 1);
+      if (updated.length === 0) {
+        tn.remove();
+      } else {
+        tn.textContent = updated;
+      }
+    }
+
+    // 2. 删除 @操作符 节点
+    tokenToDelete.remove();
+
+    // 3. 精确定位删除后的光标
+    const newRange = document.createRange();
+    let caretPlaced = false;
+
+    if (cursorTarget && cursorTarget.node && cursorTarget.node.parentNode) {
+      try {
+        if (cursorTarget.start) {
+          newRange.setStart(cursorTarget.node, 0);
+          newRange.setEnd(cursorTarget.node, 0);
+          caretPlaced = true;
+        } else if (cursorTarget.after) {
+          if (cursorTarget.node.nodeType === Node.TEXT_NODE) {
+            newRange.setStart(cursorTarget.node, cursorTarget.node.textContent.length);
+            newRange.setEnd(cursorTarget.node, cursorTarget.node.textContent.length);
+          } else {
+            newRange.setStartAfter(cursorTarget.node);
+            newRange.setEndAfter(cursorTarget.node);
+          }
+          caretPlaced = true;
+        } else if (typeof cursorTarget.offset === 'number') {
+          const maxOffset = cursorTarget.node.nodeType === Node.TEXT_NODE
+            ? cursorTarget.node.textContent.length
+            : cursorTarget.node.childNodes.length;
+          const off = Math.min(cursorTarget.offset, maxOffset);
+          newRange.setStart(cursorTarget.node, off);
+          newRange.setEnd(cursorTarget.node, off);
+          caretPlaced = true;
+        }
+      } catch (err) {
+        caretPlaced = false;
+      }
+    }
+
+    if (!caretPlaced) {
+      if (nodeBefore && nodeBefore.parentNode) {
+        if (nodeBefore.nodeType === Node.TEXT_NODE) {
+          newRange.setStart(nodeBefore, nodeBefore.textContent.length);
+          newRange.setEnd(nodeBefore, nodeBefore.textContent.length);
+        } else {
+          newRange.setStartAfter(nodeBefore);
+          newRange.setEndAfter(nodeBefore);
+        }
+      } else {
+        newRange.selectNodeContents(input);
+        newRange.collapse(true);
+      }
+    }
+
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    // 4. 若内容已全部清空，规范化输入框内部结构
+    if (input.innerText.trim() === '' && !input.querySelector('.at-token')) {
+      input.innerHTML = '';
+      const emptyRange = document.createRange();
+      emptyRange.selectNodeContents(input);
+      emptyRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(emptyRange);
+    }
+
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }
+
+  if (plainTextMatch) {
+    if (e && e.preventDefault) e.preventDefault();
+    const node = plainTextMatch.node;
+    const off = plainTextMatch.offset;
+    const len = plainTextMatch.length;
+    const original = node.textContent;
+    node.textContent = original.slice(0, off - len) + original.slice(off);
+
+    const targetOffset = off - len;
+    const newRange = document.createRange();
+    newRange.setStart(node, targetOffset);
+    newRange.setEnd(node, targetOffset);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    if (input.innerText.trim() === '' && !input.querySelector('.at-token')) {
+      input.innerHTML = '';
+      const emptyRange = document.createRange();
+      emptyRange.selectNodeContents(input);
+      emptyRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(emptyRange);
+    }
+
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }
+
+  return false;
+}
+
+window.handleChatInputBackspace = handleChatInputBackspace;
+
+function setupChatInputCompatibility() {
+  const chatInput = document.getElementById('chatInput');
+  if (!chatInput) return;
+
+  if (!chatInput._isCompatConfigured) {
+    Object.defineProperty(chatInput, 'value', {
+      get() {
+        return getChatInputPlainText(this);
+      },
+      set(val) {
+        setChatInputFromText(this, val);
+      },
+      configurable: true
+    });
+    chatInput._isCompatConfigured = true;
+  }
+
+  chatInput.addEventListener('keydown', (e) => {
+    if (AtOperatorController.isOpen) {
+      if (e.key === 'Backspace' && AtOperatorController.focusPane === 'menu') {
+        AtOperatorController.close();
+      } else {
+        AtOperatorController.handleKeyDown(e);
+        return;
+      }
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendChat();
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      if (handleChatInputBackspace(e, chatInput)) {
+        return;
+      }
+    }
+
+    if (e.key === '@' || (e.shiftKey && e.key === '2')) {
+      setTimeout(() => {
+        AtOperatorController.open();
+      }, 20);
+    }
+  });
+
+  chatInput.addEventListener('input', (e) => {
+    if (e.data === '@') {
+      AtOperatorController.open();
+    }
+  });
+}
+
+function formatUserContentWithAtBadges(text) {
+  if (!text) return '';
+  return text.replace(/(@[^\s]+)/g, (match) => {
+    let catClass = 'at-token-algo';
+    if (match.includes('60') || match.includes('30') || match.includes('00') || match.includes('68')) {
+      catClass = 'at-token-stock';
+    } else if (match.includes('投资概要') || match.includes('大盘指数') || match.includes('行情分析') || match.includes('自选指数') || match.includes('投资分析') || match.includes('盯盘') || match.includes('工作台')) {
+      catClass = 'at-token-ref';
+    } else if (match.includes('astock')) {
+      catClass = 'at-token-skill';
+    } else if (match.includes('持仓') || match.includes('自选') || match.includes('关注')) {
+      catClass = 'at-token-watchlist';
+    }
+    return `<span class="at-token ${catClass}">${match}</span>`;
+  });
+}
+
+// --------------------------------------------------------------------------
+// 7. Chat Messages & AI Streaming Engine
+// --------------------------------------------------------------------------
+
 function appendChatMessage(role, content, meta = {}) {
   const container = document.getElementById('chatMessages');
   if (!container) return;
@@ -956,9 +2006,10 @@ function appendChatMessage(role, content, meta = {}) {
   const nowStr = new Date().toLocaleTimeString().slice(0, 5);
 
   if (role === 'user') {
+    const formattedContent = formatUserContentWithAtBadges(content);
     item.innerHTML = `
       <div class="message-bubble-user">
-        ${content}
+        ${formattedContent}
         <div class="message-timestamp">${nowStr}</div>
       </div>
     `;
@@ -967,6 +2018,27 @@ function appendChatMessage(role, content, meta = {}) {
     const msgId = meta.msgId || 'msg_' + Date.now();
     const title = meta.title || '量化投研综合研报';
     const summary = meta.summary || '模型结合盘面数据与风控铁律输出';
+
+    let badgesHtml = '';
+    if (meta.operators) {
+      const op = meta.operators;
+      const badgeList = [];
+      if (op.stocks && op.stocks.length) {
+        op.stocks.forEach(s => badgeList.push(`<span class="op-badge op-badge-stock">📈 标的: ${s.name} (${s.code})</span>`));
+      }
+      if (op.refs && op.refs.length) {
+        op.refs.forEach(r => badgeList.push(`<span class="op-badge op-badge-ref">📑 上下文: ${r}</span>`));
+      }
+      if (op.skills && op.skills.length) {
+        op.skills.forEach(sk => badgeList.push(`<span class="op-badge op-badge-skill">⚡ 技能: ${sk}</span>`));
+      }
+      if (op.algos && op.algos.length) {
+        op.algos.forEach(a => badgeList.push(`<span class="op-badge op-badge-algo">🧠 算法: ${a}</span>`));
+      }
+      if (badgeList.length) {
+        badgesHtml = `<div class="operator-badges-row">${badgeList.join('')}</div>`;
+      }
+    }
 
     item.innerHTML = `
       <div class="message-bubble-ai" id="${msgId}">
@@ -977,6 +2049,7 @@ function appendChatMessage(role, content, meta = {}) {
             <p class="ai-msg-summary">${summary}</p>
           </div>
         </div>
+        ${badgesHtml}
         ${meta.toolRunning ? `
           <div class="tool-status-bubble" id="toolStatus">
             <span class="tool-badge-running"></span>
@@ -997,7 +2070,7 @@ function appendChatMessage(role, content, meta = {}) {
   return item;
 }
 
-function streamAIResponse(contentOrTpl, titleParam, summaryParam) {
+function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}) {
   let fullText = contentOrTpl;
   let title = titleParam || '当前A股市场行情分析';
   let summary = summaryParam || '两市成交放量破1.28万亿，科技成长主线共振领涨，短期延续震荡向上反弹格局';
@@ -1011,12 +2084,15 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam) {
   AppState.isChatStreaming = true;
   const msgId = 'aiMsg_' + Date.now();
 
-  appendChatMessage('ai', '<span style="color:#86909C;">AI正在综合大盘、资金流、筹码与技术指标进行深度研判...</span>', {
+  const msgMeta = {
     msgId: msgId,
     title: title,
     summary: summary,
-    toolRunning: true
-  });
+    toolRunning: true,
+    operators: metaParam.operators || null
+  };
+
+  appendChatMessage('ai', '<span style="color:#86909C;">AI正在综合大盘、资金流、筹码与技术指标进行深度研判...</span>', msgMeta);
 
   setTimeout(() => {
     const container = document.getElementById(msgId);
@@ -1053,12 +2129,45 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam) {
 // --------------------------------------------------------------------------
 // 7.1 Agent2UI (A2UI) Task Pipeline Execution
 // --------------------------------------------------------------------------
-function executeA2UITask(promptText = '分析市场行情') {
+function executeA2UITask(promptText = '分析市场行情', stockParam = null, operatorsParam = null) {
   AppState.isChatStreaming = true;
   const taskId = 'a2ui_' + Date.now();
 
-  const isStock = promptText.includes('宁德') || promptText.includes('中芯') || promptText.includes('海光');
-  const stockName = isStock ? '宁德时代 (300750)' : 'A股市场大盘全景';
+  let stockName = 'A股市场大盘全景';
+  let isStock = false;
+  let stockCost = 3400.0;
+
+  if (stockParam) {
+    isStock = true;
+    stockName = `${stockParam.name} (${stockParam.code})`;
+    stockCost = stockParam.price || 320.0;
+  } else {
+    const stockMatch = promptText.match(/@?([^\s(（]+)[(（](\d{6})[)）]/) || promptText.match(/(600519|300750|002594|601318|600030|300059|300308|601127|000300|000001)/);
+    if (stockMatch) {
+      isStock = true;
+      if (stockMatch[2]) {
+        stockName = `${stockMatch[1]} (${stockMatch[2]})`;
+      } else if (promptText.includes('600519') || promptText.includes('茅台')) {
+        stockName = '贵州茅台 (600519)';
+        stockCost = 1408.0;
+      } else if (promptText.includes('300750') || promptText.includes('宁德')) {
+        stockName = '宁德时代 (300750)';
+        stockCost = 218.5;
+      } else if (promptText.includes('002594') || promptText.includes('比亚迪')) {
+        stockName = '比亚迪 (002594)';
+        stockCost = 285.6;
+      } else if (promptText.includes('601318') || promptText.includes('平安')) {
+        stockName = '中国平安 (601318)';
+        stockCost = 46.8;
+      } else if (promptText.includes('600030') || promptText.includes('中信')) {
+        stockName = '中信证券 (600030)';
+        stockCost = 24.5;
+      } else {
+        stockName = promptText.includes('宁德') ? '宁德时代 (300750)' : '标的股票诊断';
+      }
+    }
+  }
+
   const title = `${stockName} 深度量化研报`;
 
   // Stage 0: 骨架屏预占位 (约50ms, 零CLS)
@@ -1067,7 +2176,7 @@ function executeA2UITask(promptText = '分析市场行情') {
     icon: isStock ? '⚡' : '📊',
     workbench_tab: {
       tab_id: 'tab_' + taskId,
-      tab_title: isStock ? '🛡️ 宁德时代研报' : '📊 市场行情全景',
+      tab_title: isStock ? `🛡️ ${stockName.split(' ')[0]}研报` : '📊 市场行情全景',
       closable: true
     }
   };
@@ -1094,7 +2203,10 @@ function executeA2UITask(promptText = '分析市场行情') {
   }, 180);
 
   // Stage 2: 打字机流式输出文本 (350ms - 850ms)
-  const reportNarrative = `【A2UI 渐进式研报】基于多因子量化模型与盘面数据深度研判：今日两市成交突破 1.28 万亿，科技成长主线共振领涨。均线呈多头排列，零轴下方二次金叉验底形态确认。实战交易严格执行保本价精算与三级止损阶梯防守。`;
+  const reportNarrative = isStock 
+    ? `【A2UI 个股量化研报】标的【${stockName}】：均线呈多头排列，零轴下方二次金叉验底形态确认，主力大单净流入显著。实战交易严格执行【实战三原则】最低保本卖出价精算（印花税0.05%、佣金万2.5最低5元且向上进位至分位）与 T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损阶梯防守。`
+    : `【A2UI 渐进式研报】基于多因子量化模型与盘面数据深度研判：今日两市成交突破 1.28 万亿，科技成长主线共振领涨。均线呈多头排列，零轴下方二次金叉验底形态确认。实战交易严格执行保本价精算与三级止损阶梯防守。`;
+
   let idx = 0;
   setTimeout(() => {
     const timer = setInterval(() => {
@@ -1111,13 +2223,13 @@ function executeA2UITask(promptText = '分析市场行情') {
   setTimeout(() => {
     UIEngine.hydrateHeavy(taskId, 'radar');
     UIEngine.hydrateHeavy(taskId, 'candle', {
-      benchmark: isStock ? '宁德时代 (300750)' : '上证指数 (000001)'
+      benchmark: stockName
     });
   }, 1000);
 
   // Stage 4: 实战动作单与保本算价器水合 (1250ms)
   setTimeout(() => {
-    const cost = isStock ? 320.0 : 3400.0;
+    const cost = stockCost;
     const shares = 1000;
     UIEngine.hydrateFast(taskId, 'risk', { cost, shares });
     UIEngine.hydrateHeavy(taskId, 'risk', { cost, shares });
@@ -1131,26 +2243,396 @@ function executeA2UITask(promptText = '分析市场行情') {
   }, 1250);
 }
 
-function handleSendChat() {
-  if (AppState.isChatStreaming) return;
+// --------------------------------------------------------------------------
+// 7.2 任务路由与 @操作符 综合执行引擎
+// --------------------------------------------------------------------------
+function executeOperatorTask(text, operators) {
+  // 1. 如果包含股票标的，优先执行该股票的量化研报与诊断
+  if (operators.stocks && operators.stocks.length > 0) {
+    const targetStock = operators.stocks[0];
+    AppState.selectedStock = targetStock.code;
 
-  const input = document.getElementById('chatInput');
-  const text = input ? input.value.trim() : '';
-  if (!text) return;
+    if (typeof UIEngine !== 'undefined') {
+      executeA2UITask(text, targetStock, operators);
+      return;
+    }
 
-  appendChatMessage('user', text);
-  input.value = '';
-
-  // Route to A2UI Engine if recognized
-  if (typeof UIEngine !== 'undefined' && (
-      text.includes('行情') || text.includes('大盘') || text.includes('分析') ||
-      text.includes('市场') || text.includes('诊断') || text.includes('5A') ||
-      text.includes('选股') || text.includes('宁德') || text.includes('指标')
-  )) {
-    executeA2UITask(text);
+    const tpl = PromptTemplates['评估持股策略'];
+    const title = `${targetStock.name} (${targetStock.code}) 深度诊断研报`;
+    const summary = `已根据实战三原则完成最低保本卖出价精算与三场景反应动作单`;
+    streamAIResponse(tpl.body, title, summary, { operators });
     return;
   }
 
+  // 2. 如果指定了特定技能操作符
+  if (operators.skills && operators.skills.length > 0) {
+    const skillId = operators.skills[0];
+    let title = `【${skillId}】技能调度执行报告`;
+    let summary = `按就地技能规范成功调度量化计算流水线并返回结构化研判`;
+    let body = '';
+
+    if (skillId === 'astock-screener-5a') {
+      title = '5A五维共振旋转选股评分报告';
+      summary = '量价/基本面/估值/主线/资金 5维共振得分 > 85分龙头池';
+      body = `
+        <p><strong>【astock-screener-5a 选股流水线输出】</strong></p>
+        <p>本期五维共振旋转评分模型运行完成，截面剔除 ST 与停牌标的后，共筛选出 3 只高胜率共振龙头：</p>
+        <table class="report-table" style="width:100%; border-collapse:collapse; margin:10px 0; font-size:12px;">
+          <thead>
+            <tr style="background:#F6F8FB; border-bottom:1px solid #E2E8F0;">
+              <th style="padding:6px 8px; text-align:left;">标的代码</th>
+              <th style="padding:6px 8px; text-align:left;">标的名称</th>
+              <th style="padding:6px 8px; text-align:center;">综合评分</th>
+              <th style="padding:6px 8px; text-align:left;">核心驱动主线</th>
+              <th style="padding:6px 8px; text-align:center;">操作建议</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:6px 8px; font-weight:600;">600519</td>
+              <td style="padding:6px 8px;">贵州茅台</td>
+              <td style="padding:6px 8px; text-align:center; color:#1677FF; font-weight:700;">94.2</td>
+              <td style="padding:6px 8px;">消费龙头 · 估值修复</td>
+              <td style="padding:6px 8px; text-align:center;"><span style="color:#52C41A; font-weight:600;">可建仓</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:6px 8px; font-weight:600;">300750</td>
+              <td style="padding:6px 8px;">宁德时代</td>
+              <td style="padding:6px 8px; text-align:center; color:#1677FF; font-weight:700;">91.8</td>
+              <td style="padding:6px 8px;">动力电池 · 动量突破</td>
+              <td style="padding:6px 8px; text-align:center;"><span style="color:#52C41A; font-weight:600;">顺势跟进</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:6px 8px; font-weight:600;">002594</td>
+              <td style="padding:6px 8px;">比亚迪</td>
+              <td style="padding:6px 8px; text-align:center; color:#1677FF; font-weight:700;">88.5</td>
+              <td style="padding:6px 8px;">主板稳健 · 趋势回踩</td>
+              <td style="padding:6px 8px; text-align:center;"><span style="color:#1677FF; font-weight:600;">逢低吸纳</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="summary-highlight-card">
+          <span class="summary-icon">🛡️</span>
+          <div class="summary-text"><strong>风控铁律提醒</strong>：入场必须预设 T0(-3%)/T1(-5%)/T2(-8%) 三级止损阶梯，绝不扛单。</div>
+        </div>
+      `;
+    } else if (skillId === 'astock-action-execution') {
+      title = '实战反应动作中枢与精确保本价报告';
+      summary = '全部税费向上进位(ceil)与三场景反应动作单';
+      body = `
+        <p><strong>【astock-action-execution 精算输出】</strong></p>
+        <p>严格遵守工作区 <code>AGENTS.md</code> 铁律：计入印花税 0.05%、券商佣金万2.5（最低5元起收）、过户费 0.002%，向上进位至分位（<code>math.ceil</code>）。</p>
+        <div class="risk-iron-card" style="margin:10px 0;">
+          <div class="risk-iron-header">
+            <span>🛡️ 实战风控阶梯与精确保本位 (买入成本 ¥320.00 / 1000股)</span>
+          </div>
+          <div class="risk-iron-grid">
+            <div class="risk-pill-box">
+              <div class="risk-pill-title">最低保本卖出价</div>
+              <div class="risk-pill-val" style="color:#1677FF;">¥320.26</div>
+            </div>
+            <div class="risk-pill-box">
+              <div class="risk-pill-title">T1 减仓线 (-5%)</div>
+              <div class="risk-pill-val" style="color:#D46B08;">¥304.00</div>
+            </div>
+            <div class="risk-pill-box">
+              <div class="risk-pill-title">T2 绝杀线 (-8%)</div>
+              <div class="risk-pill-val" style="color:#F5222D;">¥294.40</div>
+            </div>
+          </div>
+        </div>
+        <p><strong>三场景即时动作单：</strong></p>
+        <ul>
+          <li><strong>开盘冲高 (+3% 以上)</strong>：触及第一阻力位，先减仓 1/3 锁定部分收益，剩余底仓以保本价挂单移动止盈；</li>
+          <li><strong>盘中窄幅震荡 (±1.5% 以内)</strong>：持股不动，观察分时量比与主力大单流向；</li>
+          <li><strong>盘中跳水急跌 (触及 -5% T1减仓线)</strong>：无条件减仓 50% 防守，若继续下挫触及 -8% 绝杀线立即全仓出局。</li>
+        </ul>
+      `;
+    } else if (skillId === 'astock-strategy-macd') {
+      title = 'MACD 水下二次金叉与底背离形态识别研报';
+      summary = '波谷极值对比与波段间距硬约束过滤假信号';
+      body = `
+        <p><strong>【astock-strategy-macd 形态识别输出】</strong></p>
+        <p>依据纯粹 MACD 经典战法标准进行波段波谷极值提取与零轴位置核查：</p>
+        <ul>
+          <li><strong>形态判定</strong>：零轴下方二次金叉验底完成，第二脚波谷高于第一脚（DIF极值 -4.20 vs -8.60）；</li>
+          <li><strong>间距过滤</strong>：两次金叉时间跨度为 14 个交易日，满足最小 8~25 根日K线有效形态过滤要求；</li>
+          <li><strong>信号评级</strong>：<strong>【可试错出手（二星）】</strong>，背离有效率 76.4%；</li>
+          <li><strong>止损锚点</strong>：以第一脚低点价格作为硬性防守绝杀线，跌破无条件离场。</li>
+        </ul>
+      `;
+    } else {
+      body = `
+        <p><strong>【${skillId} 就地执行报告】</strong></p>
+        <p>针对输入提问：<em>"${text}"</em>，系统已成功调用该技能底座流水线，完成全流程数据校验与逻辑计算。</p>
+        <p>实战建议：结合当前盘面成交量能与板块动量，保持仓位在 5 成以内，严格执行三级风控止损阶梯。</p>
+      `;
+    }
+
+    streamAIResponse(body, title, summary, { operators });
+    return;
+  }
+
+  // 3. 如果指定了算法操作符
+  if (operators.algos && operators.algos.length > 0) {
+    const algoName = operators.algos[0];
+    const title = `【${algoName}】量化算法仿真推演`;
+    const summary = `基于工业级量化工程规范完成截面因子处理与动态参数测算`;
+    const body = `
+      <p><strong>【${algoName} 计算引擎输出】</strong></p>
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:10px 12px; margin:8px 0; font-family:var(--font-mono, monospace); font-size:12px; line-height:1.6;">
+        <div><strong>数学模型定义与参数：</strong></div>
+        ${algoName.includes('MAD') ? `
+          <div>1. 中位数绝对偏差: MAD = median(|X_i - median(X)|)</div>
+          <div>2. 去极值上下界: [median(X) - 3×1.4826×MAD, median(X) + 3×1.4826×MAD]</div>
+          <div>3. 截面 Z-score: Z_i = (X_i - mean(X_clean)) / std(X_clean)</div>
+          <div>4. 截面 Rank 归一化: RankScore_i = rank(Z_i) / N</div>
+        ` : algoName.includes('凯利') ? `
+          <div>1. 目标年化波动率: σ_target = 15.0%</div>
+          <div>2. 资产协方差矩阵: Σ 滚动250交易日收缩估计 (Ledoit-Wolf)</div>
+          <div>3. 凯利杠杆倍数: f* = (μ - r) / σ²，半凯利系数: 0.5 × f*</div>
+          <div>4. 动态风险预算: 单资产最大头寸权重 ≤ 20.0%</div>
+        ` : `
+          <div>1. 因子 IC 均值: 0.068 (t-stat = 3.82)</div>
+          <div>2. 因子 IR 比率: 1.45 (具有优良信息增益)</div>
+          <div>3. 半衰期衰减: 12.4 交易日，建议调仓周期: 5日轮动</div>
+        `}
+      </div>
+      <p><strong>实战应用建议：</strong>当前模型在样本外检验中显著跑赢基准沪深300，且最大回撤由 -18.4% 优化至 -8.2%。已同步将参数更新至量化实盘风控网关。</p>
+    `;
+
+    streamAIResponse(body, title, summary, { operators });
+    return;
+  }
+
+// --------------------------------------------------------------------------
+// 7.2.1 针对右侧区域提取板块内容核心解析器
+// --------------------------------------------------------------------------
+function extractWorkbenchSectionData(refName) {
+  if (refName.includes('投资概要')) {
+    return {
+      type: '投资概要',
+      sectionId: 'section-portfolio-overview',
+      title: '右侧工作台【投资概要】板块数据提取与研判',
+      summary: '总资产规模 ¥454.24万 · 累计收益 +36.78% · 实战风控安全垫正常',
+      body: `
+        <p><strong>【右侧工作台 · 投资概要实时数据提取】</strong></p>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; background:#F8FAFD; border:1px solid #E2E8F0; border-radius:6px; padding:10px; margin:8px 0; font-size:12px;">
+          <div><span style="color:#64748B;">总资产规模:</span> <strong style="color:#1E293B;">¥454.24万</strong></div>
+          <div><span style="color:#64748B;">持仓总市值:</span> <strong style="color:#1677FF;">¥328.56万 (72.3%)</strong></div>
+          <div><span style="color:#64748B;">可用现金:</span> <strong style="color:#4096FF;">¥125.68万 (27.7%)</strong></div>
+          <div><span style="color:#64748B;">今日盈亏:</span> <strong style="color:#F5222D;">+¥3.86万 (+1.18%)</strong></div>
+          <div><span style="color:#64748B;">累计收益率:</span> <strong style="color:#F5222D;">+36.78%</strong></div>
+          <div><span style="color:#64748B;">年化收益率:</span> <strong style="color:#F5222D;">+18.24%</strong></div>
+        </div>
+        <p><strong>核心重仓持仓结构：</strong></p>
+        <ul>
+          <li><strong>宁德时代 (300750)</strong>：持仓占比 35%，持仓盈亏 <span style="color:#F5222D; font-weight:600;">+12.4%</span></li>
+          <li><strong>中芯国际 (688981)</strong>：持仓占比 25%，持仓盈亏 <span style="color:#F5222D; font-weight:600;">+8.6%</span></li>
+          <li><strong>海光信息 (688041)</strong>：持仓占比 20%，持仓盈亏 <span style="color:#F5222D; font-weight:600;">+15.2%</span></li>
+        </ul>
+        <div class="summary-highlight-card" style="margin-top:8px;">
+          <span class="summary-icon">🛡️</span>
+          <div class="summary-text"><strong>实战风控安全垫监测</strong>：5只持仓标的现价均显著高于各自最低保本卖出价；当前组合距离 T0 警戒线(-3%)具有 <strong>+11.8%</strong> 平均缓冲空间，账户处于绝对安全盈利区。</div>
+        </div>
+      `
+    };
+  }
+
+  if (refName.includes('大盘指数')) {
+    return {
+      type: '大盘指数',
+      sectionId: 'section-market-indices',
+      title: '右侧工作台【大盘指数】四大核心全景研判',
+      summary: '上证指数 3,426.56 (+0.72%) · 两市放量上攻 · 双创领跑',
+      body: `
+        <p><strong>【右侧工作台 · 大盘指数全景提取】</strong></p>
+        <table class="report-table" style="width:100%; border-collapse:collapse; margin:8px 0; font-size:12px;">
+          <thead>
+            <tr style="background:#F6F8FB; border-bottom:1px solid #E2E8F0;">
+              <th style="padding:6px 8px; text-align:left;">指数名称</th>
+              <th style="padding:6px 8px; text-align:right;">最新点位</th>
+              <th style="padding:6px 8px; text-align:right;">涨跌幅</th>
+              <th style="padding:6px 8px; text-align:right;">成交额</th>
+              <th style="padding:6px 8px; text-align:center;">盘面属性</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:6px 8px; font-weight:600;">上证指数</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:700; color:#F5222D;">3,426.56</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:600; color:#F5222D;">+0.72% (+24.38)</td>
+              <td style="padding:6px 8px; text-align:right;">5,281亿元</td>
+              <td style="padding:6px 8px; text-align:center;"><span style="color:#1677FF;">主板放量</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:6px 8px; font-weight:600;">深证成指</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:700; color:#F5222D;">10,892.14</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:600; color:#F5222D;">+1.08% (+116.24)</td>
+              <td style="padding:6px 8px; text-align:right;">6,723亿元</td>
+              <td style="padding:6px 8px; text-align:center;"><span style="color:#52C41A;">突破颈线</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:6px 8px; font-weight:600;">创业板指</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:700; color:#F5222D;">2,289.76</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:600; color:#F5222D;">+1.31% (+29.32)</td>
+              <td style="padding:6px 8px; text-align:right;">2,890亿元</td>
+              <td style="padding:6px 8px; text-align:center;"><span style="color:#722ED1;">成长领涨</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:6px 8px; font-weight:600;">科创50</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:700; color:#F5222D;">1,012.35</td>
+              <td style="padding:6px 8px; text-align:right; font-weight:600; color:#F5222D;">+1.85% (+18.42)</td>
+              <td style="padding:6px 8px; text-align:right;">982亿元</td>
+              <td style="padding:6px 8px; text-align:center;"><span style="color:#FA8C16;">硬科技领跑</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p><strong>大盘量价技术研判：</strong>四大宽基指数呈良性多头共振排列，双创指数领衔向上突破。沪指站稳 3,420 颈线支撑，两市整体成交达 1.28 万亿，量价配合健康，回踩可积极布局科技主线。</p>
+      `
+    };
+  }
+
+  if (refName.includes('行情分析')) {
+    return {
+      type: '行情分析',
+      sectionId: 'section-market-analysis',
+      title: '右侧工作台【行情分析】市场情绪与主线资金流',
+      summary: '市场情绪 78分 (亢温) · 两市成交 1.28万亿 · CPO/半导体主力大幅净流入',
+      body: `
+        <p><strong>【右侧工作台 · 行情分析板块提取】</strong></p>
+        <ul>
+          <li><strong>市场情绪温度计</strong>：<strong style="color:#F5222D;">78分 · 亢温贪婪</strong>，多头买盘处于显著主导地位；</li>
+          <li><strong>两市量能与涨跌分布</strong>：总成交突破 <strong>1.28万亿元</strong> (+12% 放量上攻)，全市场上涨 <strong>3,348 家</strong>，下跌 1,105 家，涨停 86 只；</li>
+          <li><strong>核心主线资金净流入</strong>：
+            <ul>
+              <li>半导体 / CPO算力：<span style="color:#F5222D;">+3.85%</span>（主力净流入 +48.6亿元）</li>
+              <li>人工智能 / 软件开发：<span style="color:#F5222D;">+3.12%</span>（主力净流入 +32.4亿元）</li>
+              <li>智能网联汽车链：<span style="color:#F5222D;">+1.68%</span>（主力净流入 +15.2亿元）</li>
+            </ul>
+          </li>
+        </ul>
+        <div class="summary-highlight-card">
+          <span class="summary-icon">💡</span>
+          <div class="summary-text"><strong>AI操盘手提示</strong>：当前科技成长主线动能充沛，但切忌追高加速段，建议围绕 5日/10日 均线回踩节点试错低吸。</div>
+        </div>
+      `
+    };
+  }
+
+  if (refName.includes('自选指数')) {
+    return {
+      type: '自选指数',
+      sectionId: 'section-watchlist-indices',
+      title: '右侧工作台【自选指数】自选组合与标的异动',
+      summary: '自选等权组合 +2.18% · 半导体科技 +3.62% · 中芯国际放量领涨',
+      body: `
+        <p><strong>【右侧工作台 · 自选指数板块提取】</strong></p>
+        <p>当前自选主题指数与核心重点标的表现：</p>
+        <ul>
+          <li><strong>自选等权组合指数</strong>：1,248.60 (<span style="color:#F5222D; font-weight:600;">+2.18%</span>)</li>
+          <li><strong>半导体科技主题指数</strong>：3,120.45 (<span style="color:#F5222D; font-weight:600;">+3.62%</span>)</li>
+        </ul>
+        <p>重点自选标的盘中表现：</p>
+        <ul>
+          <li><strong>中芯国际 (688981)</strong>：现价 ¥98.60，涨跌幅 <span style="color:#F5222D;">+4.32%</span>，主力大单净流入 +12.36亿元</li>
+          <li><strong>海光信息 (688041)</strong>：现价 ¥145.20，涨跌幅 <span style="color:#F5222D;">+3.87%</span>，主力大单净流入 +8.76亿元</li>
+          <li><strong>宁德时代 (300750)</strong>：现价 ¥188.32，涨跌幅 <span style="color:#F5222D;">+1.68%</span>，主力大单净流入 +2.76亿元</li>
+        </ul>
+      `
+    };
+  }
+
+  if (refName.includes('投资分析')) {
+    return {
+      type: '投资分析',
+      sectionId: 'section-investment-analysis',
+      title: '右侧工作台【投资分析】多因子量化收益归因研报',
+      summary: '夏普比率 1.84 · 交易胜率 68.5% · 跑赢沪深300基准 +25.4%',
+      body: `
+        <p><strong>【右侧工作台 · 投资分析板块提取】</strong></p>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; background:#F8FAFD; border:1px solid #E2E8F0; border-radius:6px; padding:8px; margin:8px 0; text-align:center;">
+          <div><div style="color:#64748B; font-size:11px;">夏普比率</div><div style="font-weight:700; color:#1677FF; font-size:15px;">1.84</div></div>
+          <div><div style="color:#64748B; font-size:11px;">交易胜率</div><div style="font-weight:700; color:#F5222D; font-size:15px;">68.5%</div></div>
+          <div><div style="color:#64748B; font-size:11px;">最大回撤</div><div style="font-weight:700; color:#FA8C16; font-size:15px;">-8.24%</div></div>
+          <div><div style="color:#64748B; font-size:11px;">盈亏比</div><div style="font-weight:700; color:#1E293B; font-size:15px;">2.41</div></div>
+        </div>
+        <p><strong>超额收益贡献分解：</strong></p>
+        <ul>
+          <li><strong>行业主线配置贡献</strong>：<span style="color:#F5222D; font-weight:600;">+14.2%</span>（重仓CPO与算力半导体带来的超额收益）</li>
+          <li><strong>个股 Alpha 超额贡献</strong>：<span style="color:#F5222D; font-weight:600;">+18.6%</span>（多因子选股模型筛选高胜率龙头）</li>
+          <li><strong>择时调仓收益</strong>：<span style="color:#F5222D; font-weight:600;">+3.98%</span>（严格执行阶梯防守与保本止损避免深度回撤）</li>
+        </ul>
+      `
+    };
+  }
+
+  if (refName.includes('盯盘') || refName.includes('实时盯盘')) {
+    return {
+      type: '实时盯盘',
+      sectionId: 'section-realtime-monitor',
+      title: '右侧工作台【实时盯盘】预警异动与策略监控',
+      summary: '毫秒级28ms延迟监控 · 3条盘中突破异动事件 · 4大量化策略全仓在线',
+      body: `
+        <p><strong>【右侧工作台 · 实时盯盘板块提取】</strong></p>
+        <p>当前实时盯盘通道运行正常，毫秒级网络延迟为 <strong>28ms</strong>。盘中最新预警异动流水：</p>
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:8px 10px; margin:8px 0; font-size:12px;">
+          <div style="margin-bottom:5px;"><span style="color:#52C41A; font-weight:700;">[买入信号 10:20:15]</span> <strong>中芯国际 (688981)</strong> 放量突破前高平台 ¥98.20，5分钟大单净买入 1.25 亿元，触发趋势突破买点</div>
+          <div style="margin-bottom:5px;"><span style="color:#1677FF; font-weight:700;">[主力异动 10:08:42]</span> <strong>宁德时代 (300750)</strong> 出现万手多笔大单密集吸筹，主力控盘评分上升至 85 分</div>
+          <div><span style="color:#FA8C16; font-weight:700;">[风控巡检 09:48:10]</span> <strong>立讯精密 (002475)</strong> 盘中回踩 MA20 均线，距离 T0 警戒线(-3%)仍有 0.9% 安全缓冲</div>
+        </div>
+        <p><strong>在线量化策略状态：</strong>趋势突破策略(监控中)、行业主线轮动(在线)、实战保本与止损(全仓在线)、自选极速预警(在线)。</p>
+      `
+    };
+  }
+
+  // 默认兜底：提取整个工作台当前数据
+  return {
+    type: '工作台当前数据',
+    sectionId: 'section-portfolio-overview',
+    title: `结合【${refName}】的深度研判`,
+    summary: '已抓取右侧激活工作台面板的实时行情、持仓与风控全景数据',
+    body: `
+      <p><strong>【${refName} 上下文注入解析】</strong></p>
+      <p>根据右侧工作台当前展示的数据与指标全景：</p>
+      <ul>
+        <li><strong>盘面背景</strong>：两市总成交额 1.28 万亿元，科技成长主线呈现放量资金净流入；</li>
+        <li><strong>持仓评估</strong>：当前组合可用资金 27.7%，持仓市值 72.3%，整体回撤处于 -8.24% 安全阈值内；</li>
+        <li><strong>关键位推演</strong>：上证指数在 3,450 点附近面临前高筹码密集区阻力，若量能无法持续维持 1.2 万亿以上，谨防盘中回踩 10日线。</li>
+      </ul>
+      <div class="summary-highlight-card">
+        <span class="summary-icon">💡</span>
+        <div class="summary-text">建议保留 30% 以上现金头寸，逢高对冲获利盘，跌破 T1 减仓线果断执行保护性减持。</div>
+      </div>
+    `
+  };
+}
+
+  // 4. 如果包含引用操作符 (针对右侧区域提取板块内容)
+  if (operators.refs && operators.refs.length > 0) {
+    const refName = operators.refs[0];
+    const sectionInfo = extractWorkbenchSectionData(refName);
+
+    // 联动右侧工作台：平滑滚动到该卡片并进行高亮脉冲提示
+    if (sectionInfo.sectionId) {
+      const targetEl = document.getElementById(sectionInfo.sectionId);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        targetEl.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+        targetEl.style.boxShadow = '0 0 0 3px rgba(22, 119, 255, 0.35)';
+        targetEl.style.borderColor = '#1677FF';
+        setTimeout(() => {
+          targetEl.style.boxShadow = '';
+          targetEl.style.borderColor = '';
+        }, 2000);
+      }
+    }
+
+    streamAIResponse(sectionInfo.body, sectionInfo.title, sectionInfo.summary, { operators });
+    return;
+  }
+
+  // 5. 默认降级路由
   let tpl = PromptTemplates['行情分析'];
   if (text.includes('持股') || text.includes('持仓') || text.includes('保本')) {
     tpl = PromptTemplates['评估持股策略'];
@@ -1162,7 +2644,62 @@ function handleSendChat() {
     tpl = PromptTemplates['选股模型'];
   }
 
-  streamAIResponse(tpl.body, tpl.title, tpl.summary);
+  streamAIResponse(tpl.body, tpl.title, tpl.summary, { operators });
+}
+
+function handleSendChat() {
+  if (AppState.isChatStreaming) return;
+
+  const input = document.getElementById('chatInput');
+  const rawText = input ? input.value : '';
+  const text = rawText ? rawText.trim() : '';
+  if (!text) return;
+
+  // 提取与解析 @操作符
+  const operators = {
+    stocks: [],
+    refs: [],
+    skills: [],
+    algos: []
+  };
+
+  // 1. 股票标的匹配
+  const stockRegex = /@?([^\s(（]+)[(（](\d{6})[)）]/g;
+  let sm;
+  while ((sm = stockRegex.exec(text)) !== null) {
+    operators.stocks.push({ name: sm[1], code: sm[2], raw: sm[0] });
+  }
+
+  // 2. 引用匹配 (针对右侧板块内容精确抽取：投资概要/大盘指数/行情分析/自选指数/投资分析/实时盯盘)
+  if (text.includes('投资概要')) operators.refs.push('投资概要');
+  if (text.includes('大盘指数')) operators.refs.push('大盘指数');
+  if (text.includes('行情分析')) operators.refs.push('行情分析');
+  if (text.includes('自选指数')) operators.refs.push('自选指数');
+  if (text.includes('投资分析')) operators.refs.push('投资分析');
+  if (text.includes('实时盯盘') || text.includes('盯盘')) operators.refs.push('实时盯盘');
+  if (text.includes('工作台当前数据')) operators.refs.push('投资概要');
+
+  // 3. 技能匹配
+  const skillMatch = text.match(/@(astock-[a-z0-9-]+)/g);
+  if (skillMatch) {
+    operators.skills = skillMatch.map(s => s.replace('@', ''));
+  }
+
+  // 4. 算法匹配
+  if (text.includes('5A共振') || text.includes('5A')) operators.algos.push('5A共振多因子模型');
+  if (text.includes('MAD') || text.includes('Z-score') || text.includes('去极值')) operators.algos.push('MAD去极值与截面Z-score');
+  if (text.includes('目标波动率') || text.includes('凯利')) operators.algos.push('目标波动率与凯利仓位');
+  if (text.includes('二次金叉') || text.includes('底背离')) operators.algos.push('水下二次金叉判别算法');
+  if (text.includes('滑点') || text.includes('冲击撮合')) operators.algos.push('真实滑点冲击撮合');
+  if (text.includes('移动止损') || text.includes('阶梯')) operators.algos.push('阶梯移动止损算法');
+  if (text.includes('IC/IR') || text.includes('衰减')) operators.algos.push('因子IC/IR时序滚动回测');
+
+  // 渲染用户输入卡片
+  appendChatMessage('user', text);
+  input.value = '';
+
+  // 任务路由与执行 (执行与提示符相关的任务)
+  executeOperatorTask(text, operators);
 }
 
 function copyMessageText(btn) {
@@ -2772,16 +4309,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderSessionList();
   setupSessionInfiniteScroll();
 
-  // 2. Setup Chat Input Enter Key
-  const chatInput = document.getElementById('chatInput');
-  if (chatInput) {
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSendChat();
-      }
-    });
-  }
+  // 2. Setup Chat Input Compatibility & @ Operator Controller
+  setupChatInputCompatibility();
+  AtOperatorController.init();
 
   // 3. Setup Prompt Pills
   document.querySelectorAll('.prompt-pill').forEach(pill => {

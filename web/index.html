@@ -174,19 +174,72 @@
 
             <!-- Bottom Chat Input Bar -->
             <div class="chat-input-bar">
-              <div class="input-container">
-                <textarea class="chat-textarea" id="chatInput" placeholder="请输入您的问题，例如：“分析当前AI板块的投资机会”"></textarea>
-                <div class="input-toolbar">
-                  <div class="tool-buttons"><button class="input-tool-btn primary-btn" onclick="askAboutRightContent()">⚡ 引用右侧提问</button>
-                    <button class="input-tool-btn" onclick="showToast('支持上传研报PDF/持仓截图')">📁 上传文件</button>
-                    <button class="input-tool-btn" onclick="showToast('已挂载K线图表分析模式')">📊 图表分析</button>
-                    <button class="input-tool-btn" onclick="showToast('已开启实时语音识别输入')">🎙️ 语音输入</button>
+              <div class="input-container" id="inputContainer">
+                
+                <!-- 1. 【@操作符】浮窗 (弹出于输入框上方，宽度同输入框) -->
+                <div class="at-operator-popup" id="atOperatorPopup" style="display: none;" tabindex="-1">
+                  <div class="at-popup-header">
+                    <div class="at-popup-title-wrap">
+                      <span class="at-popup-badge">@</span>
+                      <span class="at-popup-title">功能操作符</span>
+                      <span class="at-popup-subtitle">股票 · 引用 · 技能 · 算法</span>
+                    </div>
+                    <button type="button" class="at-popup-close-btn" id="btnCloseAtPopup" onclick="closeAtPopup()" title="关闭 (ESC)">
+                      <span>×</span>
+                    </button>
                   </div>
-                  <button class="send-btn" id="btnSendChat" onclick="handleSendChat()">
-                    <span>发送</span>
-                    <span>✈️</span>
+                  <div class="at-popup-body">
+                    <!-- 左侧功能类别 -->
+                    <div class="at-popup-sidebar" id="atPopupSidebar">
+                      <!-- 动态渲染：股票 / 引用 / 技能 / 算法 -->
+                    </div>
+                    <!-- 右侧对应内容 (含搜索框与项目列表) -->
+                    <div class="at-popup-content-wrapper" id="atPopupContentWrapper">
+                      <div class="at-stock-search-wrap" id="atStockSearchWrap" style="display: none;">
+                        <input type="text" class="at-stock-search-input" id="atStockSearchInput" placeholder="输入股票名称、代码或拼音缩写 (如 600519/茅台/byd)..." autocomplete="off" />
+                        <div class="at-stock-search-actions">
+                          <button type="button" class="at-stock-search-clear" id="atStockSearchClear" onclick="AtOperatorController.clearStockSearch()" title="清空搜索" style="display: none;">×</button>
+                          <button type="button" class="at-stock-search-btn" id="atStockSearchBtn" onclick="AtOperatorController.focusSearch()" title="搜索">🔍</button>
+                        </div>
+                      </div>
+                      <div class="at-popup-content" id="atPopupContent">
+                        <!-- 动态渲染相应项目 -->
+                      </div>
+                    </div>
+                  </div>
+                  <div class="at-popup-footer">
+                    <div class="at-footer-shortcuts">
+                      <span class="shortcut-item"><kbd>ESC</kbd></span>
+                      <span class="shortcut-item"><kbd>▲▼</kbd></span>
+                      <span class="shortcut-item"><kbd>→</kbd></span>
+                      <span class="shortcut-item"><kbd>←</kbd></span>
+                      <span class="shortcut-item"><kbd>↵</kbd></span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2. 输入区域 (富文本高亮回填 + 原生属性兼容) -->
+                <div class="chat-input-wrapper" onclick="focusChatInput()">
+                  <div class="chat-textarea chat-input-rich" id="chatInput" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="请输入您的问题，或输入 @ 快速插入股票、引用、技能与算法操作符..."></div>
+                </div>
+
+                <!-- 3. 底部微功能图标栏与提交按钮 (仅保留【+】【@】并显示名称) -->
+                <div class="input-toolbar">
+                  <div class="tool-buttons">
+                    <button type="button" class="input-tool-btn icon-text-btn" onclick="showToast('扩展功能面板已就绪')" title="扩展功能">
+                      <span class="btn-icon-symbol">+</span>
+                      <span class="btn-icon-text">扩展</span>
+                    </button>
+                    <button type="button" class="input-tool-btn icon-text-btn at-btn" id="btnAtTrigger" onclick="toggleAtPopup(event)" title="功能操作符 (@ 股票/引用/技能/算法)">
+                      <span class="btn-icon-symbol">@</span>
+                      <span class="btn-icon-text">操作符</span>
+                    </button>
+                  </div>
+                  <button type="button" class="send-btn" id="btnSendChat" onclick="handleSendChat()">
+                    <span>提交</span>
                   </button>
                 </div>
+
               </div>
             </div>
 
