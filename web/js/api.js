@@ -450,7 +450,7 @@ const AStockAPI = {
               } else if (currentEvent === 'tool_call_complete') {
                 onToolComplete(parsed);
               } else if (currentEvent === 'content_delta') {
-                onDelta(parsed.delta || parsed.content || '');
+                onDelta(parsed.delta || parsed.content || parsed.text || '');
               } else if (currentEvent === 'risk_card') {
                 onRiskCard(parsed);
               } else if (currentEvent === 'done') {
