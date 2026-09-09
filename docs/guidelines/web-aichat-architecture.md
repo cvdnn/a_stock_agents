@@ -105,14 +105,18 @@ flowchart TB
 
 ## 四、 核心交互通信协议与治理机制
 
-### 1. SSE 打字机流式广播规范 (`/api/chat/stream`)
-通信协议采用标准 Server-Sent Events (SSE)，支持以下事件帧（Event Frame）：
-- `event: thought`：传递智能体思维链片段（COT 推理步骤）；
-- `event: tool_call`：传递工具调用通知（函数名、输入参数摘要）；
-- `event: tool_result`：传递工具调用执行结果或错误信息；
-- `event: text`：传递正式回复文本 Markdown 打字机切片；
-- `event: a2ui_render`：传递 A2UI 渲染动作帧（包含组件名、目标槽位、结构化 props）；
-- `event: done`：会话生成结束帧，返回耗时统计与 Token 消耗。
+### 1. SSE 打字机流式广播规范 (`/api/chat/completions/stream`)
+通信协议采用标准 Server-Sent Events (SSE)，支持以下事件帧（Event Frame，与 `scripts/server/agent/events.py` 域事件模型严格一致）：
+- `event: conversation_start`：会话建立帧（`session_id` + `model`），客户端据此回写会话 id；
+- `event: thought`：传递智能体思维链片段（COT 推理步骤，字段 `content`）；
+- `event: tool_call_start`：工具调用开始（字段 `call_id`/`skill_id`/`action`/`args`）；
+- `event: tool_call_complete`：工具调用完成（字段 `call_id`/`skill_id`/`status`/`summary`/`data`）；
+- `event: risk_card`：风控卡（`breakeven_price`/`stop_t0`/`stop_t1`/`stop_t2` 等实战三原则字段）；
+- `event: content_delta`：传递正式回复文本 Markdown 打字机切片（字段 `text`）；
+- `event: done`：会话生成结束帧（`total_tokens`/`elapsed_ms`/`finish_reason`）；
+- `event: error`：异常结束帧。
+
+> 前端解析器为 `web/js/api.js` 的 `AStockAPI.streamChatCompletions`，回调名 `onStart/onThought/onToolStart/onToolComplete/onRiskCard/onDelta/onDone/onError` 与上述事件一一对应。
 
 ### 2. 17 项技能治理控制平面 (Skill Governance Plane)
 - **Manifest 契约化**：集中解析 `config/skills_manifest.json` 与 `.agents/skills/*/SKILL.md`；
@@ -129,4 +133,56 @@ flowchart TB
 - **`@技能` 路由**：自动绑定并激活 17 项量化投研技能对应的专有 Prompt 模板与执行流水线；
 - **`@算法` 路由**：绑定工业级量化工程因子算法（MAD去极值、Z-score截面Rank、换手率沉淀、ATR阶梯止盈止损等）进行动态仿真测算；
 - **元数据与徽标回显**：用户消息渲染时由 `formatUserContentWithAtBadges` 呈现内联彩色标签，服务端流式返回（`streamAIResponse`）携带 `meta.operators` 数据，在消息气泡底栏同步渲染操作符调用徽章。
+
+---
+
+## 五、 前端数据契约与 MOCK 兜底规范 (Frontend Data Contract)
+
+### 1. 单一数据源与三层 MOCK 兜底
+
+前端**禁止在 HTML/JS 中硬编码业务数据**（指数、行情、情绪、持仓、收益、分析结论、股票列表等），数据链路固定为：
+
+```
+后端 /api/*（scripts/server/api/market_data.py，测试阶段返回 MOCK）
+   │  fetch
+   ▼
+AStockAPI（web/js/api.js，唯一客户端入口；后端离线时返回同构 MOCK 兜底）
+   │
+   ▼
+加载器 load*Data（web/js/app.js，映射到 DOM id + 绘制 Canvas）
+   │
+   ▼
+index.html（空容器/占位，由 JS 渲染）
+```
+
+MOCK 分三层：① 后端 `market_data.py` 静态数据；② `api.js` 每个方法的本地同构兜底（形状与后端 Pydantic Schema 严格对齐，camelCase、无 `{data}` 包装）；③ 分析类文本的 `PromptTemplates` / 技能报告 body（仅在后端 SSE 离线时作为打字机兜底）。
+
+### 2. 后端 Schema ↔ api.js ↔ 加载器 映射
+
+| 后端接口 | `AStockAPI` 方法 | 加载器 | 渲染区块 |
+| :--- | :--- | :--- | :--- |
+| `GET /api/market/indices` | `getMarketIndices` | `loadDashboardData` / `loadMarketData` | 大盘指数 + sparkline |
+| `GET /api/market/sentiment` | `getMarketSentiment` | 同上 | 情绪仪表 + 板块热度 |
+| `GET /api/market/kline` | `getMarketKline` | `loadMarketData` | 指数 K 线 + 均线 |
+| `GET /api/market/ranks` | `getMarketRanks` | `loadMarketData` | 涨跌榜/北向/板块/要闻/概念 |
+| `GET /api/portfolio/overview` | `getPortfolioOverview` | `loadDashboardData` | 总资产/仓位/持仓分布 |
+| `GET /api/portfolio/analysis` | `getPortfolioAnalysis` | `loadReturnsData` | 收益 KPI/净值/月度盈亏/持仓表 |
+| `GET /api/watchlist` | `getWatchlist` | `loadWatchlistData` | 自选列表 + 个股深度研判 |
+| `GET /api/monitor/stream` | `getMonitorStream` | `loadDashboardData` | 盯盘监控流 + 策略开关 |
+| `POST /api/chat/completions/stream` | `streamChatCompletions` | `streamAIResponse` | AI 分析结论（流式） |
+
+### 3. AI 分析结论接入约定
+
+- 所有分析结论（`streamAIResponse`）**先走 `streamChatCompletions` 请求后端 ReAct 流式输出**（`model='mock'` 时由 `MockLLMProvider` 离线流式生成），失败时回退到 `PromptTemplates`/技能报告 body 打字机兜底；
+- 必须传入真实用户提问 `meta.userText`（而非报告标题），使后端能命中标的代码与意图触发词；
+- 回调名与 `api.js` 契约对齐：`onStart/onThought/onToolStart/onToolComplete/onDelta/onDone/onError`。
+
+### 4. @操作符股票行情同步
+
+`AtOperatorRegistry` 中 `stock`/`watchlist` 分组的 `currentPrice`/`changePct` 由 `loadWatchlistData` 拉取后经 `syncAtOperatorQuotes(stocks)` 按 `code` 合并刷新；拼音、描述、股池、持仓比例、图标保留为静态 UI 配置。后端 MOCK 未覆盖的代码保留静态值（优雅降级）。
+
+### 5. 契约漂移防护
+
+后端 Pydantic Schema（`market_data.py`）与 `api.js` 兜底形状、加载器读取字段三者必须一致；改动任何一处需同步另两处，并以 `tests/test_market_data_api.py` 作为契约回归基线。
+
 
