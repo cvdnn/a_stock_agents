@@ -17,3 +17,20 @@
 | `SPEC-ALGO-001` | 正式基线 100% 已交付 | G1 | G1-G3 | `scripts/core/models`; `scripts/core/monitor_governance.py` | 算法治理套件 | 实施中：持久化证据、晋级和熔断待完成 |
 
 SPEC-ARCH-003 保持 RFC/Backlog。原始审查文本与历史完成声明保存在 [代码审查历史归档](../../audits/code-review-history.md)。
+
+## P0 真实性与安全止血证据
+
+P0 于 2026-09-10 在 `main` 就地完成；这只证明正式路径能够失败关闭，不代表上表领域规格或 P1–P7 已完成。
+
+| P0 项 | 提交 | 观察到的证据 |
+|---|---|---|
+| 规格状态校准 | `f8cf3f8` | `tests/test_docs_suite.py`: 4 passed |
+| 生产模型门禁 | `f674ba2` | `tests/test_llm_readiness.py` + `tests/test_server_suite.py`: 17 passed |
+| 供应商凭据与 CORS | `720e2f4` | 后端组合回归：21 passed |
+| Skill/REST 真实性 | `ef0acf0` | 后端与治理组合回归：47 passed |
+| 浏览器去 Mock 与密钥持久化 | `6334db4` | 两份 Node 安全测试、`test_at_operator.js` 与三份 `node --check` 通过 |
+| 生产真实性总门禁 | 本轮最终提交 | `tests/test_production_authenticity.py`: 2 passed |
+
+P0 完整复验命令记录在 `docs/superpowers/plans/2026-09-10-production-agent-platform-p0.md`。未接通能力的逐项状态见 [Skill 能力真实性验收台账](../architecture/arch-skill-capability-acceptance.md)。
+
+最终复验结果：P0 定向 Python 套件 `53 passed`；完整默认离线 pytest `173 passed, 14 skipped`（14 项均为需显式启动服务的 live E2E）；两份 Node 安全测试、40 项 `@` 操作符断言及三份修改后 JavaScript 的 `node --check` 全部通过。另有 2 条 Starlette/httpx 弃用警告，不影响本轮结果。

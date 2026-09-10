@@ -253,7 +253,7 @@ function executeQuickAction(actionType) {
       executeA2UITask('分析今日大盘行情');
     } else {
       const tpl = PromptTemplates['行情分析'];
-      streamAIResponse(tpl, '今日A股大盘行情与主线轮动深度研判', '两市放量成交破1.28万亿，科技成长主线共振领涨，短期延续反弹', { userText: prompt });
+      streamAIResponse(tpl, '今日A股大盘行情与主线轮动深度研判', '等待后端返回可验证行情证据', { userText: prompt });
     }
     const sec = document.getElementById('section-market-indices');
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -262,7 +262,7 @@ function executeQuickAction(actionType) {
     const prompt = '请对当前投资组合进行全景收益分析，评估资产净值曲线、夏普比率、最大回撤以及多因子收益归因。';
     appendChatMessage('user', prompt);
     const tpl = PromptTemplates['收益分析'] || PromptTemplates['行情分析'];
-    streamAIResponse(tpl, '投资组合全景收益与多因子归因报告', '累计总收益 +36.78%，夏普比率 1.84，个股Alpha与行业配置贡献核心超额', { userText: prompt });
+    streamAIResponse(tpl, '投资组合全景收益与多因子归因报告', '等待后端返回可验证账户绩效与归因数据', { userText: prompt });
     const sec = document.getElementById('section-investment-analysis');
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     showToast('已发起【收益分析】多维量化研判！');
@@ -440,7 +440,7 @@ function askAboutRightContent() {
 
   let prompt = '';
   if (tab === 'dashboard') {
-    prompt = '请结合整体投研盘面数据（两市放量1.28万亿，科技领涨），分析明天的核心主线与防守标的。';
+    prompt = '请结合工作台中本次成功返回的投研数据，分析明天的核心主线与防守标的；缺失数据请明确披露。';
   } else if (tab === 'market') {
     prompt = '请结合市场行情全景看板与北向资金流向，深度研判大盘短期突破 3,450 点的动能与风险。';
   } else if (tab === 'watchlist') {
@@ -1353,162 +1353,28 @@ function generateKlines(basePrice = 320, count = 28, trend = 0.008) {
 const PromptTemplates = {
   '评估持股策略': {
     title: '持股策略与实战三原则量化诊断报告',
-    summary: '持仓组合综合健康度 88分，精算税费保本卖出价与三级止损阶梯',
-    body: `
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">1. 持仓组合结构画像</div>
-        <p>当前总资产规模 <strong>¥454.24万</strong>，持仓总市值 <strong>¥328.56万</strong>（仓位占比 72.3%），可用现金 <strong>¥125.68万</strong>（占比 27.7%）。持仓聚焦科技成长与新能源双主线：<strong>宁德时代(35%)、中芯国际(25%)、海光信息(20%)</strong>，仓位适度偏多，流动性充裕。</p>
-      </div>
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">2. 持仓标的健康度诊断</div>
-        <ul>
-          <li><strong>宁德时代 (300750)</strong>：量化评分 92分。完成 60分钟水下二次金叉验底，主力超大单密集流入，处于安全边际支撑位上方。</li>
-          <li><strong>中芯国际 (688981)</strong>：量化评分 94分。放量突破前期颈线高位平台，量价共振显著，多头排列稳固。</li>
-          <li><strong>海光信息 (688041)</strong>：量化评分 89分。回踩 MA20 均线确认支撑，筹码集中度持续提升至 82%。</li>
-        </ul>
-      </div>
-      <div class="summary-highlight-card">
-        <span class="summary-icon">🛡️</span>
-        <div class="summary-text"><strong>策略诊断结论</strong>：持仓组合整体健康度优秀，处于安全垫区间（平均缓冲距离 +11.8%），建议保持底仓，待盘中拉升逐步止盈。</div>
-      </div>
-      <div class="risk-iron-card">
-        <div class="risk-iron-header">
-          <span class="risk-iron-title">🛡️ 实战交易三原则（合规风控指令单）</span>
-          <button class="risk-iron-action-btn" title="投射到右侧工作台" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-            </svg>
-          </button>
-        </div>
-        <div class="risk-iron-grid">
-          <div class="risk-pill-box">
-            <div class="risk-pill-title">最低保本卖出价</div>
-            <div class="risk-pill-val">¥320.69</div>
-          </div>
-          <div class="risk-pill-box">
-            <div class="risk-pill-title">T1减仓线 (-5%)</div>
-            <div class="risk-pill-val">¥304.16 (减仓50%)</div>
-          </div>
-          <div class="risk-pill-box">
-            <div class="risk-pill-title">T2绝杀线 (-8%)</div>
-            <div class="risk-pill-val">¥294.55 (坚决止损)</div>
-          </div>
-        </div>
-      </div>
-    `
+    summary: '等待后端根据真实持仓和成本数据生成诊断',
+    body: '<p>尚未取得可验证的持仓、成本与行情数据；不能生成评分、保本价或交易动作。</p>'
   },
   '收益分析': {
     title: '投资组合全景收益与多因子归因报告',
-    summary: '累计总收益 +36.78%，夏普比率 1.84，个股Alpha与行业配置贡献核心超额',
-    body: `
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">1. 净值走势与超额收益</div>
-        <p>自建仓以来组合累计实现净值 <strong>1.368</strong>，总收益率 <strong class="text-up">+36.78%</strong>，年化收益率 <strong class="text-up">+18.24%</strong>，较沪深300基准累计超额收益达 <strong>+25.4%</strong>。</p>
-      </div>
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">2. 风险与胜率核心量化指标</div>
-        <ul>
-          <li><strong>夏普比率 (Sharpe Ratio)</strong>：<strong>1.84</strong>（优于全市场 88% 的量化公募基准）。</li>
-          <li><strong>交易胜率 (Win Rate)</strong>：<strong>68.5%</strong>，平均盈亏比 <strong>2.41</strong>。</li>
-          <li><strong>最大回撤 (Max Drawdown)</strong>：<strong>-8.24%</strong>（发生在前期震荡验底期，现已完全修复创新高）。</li>
-          <li><strong>贝塔系数 (Beta)</strong>：<strong>0.82</strong>，防御性与回撤控制表现良好。</li>
-        </ul>
-      </div>
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">3. Brinson 多因子收益归因</div>
-        <ul>
-          <li><strong>行业配置效应</strong>：贡献 <strong>+14.2%</strong>，核心超额来自超配半导体与人工智能算力链。</li>
-          <li><strong>个股选股 Alpha</strong>：贡献 <strong>+18.6%</strong>，核心重仓标的涨幅跑赢所属申万一级行业。</li>
-          <li><strong>择时与对冲收益</strong>：贡献 <strong>+3.98%</strong>，早盘分级止盈与水下二次金叉验底加仓成效显著。</li>
-        </ul>
-      </div>
-      <div class="summary-highlight-card">
-        <span class="summary-icon">💰</span>
-        <div class="summary-text"><strong>收益优化建议</strong>：多因子驱动健康，建议对涨幅超过30%的重仓个股适度兑现浮盈至现金储备，维持总仓位在 65%~75% 动态中性区间。</div>
-      </div>
-    `
+    summary: '等待后端根据真实账户净值和交易记录生成归因',
+    body: '<p>尚未取得可验证的账户净值和交易记录；不能生成收益、回撤、胜率或归因结论。</p>'
   },
   '行情分析': {
     title: '当前A股市场行情分析',
-    summary: '两市成交放量破1.28万亿，科技成长主线共振领涨，短期延续震荡向上反弹格局',
-    body: `
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">1. 整体走势</div>
-        <p>今日上证指数收于 <strong>3,426.56</strong> 点，涨幅 <strong>+0.72%</strong>；深证成指收于 <strong>10,892.14</strong> 点，涨幅 <strong>+1.08%</strong>；创业板指收于 <strong>2,289.76</strong> 点，涨幅 <strong>+1.31%</strong>。两市成交额约 <strong>1.28万亿元</strong>，较昨日放量 12%，市场情绪回暖，资金呈现持续净流入。</p>
-      </div>
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">2. 主要板块表现</div>
-        <ul>
-          <li><strong>TMT 板块</strong>：表现强势，AI、半导体、算力硬件与软件开发领涨。</li>
-          <li><strong>金融板块</strong>：小幅上涨，券商、保险稳健护盘。</li>
-          <li><strong>周期板块</strong>：有色金属、特种钢材涨幅居前。</li>
-          <li><strong>消费板块</strong>：整体偏弱，食品饮料与家电呈现结构性分化。</li>
-        </ul>
-      </div>
-      <div class="summary-highlight-card">
-        <span class="summary-icon">📈</span>
-        <div class="summary-text"><strong>一句总结线</strong>：市场短期延续震荡向上趋势，科技成长仍是核心主线，建议逢低布局，合理控制仓位。</div>
-      </div>
-      <div class="risk-iron-card">
-        <div class="risk-iron-header">
-          <span class="risk-iron-title">🛡️ 实战交易三原则（合规风控指令单）</span>
-          <button class="risk-iron-action-btn" title="投射到右侧工作台" onclick="projectToRight('action', {code:'300750', name:'宁德时代', cost:320, shares:1000})">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-            </svg>
-          </button>
-        </div>
-        <div class="risk-iron-grid">
-          <div class="risk-pill-box">
-            <div class="risk-pill-title">最低保本卖出价</div>
-            <div class="risk-pill-val">¥320.69</div>
-          </div>
-          <div class="risk-pill-box">
-            <div class="risk-pill-title">T1减仓线 (-5%)</div>
-            <div class="risk-pill-val">¥304.16 (减仓50%)</div>
-          </div>
-          <div class="risk-pill-box">
-            <div class="risk-pill-title">T2绝杀线 (-8%)</div>
-            <div class="risk-pill-val">¥294.55 (坚决止损)</div>
-          </div>
-        </div>
-      </div>
-    `
+    summary: '等待后端返回可验证行情证据',
+    body: '<p>尚未取得可验证的指数、成交额和板块数据；不能生成市场方向或交易建议。</p>'
   },
   '技术指标': {
     title: '全市场技术形态与指标共振扫描',
-    summary: '865只标的多头排列，科技主线占比超40%，重点留意水下二次金叉战法信号',
-    body: `
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">1. MACD 与均线多头排列</div>
-        <p>全市场共 <strong>865</strong> 只标的出现 5日/10日/20日 均线多头排列，其中科技主线（半导体/CPO）占比超 40%。</p>
-      </div>
-      <div class="ai-report-section">
-        <div class="ai-report-section-title">2. 水下二次金叉战法雷达</div>
-        <p>雷达检测到 <strong>宁德时代 (300750)</strong> 与 <strong>海光信息 (688041)</strong> 在零轴下方完成二次金叉验底，筹码换手充分，第一脚与第二脚支撑扎实。</p>
-      </div>
-      <div class="summary-highlight-card">
-        <span class="summary-icon">🎯</span>
-        <div class="summary-text"><strong>量化提示</strong>：技术指标反弹动能充沛，需严格遵守分级风控止损原则，防范虚假突破。</div>
-      </div>
-    `
+    summary: '等待后端根据真实 K 线计算技术指标',
+    body: '<p>尚未取得可验证的 K 线与指标数据；不能生成形态、金叉或趋势结论。</p>'
   },
   '选股模型': {
     title: '5A五维共振旋转选股输出',
-    summary: '多因子综合评分前三候选标的，重点关注量价共振与主力大单流向',
-    body: `
-      <div class="ai-report-section">
-        <ul>
-          <li><strong>中芯国际 (688981)</strong>：量价评分 94，资金面评分 91，主线轮动匹配度 A+，现价 98.60 元。</li>
-          <li><strong>宁德时代 (300750)</strong>：量价评分 92，基本面评分 95，主力净流入 +12.36亿，现价 328.56 元。</li>
-          <li><strong>海光信息 (688041)</strong>：量价评分 89，算力主线共振，突破前高筹码密集区，现价 145.20 元。</li>
-        </ul>
-      </div>
-      <div class="summary-highlight-card">
-        <span class="summary-icon">💡</span>
-        <div class="summary-text"><strong>操作指引</strong>：建议以 3成底仓介入，并在开盘冲高 +3% 时分批减持，若盘中跌破 5日线立即触发 T0 对冲。</div>
-      </div>
-    `
+    summary: '等待后端根据真实候选池和因子证据生成结果',
+    body: '<p>尚未取得可验证的候选池、行情和因子数据；不能生成排名、评分或买卖建议。</p>'
   }
 };
 
@@ -1518,44 +1384,44 @@ const PromptTemplates = {
 
 const AtOperatorRegistry = {
   watchlist: [
-    { name: '比亚迪',   code: '002594', pinyin: 'byd',       insertText: '@比亚迪(002594)',   desc: '观察自选 · 新能源汽车 · 产业链龙头核心标的', icon: '🚗', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: 285.60, costPrice: 285.60, changePct: 1.86, pe: 21.2 },
-    { name: '贵州茅台', code: '600519', pinyin: 'gzmt mt',   insertText: '@贵州茅台(600519)', desc: '核心持仓 · 白酒龙头 · 消费大市值防御底仓', icon: '🍶', pool: 'holding', tag: '持仓35%', isHolding: true, holdingRatio: '35%', currentPrice: 1408.00, costPrice: 1350.00, changePct: 0.72, pe: 20.8 },
-    { name: '海光信息', code: '688041', pinyin: 'hgxx',      insertText: '@海光信息(688041)', desc: '潜伏关注 · CPU/DCU算力 · 国产替代核心标的', icon: '💽', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: 145.20, costPrice: 138.50, changePct: 3.25, pe: 55.3 },
-    { name: '宁德时代', code: '300750', pinyin: 'ndsd nd',   insertText: '@宁德时代(300750)', desc: '核心持仓 · 动力电池 · 创业板成长先导标的', icon: '🔋', pool: 'holding', tag: '持仓25%', isHolding: true, holdingRatio: '25%', currentPrice: 218.50, costPrice: 205.00, changePct: 2.15, pe: 18.4 },
-    { name: '中国平安', code: '601318', pinyin: 'zgpa pa',   insertText: '@中国平安(601318)', desc: '观察自选 · 金融权重 · 高股息红利震荡防守', icon: '🛡️', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: 46.80, costPrice: 45.20, changePct: -0.42, pe: 8.5 },
-    { name: '中信证券', code: '600030', pinyin: 'zxzq zx',   insertText: '@中信证券(600030)', desc: '观察自选 · 券商龙头 · 市场情绪与流动性温度计', icon: '📊', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: 24.50, costPrice: 23.80, changePct: 1.12, pe: 14.6 },
-    { name: '中芯国际', code: '688981', pinyin: 'zxgj smic', insertText: '@中芯国际(688981)', desc: '潜伏关注 · 半导体芯片 · 科创硬科技放量突破', icon: '💾', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: 98.60, costPrice: 92.50, changePct: 4.18, pe: 42.0 },
-    { name: '中际旭创', code: '300308', pinyin: 'zjxc xc',   insertText: '@中际旭创(300308)', desc: '潜伏关注 · CPO光模块 · 科技突破动量先锋', icon: '⚡', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: 142.30, costPrice: 135.00, changePct: -1.25, pe: 32.1 }
+    { name: '比亚迪', code: '002594', pinyin: 'byd', insertText: '@比亚迪(002594)', desc: '新能源汽车', icon: '🚗', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '贵州茅台', code: '600519', pinyin: 'gzmt mt', insertText: '@贵州茅台(600519)', desc: '白酒', icon: '🍶', pool: 'holding', tag: '持仓池', isHolding: true, holdingRatio: null, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '海光信息', code: '688041', pinyin: 'hgxx', insertText: '@海光信息(688041)', desc: '国产算力', icon: '💽', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '宁德时代', code: '300750', pinyin: 'ndsd nd', insertText: '@宁德时代(300750)', desc: '动力电池', icon: '🔋', pool: 'holding', tag: '持仓池', isHolding: true, holdingRatio: null, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '中国平安', code: '601318', pinyin: 'zgpa pa', insertText: '@中国平安(601318)', desc: '金融', icon: '🛡️', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '中信证券', code: '600030', pinyin: 'zxzq zx', insertText: '@中信证券(600030)', desc: '券商', icon: '📊', pool: 'watchlist', tag: '自选池', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '中芯国际', code: '688981', pinyin: 'zxgj smic', insertText: '@中芯国际(688981)', desc: '半导体', icon: '💾', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '中际旭创', code: '300308', pinyin: 'zjxc xc', insertText: '@中际旭创(300308)', desc: '光模块', icon: '⚡', pool: 'focus', tag: '关注池', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null }
   ],
   stock: [
     // 1. 【持仓股】(Holding)
-    { name: '贵州茅台', code: '600519', pinyin: 'gzmt mt',   insertText: '@贵州茅台(600519)', desc: '白酒龙头 · 消费主线 · 大市值防御底仓', icon: '🍶', pool: 'holding', tag: '持仓35%', isHolding: true, holdingRatio: '35%', currentPrice: 1408.00, costPrice: 1350.00, changePct: 0.72, pe: 20.8 },
-    { name: '宁德时代', code: '300750', pinyin: 'ndsd nd',   insertText: '@宁德时代(300750)', desc: '创业板指 · 动力电池 · 趋势回踩成长先导', icon: '🔋', pool: 'holding', tag: '持仓25%', isHolding: true, holdingRatio: '25%', currentPrice: 218.50, costPrice: 205.00, changePct: 2.15, pe: 18.4 },
+    { name: '贵州茅台', code: '600519', pinyin: 'gzmt mt', insertText: '@贵州茅台(600519)', desc: '白酒', icon: '🍶', pool: 'holding', tag: '持仓池', isHolding: true, holdingRatio: null, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '宁德时代', code: '300750', pinyin: 'ndsd nd', insertText: '@宁德时代(300750)', desc: '动力电池', icon: '🔋', pool: 'holding', tag: '持仓池', isHolding: true, holdingRatio: null, currentPrice: null, costPrice: null, changePct: null, pe: null },
     // 2. 【自选股】(Watchlist)
-    { name: '比亚迪',   code: '002594', pinyin: 'byd',       insertText: '@比亚迪(002594)',   desc: '新能源汽车 · 产业链龙头 · 主板稳健波段', icon: '🚗', pool: 'watchlist', tag: '高端制造', isHolding: false, currentPrice: 285.60, costPrice: 285.60, changePct: 1.86, pe: 21.2 },
-    { name: '长江电力', code: '600900', pinyin: 'cjdl',      insertText: '@长江电力(600900)', desc: '公用事业水利发电 · 极致防御高红利资产', icon: '💧', pool: 'watchlist', tag: '红利防守', isHolding: false, currentPrice: 28.50, costPrice: 27.20, changePct: 0.35, pe: 19.4 },
-    { name: '东方财富', code: '300059', pinyin: 'dfcf dc',   insertText: '@东方财富(300059)', desc: '互联网券商 · 散户资金与换手先导', icon: '💻', pool: 'watchlist', tag: '金融科技', isHolding: false, currentPrice: 18.20, costPrice: 17.50, changePct: 2.45, pe: 28.3 },
-    { name: '赛力斯',   code: '601127', pinyin: 'sls',       insertText: '@赛力斯(601127)',   desc: '华为智选车链 · 高流动性活跃主线', icon: '🏎️', pool: 'watchlist', tag: '华为链', isHolding: false, currentPrice: 92.40, costPrice: 88.60, changePct: -1.07, pe: 35.0 },
-    { name: '中国平安', code: '601318', pinyin: 'zgpa pa',   insertText: '@中国平安(601318)', desc: '金融权重 · 高股息红利 · 震荡防御', icon: '🛡️', pool: 'watchlist', tag: '高股息', isHolding: false, currentPrice: 46.80, costPrice: 45.20, changePct: -0.42, pe: 8.5 },
-    { name: '中信证券', code: '600030', pinyin: 'zxzq zx',   insertText: '@中信证券(600030)', desc: '券商龙头 · 市场情绪与流动性温度计', icon: '📊', pool: 'watchlist', tag: '大金融', isHolding: false, currentPrice: 24.50, costPrice: 23.80, changePct: 1.12, pe: 14.6 },
-    { name: '紫金矿业', code: '601899', pinyin: 'zjky',      insertText: '@紫金矿业(601899)', desc: '有色金属铜金龙头 · 大宗商品对冲周期', icon: '⛏️', pool: 'watchlist', tag: '资源周期', isHolding: false, currentPrice: 17.60, costPrice: 16.80, changePct: 0.57, pe: 13.1 },
+    { name: '比亚迪', code: '002594', pinyin: 'byd', insertText: '@比亚迪(002594)', desc: '新能源汽车', icon: '🚗', pool: 'watchlist', tag: '高端制造', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '长江电力', code: '600900', pinyin: 'cjdl', insertText: '@长江电力(600900)', desc: '公用事业', icon: '💧', pool: 'watchlist', tag: '红利防守', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '东方财富', code: '300059', pinyin: 'dfcf dc', insertText: '@东方财富(300059)', desc: '互联网券商', icon: '💻', pool: 'watchlist', tag: '金融科技', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '赛力斯', code: '601127', pinyin: 'sls', insertText: '@赛力斯(601127)', desc: '汽车', icon: '🏎️', pool: 'watchlist', tag: '华为链', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '中国平安', code: '601318', pinyin: 'zgpa pa', insertText: '@中国平安(601318)', desc: '金融', icon: '🛡️', pool: 'watchlist', tag: '高股息', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '中信证券', code: '600030', pinyin: 'zxzq zx', insertText: '@中信证券(600030)', desc: '券商', icon: '📊', pool: 'watchlist', tag: '大金融', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '紫金矿业', code: '601899', pinyin: 'zjky', insertText: '@紫金矿业(601899)', desc: '有色金属', icon: '⛏️', pool: 'watchlist', tag: '资源周期', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
     // 3. 【关注股】(Focus)
-    { name: '创业板指', code: '399006', pinyin: 'cybz cy',   insertText: '@创业板指(399006)', desc: '高成长科技创新创业板龙头标尺', icon: '🚀', pool: 'focus', tag: '科技成长', isHolding: false, currentPrice: 2289.76, costPrice: null, changePct: 1.31, pe: 26.8 },
-    { name: '工业富联', code: '601138', pinyin: 'gyfl',      insertText: '@工业富联(601138)', desc: 'AI算力服务器基建龙头 · 全球算力代工', icon: '🏭', pool: 'focus', tag: 'AI硬件', isHolding: false, currentPrice: 23.80, costPrice: 22.50, changePct: -0.83, pe: 16.2 },
-    { name: '海光信息', code: '688041', pinyin: 'hgxx',      insertText: '@海光信息(688041)', desc: '国产CPU/DCU算力芯片 · 关键核心技术自主', icon: '💽', pool: 'focus', tag: '国产算力', isHolding: false, currentPrice: 145.20, costPrice: 138.50, changePct: 3.25, pe: 55.3 },
-    { name: '沪深300',  code: '000300', pinyin: 'hs300',     insertText: '@沪深300(000300)',  desc: '核心宽基指数基准 · 蓝筹权重配置', icon: '📈', pool: 'focus', tag: '核心指数', isHolding: false, currentPrice: 3950.00, costPrice: null, changePct: 0.95, pe: 12.0 },
-    { name: '科创50',   code: '000688', pinyin: 'kc50 kc',   insertText: '@科创50(000688)',   desc: '硬科技八大行业龙头综合指数', icon: '🔬', pool: 'focus', tag: '硬科技', isHolding: false, currentPrice: 1012.30, costPrice: null, changePct: 1.68, pe: 38.5 },
-    { name: '上证指数', code: '000001', pinyin: 'szzs sh',   insertText: '@上证指数(000001)', desc: '沪市大盘基准走势 · 市场整体温度', icon: '🏛️', pool: 'focus', tag: '大盘基准', isHolding: false, currentPrice: 3426.56, costPrice: null, changePct: 0.72, pe: 13.5 },
-    { name: '中芯国际', code: '688981', pinyin: 'zxgj smic', insertText: '@中芯国际(688981)', desc: '半导体芯片制造龙头 · 科创板核心硬科技', icon: '💾', pool: 'focus', tag: '半导体', isHolding: false, currentPrice: 98.60, costPrice: 92.50, changePct: 4.18, pe: 42.0 },
-    { name: '中际旭创', code: '300308', pinyin: 'zjxc xc',   insertText: '@中际旭创(300308)', desc: 'CPO算力光模块 · 科技突破核心标的', icon: '⚡', pool: 'focus', tag: '算力硬件', isHolding: false, currentPrice: 142.30, costPrice: 135.00, changePct: -1.25, pe: 32.1 }
+    { name: '创业板指', code: '399006', pinyin: 'cybz cy', insertText: '@创业板指(399006)', desc: '宽基指数', icon: '🚀', pool: 'focus', tag: '科技成长', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '工业富联', code: '601138', pinyin: 'gyfl', insertText: '@工业富联(601138)', desc: 'AI硬件', icon: '🏭', pool: 'focus', tag: 'AI硬件', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '海光信息', code: '688041', pinyin: 'hgxx', insertText: '@海光信息(688041)', desc: '国产算力', icon: '💽', pool: 'focus', tag: '国产算力', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '沪深300', code: '000300', pinyin: 'hs300', insertText: '@沪深300(000300)', desc: '宽基指数', icon: '📈', pool: 'focus', tag: '核心指数', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '科创50', code: '000688', pinyin: 'kc50 kc', insertText: '@科创50(000688)', desc: '宽基指数', icon: '🔬', pool: 'focus', tag: '硬科技', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '上证指数', code: '000001', pinyin: 'szzs sh', insertText: '@上证指数(000001)', desc: '宽基指数', icon: '🏛️', pool: 'focus', tag: '大盘基准', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '中芯国际', code: '688981', pinyin: 'zxgj smic', insertText: '@中芯国际(688981)', desc: '半导体', icon: '💾', pool: 'focus', tag: '半导体', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null },
+    { name: '中际旭创', code: '300308', pinyin: 'zjxc xc', insertText: '@中际旭创(300308)', desc: '光模块', icon: '⚡', pool: 'focus', tag: '算力硬件', isHolding: false, currentPrice: null, costPrice: null, changePct: null, pe: null }
   ],
   reference: [
-    { name: '投资概要', code: 'ref_portfolio', insertText: '@投资概要', desc: '提取右侧板块1：总资产¥454.24万、持仓市值、可用现金与风控安全垫', icon: '💼', tag: '右侧板块1' },
-    { name: '大盘指数', code: 'ref_indices',   insertText: '@大盘指数', desc: '提取右侧板块2-1：上证3426.56(+0.72%)、深成指、创业板指等核心点位', icon: '📈', tag: '右侧板块2-1' },
-    { name: '行情分析', code: 'ref_market',    insertText: '@行情分析', desc: '提取右侧板块2-2：两市成交1.28万亿、78分亢温情绪仪表盘与板块资金流', icon: '🔥', tag: '右侧板块2-2' },
-    { name: '自选指数', code: 'ref_watchlist', insertText: '@自选指数', desc: '提取右侧板块3-1：自选等权组合(+2.18%)与中芯/海光/宁德重点标的', icon: '⭐', tag: '右侧板块3-1' },
-    { name: '投资分析', code: 'ref_invest',    insertText: '@投资分析', desc: '提取右侧板块3-2：夏普比率1.84、胜率68.5%与多因子超额超准归因', icon: '📊', tag: '右侧板块3-2' },
-    { name: '实时盯盘', code: 'ref_monitor',   insertText: '@实时盯盘', desc: '提取右侧板块4：盘中放量突破与大单异动流水、4大策略在线监控', icon: '⚡', tag: '右侧板块4' }
+    { name: '投资概要', code: 'ref_portfolio', insertText: '@投资概要', desc: '提取后端返回的持仓与资产状态', icon: '💼', tag: '右侧板块1' },
+    { name: '大盘指数', code: 'ref_indices', insertText: '@大盘指数', desc: '提取后端返回的核心指数数据', icon: '📈', tag: '右侧板块2-1' },
+    { name: '行情分析', code: 'ref_market', insertText: '@行情分析', desc: '提取后端返回的市场分析数据', icon: '🔥', tag: '右侧板块2-2' },
+    { name: '自选指数', code: 'ref_watchlist', insertText: '@自选指数', desc: '提取后端返回的自选池与行情数据', icon: '⭐', tag: '右侧板块3-1' },
+    { name: '投资分析', code: 'ref_invest', insertText: '@投资分析', desc: '提取后端返回的账户绩效与归因数据', icon: '📊', tag: '右侧板块3-2' },
+    { name: '实时盯盘', code: 'ref_monitor', insertText: '@实时盯盘', desc: '提取后端返回的监控状态与事件', icon: '⚡', tag: '右侧板块4' }
   ],
   skill: [
     { name: 'astock-data-feed', code: 'skill_data', insertText: '@astock-data-feed', desc: '4级降级实时行情与日K线，经典技术指标与筹码', icon: '📡', tag: '数据基座' },
@@ -2638,7 +2504,7 @@ function appendChatMessage(role, content, meta = {}) {
 function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}) {
   let fullText = contentOrTpl;
   let title = titleParam || '当前A股市场行情分析';
-  let summary = summaryParam || '两市成交放量破1.28万亿，科技成长主线共振领涨，短期延续震荡向上反弹格局';
+  let summary = summaryParam || '等待后端返回可验证结果';
 
   if (contentOrTpl && typeof contentOrTpl === 'object') {
     fullText = contentOrTpl.body || '';
@@ -2770,7 +2636,7 @@ function executeOperatorTask(text, operators) {
 
     const tpl = PromptTemplates['评估持股策略'];
     const title = `${targetStock.name} (${targetStock.code}) 深度诊断研报`;
-    const summary = `已根据实战三原则完成最低保本卖出价精算与三场景反应动作单`;
+    const summary = '已提交真实持仓诊断请求，等待后端返回可验证结果';
     streamAIResponse(tpl.body, title, summary, { operators, userText: text });
     return;
   }
@@ -2925,28 +2791,8 @@ function extractWorkbenchSectionData(refName) {
       type: '投资概要',
       sectionId: 'section-portfolio-overview',
       title: '右侧工作台【投资概要】板块数据提取与研判',
-      summary: '总资产规模 ¥454.24万 · 累计收益 +36.78% · 实战风控安全垫正常',
-      body: `
-        <p><strong>【右侧工作台 · 投资概要实时数据提取】</strong></p>
-        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; background:#F8FAFD; border:1px solid #E2E8F0; border-radius:6px; padding:10px; margin:8px 0; font-size:12px;">
-          <div><span style="color:#64748B;">总资产规模:</span> <strong style="color:#1E293B;">¥454.24万</strong></div>
-          <div><span style="color:#64748B;">持仓总市值:</span> <strong style="color:#1677FF;">¥328.56万 (72.3%)</strong></div>
-          <div><span style="color:#64748B;">可用现金:</span> <strong style="color:#4096FF;">¥125.68万 (27.7%)</strong></div>
-          <div><span style="color:#64748B;">今日盈亏:</span> <strong style="color:#F5222D;">+¥3.86万 (+1.18%)</strong></div>
-          <div><span style="color:#64748B;">累计收益率:</span> <strong style="color:#F5222D;">+36.78%</strong></div>
-          <div><span style="color:#64748B;">年化收益率:</span> <strong style="color:#F5222D;">+18.24%</strong></div>
-        </div>
-        <p><strong>核心重仓持仓结构：</strong></p>
-        <ul>
-          <li><strong>宁德时代 (300750)</strong>：持仓占比 35%，持仓盈亏 <span style="color:#F5222D; font-weight:600;">+12.4%</span></li>
-          <li><strong>中芯国际 (688981)</strong>：持仓占比 25%，持仓盈亏 <span style="color:#F5222D; font-weight:600;">+8.6%</span></li>
-          <li><strong>海光信息 (688041)</strong>：持仓占比 20%，持仓盈亏 <span style="color:#F5222D; font-weight:600;">+15.2%</span></li>
-        </ul>
-        <div class="summary-highlight-card" style="margin-top:8px;">
-          <span class="summary-icon">🛡️</span>
-          <div class="summary-text"><strong>实战风控安全垫监测</strong>：5只持仓标的现价均显著高于各自最低保本卖出价；当前组合距离 T0 警戒线(-3%)具有 <strong>+11.8%</strong> 平均缓冲空间，账户处于绝对安全盈利区。</div>
-        </div>
-      `
+      summary: '等待后端返回可验证账户与持仓数据',
+      body: '<p>等待后端返回本次账户、持仓和风控事实；当前不生成静态资产或收益结论。</p>'
     };
   }
 
@@ -2955,52 +2801,8 @@ function extractWorkbenchSectionData(refName) {
       type: '大盘指数',
       sectionId: 'section-market-indices',
       title: '右侧工作台【大盘指数】四大核心全景研判',
-      summary: '上证指数 3,426.56 (+0.72%) · 两市放量上攻 · 双创领跑',
-      body: `
-        <p><strong>【右侧工作台 · 大盘指数全景提取】</strong></p>
-        <table class="report-table" style="width:100%; border-collapse:collapse; margin:8px 0; font-size:12px;">
-          <thead>
-            <tr style="background:#F6F8FB; border-bottom:1px solid #E2E8F0;">
-              <th style="padding:6px 8px; text-align:left;">指数名称</th>
-              <th style="padding:6px 8px; text-align:right;">最新点位</th>
-              <th style="padding:6px 8px; text-align:right;">涨跌幅</th>
-              <th style="padding:6px 8px; text-align:right;">成交额</th>
-              <th style="padding:6px 8px; text-align:center;">盘面属性</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom:1px solid #F1F5F9;">
-              <td style="padding:6px 8px; font-weight:600;">上证指数</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:700; color:#F5222D;">3,426.56</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:600; color:#F5222D;">+0.72% (+24.38)</td>
-              <td style="padding:6px 8px; text-align:right;">5,281亿元</td>
-              <td style="padding:6px 8px; text-align:center;"><span style="color:#1677FF;">主板放量</span></td>
-            </tr>
-            <tr style="border-bottom:1px solid #F1F5F9;">
-              <td style="padding:6px 8px; font-weight:600;">深证成指</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:700; color:#F5222D;">10,892.14</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:600; color:#F5222D;">+1.08% (+116.24)</td>
-              <td style="padding:6px 8px; text-align:right;">6,723亿元</td>
-              <td style="padding:6px 8px; text-align:center;"><span style="color:#52C41A;">突破颈线</span></td>
-            </tr>
-            <tr style="border-bottom:1px solid #F1F5F9;">
-              <td style="padding:6px 8px; font-weight:600;">创业板指</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:700; color:#F5222D;">2,289.76</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:600; color:#F5222D;">+1.31% (+29.32)</td>
-              <td style="padding:6px 8px; text-align:right;">2,890亿元</td>
-              <td style="padding:6px 8px; text-align:center;"><span style="color:#722ED1;">成长领涨</span></td>
-            </tr>
-            <tr style="border-bottom:1px solid #F1F5F9;">
-              <td style="padding:6px 8px; font-weight:600;">科创50</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:700; color:#F5222D;">1,012.35</td>
-              <td style="padding:6px 8px; text-align:right; font-weight:600; color:#F5222D;">+1.85% (+18.42)</td>
-              <td style="padding:6px 8px; text-align:right;">982亿元</td>
-              <td style="padding:6px 8px; text-align:center;"><span style="color:#FA8C16;">硬科技领跑</span></td>
-            </tr>
-          </tbody>
-        </table>
-        <p><strong>大盘量价技术研判：</strong>四大宽基指数呈良性多头共振排列，双创指数领衔向上突破。沪指站稳 3,420 颈线支撑，两市整体成交达 1.28 万亿，量价配合健康，回踩可积极布局科技主线。</p>
-      `
+      summary: '等待后端返回可验证指数与成交数据',
+      body: '<p>等待后端返回本次指数、涨跌幅和成交额事实；当前不生成静态盘面结论。</p>'
     };
   }
 
@@ -3009,25 +2811,8 @@ function extractWorkbenchSectionData(refName) {
       type: '行情分析',
       sectionId: 'section-market-analysis',
       title: '右侧工作台【行情分析】市场情绪与主线资金流',
-      summary: '市场情绪 78分 (亢温) · 两市成交 1.28万亿 · CPO/半导体主力大幅净流入',
-      body: `
-        <p><strong>【右侧工作台 · 行情分析板块提取】</strong></p>
-        <ul>
-          <li><strong>市场情绪温度计</strong>：<strong style="color:#F5222D;">78分 · 亢温贪婪</strong>，多头买盘处于显著主导地位；</li>
-          <li><strong>两市量能与涨跌分布</strong>：总成交突破 <strong>1.28万亿元</strong> (+12% 放量上攻)，全市场上涨 <strong>3,348 家</strong>，下跌 1,105 家，涨停 86 只；</li>
-          <li><strong>核心主线资金净流入</strong>：
-            <ul>
-              <li>半导体 / CPO算力：<span style="color:#F5222D;">+3.85%</span>（主力净流入 +48.6亿元）</li>
-              <li>人工智能 / 软件开发：<span style="color:#F5222D;">+3.12%</span>（主力净流入 +32.4亿元）</li>
-              <li>智能网联汽车链：<span style="color:#F5222D;">+1.68%</span>（主力净流入 +15.2亿元）</li>
-            </ul>
-          </li>
-        </ul>
-        <div class="summary-highlight-card">
-          <span class="summary-icon">💡</span>
-          <div class="summary-text"><strong>AI操盘手提示</strong>：当前科技成长主线动能充沛，但切忌追高加速段，建议围绕 5日/10日 均线回踩节点试错低吸。</div>
-        </div>
-      `
+      summary: '等待后端返回可验证市场情绪与成交数据',
+      body: '<p>等待后端返回本次市场情绪、成交和资金流事实；当前不生成静态主线或交易结论。</p>'
     };
   }
 
@@ -3036,21 +2821,8 @@ function extractWorkbenchSectionData(refName) {
       type: '自选指数',
       sectionId: 'section-watchlist-indices',
       title: '右侧工作台【自选指数】自选组合与标的异动',
-      summary: '自选等权组合 +2.18% · 半导体科技 +3.62% · 中芯国际放量领涨',
-      body: `
-        <p><strong>【右侧工作台 · 自选指数板块提取】</strong></p>
-        <p>当前自选主题指数与核心重点标的表现：</p>
-        <ul>
-          <li><strong>自选等权组合指数</strong>：1,248.60 (<span style="color:#F5222D; font-weight:600;">+2.18%</span>)</li>
-          <li><strong>半导体科技主题指数</strong>：3,120.45 (<span style="color:#F5222D; font-weight:600;">+3.62%</span>)</li>
-        </ul>
-        <p>重点自选标的盘中表现：</p>
-        <ul>
-          <li><strong>中芯国际 (688981)</strong>：现价 ¥98.60，涨跌幅 <span style="color:#F5222D;">+4.32%</span>，主力大单净流入 +12.36亿元</li>
-          <li><strong>海光信息 (688041)</strong>：现价 ¥145.20，涨跌幅 <span style="color:#F5222D;">+3.87%</span>，主力大单净流入 +8.76亿元</li>
-          <li><strong>宁德时代 (300750)</strong>：现价 ¥188.32，涨跌幅 <span style="color:#F5222D;">+1.68%</span>，主力大单净流入 +2.76亿元</li>
-        </ul>
-      `
+      summary: '等待后端返回可验证自选池与行情数据',
+      body: '<p>等待后端返回本次自选池、组合与个股行情事实；当前不生成静态异动结论。</p>'
     };
   }
 
@@ -3059,22 +2831,8 @@ function extractWorkbenchSectionData(refName) {
       type: '投资分析',
       sectionId: 'section-investment-analysis',
       title: '右侧工作台【投资分析】多因子量化收益归因研报',
-      summary: '夏普比率 1.84 · 交易胜率 68.5% · 跑赢沪深300基准 +25.4%',
-      body: `
-        <p><strong>【右侧工作台 · 投资分析板块提取】</strong></p>
-        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; background:#F8FAFD; border:1px solid #E2E8F0; border-radius:6px; padding:8px; margin:8px 0; text-align:center;">
-          <div><div style="color:#64748B; font-size:11px;">夏普比率</div><div style="font-weight:700; color:#1677FF; font-size:15px;">1.84</div></div>
-          <div><div style="color:#64748B; font-size:11px;">交易胜率</div><div style="font-weight:700; color:#F5222D; font-size:15px;">68.5%</div></div>
-          <div><div style="color:#64748B; font-size:11px;">最大回撤</div><div style="font-weight:700; color:#FA8C16; font-size:15px;">-8.24%</div></div>
-          <div><div style="color:#64748B; font-size:11px;">盈亏比</div><div style="font-weight:700; color:#1E293B; font-size:15px;">2.41</div></div>
-        </div>
-        <p><strong>超额收益贡献分解：</strong></p>
-        <ul>
-          <li><strong>行业主线配置贡献</strong>：<span style="color:#F5222D; font-weight:600;">+14.2%</span>（重仓CPO与算力半导体带来的超额收益）</li>
-          <li><strong>个股 Alpha 超额贡献</strong>：<span style="color:#F5222D; font-weight:600;">+18.6%</span>（多因子选股模型筛选高胜率龙头）</li>
-          <li><strong>择时调仓收益</strong>：<span style="color:#F5222D; font-weight:600;">+3.98%</span>（严格执行阶梯防守与保本止损避免深度回撤）</li>
-        </ul>
-      `
+      summary: '等待后端返回可验证账户绩效与归因数据',
+      body: '<p>等待后端返回本次净值、交易和基准事实；当前不生成静态绩效或归因结论。</p>'
     };
   }
 
@@ -3083,17 +2841,8 @@ function extractWorkbenchSectionData(refName) {
       type: '实时盯盘',
       sectionId: 'section-realtime-monitor',
       title: '右侧工作台【实时盯盘】预警异动与策略监控',
-      summary: '毫秒级28ms延迟监控 · 3条盘中突破异动事件 · 4大量化策略全仓在线',
-      body: `
-        <p><strong>【右侧工作台 · 实时盯盘板块提取】</strong></p>
-        <p>当前实时盯盘通道运行正常，毫秒级网络延迟为 <strong>28ms</strong>。盘中最新预警异动流水：</p>
-        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:8px 10px; margin:8px 0; font-size:12px;">
-          <div style="margin-bottom:5px;"><span style="color:#52C41A; font-weight:700;">[买入信号 10:20:15]</span> <strong>中芯国际 (688981)</strong> 放量突破前高平台 ¥98.20，5分钟大单净买入 1.25 亿元，触发趋势突破买点</div>
-          <div style="margin-bottom:5px;"><span style="color:#1677FF; font-weight:700;">[主力异动 10:08:42]</span> <strong>宁德时代 (300750)</strong> 出现万手多笔大单密集吸筹，主力控盘评分上升至 85 分</div>
-          <div><span style="color:#FA8C16; font-weight:700;">[风控巡检 09:48:10]</span> <strong>立讯精密 (002475)</strong> 盘中回踩 MA20 均线，距离 T0 警戒线(-3%)仍有 0.9% 安全缓冲</div>
-        </div>
-        <p><strong>在线量化策略状态：</strong>趋势突破策略(监控中)、行业主线轮动(在线)、实战保本与止损(全仓在线)、自选极速预警(在线)。</p>
-      `
+      summary: '等待后端返回可验证监控状态与事件',
+      body: '<p>等待后端返回本次监控运行状态和事件事实；当前不生成静态告警或在线状态。</p>'
     };
   }
 
@@ -3102,20 +2851,8 @@ function extractWorkbenchSectionData(refName) {
     type: '工作台当前数据',
     sectionId: 'section-portfolio-overview',
     title: `结合【${refName}】的深度研判`,
-    summary: '已抓取右侧激活工作台面板的实时行情、持仓与风控全景数据',
-    body: `
-      <p><strong>【${refName} 上下文注入解析】</strong></p>
-      <p>根据右侧工作台当前展示的数据与指标全景：</p>
-      <ul>
-        <li><strong>盘面背景</strong>：两市总成交额 1.28 万亿元，科技成长主线呈现放量资金净流入；</li>
-        <li><strong>持仓评估</strong>：当前组合可用资金 27.7%，持仓市值 72.3%，整体回撤处于 -8.24% 安全阈值内；</li>
-        <li><strong>关键位推演</strong>：上证指数在 3,450 点附近面临前高筹码密集区阻力，若量能无法持续维持 1.2 万亿以上，谨防盘中回踩 10日线。</li>
-      </ul>
-      <div class="summary-highlight-card">
-        <span class="summary-icon">💡</span>
-        <div class="summary-text">建议保留 30% 以上现金头寸，逢高对冲获利盘，跌破 T1 减仓线果断执行保护性减持。</div>
-      </div>
-    `
+    summary: '等待后端读取并验证工作台上下文',
+    body: `<p>等待后端返回与【${refName}】相关的本次事实；当前不生成静态行情、持仓或风控结论。</p>`
   };
 }
 

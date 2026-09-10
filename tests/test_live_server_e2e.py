@@ -1,9 +1,15 @@
 import json
+import os
 import urllib.request
 import urllib.parse
 import pytest
 
-BASE_URL = "http://127.0.0.1:6300"
+pytestmark = pytest.mark.skipif(
+    os.getenv("A_STOCK_RUN_LIVE_E2E") != "1",
+    reason="live server E2E is opt-in; set A_STOCK_RUN_LIVE_E2E=1 after starting a configured server",
+)
+
+BASE_URL = os.getenv("A_STOCK_LIVE_BASE_URL", "http://127.0.0.1:6300").rstrip("/")
 
 def fetch_json(endpoint: str, method: str = "GET", payload: dict = None):
     url = f"{BASE_URL}{endpoint}"
