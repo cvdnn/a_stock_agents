@@ -1446,6 +1446,10 @@ const AtOperatorRegistry = {
   ]
 };
 
+function formatOptionalDecimal(value) {
+  return Number.isFinite(value) ? value.toFixed(2) : '--';
+}
+
 const AtOperatorController = {
   isOpen: false,
   focusPane: 'menu', // 'menu' | 'content'
@@ -1761,17 +1765,17 @@ const AtOperatorController = {
 
         // 今日涨幅 (红涨绿跌，置于第二行最右侧)
         let changeTagHtml = '';
-        if (item.changePct !== undefined) {
+        if (Number.isFinite(item.changePct)) {
           const isUp = item.changePct > 0;
           const isDown = item.changePct < 0;
           const changeClass = isUp ? 'up' : (isDown ? 'down' : 'flat');
           const sign = isUp ? '+' : '';
-          changeTagHtml = `<span class="at-change-tag ${changeClass}">${sign}${item.changePct.toFixed(2)}%</span>`;
+          changeTagHtml = `<span class="at-change-tag ${changeClass}">${sign}${formatOptionalDecimal(item.changePct)}%</span>`;
         }
 
-        const costStr = (item.costPrice !== null && item.costPrice !== undefined)
-          ? `¥${item.costPrice.toFixed(2)}`
-          : (item.isHolding ? '--' : `¥${item.currentPrice.toFixed(2)}`);
+        const costStr = Number.isFinite(item.costPrice)
+          ? `¥${formatOptionalDecimal(item.costPrice)}`
+          : '--';
 
         // 截图规范：左侧图标 + 三行式一体化排版 (标题行 / 实时价+成本价+涨跌幅 / 题材描述行)
         return `
@@ -1787,7 +1791,7 @@ const AtOperatorController = {
               </div>
               <div class="at-item-price-row">
                 <div class="at-item-price-line">
-                  <span>实时价: <strong class="price-val">¥${item.currentPrice.toFixed(2)}</strong></span>
+                  <span>实时价: <strong class="price-val">${Number.isFinite(item.currentPrice) ? `¥${formatOptionalDecimal(item.currentPrice)}` : '--'}</strong></span>
                   <span class="price-sep">|</span>
                   <span>成本价: <strong class="cost-val">${costStr}</strong></span>
                 </div>
