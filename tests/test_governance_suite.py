@@ -131,7 +131,7 @@ class TestSkillRegistryCore:
             params={"action": "balance"},
             confirmed=True,
         )
-        assert res_conf.status in ("success", "error")
+        assert res_conf.status in ("success", "error", "unavailable")
 
     @pytest.mark.asyncio
     async def test_execution_timeout_fuse(self, registry: SkillRegistry):
@@ -240,14 +240,24 @@ class TestGovernanceRESTEndpoints:
     def test_skill_test_endpoint(self):
         with TestClient(app) as client:
             payload = {
-                "parameters": {"code": "600519", "action": "quote"},
+                "parameters": {"topic": "auction"},
                 "confirmed": True,
             }
-            resp = client.post("/api/skills/astock-data-feed/test", json=payload)
+            resp = client.post("/api/skills/astock-knowledge-tips/test", json=payload)
             assert resp.status_code == 200
             res = resp.json()
-            assert res["status"] in ("success", "error")
+            assert res["status"] == "success"
+            assert res["result"]["type"] == "reference"
             assert res["latency_ms"] >= 0
+
+            unavailable = client.post(
+                "/api/skills/astock-report-html/test",
+                json={"parameters": {"code": "600519"}, "confirmed": True},
+            )
+            assert unavailable.status_code == 200
+            unavailable_data = unavailable.json()
+            assert unavailable_data["status"] == "unavailable"
+            assert unavailable_data["error"] == "CAPABILITY_NOT_IMPLEMENTED"
 
     def test_audit_stats_endpoint(self):
         with TestClient(app) as client:
@@ -267,8 +277,8 @@ class TestAsyncTaskQueue:
         with TestClient(app) as client:
             # 1. Create task
             req_payload = {
-                "task_type": "screen_5a",
-                "params": {"limit": 2},
+                "task_type": "quant_pipeline",
+                "params": {"action": "pipeline"},
                 "timeout_seconds": 60,
             }
             resp = client.post("/api/tasks", json=req_payload)
@@ -287,6 +297,8 @@ class TestAsyncTaskQueue:
                 st = r_poll.json()["status"]
                 if st in ("completed", "failed"):
                     break
+            assert st == "failed"
+            assert r_poll.json()["result"]["status"] == "unavailable"
 
             # 3. List tasks
             r_list = client.get("/api/tasks")

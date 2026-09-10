@@ -1,100 +1,67 @@
-# -*- coding: utf-8 -*-
-"""
-tests/test_market_data_api.py - Unit & Integration tests for Market, Portfolio, Watchlist & Monitor APIs.
-"""
+from __future__ import annotations
+
+import pytest
 from starlette.testclient import TestClient
+
+from server.api import market_data as market_module
 from server.app import app
 
-client = TestClient(app)
+
+@pytest.mark.parametrize(
+    "path,capability",
+    [
+        ("/api/market/indices", "market.indices"),
+        ("/api/market/sentiment", "market.sentiment"),
+        ("/api/market/kline?code=000001&period=day", "market.kline"),
+        ("/api/market/ranks", "market.ranks"),
+        ("/api/portfolio/analysis", "portfolio.analysis"),
+    ],
+)
+def test_unconnected_dashboard_routes_return_structured_503(path: str, capability: str) -> None:
+    with TestClient(app) as client:
+        response = client.get(path)
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "unavailable",
+        "error": "CAPABILITY_NOT_IMPLEMENTED",
+        "capability": capability,
+        "source": "none",
+    }
 
 
-def test_market_indices_api():
-    resp = client.get("/api/market/indices")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "indices" in data
-    assert len(data["indices"]) == 4
-    names = [idx["name"] for idx in data["indices"]]
-    assert "上证指数" in names
-    assert "深证成指" in names
-    assert "创业板指" in names
-    assert "科创50" in names
-    for item in data["indices"]:
-        assert len(item["sparkline"]) > 0
-        assert item["price"] > 0
+def test_empty_portfolio_is_a_sourced_empty_state(monkeypatch) -> None:
+    monkeypatch.setattr(market_module, "get_open_positions", lambda enrich_quote=False: [])
+    with TestClient(app) as client:
+        response = client.get("/api/portfolio/overview")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "empty"
+    assert data["source"] == "core.strategy.position_manager.get_open_positions"
+    assert data["holdings"] == []
+    assert data["count"] == 0
+    assert data["as_of"]
 
 
-def test_market_sentiment_api():
-    resp = client.get("/api/market/sentiment")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["score"] == 78
-    assert "亢温" in data["status_text"]
-    assert data["up_count"] > 0
-    assert data["down_count"] > 0
-    assert len(data["sectors"]) >= 3
+def test_empty_watchlist_is_a_sourced_empty_state(monkeypatch) -> None:
+    monkeypatch.setattr(market_module, "load_stock_pools", lambda: {})
+    with TestClient(app) as client:
+        response = client.get("/api/watchlist")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "empty"
+    assert data["source"] == "config/stock_pools.yaml"
+    assert data["stocks"] == []
+    assert data["as_of"]
 
 
-def test_market_kline_api():
-    resp = client.get("/api/market/kline?code=000001&period=day")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["code"] == "000001"
-    assert len(data["klines"]) >= 20
-    assert data["ma5"] > 0
-
-
-def test_market_ranks_api():
-    resp = client.get("/api/market/ranks")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data["gainers"]) == 5
-    assert len(data["losers"]) == 5
-    assert len(data["northbound"]) == 5
-    assert len(data["news"]) >= 5
-    assert len(data["hot_concepts"]) >= 5
-
-
-def test_portfolio_overview_api():
-    resp = client.get("/api/portfolio/overview")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "454.24万" in data["total_assets"]
-    assert "328.56万" in data["position_market_value"]
-    assert data["position_ratio"] == 72.3
-    assert len(data["holdings"]) == 3
-    assert len(data["donut_data"]) == 2
-
-
-def test_portfolio_analysis_api():
-    resp = client.get("/api/portfolio/analysis")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["sharpe_ratio"] == 1.84
-    assert data["win_rate"] == 68.5
-    assert data["max_drawdown"] == -8.24
-    assert len(data["attributions"]) >= 4
-    assert len(data["positions"]) >= 4
-
-
-def test_watchlist_api():
-    resp = client.get("/api/watchlist?active_code=300750")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data["stocks"]) >= 10
-    assert len(data["custom_indices"]) >= 2
-    detail = data["active_stock_detail"]
-    assert detail["code"] == "300750"
-    assert detail["name"] == "宁德时代"
-    assert len(detail["events"]) >= 4
-    assert "donut" in detail["capital_flow"]
-
-
-def test_monitor_stream_api():
-    resp = client.get("/api/monitor/stream")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["latency_ms"] == 28
-    assert data["is_monitoring"] is True
-    assert len(data["events"]) >= 3
-    assert len(data["strategies"]) == 4
+def test_monitor_reports_not_running_instead_of_synthetic_events() -> None:
+    with TestClient(app) as client:
+        response = client.get("/api/monitor/stream")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "not_running"
+    assert data["source"] == "server_runtime"
+    assert data["is_monitoring"] is False
+    assert data["events"] == []
+    assert data["strategies"] == []
+    assert data["as_of"]

@@ -18,6 +18,14 @@ from core.strategy.risk_manager import RiskManager
 
 logger = get_logger("server.agent.tools")
 
+
+def _unavailable(skill_id: str) -> Dict[str, Any]:
+    return {
+        "status": "unavailable",
+        "error": "CAPABILITY_NOT_IMPLEMENTED",
+        "skill_id": skill_id,
+    }
+
 # ── Function Calling Tool Schemas (OpenAI specification format) ──────────────
 
 TOOLS_DEFINITIONS: List[Dict[str, Any]] = [
@@ -134,7 +142,7 @@ def _sync_astock_quote(code: str) -> Dict[str, Any]:
     bridge = DataBridge()
     q = bridge.get_realtime_quote(code)
     if not q:
-        return {"error": f"无法获取股票 {code} 的实时行情，请检查代码是否正确。"}
+        return {"error": "DATA_UNAVAILABLE", "message": f"无法获取股票 {code} 的实时行情。"}
     return {
         "code": q.get("code", code),
         "name": q.get("name", code),
@@ -175,17 +183,11 @@ def _sync_astock_action_plan(
     code: str, cost: Optional[float] = None, shares: Optional[int] = None
 ) -> Dict[str, Any]:
     bridge = DataBridge()
-    q = bridge.get_realtime_quote(code) or {
-        "price": cost or 10.0,
-        "open": cost or 10.0,
-        "high": cost or 10.0,
-        "low": cost or 10.0,
-        "change_pct": 0.0,
-        "name": code,
-        "code": code,
-    }
+    q = bridge.get_realtime_quote(code)
+    if not q or not q.get("price"):
+        return {"error": "DATA_UNAVAILABLE", "message": f"股票 {code} 缺少实时行情，无法生成动作单。"}
     name = q.get("name", code)
-    curr_price = float(q.get("price", cost or 10.0))
+    curr_price = float(q["price"])
     eff_cost = cost if cost is not None else curr_price
     eff_shares = shares if shares is not None else 100
 
@@ -193,16 +195,17 @@ def _sync_astock_action_plan(
     tech_all = calc_all(klines) if (klines and len(klines) >= 26) else {}
     tech = tech_all.get("latest", {}) if tech_all else {}
 
-    score_res = {"cs": 65, "rating": "B"}
+    score_res: Dict[str, Any] = {}
     if klines and len(klines) >= 26 and tech:
         try:
             scorer = ComboScorer()
             scores = scorer.score_full(klines, tech)
-            total_s = scores.get("total", 65)
-            rating = "A" if total_s >= 75 else ("B" if total_s >= 60 else ("C" if total_s >= 45 else "D"))
-            score_res = {"cs": total_s, "rating": rating}
+            total_s = scores.get("total")
+            if isinstance(total_s, (int, float)):
+                rating = "A" if total_s >= 75 else ("B" if total_s >= 60 else ("C" if total_s >= 45 else "D"))
+                score_res = {"cs": total_s, "rating": rating}
         except Exception:
-            pass
+            logger.warning("Combo score unavailable for action plan %s", code)
 
     holding = {
         "cost": eff_cost,
@@ -249,12 +252,14 @@ def _sync_astock_evaluate(code: str) -> Dict[str, Any]:
     tech = tech_all.get("latest", {})
     scorer = ComboScorer()
     scores = scorer.score_full(klines, tech)
+    if not isinstance(scores.get("total"), (int, float)):
+        return {"error": "ANALYSIS_INCOMPLETE", "message": "量化评分后端未返回总分。"}
 
     return {
         "code": code,
         "name": q.get("name", code) if q else code,
         "current_price": float(q.get("price", klines[-1][2])) if q else float(klines[-1][2]),
-        "total_score": scores.get("total", 60),
+        "total_score": scores["total"],
         "scores_detail": scores,
         "tech_summary": {
             "ma5": tech.get("ma", {}).get("ma5"),
@@ -311,8 +316,8 @@ def _sync_astock_pool_dashboard(pool_type: str = "holding", action: str = "list"
         pm = PoolManager()
         stocks = pm.get_pool(pool_type)
         return {"pool_type": pool_type, "count": len(stocks), "stocks": stocks}
-    except Exception as exc:
-        return {"pool_type": pool_type, "count": 0, "stocks": [], "info": str(exc)}
+    except Exception:
+        return {"error": "CAPABILITY_EXECUTION_FAILED", "pool_type": pool_type}
 
 
 def _sync_astock_trade_paper(
@@ -327,16 +332,18 @@ def _sync_astock_trade_paper(
         am = AccountManager()
         if action == "balance":
             acc = am.get_account()
-            return {"action": "balance", "cash": acc.get("cash", 1000000.0), "total_assets": acc.get("total_assets", 1000000.0), "positions": acc.get("positions", {})}
+            if not isinstance(acc, dict) or "cash" not in acc or "total_assets" not in acc:
+                return {"error": "ACCOUNT_DATA_UNAVAILABLE", "action": action}
+            return {"action": "balance", "cash": acc["cash"], "total_assets": acc["total_assets"], "positions": acc.get("positions", {})}
         elif action in ("buy", "sell") and code and shares:
             res = am.place_order(code=code, side=action, shares=shares, price=price)
-            return res if isinstance(res, dict) else {"status": "submitted", "order": str(res)}
+            return res if isinstance(res, dict) else {"error": "ORDER_RESULT_INVALID", "action": action}
         elif action == "cancel" and order_id:
             res = am.cancel_order(order_id)
-            return {"status": "cancelled", "order_id": order_id, "detail": res}
+            return res if isinstance(res, dict) else {"error": "ORDER_RESULT_INVALID", "action": action}
         return {"action": action, "account": am.get_account()}
-    except Exception as exc:
-        return {"action": action, "status": "simulated", "message": f"模拟盘响应: {str(exc)}"}
+    except Exception:
+        return _unavailable("astock-trade-paper")
 
 
 def _sync_astock_strategy_mainboard(action: str = "candidates", code: Optional[str] = None) -> Dict[str, Any]:
@@ -347,17 +354,12 @@ def _sync_astock_strategy_mainboard(action: str = "candidates", code: Optional[s
             return engine.evaluate_stock(code)
         cands = engine.get_swing_candidates()
         return {"action": action, "candidates": cands}
-    except Exception as exc:
-        return {"action": action, "candidates": [], "info": str(exc)}
+    except Exception:
+        return {"error": "CAPABILITY_EXECUTION_FAILED", "action": action}
 
 
 def _sync_astock_quant_engine(action: str = "pipeline", code: Optional[str] = None) -> Dict[str, Any]:
-    try:
-        from core.strategy.risk_position_manager import RiskPositionManager
-        rpm = RiskPositionManager()
-        return {"action": action, "code": code, "target_vol": 0.20, "kelly_fraction": 0.5, "status": "active"}
-    except Exception as exc:
-        return {"action": action, "code": code, "status": "active", "info": str(exc)}
+    return _unavailable("astock-quant-engine")
 
 
 def _sync_astock_agent_debate(code: str, rounds: int = 2) -> Dict[str, Any]:
@@ -368,23 +370,19 @@ def _sync_astock_agent_debate(code: str, rounds: int = 2) -> Dict[str, Any]:
         return {
             "code": code,
             "rounds": rounds,
-            "debate_summary": report.get("summary", "7大分析师辩论完成"),
-            "bull_bear_ratio": report.get("ratio", "多空平衡"),
+            "debate_summary": report["summary"],
+            "bull_bear_ratio": report["ratio"],
         }
-    except Exception as exc:
-        return {
-            "code": code,
-            "rounds": rounds,
-            "debate_summary": f"7大分析师对抗研判：技术面蓄势，基本面支撑良好 ({exc})",
-            "bull_bear_ratio": "52% 多头 vs 48% 空头",
-        }
+    except Exception:
+        return _unavailable("astock-agent-debate")
 
 
 def _sync_astock_strategy_tuige(code: str, scenario: str = "limit_up_pullback") -> Dict[str, Any]:
     return {
+        "status": "success",
+        "type": "reference",
         "code": code,
         "scenario": scenario,
-        "rules_checked": "退哥短线规则校验通过",
         "action_guide": "涨停回踩关键均线不破，分歧转一致可轻仓低吸；跌破均线无条件离场。",
     }
 
@@ -392,7 +390,9 @@ def _sync_astock_strategy_tuige(code: str, scenario: str = "limit_up_pullback") 
 def _sync_astock_strategy_macd(code: str) -> Dict[str, Any]:
     bridge = DataBridge()
     klines = bridge.tencent_kline(code, count=60)
-    tech = calc_all(klines).get("latest", {}) if klines else {}
+    if not klines or len(klines) < 26:
+        return {"error": "DATA_UNAVAILABLE", "message": f"股票 {code} 的K线不足，无法判断 MACD 形态。"}
+    tech = calc_all(klines).get("latest", {})
     macd = tech.get("macd", {})
     dif = macd.get("dif", 0.0)
     dea = macd.get("dea", 0.0)
@@ -408,33 +408,21 @@ def _sync_astock_strategy_macd(code: str) -> Dict[str, Any]:
 
 
 def _sync_astock_pool_audit(fix: bool = False) -> Dict[str, Any]:
-    return {
-        "status": "success",
-        "fixed": fix,
-        "message": "三大股池审查完毕：均线支撑位已校准，无失效过期标的。",
-    }
+    return _unavailable("astock-pool-audit")
 
 
 def _sync_astock_report_archive(code: Optional[str] = None, report_type: Optional[str] = None) -> Dict[str, Any]:
-    return {
-        "code": code,
-        "report_type": report_type or "evaluation",
-        "archive_dir": "output/reports",
-        "status": "archived",
-    }
+    return _unavailable("astock-report-archive")
 
 
 def _sync_astock_report_html(code: str) -> Dict[str, Any]:
-    return {
-        "code": code,
-        "template": "matte_white_1344px",
-        "interactive": True,
-        "status": "ready",
-    }
+    return _unavailable("astock-report-html")
 
 
 def _sync_astock_knowledge_tips(topic: str = "all") -> Dict[str, Any]:
     return {
+        "status": "success",
+        "type": "reference",
         "topic": topic,
         "tips": [
             "早盘竞价复盘要点：9:20-9:25真实申报不可撤单，需观察匹配量与量比异动",
@@ -445,17 +433,13 @@ def _sync_astock_knowledge_tips(topic: str = "all") -> Dict[str, Any]:
 
 
 def _sync_astock_model_validation(model_name: str = "Kronos", code: Optional[str] = None) -> Dict[str, Any]:
-    return {
-        "model": model_name,
-        "code": code or "600519",
-        "validation_status": "passed",
-        "rolling_ic": 0.065,
-        "sample_period": "2024-2026",
-    }
+    return _unavailable("astock-model-validation")
 
 
 def _sync_astock_meta_routing(task_description: str) -> Dict[str, Any]:
     return {
+        "status": "success",
+        "type": "reference",
         "task": task_description,
         "recommended_model": "flash",
         "execution_mode": "direct_sdk",
@@ -514,15 +498,21 @@ async def execute_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, A
     """Execute tool asynchronously without blocking the event loop."""
     handler = TOOL_MAP.get(tool_name)
     if not handler:
-        return {"error": f"未知工具: {tool_name}"}
+        return _unavailable(tool_name)
 
     try:
         loop = asyncio.get_running_loop()
         res = await loop.run_in_executor(None, lambda: handler(**arguments))
-        return res
-    except Exception as exc:
-        logger.error(f"Error executing tool {tool_name} with args {arguments}: {exc}", exc_info=True)
-        return {"error": f"工具执行异常: {str(exc)}"}
+        if not isinstance(res, dict):
+            return {"status": "error", "error": "CAPABILITY_RESULT_INVALID", "skill_id": tool_name}
+        normalized = dict(res)
+        normalized.setdefault("skill_id", tool_name)
+        if normalized.get("status") not in {"success", "error", "unavailable", "timeout", "confirmation_required"}:
+            normalized["status"] = "error" if normalized.get("error") else "success"
+        return normalized
+    except Exception:
+        logger.error("Error executing tool %s", tool_name, exc_info=True)
+        return {"status": "error", "error": "CAPABILITY_EXECUTION_FAILED", "skill_id": tool_name}
 
 
 

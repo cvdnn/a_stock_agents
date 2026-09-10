@@ -192,12 +192,15 @@ class TaskManager:
 
             elapsed = int((time.time() - start_t) * 1000)
             comp_iso = datetime.now(timezone.utc).isoformat()
+            result_status = result.get("status") if isinstance(result, dict) else None
+            failed_result = result_status in {"error", "unavailable", "timeout"}
             update_task_record(
                 task_id=task_id,
-                status=TaskStatus.COMPLETED.value,
+                status=TaskStatus.FAILED.value if failed_result else TaskStatus.COMPLETED.value,
                 progress=1.0,
-                status_message="Task completed successfully",
+                status_message="Task capability unavailable or failed" if failed_result else "Task completed successfully",
                 result=result,
+                error=result.get("error") if failed_result else None,
                 completed_at=comp_iso,
                 elapsed_ms=elapsed,
             )
@@ -273,15 +276,10 @@ class TaskManager:
             return res
 
         elif task_type in ("backtest", "combo_backtest"):
-            update_task_record(task_id=task_id, progress=0.5, status_message="Simulating T+1 order matching and slippage")
-            await asyncio.sleep(0.5)  # Yield for responsiveness
             return {
-                "backtest_type": "event_driven_t1",
-                "total_returns": 0.185,
-                "sharpe_ratio": 1.72,
-                "max_drawdown": -0.068,
-                "win_rate": 0.63,
-                "trades_count": 42,
+                "status": "unavailable",
+                "error": "CAPABILITY_NOT_IMPLEMENTED",
+                "skill_id": "astock-trade-paper",
             }
 
         else:

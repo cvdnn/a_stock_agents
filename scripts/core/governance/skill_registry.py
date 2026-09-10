@@ -454,7 +454,11 @@ class SkillRegistry:
 
 
             latency = int((time.time() - start_t) * 1000)
-            status = "success" if not (isinstance(result, dict) and "error" in result) else "error"
+            result_status = result.get("status") if isinstance(result, dict) else None
+            allowed_statuses = {"success", "error", "unavailable", "timeout", "confirmation_required"}
+            status = result_status if result_status in allowed_statuses else (
+                "error" if isinstance(result, dict) and result.get("error") else "success"
+            )
             err = result.get("error") if isinstance(result, dict) else None
 
             default_auditor.record_call(

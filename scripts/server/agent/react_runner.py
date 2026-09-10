@@ -117,6 +117,7 @@ class AgentReActRunner:
 
             total_tokens = 0
             step = 0
+            had_tool_failure = False
 
             # Obtain tools from Skill Governance Registry
             registry = get_skill_registry()
@@ -196,8 +197,12 @@ class AgentReActRunner:
                     # Execute tool via executor
                     tool_res = await execute_tool(fn_name, args if isinstance(args, dict) else {})
 
-                    # Check for risk card data adhering to real-world 3 principles
-                    risk_card = extract_risk_card(tool_res)
+                    status = tool_res.get("status", "error") if isinstance(tool_res, dict) else "error"
+                    if status != "success":
+                        had_tool_failure = True
+
+                    # Risk cards are success artifacts and must never be emitted for failed observations.
+                    risk_card = extract_risk_card(tool_res) if status == "success" else None
                     if risk_card:
                         yield RiskCardEvent(
                             breakeven_price=risk_card["breakeven_price"],
@@ -212,17 +217,20 @@ class AgentReActRunner:
                         )
 
                     # Summary for complete event
-                    summary = "完成调用"
-                    if "price" in tool_res and "change_pct" in tool_res:
+                    summary = {
+                        "unavailable": "能力当前不可用",
+                        "timeout": "调用超时",
+                        "error": "调用失败",
+                        "confirmation_required": "等待用户确认",
+                    }.get(status, "调用成功")
+                    if status == "success" and "price" in tool_res and "change_pct" in tool_res:
                         summary = f"现价 {tool_res['price']} ({tool_res['change_pct']:+.2f}%)"
-                    elif "breakeven_price" in tool_res:
+                    elif status == "success" and "breakeven_price" in tool_res:
                         summary = f"保本价 {tool_res['breakeven_price']} (止损T0: {tool_res.get('stop_t0')})"
-                    elif "total_score" in tool_res:
+                    elif status == "success" and "total_score" in tool_res:
                         summary = f"量化总分 {tool_res['total_score']} 分"
-                    elif "selected_count" in tool_res:
+                    elif status == "success" and "selected_count" in tool_res:
                         summary = f"初选入围 {tool_res['selected_count']} 只标的"
-
-                    status = "success" if not ("error" in tool_res) else "error"
 
                     # Emit ToolCallCompleteEvent
                     yield ToolCallCompleteEvent(
@@ -254,12 +262,10 @@ class AgentReActRunner:
 
             # 6. Emit DoneEvent
             elapsed_ms = int((time.time() - start_time) * 1000)
-            if total_tokens == 0:
-                total_tokens = max(100, int(len(message) * 1.5))
             yield DoneEvent(
                 total_tokens=total_tokens,
                 elapsed_ms=elapsed_ms,
-                finish_reason="stop",
+                finish_reason="tool_failure" if had_tool_failure else "stop",
             )
 
         except Exception as exc:
