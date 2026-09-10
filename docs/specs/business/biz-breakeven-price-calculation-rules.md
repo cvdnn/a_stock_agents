@@ -3,7 +3,7 @@
 - **规范分类**：业务规则 (Business Rules)
 - **规范编号**：SPEC-BIZ-002
 - **文档版本**：v1.3
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-02（修订日期：2026-09-08）
 - **适用范围**：A股量化实战交易动作中枢、保本价试算器、HTML交互研报持仓明细表与模拟撮合风控
 - **权威设计指南**：[`docs/guidelines/breakeven-calculation-rules.md`](../../guidelines/breakeven-calculation-rules.md)

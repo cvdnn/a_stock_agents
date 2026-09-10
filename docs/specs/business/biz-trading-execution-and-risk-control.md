@@ -3,7 +3,7 @@
 - **规范分类**：业务规则 (Business Rules)
 - **规范编号**：SPEC-BIZ-003
 - **文档版本**：v1.3
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-01（修订日期：2026-09-08）
 - **适用范围**：全量 A 股量化策略的统一交易反应与执行层 (EMS)
 - **权威设计指南**：[`docs/guidelines/trading-execution-rules.md`](../../guidelines/trading-execution-rules.md)

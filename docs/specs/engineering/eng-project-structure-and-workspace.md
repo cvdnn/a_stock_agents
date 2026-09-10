@@ -3,7 +3,7 @@
 - **规范分类**：项目工程结构 (Engineering)
 - **规范编号**：SPEC-ENG-001
 - **文档版本**：v1.2
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-07（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 代码库物理组织、环境编排、智能体工作区契约与跨平台发行底座
 - **权威设计指南**：[`docs/guidelines/project-structure-specification.md`](../../guidelines/project-structure-specification.md)

@@ -3,7 +3,7 @@
 - **规范分类**：系统架构设计 (Architecture)
 - **规范编号**：SPEC-ARCH-001
 - **文档版本**：v1.6
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-05（修订日期：2026-09-08）
 - **适用场景**：脱离第三方 AI 终端宿主，自建独立 Web 界面系统并原生兼容本地客户端的 A股全流程量化投研交互中枢
 - **权威设计指南**：[`docs/guidelines/web-aichat-architecture.md`](../../guidelines/web-aichat-architecture.md)

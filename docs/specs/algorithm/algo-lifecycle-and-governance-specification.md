@@ -3,7 +3,7 @@
 - **规范分类**：算法规则 (Algorithm)
 - **规范编号**：SPEC-ALGO-001
 - **文档版本**：v1.2
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-02（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 44 项量化金融模型、技术指标、Alpha因子、选股策略、撮合引擎与风控算法的全生命周期治理
 - **权威设计指南**：[`docs/guidelines/algorithm-governance.md`](../../guidelines/algorithm-governance.md)

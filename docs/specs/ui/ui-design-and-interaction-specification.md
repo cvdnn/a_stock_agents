@@ -3,7 +3,7 @@
 - **规范分类**：UI设计 (UI/UX)
 - **规范编号**：SPEC-UI-001
 - **文档版本**：v1.4
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-06（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 独立 Web 投研前端、Desktop 客户端（Tauri/Electron）及跨端界面系统
 - **权威设计指南**：[`docs/guidelines/ui-design-guide.md`](../../guidelines/ui-design-guide.md)

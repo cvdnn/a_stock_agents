@@ -3,7 +3,7 @@
 - **规范分类**：A2UI框架 (Framework)
 - **规范编号**：SPEC-A2UI-001
 - **文档版本**：v1.2
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-07（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 独立 Web 投研前端、Desktop 客户端及跨端 AI 动态驱动 UI 渲染中枢
 - **权威设计指南**：[`docs/guidelines/a2ui-framework-architecture.md`](../../guidelines/a2ui-framework-architecture.md)

@@ -3,7 +3,7 @@
 - **规范分类**：业务规则 (Business Rules)
 - **规范编号**：SPEC-BIZ-001
 - **文档版本**：v1.2
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-02（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 交易成本精算、实战动作单生成、模拟盘撮合引擎与策略回测模块
 - **权威设计指南**：[`docs/guidelines/broker-commission-rules.md`](../../guidelines/broker-commission-rules.md)

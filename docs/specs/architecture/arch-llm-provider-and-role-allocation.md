@@ -3,7 +3,7 @@
 - **规范分类**：系统架构设计 (Architecture)
 - **规范编号**：SPEC-ARCH-002
 - **文档版本**：v1.2
-- **实施状态**：正式基线 (Production Baseline) | 100% 已交付
+- **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-07（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 服务端网关、多模型适配运行时、Web 投研前端配置中心
 - **权威设计指南**：[`docs/guidelines/llm-provider-architecture.md`](../../guidelines/llm-provider-architecture.md)

@@ -21,7 +21,7 @@
 |:---|:---|:---:|:---|
 | **Web UI 界面设计与交互指南** | [`ui-design-guide.md`](ui-design-guide.md) | [`SPEC-UI-001`](../specs/ui/ui-design-and-interaction-specification.md) | 浅色金融风格、红涨绿跌、双模动态视口（40/60 投研助手 vs 业务主工作区）、卡片微边框 |
 | **算法审查与全生命周期治理指南** | [`algorithm-governance.md`](algorithm-governance.md) | [`SPEC-ALGO-001`](../specs/algorithm/algo-lifecycle-and-governance-specification.md) | 44 项量化算法全景清单、AlgoRegistry 2.0 统一纳管抽象、ALCM 四道质量门禁 |
-| **代码审查标准与工程红线清单** | [`code-review.md`](code-review.md) | - | 严禁全局目录污染、禁止生硬竖条、路径解耦等 10 项严苛审查标准 |
+| **代码审查标准与工程红线清单** | [`code-review.md`](code-review.md) | - | 当前可检查的真实性、安全、分层与证据规则；历史结论由指南链接至审查归档 |
 | **回归测试架构与规约指南** | [`testing-guide.md`](testing-guide.md) | - | 10 大核心领域测试套件、TDD 契约、即测即删原则与持续集成基线 |
 | **架构命名规范与设计范式指南** | [`naming-conventions.md`](naming-conventions.md) | - | 消除版本号侵入、模型演进四大设计范式、废弃退役协议与文档双语命名规范 |
 
