@@ -23,7 +23,12 @@ class ServerSettings(BaseModel):
     reload: bool = Field(default=False, description="Enable auto-reload on code change")
     runtime_mode: str = Field(default="production", description="production or test")
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173", "*"],
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+        ],
         description="Allowed CORS origins"
     )
     
@@ -64,9 +69,13 @@ def load_server_settings() -> ServerSettings:
             default_model = "deepseek-chat"
 
     cors_str = os.getenv("A_STOCK_CORS_ORIGINS")
-    cors_origins = [s.strip() for s in cors_str.split(",")] if cors_str else [
-        "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173", "*"
+    configured_origins = [s.strip() for s in cors_str.split(",") if s.strip()] if cors_str else [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
     ]
+    cors_origins = [origin for origin in configured_origins if origin != "*"]
 
     return ServerSettings(
         host=os.getenv("A_STOCK_SERVER_HOST", "127.0.0.1"),

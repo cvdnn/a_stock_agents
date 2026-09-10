@@ -771,7 +771,6 @@ def save_provider(data: Dict[str, Any], db_path: Optional[Path] = None) -> Dict[
     pid = data.get("provider_id") or f"prov_{uuid.uuid4().hex[:8]}"
     name = data.get("name", "自定义供应商")
     base_url = data.get("base_url", "").strip().rstrip("/")
-    api_key = data.get("api_key", "")
     enabled = 1 if data.get("enabled", True) else 0
     models = data.get("models", [])
     custom_headers = data.get("custom_headers", {})
@@ -783,9 +782,16 @@ def save_provider(data: Dict[str, Any], db_path: Optional[Path] = None) -> Dict[
     try:
         with conn:
             cur = conn.cursor()
-            cur.execute("SELECT created_at FROM llm_providers WHERE provider_id = ?;", (pid,))
+            cur.execute("SELECT created_at, api_key FROM llm_providers WHERE provider_id = ?;", (pid,))
             existing = cur.fetchone()
             created_at = existing["created_at"] if existing else now_iso
+            requested_key = data.get("api_key")
+            if data.get("clear_api_key"):
+                api_key = ""
+            elif requested_key is None or str(requested_key).strip() == "":
+                api_key = existing["api_key"] if existing else ""
+            else:
+                api_key = str(requested_key).strip()
 
             conn.execute("""
                 INSERT INTO llm_providers (

@@ -6,7 +6,9 @@ and role-to-model mapping configuration.
 """
 from __future__ import annotations
 
+import ipaddress
 import time
+from urllib.parse import urlparse
 from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -28,7 +30,8 @@ class ProviderPayload(BaseModel):
     provider_id: Optional[str] = Field(default=None, description="Unique provider ID")
     name: str = Field(..., description="Display name of provider")
     base_url: str = Field(..., description="API Base URL (e.g. https://api.deepseek.com/v1)")
-    api_key: Optional[str] = Field(default="", description="API key or token")
+    api_key: Optional[str] = Field(default=None, description="API key or token")
+    clear_api_key: bool = Field(default=False, description="Explicitly remove the stored API key")
     enabled: bool = Field(default=True, description="Whether this provider is enabled")
     models: List[Dict[str, Any]] = Field(default_factory=list, description="List of configured/selected models")
     custom_headers: Dict[str, str] = Field(default_factory=dict, description="Custom HTTP headers")
@@ -36,15 +39,13 @@ class ProviderPayload(BaseModel):
 
 
 class TestConnectionRequest(BaseModel):
-    base_url: str
-    api_key: Optional[str] = ""
-    timeout_seconds: Optional[int] = 10
+    provider_id: str
+    timeout_seconds: int = Field(default=10, ge=1, le=60)
 
 
 class FetchRemoteModelsRequest(BaseModel):
-    base_url: str
-    api_key: Optional[str] = ""
-    timeout_seconds: Optional[int] = 15
+    provider_id: str
+    timeout_seconds: int = Field(default=15, ge=1, le=60)
 
 
 class ModelRolesPayload(BaseModel):
@@ -54,19 +55,89 @@ class ModelRolesPayload(BaseModel):
     )
 
 
+_SENSITIVE_HEADER_NAMES = {
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+    "set-cookie",
+    "x-api-key",
+    "api-key",
+}
+
+
+def _public_provider(provider: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the browser-safe projection of a provider record."""
+    public = {key: value for key, value in provider.items() if key != "api_key"}
+    headers = provider.get("custom_headers") or {}
+    public["custom_headers"] = {
+        str(key): value
+        for key, value in headers.items()
+        if str(key).lower() not in _SENSITIVE_HEADER_NAMES
+    }
+    public["has_api_key"] = bool(provider.get("api_key"))
+    return public
+
+
+def _get_enabled_provider(provider_id: str) -> Dict[str, Any]:
+    provider = get_provider_by_id(provider_id.strip())
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if not provider.get("enabled"):
+        raise HTTPException(status_code=409, detail="Provider is disabled")
+    return provider
+
+
+def _validated_models_url(base_url: str) -> str:
+    """Allow saved HTTP(S) providers while rejecting common SSRF targets."""
+    parsed = urlparse(base_url.strip().rstrip("/"))
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise HTTPException(status_code=400, detail="Provider Base URL must use HTTP(S)")
+    if parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="Provider Base URL must not contain credentials")
+
+    hostname = parsed.hostname.lower()
+    if hostname in {"metadata.google.internal", "metadata.azure.internal"}:
+        raise HTTPException(status_code=400, detail="Provider Base URL target is not allowed")
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        address = None
+    if address and (
+        address.is_link_local
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_unspecified
+        or (address.is_private and not address.is_loopback)
+    ):
+        raise HTTPException(status_code=400, detail="Provider Base URL target is not allowed")
+    return f"{base_url.strip().rstrip('/')}/models"
+
+
+def _provider_headers(provider: Dict[str, Any]) -> Dict[str, str]:
+    headers = {str(key): str(value) for key, value in (provider.get("custom_headers") or {}).items()}
+    headers.setdefault("Accept", "application/json")
+    if provider.get("api_key"):
+        headers.setdefault("Authorization", f"Bearer {provider['api_key']}")
+    return headers
+
+
 @router.get("/providers")
 async def get_providers():
     """List all configured LLM providers."""
     providers = list_providers()
-    return {"status": "ok", "providers": providers, "total": len(providers)}
+    return {
+        "status": "ok",
+        "providers": [_public_provider(provider) for provider in providers],
+        "total": len(providers),
+    }
 
 
 @router.post("/providers")
 async def upsert_provider(req: ProviderPayload):
     """Create or update a provider."""
-    data = req.model_dump()
+    data = req.model_dump(exclude_unset=True)
     saved = save_provider(data)
-    return {"status": "ok", "provider": saved}
+    return {"status": "ok", "provider": _public_provider(saved)}
 
 
 @router.delete("/providers/{provider_id}")
@@ -81,59 +152,29 @@ async def remove_provider(provider_id: str):
 @router.post("/test-connection")
 async def test_connection(req: TestConnectionRequest):
     """
-    Test connectivity and latency for a given BaseURL and API Key.
-    Attempts to hit /models or root endpoint with timeout.
+    Test connectivity for a saved provider without accepting browser credentials.
     """
-    url = req.base_url.strip().rstrip("/")
-    if not url:
-        raise HTTPException(status_code=400, detail="Base URL 不能为空")
-
-    headers = {"Content-Type": "application/json"}
-    if req.api_key:
-        headers["Authorization"] = f"Bearer {req.api_key.strip()}"
+    provider = _get_enabled_provider(req.provider_id)
+    target = _validated_models_url(provider.get("base_url", ""))
+    headers = _provider_headers(provider)
 
     start_t = time.time()
-    test_endpoints = [f"{url}/models", url]
+    try:
+        async with httpx.AsyncClient(timeout=float(req.timeout_seconds), follow_redirects=False) as client:
+            resp = await client.get(target, headers=headers)
+    except httpx.ConnectError:
+        raise HTTPException(status_code=502, detail="Unable to connect to provider")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Provider request timed out")
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="Provider request failed")
 
-    last_err = ""
-    for target in test_endpoints:
-        try:
-            async with httpx.AsyncClient(timeout=float(req.timeout_seconds or 10)) as client:
-                resp = await client.get(target, headers=headers)
-                latency_ms = int((time.time() - start_t) * 1000)
-                if resp.status_code in (200, 201):
-                    return {
-                        "status": "ok",
-                        "latency_ms": latency_ms,
-                        "message": f"连接成功 (HTTP {resp.status_code}, {latency_ms}ms)",
-                    }
-                elif resp.status_code == 401:
-                    return {
-                        "status": "error",
-                        "latency_ms": latency_ms,
-                        "message": "认证失败 (401 Unauthorized)，请检查 API 密钥是否有效",
-                    }
-                elif resp.status_code in (404, 405):
-                    last_err = f"HTTP {resp.status_code}"
-                    continue
-                else:
-                    return {
-                        "status": "warning",
-                        "latency_ms": latency_ms,
-                        "message": f"服务响应异常 (HTTP {resp.status_code}, {latency_ms}ms)",
-                    }
-        except httpx.ConnectError:
-            last_err = f"网络无法连接至目标地址: {target}"
-        except httpx.TimeoutException:
-            last_err = f"连接超时 ({req.timeout_seconds}s)"
-        except Exception as exc:
-            last_err = str(exc)
-
-    return {
-        "status": "error",
-        "latency_ms": int((time.time() - start_t) * 1000),
-        "message": f"连接失败: {last_err}",
-    }
+    latency_ms = int((time.time() - start_t) * 1000)
+    if resp.status_code in (200, 201):
+        return {"status": "ok", "latency_ms": latency_ms, "message": "连接成功"}
+    if resp.status_code in (401, 403):
+        raise HTTPException(status_code=502, detail="Provider authentication failed")
+    raise HTTPException(status_code=502, detail=f"Provider returned HTTP {resp.status_code}")
 
 
 @router.post("/fetch-remote")
@@ -142,23 +183,15 @@ async def fetch_remote_models(req: FetchRemoteModelsRequest):
     Server-side proxy to fetch remote model list from {base_url}/models.
     Bypasses browser CORS policy and standardizes model metadata.
     """
-    base = req.base_url.strip().rstrip("/")
-    if not base:
-        raise HTTPException(status_code=400, detail="Base URL 不能为空")
-
-    target_url = f"{base}/models"
-    headers = {"Content-Type": "application/json"}
-    if req.api_key:
-        headers["Authorization"] = f"Bearer {req.api_key.strip()}"
+    provider = _get_enabled_provider(req.provider_id)
+    target_url = _validated_models_url(provider.get("base_url", ""))
+    headers = _provider_headers(provider)
 
     try:
-        async with httpx.AsyncClient(timeout=float(req.timeout_seconds or 15)) as client:
+        async with httpx.AsyncClient(timeout=float(req.timeout_seconds), follow_redirects=False) as client:
             resp = await client.get(target_url, headers=headers)
             if resp.status_code != 200:
-                raise HTTPException(
-                    status_code=resp.status_code,
-                    detail=f"获取模型列表失败 [HTTP {resp.status_code}]: {resp.text[:200]}"
-                )
+                raise HTTPException(status_code=502, detail=f"Provider returned HTTP {resp.status_code}")
             res_data = resp.json()
 
             # Handle standard OpenAI /models response format: {"data": [{"id": "xxx"}, ...]}
@@ -205,11 +238,11 @@ async def fetch_remote_models(req: FetchRemoteModelsRequest):
     except HTTPException:
         raise
     except httpx.ConnectError:
-        raise HTTPException(status_code=502, detail=f"无法连接到目标服务: {target_url}")
+        raise HTTPException(status_code=502, detail="Unable to connect to provider")
     except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="请求目标服务超时")
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"解析模型列表错误: {str(exc)}")
+        raise HTTPException(status_code=504, detail="Provider request timed out")
+    except (httpx.HTTPError, ValueError, TypeError):
+        raise HTTPException(status_code=502, detail="Provider response could not be parsed")
 
 
 @router.get("/roles")
