@@ -21,6 +21,7 @@ class ServerSettings(BaseModel):
     host: str = Field(default="127.0.0.1", description="Server listening host")
     port: int = Field(default=6300, description="Server listening port")
     reload: bool = Field(default=False, description="Enable auto-reload on code change")
+    runtime_mode: str = Field(default="production", description="production or test")
     cors_origins: List[str] = Field(
         default=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173", "*"],
         description="Allowed CORS origins"
@@ -48,7 +49,7 @@ def load_server_settings() -> ServerSettings:
     db_str = os.getenv("A_STOCK_DB_PATH")
     db_path = Path(db_str).resolve() if db_str else DEFAULT_DB_PATH
     
-    # Determine default model: if no API keys are found, default to mock or deepseek
+    # Production never infers Mock. Tests must opt in explicitly.
     default_model = os.getenv("A_STOCK_DEFAULT_MODEL")
     if not default_model:
         if os.getenv("DEEPSEEK_API_KEY"):
@@ -60,7 +61,7 @@ def load_server_settings() -> ServerSettings:
         elif os.getenv("ANTHROPIC_API_KEY"):
             default_model = "claude-3-5-sonnet-20241022"
         else:
-            default_model = "mock"
+            default_model = "deepseek-chat"
 
     cors_str = os.getenv("A_STOCK_CORS_ORIGINS")
     cors_origins = [s.strip() for s in cors_str.split(",")] if cors_str else [
@@ -71,6 +72,7 @@ def load_server_settings() -> ServerSettings:
         host=os.getenv("A_STOCK_SERVER_HOST", "127.0.0.1"),
         port=int(os.getenv("A_STOCK_SERVER_PORT", "6300")),
         reload=os.getenv("A_STOCK_SERVER_RELOAD", "false").lower() in ("true", "1", "yes"),
+        runtime_mode=os.getenv("A_STOCK_RUNTIME_MODE", "production").strip().lower(),
         cors_origins=cors_origins,
         db_path=db_path,
         default_model=default_model,

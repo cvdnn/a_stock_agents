@@ -14,6 +14,8 @@ from server.llm.gemini_provider import GeminiProvider
 from server.llm.mock_provider import MockLLMProvider
 from server.llm.ollama_provider import OllamaProvider
 from server.llm.openai_provider import OpenAIProvider
+from server.llm.errors import LLMReadinessError
+from server.llm.readiness import validate_provider_record
 
 logger = logging.getLogger("server.llm.factory")
 
@@ -25,6 +27,7 @@ class LLMProviderFactory:
     def get_provider(
         model: Optional[str] = None,
         role: Optional[str] = None,
+        require_tools: bool = False,
         **kwargs: Any,
     ) -> BaseLLMProvider:
         # 1. Try to resolve via database-configured Model Roles
@@ -50,8 +53,16 @@ class LLMProviderFactory:
         # If a provider_id was resolved or specified, use that DB provider
         if target_provider_id:
             prov_rec = get_provider_by_id(target_provider_id)
-            if prov_rec and prov_rec.get("enabled"):
+            if not prov_rec:
+                raise LLMReadinessError(
+                    "LLM_NOT_CONFIGURED",
+                    "模型供应商不存在",
+                    provider_id=target_provider_id,
+                    model_id=target_model,
+                )
+            if prov_rec:
                 m_name = target_model or "default"
+                validate_provider_record(prov_rec, m_name, require_tools)
                 b_url = prov_rec.get("base_url", "").strip().rstrip("/")
                 key = prov_rec.get("api_key", "").strip()
                 t_out = float(prov_rec.get("timeout_seconds") or 60.0)
@@ -89,8 +100,9 @@ class LLMProviderFactory:
             if "chat" in roles and roles["chat"].get("provider_id"):
                 chat_role = roles["chat"]
                 prov_rec = get_provider_by_id(chat_role["provider_id"])
-                if prov_rec and prov_rec.get("enabled"):
+                if prov_rec:
                     m_name = chat_role.get("model_id") or "default"
+                    validate_provider_record(prov_rec, m_name, require_tools)
                     b_url = prov_rec.get("base_url", "").strip().rstrip("/")
                     key = prov_rec.get("api_key", "").strip()
                     t_out = float(prov_rec.get("timeout_seconds") or 60.0)
@@ -122,15 +134,18 @@ class LLMProviderFactory:
 
         # Explicit Mock requested
         if lower_name == "mock" or lower_name.startswith("mock-"):
+            if server_settings.runtime_mode != "test":
+                raise LLMReadinessError(
+                    "LLM_NOT_CONFIGURED", "生产模式禁止使用 Mock 模型", model_id=model_name
+                )
             return MockLLMProvider(model_name=model_name, **kwargs)
 
         # DeepSeek Models
         if "deepseek" in lower_name:
             if not server_settings.deepseek_api_key:
-                logger.warning(
-                    "DEEPSEEK_API_KEY not configured. Falling back to MockLLMProvider."
+                raise LLMReadinessError(
+                    "LLM_NOT_CONFIGURED", "DeepSeek API 密钥未配置", model_id=model_name
                 )
-                return MockLLMProvider(model_name=model_name, **kwargs)
             return OpenAIProvider(
                 model_name=model_name,
                 api_key=server_settings.deepseek_api_key,
@@ -142,10 +157,9 @@ class LLMProviderFactory:
         # OpenAI Models
         if any(prefix in lower_name for prefix in ("gpt-", "o1-", "o3-", "text-embedding")):
             if not server_settings.openai_api_key:
-                logger.warning(
-                    "OPENAI_API_KEY not configured. Falling back to MockLLMProvider."
+                raise LLMReadinessError(
+                    "LLM_NOT_CONFIGURED", "OpenAI API 密钥未配置", model_id=model_name
                 )
-                return MockLLMProvider(model_name=model_name, **kwargs)
             return OpenAIProvider(
                 model_name=model_name,
                 api_key=server_settings.openai_api_key,
@@ -157,10 +171,9 @@ class LLMProviderFactory:
         # Gemini Models
         if "gemini" in lower_name:
             if not server_settings.gemini_api_key:
-                logger.warning(
-                    "GEMINI_API_KEY not configured. Falling back to MockLLMProvider."
+                raise LLMReadinessError(
+                    "LLM_NOT_CONFIGURED", "Gemini API 密钥未配置", model_id=model_name
                 )
-                return MockLLMProvider(model_name=model_name, **kwargs)
             return GeminiProvider(
                 model_name=model_name,
                 api_key=server_settings.gemini_api_key,
@@ -171,10 +184,9 @@ class LLMProviderFactory:
         # Claude Models
         if "claude" in lower_name:
             if not server_settings.anthropic_api_key:
-                logger.warning(
-                    "ANTHROPIC_API_KEY not configured. Falling back to MockLLMProvider."
+                raise LLMReadinessError(
+                    "LLM_NOT_CONFIGURED", "Anthropic API 密钥未配置", model_id=model_name
                 )
-                return MockLLMProvider(model_name=model_name, **kwargs)
             return ClaudeProvider(
                 model_name=model_name,
                 api_key=server_settings.anthropic_api_key,
@@ -202,8 +214,8 @@ class LLMProviderFactory:
                 **kwargs,
             )
 
-        # Final safe fallback: Mock Provider
-        logger.warning(
-            f"No specific provider matched for '{model_name}'. Falling back to MockLLMProvider."
+        raise LLMReadinessError(
+            "LLM_MODEL_UNAVAILABLE",
+            "未找到可用的模型供应商",
+            model_id=model_name,
         )
-        return MockLLMProvider(model_name=model_name, **kwargs)

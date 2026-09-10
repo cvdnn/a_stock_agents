@@ -163,9 +163,10 @@ class TestLLMProviders:
         p_mock = LLMProviderFactory.get_provider("mock")
         assert isinstance(p_mock, MockLLMProvider)
 
-        # Without API key, falls back to Mock provider gracefully
-        p_ds = LLMProviderFactory.get_provider("deepseek-chat")
-        assert isinstance(p_ds, (MockLLMProvider, object))
+        # A real model without credentials must fail closed, even in test mode.
+        with pytest.raises(RuntimeError) as caught:
+            LLMProviderFactory.get_provider("deepseek-chat")
+        assert getattr(caught.value, "code", None) == "LLM_NOT_CONFIGURED"
 
 
 class TestAgentTools:

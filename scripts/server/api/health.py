@@ -38,8 +38,9 @@ async def get_config() -> ServerConfigResponse:
         "gemini-1.5-pro",
         "claude-3-5-sonnet-20241022",
         "ollama/qwen2.5",
-        "mock",
     ]
+    if server_settings.runtime_mode == "test":
+        supported.append("mock")
     data_sources = GLOBAL_CONFIG.get("data_sources", {
         "primary": "tencent",
         "secondary": "eastmoney",

@@ -33,6 +33,8 @@ from server.agent.tools import (
 from server.config import server_settings
 from server.db import add_message, create_session, get_messages, get_session
 from server.llm.factory import LLMProviderFactory
+from server.llm.errors import LLMReadinessError
+from server.llm.readiness import classify_provider_error
 
 logger = get_logger("server.agent.react_runner")
 
@@ -43,7 +45,7 @@ class AgentReActRunner:
     MAX_REACT_STEPS = 5
 
     def __init__(self, default_model: Optional[str] = None) -> None:
-        self.default_model = default_model or server_settings.default_model
+        self.default_model = default_model
 
     async def run_chat(
         self,
@@ -57,7 +59,21 @@ class AgentReActRunner:
         Directly consumable by in-process clients (TUI / Desktop Sidecar).
         """
         start_time = time.time()
-        selected_model = model or self.default_model
+        requested_model = model or self.default_model
+
+        try:
+            provider = LLMProviderFactory.get_provider(
+                model=requested_model,
+                role=None if requested_model else "chat",
+                require_tools=tools_enabled,
+            )
+        except Exception as exc:
+            failure = classify_provider_error(exc)
+            logger.error("LLM readiness gate failed: %s", failure.code)
+            yield ErrorEvent(error=str(failure), code=failure.code)
+            return
+
+        selected_model = provider.model_name
 
         # 1. Resolve or create session
         sid = session_id
@@ -99,7 +115,6 @@ class AgentReActRunner:
                         "content": row["content"],
                     })
 
-            provider = LLMProviderFactory.get_provider(model=selected_model)
             total_tokens = 0
             step = 0
 
@@ -249,7 +264,8 @@ class AgentReActRunner:
 
         except Exception as exc:
             logger.error(f"ReAct runtime error: {exc}", exc_info=True)
-            yield ErrorEvent(error=str(exc))
+            failure = classify_provider_error(exc)
+            yield ErrorEvent(error=str(failure), code=failure.code)
 
     async def run_chat_stream(
         self,
