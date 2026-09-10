@@ -721,7 +721,21 @@ async function initSessionsFromBackend() {
 }
 
 // 6.2 Load Dashboard Data (Tab 1: 投研助手工作台)
-// 数据全部通过 AStockAPI 从后端接口获取（后端离线时自动使用 MOCK 兜底数据）。
+// 数据只通过 AStockAPI 获取；失败时渲染错误或空状态。
+function renderWorkbenchUnavailable(paneId, error) {
+  const pane = document.getElementById(paneId);
+  if (!pane) return;
+  pane.dataset.state = 'unavailable';
+  pane.innerHTML = `<div class="data-unavailable-state">
+    <strong>当前数据不可用</strong>
+    <span></span>
+  </div>`;
+  const detail = pane.querySelector('.data-unavailable-state span');
+  if (detail) detail.textContent = error && (error.code || error.message)
+    ? (error.code || error.message)
+    : 'BACKEND_UNAVAILABLE';
+}
+
 async function loadDashboardData() {
   if (!window.AStockAPI) return;
   try {
@@ -909,11 +923,12 @@ async function loadDashboardData() {
     }
   } catch (err) {
     console.warn('loadDashboardData error:', err);
+    renderWorkbenchUnavailable('pane-dashboard', err);
   }
 }
 
 // 6.3 Load Market Data (Tab 2: 市场行情全景)
-// 数据全部通过 AStockAPI 从后端接口获取（后端离线时自动使用 MOCK 兜底数据）。
+// 数据只通过 AStockAPI 获取；失败时渲染错误或空状态。
 async function loadMarketData() {
   if (!window.AStockAPI) return;
   try {
@@ -1043,11 +1058,12 @@ async function loadMarketData() {
     }
   } catch (err) {
     console.warn('loadMarketData error:', err);
+    renderWorkbenchUnavailable('pane-market', err);
   }
 }
 
 // 6.4 Load Watchlist Data (Tab 3: 自选个股深度研判)
-// 数据全部通过 AStockAPI 从后端接口获取（后端离线时自动使用 MOCK 兜底数据）。
+// 数据只通过 AStockAPI 获取；失败时渲染错误或空状态。
 async function loadWatchlistData(selectedCode) {
   if (!window.AStockAPI) return;
   const code = selectedCode || AppState.selectedStock || '300750';
@@ -1190,6 +1206,7 @@ async function loadWatchlistData(selectedCode) {
     }
   } catch (err) {
     console.warn('loadWatchlistData error:', err);
+    renderWorkbenchUnavailable('pane-watchlist', err);
   }
 }
 
@@ -1212,7 +1229,7 @@ function syncAtOperatorQuotes(stocks) {
 }
 
 // 6.5 Load Returns Data (Tab 4: 投资收益全景分析)
-// 数据全部通过 AStockAPI 从后端接口获取（后端离线时自动使用 MOCK 兜底数据）。
+// 数据只通过 AStockAPI 获取；失败时渲染错误或空状态。
 async function loadReturnsData() {
   if (!window.AStockAPI) return;
   try {
@@ -1281,6 +1298,7 @@ async function loadReturnsData() {
     }
   } catch (err) {
     console.warn('loadReturnsData error:', err);
+    renderWorkbenchUnavailable('pane-returns', err);
   }
 }
 
@@ -2651,37 +2669,10 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
     const toolStatus = container ? container.querySelector('#toolStatus') : null;
     const contentBody = container ? container.querySelector('.ai-content-body') : null;
 
-    const fallbackTypewriter = () => {
-      if (!container) return;
-      if (toolStatus) {
-        toolStatus.innerHTML = `
-          <span style="color:#52C41A; font-weight:700;">✓</span>
-          <span>已完成数据调取与实战三原则保本价精算（含全部税费保本测算）</span>
-        `;
-      }
-      if (contentBody) {
-        contentBody.innerHTML = '';
-        let idx = 0;
-        const speed = 12;
-        const interval = setInterval(() => {
-          idx += 3;
-          if (idx >= fullText.length) {
-            clearInterval(interval);
-            contentBody.innerHTML = fullText;
-            AppState.isChatStreaming = false;
-          } else {
-            contentBody.innerHTML = fullText.slice(0, idx) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
-          }
-          const scrollBox = document.getElementById('chatMessages');
-          if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
-        }, speed);
-      }
-    };
-
     window.AStockAPI.streamChatCompletions(
       queryText,
       activeSessionId,
-      'mock',
+      null,
       {
         onStart: (s) => {
           if (s && s.session_id) AppState.currentSessionId = s.session_id;
@@ -2704,9 +2695,10 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
         },
         onToolComplete: (tool) => {
           if (toolStatus) {
+            const succeeded = tool.status === 'success';
             toolStatus.innerHTML = `
-              <span style="color:#52C41A; font-weight:700;">✓</span>
-              <span>${tool.summary || '量化工具执行完成'}</span>
+              <span style="color:${succeeded ? '#52C41A' : '#F5222D'}; font-weight:700;">${succeeded ? '✓' : '!'}</span>
+              <span>${tool.summary || (succeeded ? '工具执行成功' : '工具未成功执行')}</span>
             `;
           }
         },
@@ -2721,56 +2713,33 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
         },
         onDone: (data) => {
           if (contentBody) {
-            contentBody.innerHTML = accumulatedText || fullText;
+            contentBody.innerHTML = accumulatedText || '<span style="color:#86909C;">模型未返回文本内容。</span>';
           }
           if (toolStatus) {
             toolStatus.innerHTML = `
               <span style="color:#52C41A; font-weight:700;">✓</span>
-              <span>已完成数据调取与实战三原则保本价精算（含全部税费保本测算）</span>
+              <span>模型响应已结束</span>
             `;
           }
           AppState.isChatStreaming = false;
         },
         onError: (err) => {
-          console.warn('streamChatCompletions fallback:', err);
-          fallbackTypewriter();
+          if (toolStatus) toolStatus.innerHTML = '<span style="color:#F5222D; font-weight:700;">!</span><span>请求失败</span>';
+          if (contentBody) contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
+          AppState.isChatStreaming = false;
         }
       }
     ).catch(err => {
-      console.warn('streamChatCompletions catch fallback:', err);
-      fallbackTypewriter();
+      if (contentBody) contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
+      AppState.isChatStreaming = false;
     });
   } else {
-    setTimeout(() => {
-      const container = document.getElementById(msgId);
-      if (!container) return;
-
-      const toolStatus = container.querySelector('#toolStatus');
-      if (toolStatus) {
-        toolStatus.innerHTML = `
-          <span style="color:#52C41A; font-weight:700;">✓</span>
-          <span>已完成数据调取与实战三原则保本价精算（含全部税费保本测算）</span>
-        `;
-      }
-
-      const contentBody = container.querySelector('.ai-content-body');
-      contentBody.innerHTML = '';
-
-      let idx = 0;
-      const speed = 12;
-      const interval = setInterval(() => {
-        idx += 3;
-        if (idx >= fullText.length) {
-          clearInterval(interval);
-          contentBody.innerHTML = fullText;
-          AppState.isChatStreaming = false;
-        } else {
-          contentBody.innerHTML = fullText.slice(0, idx) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
-        }
-        const scrollBox = document.getElementById('chatMessages');
-        if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
-      }, speed);
-    }, 500);
+    const container = document.getElementById(msgId);
+    const toolStatus = container ? container.querySelector('#toolStatus') : null;
+    const contentBody = container ? container.querySelector('.ai-content-body') : null;
+    if (toolStatus) toolStatus.innerHTML = '<span style="color:#F5222D; font-weight:700;">!</span><span>后端或会话不可用</span>';
+    if (contentBody) contentBody.textContent = '当前无法连接生产 Agent 运行时。';
+    AppState.isChatStreaming = false;
   }
 }
 
@@ -2778,117 +2747,11 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
 // 7.1 Agent2UI (A2UI) Task Pipeline Execution
 // --------------------------------------------------------------------------
 function executeA2UITask(promptText = '分析市场行情', stockParam = null, operatorsParam = null) {
-  AppState.isChatStreaming = true;
-  const taskId = 'a2ui_' + Date.now();
-
-  let stockName = 'A股市场大盘全景';
-  let isStock = false;
-  let stockCost = 3400.0;
-
-  if (stockParam) {
-    isStock = true;
-    stockName = `${stockParam.name} (${stockParam.code})`;
-    stockCost = stockParam.price || 320.0;
-  } else {
-    const stockMatch = promptText.match(/@?([^\s(（]+)[(（](\d{6})[)）]/) || promptText.match(/(600519|300750|002594|601318|600030|300059|300308|601127|000300|000001)/);
-    if (stockMatch) {
-      isStock = true;
-      if (stockMatch[2]) {
-        stockName = `${stockMatch[1]} (${stockMatch[2]})`;
-      } else if (promptText.includes('600519') || promptText.includes('茅台')) {
-        stockName = '贵州茅台 (600519)';
-        stockCost = 1408.0;
-      } else if (promptText.includes('300750') || promptText.includes('宁德')) {
-        stockName = '宁德时代 (300750)';
-        stockCost = 218.5;
-      } else if (promptText.includes('002594') || promptText.includes('比亚迪')) {
-        stockName = '比亚迪 (002594)';
-        stockCost = 285.6;
-      } else if (promptText.includes('601318') || promptText.includes('平安')) {
-        stockName = '中国平安 (601318)';
-        stockCost = 46.8;
-      } else if (promptText.includes('600030') || promptText.includes('中信')) {
-        stockName = '中信证券 (600030)';
-        stockCost = 24.5;
-      } else {
-        stockName = promptText.includes('宁德') ? '宁德时代 (300750)' : '标的股票诊断';
-      }
-    }
-  }
-
-  const title = `${stockName} 深度量化研报`;
-
-  // Stage 0: 骨架屏预占位 (约50ms, 零CLS)
-  const layoutMeta = {
-    title: title,
-    icon: isStock ? '⚡' : '📊',
-    workbench_tab: {
-      tab_id: 'tab_' + taskId,
-      tab_title: isStock ? `🛡️ ${stockName.split(' ')[0]}研报` : '📊 市场行情全景',
-      closable: true
-    }
-  };
-
-  const skeletonTree = [
-    { slot_id: 'radar', component: 'MarketRadar', height: 52 },
-    { slot_id: 'candle', component: 'CandleMatrix', height: 260 },
-    { slot_id: 'risk', component: 'RiskBreakevenCalc', height: 110 }
-  ];
-
-  UIEngine.mountSkeleton(taskId, 'both_linked', layoutMeta, skeletonTree);
-
-  // Stage 1: 快数据水合 (180ms)
-  setTimeout(() => {
-    UIEngine.hydrateFast(taskId, 'radar', {
-      indices: [
-        { name: '上证指数', price: 3426.56, change_pct: 0.72 },
-        { name: '深证成指', price: 10892.14, change_pct: 1.08 },
-        { name: '创业板指', price: 2289.76, change_pct: 1.31 }
-      ],
-      sentiment: { score: 78, text: '78分 贪婪 / 亢温' },
-      total_volume: '1.28万亿元'
-    });
-  }, 180);
-
-  // Stage 2: 打字机流式输出文本 (350ms - 850ms)
-  const reportNarrative = isStock 
-    ? `【A2UI 个股量化研报】标的【${stockName}】：均线呈多头排列，零轴下方二次金叉验底形态确认，主力大单净流入显著。实战交易严格执行【实战三原则】最低保本卖出价精算（印花税0.05%、佣金万2.5最低5元且向上进位至分位）与 T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损阶梯防守。`
-    : `【A2UI 渐进式研报】基于多因子量化模型与盘面数据深度研判：今日两市成交突破 1.28 万亿，科技成长主线共振领涨。均线呈多头排列，零轴下方二次金叉验底形态确认。实战交易严格执行保本价精算与三级止损阶梯防守。`;
-
-  let idx = 0;
-  setTimeout(() => {
-    const timer = setInterval(() => {
-      if (idx < reportNarrative.length) {
-        UIEngine.streamTextDelta(taskId, reportNarrative.slice(idx, idx + 4));
-        idx += 4;
-      } else {
-        clearInterval(timer);
-      }
-    }, 15);
-  }, 350);
-
-  // Stage 3: 重型图表水合 (1000ms)
-  setTimeout(() => {
-    UIEngine.hydrateHeavy(taskId, 'radar');
-    UIEngine.hydrateHeavy(taskId, 'candle', {
-      benchmark: stockName
-    });
-  }, 1000);
-
-  // Stage 4: 实战动作单与保本算价器水合 (1250ms)
-  setTimeout(() => {
-    const cost = stockCost;
-    const shares = 1000;
-    UIEngine.hydrateFast(taskId, 'risk', { cost, shares });
-    UIEngine.hydrateHeavy(taskId, 'risk', { cost, shares });
-
-    UIEngine.hydrateActionSheet(taskId, [
-      { type: 'project', label: '⛶ 放大投射到工作台', target_tab: 'tab_' + taskId },
-      { type: 'prompt', label: '💬 追问主力资金流向', secondary: true, prompt: `请深度拆解【${stockName}】的主力超大单净流入与筹码集中度分布。` }
-    ]);
-
-    AppState.isChatStreaming = false;
-  }, 1250);
+  const stockLabel = stockParam ? `【${stockParam.name} (${stockParam.code})】` : '当前市场';
+  streamAIResponse('', `${stockLabel}分析`, '', {
+    userText: promptText,
+    operators: operatorsParam || null
+  });
 }
 
 // --------------------------------------------------------------------------
@@ -3406,6 +3269,8 @@ function switchSettingsSec(secId) {
 // --------------------------------------------------------------------------
 
 async function initProvidersSettings() {
+  // Remove credentials persisted by pre-P0 builds. Providers are backend-owned.
+  localStorage.removeItem('astock_llm_providers');
   try {
     // 1. Fetch providers from backend
     const provResp = await fetch('/api/models/providers');
@@ -3413,10 +3278,10 @@ async function initProvidersSettings() {
       const data = await provResp.json();
       AppState.providers = data.providers || [];
     } else {
-      loadProvidersFromLocalStorage();
+      AppState.providers = [];
     }
   } catch (err) {
-    loadProvidersFromLocalStorage();
+    AppState.providers = [];
   }
 
   try {
@@ -3450,15 +3315,6 @@ async function initProvidersSettings() {
   renderProvidersList();
   renderActiveProviderDetail();
   renderModelRolesDropdowns();
-}
-
-function loadProvidersFromLocalStorage() {
-  try {
-    const raw = localStorage.getItem('astock_llm_providers');
-    AppState.providers = raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    AppState.providers = [];
-  }
 }
 
 function loadRolesFromLocalStorage() {
@@ -3596,7 +3452,8 @@ function syncCurrentProviderFormToState() {
   if (enabledInput) p.enabled = enabledInput.checked;
 
   const keyInput = document.getElementById('currProviderKey');
-  if (keyInput) p.api_key = keyInput.value.trim();
+  if (keyInput && keyInput.value.trim()) p.api_key = keyInput.value.trim();
+  else delete p.api_key;
 
   const urlInput = document.getElementById('currProviderUrl');
   if (urlInput) p.base_url = urlInput.value.trim();
@@ -3644,7 +3501,10 @@ function renderActiveProviderDetail() {
   if (enabledInput) enabledInput.checked = !!p.enabled;
 
   const keyInput = document.getElementById('currProviderKey');
-  if (keyInput) keyInput.value = p.api_key || '';
+  if (keyInput) {
+    keyInput.value = '';
+    keyInput.placeholder = p.has_api_key ? '已保存（留空表示保持不变）' : '输入 API 密钥';
+  }
 
   const urlInput = document.getElementById('currProviderUrl');
   if (urlInput) urlInput.value = p.base_url || '';
@@ -3724,15 +3584,8 @@ function toggleKeyVisibility() {
 
 async function testCurrentProviderConn() {
   const btn = document.getElementById('btnTestConn');
-  const urlInput = document.getElementById('currProviderUrl');
-  const keyInput = document.getElementById('currProviderKey');
-
-  const base_url = urlInput ? urlInput.value.trim() : '';
-  const api_key = keyInput ? keyInput.value.trim() : '';
-
-  if (!base_url) {
-    showToast('请先输入 API 地址 (Base URL)');
-    if (urlInput) urlInput.focus();
+  if (!AppState.activeProviderId) {
+    showToast('请先保存并选择供应商');
     return;
   }
 
@@ -3745,8 +3598,9 @@ async function testCurrentProviderConn() {
     const resp = await fetch('/api/models/test-connection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base_url, api_key, timeout_seconds: 8 })
+      body: JSON.stringify({ provider_id: AppState.activeProviderId, timeout_seconds: 8 })
     });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const res = await resp.json();
     if (res.status === 'ok') {
       showToast(`✅ ${res.message || '连接测试成功！'}`);
@@ -3767,14 +3621,8 @@ async function testCurrentProviderConn() {
 
 async function fetchCurrentProviderModels() {
   const btn = document.getElementById('btnFetchModels');
-  const urlInput = document.getElementById('currProviderUrl');
-  const keyInput = document.getElementById('currProviderKey');
-
-  const base_url = urlInput ? urlInput.value.trim() : '';
-  const api_key = keyInput ? keyInput.value.trim() : '';
-
-  if (!base_url) {
-    showToast('请先填写有效的 API 地址');
+  if (!AppState.activeProviderId) {
+    showToast('请先保存并选择供应商');
     return;
   }
 
@@ -3787,7 +3635,7 @@ async function fetchCurrentProviderModels() {
     const resp = await fetch('/api/models/fetch-remote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base_url, api_key, timeout_seconds: 15 })
+      body: JSON.stringify({ provider_id: AppState.activeProviderId, timeout_seconds: 15 })
     });
 
     if (!resp.ok) {
@@ -4024,18 +3872,34 @@ function handleRoleChange(roleKey, compositeValue) {
 async function saveSettings() {
   syncCurrentProviderFormToState();
 
-  // 1. Save providers to backend and localStorage
+  // 1. Provider credentials are submitted once and never persisted in browser storage.
   try {
-    for (const p of AppState.providers) {
-      await fetch('/api/models/providers', {
+    const savedProviders = [];
+    for (const provider of AppState.providers) {
+      const payload = { ...provider };
+      if (!payload.api_key) delete payload.api_key;
+      const response = await fetch('/api/models/providers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(p)
+        body: JSON.stringify(payload)
       });
+      if (!response.ok) throw new Error(`Provider save failed with HTTP ${response.status}`);
+      const data = await response.json();
+      savedProviders.push(data.provider);
     }
-    localStorage.setItem('astock_llm_providers', JSON.stringify(AppState.providers));
+    AppState.providers = savedProviders;
   } catch (err) {
-    localStorage.setItem('astock_llm_providers', JSON.stringify(AppState.providers));
+    AppState.providers = AppState.providers.map(provider => {
+      const safe = { ...provider };
+      delete safe.api_key;
+      return safe;
+    });
+    showToast(`❌ 模型供应商保存失败: ${err.message}`);
+    return;
+  } finally {
+    const keyInput = document.getElementById('currProviderKey');
+    if (keyInput) keyInput.value = '';
+    localStorage.removeItem('astock_llm_providers');
   }
 
   // 2. Save model roles to backend and localStorage
@@ -4893,14 +4757,15 @@ async function runSkillTestExecution() {
 
     if (response.ok) {
       const data = await response.json();
+      const succeeded = data.status === 'success';
       if (badge) {
-        badge.className = 'console-status-badge success';
-        badge.innerText = '成功 200 OK';
+        badge.className = `console-status-badge ${succeeded ? 'success' : 'error'}`;
+        badge.innerText = succeeded ? '成功 200 OK' : `${data.status || 'error'}`;
       }
       if (output) {
-        output.innerText = `[200 OK] 执行成功 (耗时: ${elapsed}ms):\n` + JSON.stringify(data, null, 2);
+        output.innerText = `[200 OK] ${succeeded ? '执行成功' : '未成功执行'} (耗时: ${elapsed}ms):\n` + JSON.stringify(data, null, 2);
       }
-      showToast(`技能【${skillId}】测试调用成功`);
+      showToast(`技能【${skillId}】${succeeded ? '测试调用成功' : `状态：${data.status || 'error'}`}`);
     } else {
       const errData = await response.json().catch(() => ({ detail: response.statusText }));
       if (badge) {
@@ -4915,32 +4780,16 @@ async function runSkillTestExecution() {
     const elapsed = Math.round(performance.now() - startTime);
     if (statsStrip) statsStrip.style.display = 'flex';
     if (durationElem) durationElem.innerText = elapsed;
-    if (gateElem) gateElem.innerText = '本地仿真';
-    if (statusElem) statusElem.innerText = 'Mock 200';
+    if (gateElem) gateElem.innerText = '调用失败';
+    if (statusElem) statusElem.innerText = '不可用';
     if (badge) {
-      badge.className = 'console-status-badge success';
-      badge.innerText = '仿真成功 (Mock)';
+      badge.className = 'console-status-badge error';
+      badge.innerText = '调用失败';
     }
-
-    // High fidelity mock response for offline/static test
-    const mockResult = {
-      status: "success",
-      skill_id: skillId,
-      execution_time_ms: elapsed,
-      message: `[本地仿真] 技能 ${skillId} 契约校验通过，已成功触发执行。`,
-      parameters_echo: params,
-      data_snapshot: {
-        timestamp: new Date().toISOString(),
-        verified: true,
-        zero_global_pollution: true,
-        execution_env: "in-process / workspace-local"
-      }
-    };
-
     if (output) {
-      output.innerText = `[Mock 仿真响应] (后端离线自动兜底，耗时: ${elapsed}ms):\n` + JSON.stringify(mockResult, null, 2);
+      output.innerText = `[调用失败] 后端未返回可验证结果 (耗时: ${elapsed}ms):\n${err.message}`;
     }
-    showToast(`技能【${skillId}】仿真测试完成`);
+    showToast(`技能【${skillId}】调用失败`);
   } finally {
     if (btnRun) {
       btnRun.disabled = false;

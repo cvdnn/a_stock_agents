@@ -27,11 +27,8 @@ const AStockMarketRadar = {
   },
 
   renderCompact(props = {}) {
-    const list = props.indices || [
-      { name: '上证指数', price: 3426.56, change_pct: 0.72 },
-      { name: '深证成指', price: 10892.14, change_pct: 1.08 },
-      { name: '创业板指', price: 2289.76, change_pct: 1.31 }
-    ];
+    const list = Array.isArray(props.indices) ? props.indices : [];
+    if (!list.length) return '<div class="a2ui-unavailable">市场指数数据不可用</div>';
 
     return `
       <div class="radar-compact-grid">
@@ -47,8 +44,10 @@ const AStockMarketRadar = {
   },
 
   renderExpanded(props = {}) {
-    const volume = props.total_volume || '1.28万亿元';
-    const sentiment = props.sentiment?.text || '78分 贪婪 / 亢温';
+    const list = Array.isArray(props.indices) ? props.indices : [];
+    if (!list.length) return '<div class="a2ui-unavailable">市场雷达数据不可用</div>';
+    const volume = props.total_volume || '暂无成交额';
+    const sentiment = props.sentiment?.text || '暂无情绪数据';
 
     return `
       <div class="radar-expanded-dashboard">
@@ -59,29 +58,12 @@ const AStockMarketRadar = {
             <span class="a2ui-stage-badge done" style="font-size:11px;">情绪 ${sentiment}</span>
           </div>
         </div>
-        <div class="sparkline-row">
-          <div class="sparkline-item">
-            <div class="sparkline-meta">
-              <strong style="color:#1D2129;">上证指数 3,426.56</strong>
-              <span style="color:#F5222D; font-weight:700;">+0.72%</span>
-            </div>
-            <canvas id="a2ui_spark_sh" width="180" height="40" style="width:100%; height:40px;"></canvas>
-          </div>
-          <div class="sparkline-item">
-            <div class="sparkline-meta">
-              <strong style="color:#1D2129;">深证成指 10,892.14</strong>
-              <span style="color:#F5222D; font-weight:700;">+1.08%</span>
-            </div>
-            <canvas id="a2ui_spark_sz" width="180" height="40" style="width:100%; height:40px;"></canvas>
-          </div>
-          <div class="sparkline-item">
-            <div class="sparkline-meta">
-              <strong style="color:#1D2129;">创业板指 2,289.76</strong>
-              <span style="color:#F5222D; font-weight:700;">+1.31%</span>
-            </div>
-            <canvas id="a2ui_spark_cy" width="180" height="40" style="width:100%; height:40px;"></canvas>
-          </div>
-        </div>
+        <div class="sparkline-row">${list.map((item, index) => `
+          <div class="sparkline-item"><div class="sparkline-meta">
+            <strong>${item.name} ${Number(item.price).toFixed(2)}</strong>
+            <span>${Number(item.change_pct) > 0 ? '+' : ''}${Number(item.change_pct).toFixed(2)}%</span>
+          </div><canvas id="a2ui_spark_${index}" width="180" height="40"></canvas></div>
+        `).join('')}</div>
       </div>
     `;
   },
@@ -89,9 +71,11 @@ const AStockMarketRadar = {
   onMounted(container, props = {}, mode) {
     if (mode === 'expanded' && typeof FinancialCharts !== 'undefined') {
       setTimeout(() => {
-        FinancialCharts.drawSparkline('a2ui_spark_sh', [3390, 3405, 3400, 3415, 3422, 3426.56], true);
-        FinancialCharts.drawSparkline('a2ui_spark_sz', [10750, 10780, 10820, 10800, 10860, 10892.14], true);
-        FinancialCharts.drawSparkline('a2ui_spark_cy', [2250, 2265, 2260, 2278, 2282, 2289.76], true);
+        (props.indices || []).forEach((item, index) => {
+          if (Array.isArray(item.sparkline) && item.sparkline.length) {
+            FinancialCharts.drawSparkline(`a2ui_spark_${index}`, item.sparkline, Number(item.change_pct) >= 0);
+          }
+        });
       }, 30);
     }
   }
@@ -113,7 +97,8 @@ const AStockCandleMatrix = {
   },
 
   renderCompact(props = {}) {
-    const benchmark = props.benchmark || '上证指数 (000001)';
+    const benchmark = props.benchmark;
+    if (!benchmark) return '<div class="a2ui-unavailable">K线数据不可用</div>';
     return `
       <div style="background:#F8FAFD; border:1px solid #DFE6EF; border-radius:6px; padding:8px 12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
         <div>
@@ -126,6 +111,9 @@ const AStockCandleMatrix = {
   },
 
   renderExpanded(props = {}) {
+    if (!Array.isArray(props.klines) || !props.klines.length) {
+      return '<div class="a2ui-unavailable">K线数据不可用</div>';
+    }
     return `
       <div class="candle-expanded-card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -142,15 +130,9 @@ const AStockCandleMatrix = {
   onMounted(container, props = {}, mode) {
     if (mode === 'expanded' && typeof FinancialCharts !== 'undefined') {
       setTimeout(() => {
-        const klines = (typeof generateKlines === 'function') 
-          ? generateKlines(3400, 28, 0.008)
-          : [
-              ['08-20', 3390, 3405, 3415, 3385, 32000],
-              ['08-21', 3405, 3400, 3410, 3392, 34000],
-              ['08-22', 3400, 3418, 3425, 3398, 41000],
-              ['08-25', 3418, 3426, 3435, 3412, 45000]
-            ];
-        FinancialCharts.drawCandlestickChart('a2ui_candle_canvas', klines, { showVolume: true });
+        if (Array.isArray(props.klines) && props.klines.length) {
+          FinancialCharts.drawCandlestickChart('a2ui_candle_canvas', props.klines, { showVolume: true });
+        }
       }, 50);
     }
   }
@@ -183,8 +165,11 @@ const AStockRiskBreakevenCalc = {
   },
 
   renderCompact(props = {}) {
-    const cost = props.cost || 320.0;
-    const shares = props.shares || 1000;
+    const cost = Number(props.cost);
+    const shares = Number(props.shares);
+    if (!Number.isFinite(cost) || cost <= 0 || !Number.isInteger(shares) || shares <= 0) {
+      return '<div class="a2ui-unavailable">缺少有效持仓成本或股数，无法计算保本价</div>';
+    }
     const breakeven = this.calculateBreakeven(cost, shares);
     const t0 = (cost * 0.97).toFixed(2);
     const t1 = (cost * 0.95).toFixed(2);
@@ -219,8 +204,11 @@ const AStockRiskBreakevenCalc = {
   },
 
   renderExpanded(props = {}) {
-    const cost = props.cost || 320.0;
-    const shares = props.shares || 1000;
+    const cost = Number(props.cost);
+    const shares = Number(props.shares);
+    if (!Number.isFinite(cost) || cost <= 0 || !Number.isInteger(shares) || shares <= 0) {
+      return '<div class="a2ui-unavailable">缺少有效持仓成本或股数，无法计算保本价</div>';
+    }
     const breakeven = this.calculateBreakeven(cost, shares);
 
     return `
