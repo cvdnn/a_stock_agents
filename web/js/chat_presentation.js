@@ -158,6 +158,54 @@
     lines.forEach(function (line) { if (/^\s*```/.test(line)) { inFence = !inFence; return; } if (inFence) return; var h = line.match(/^\s*#{1,6}\s+(.+)/), clean = stripMarkdown(line); if (h) { active = wanted.test(stripMarkdown(h[1])); return; } if (clean) { if (active) candidates.push(clean); else fallback.push(clean); } });
     var valid = function (x) { return x && !/^[-| ]+$/.test(x); }, preferred = candidates.filter(valid), result = [], seen = new Set(); (preferred.length ? preferred : fallback.filter(valid)).forEach(function (x) { x = x.slice(0, 120); if (!seen.has(x) && result.length < limit) { seen.add(x); result.push(x); } }); return result.slice(0, Math.min(limit, 5));
   }
+  function createResponseState(responseId) {
+    var state = {
+      responseId: String(responseId == null ? '' : responseId), status: 'streaming', fullMarkdown: '', summaryItems: [], timelineNodes: [],
+      toolResultsByCallId: Object.create(null), errors: [], detailTabId: 'chat-response-' + String(responseId == null ? '' : responseId), timelineExpanded: false,
+      metrics: { elapsedMs: null, tokens: null, finishReason: null }
+    };
+    Object.defineProperty(state, '_nextNode', { value: 1, writable: true, enumerable: false });
+    Object.defineProperty(state, '_failed', { value: false, writable: true, enumerable: false });
+    return state;
+  }
+  function eventValue(payload, names, fallback) {
+    for (var i = 0; i < names.length; i++) if (payload && payload[names[i]] != null) return payload[names[i]];
+    return fallback;
+  }
+  function timelineNode(state, type, title) {
+    var node = { nodeId: type + '-' + state._nextNode++, type: type, title: String(title || ''), status: 'pending', startedAt: null, completedAt: null, elapsedMs: null, summary: '', result: null, error: null, expanded: false };
+    state.timelineNodes.push(node); return node;
+  }
+  function applyEvent(state, type, payload) {
+    if (!state || !type) return state;
+    payload = payload || {};
+    var now = eventValue(payload, ['timestamp', 'started_at', 'startedAt'], null);
+    if (type === 'thought') {
+      var thought = eventValue(payload, ['content', 'text', 'summary'], '');
+      if (String(thought || '').trim()) { var tn = timelineNode(state, 'thought', eventValue(payload, ['title'], '思考')); tn.status = 'succeeded'; tn.summary = String(thought); tn.startedAt = now; tn.completedAt = eventValue(payload, ['completed_at', 'completedAt'], now); }
+    } else if (type === 'tool_call_start') {
+      var callId = eventValue(payload, ['call_id', 'callId', 'id'], null), nodeId = callId == null ? null : String(callId);
+      if (!nodeId || state.timelineNodes.some(function (n) { return n.nodeId === nodeId; })) nodeId = 'tool-' + state._nextNode++;
+      var tool = { nodeId: nodeId, type: 'tool', title: String(eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用')), status: 'running', startedAt: now, completedAt: null, elapsedMs: null, summary: '', result: null, error: null, expanded: false };
+      tool.callId = callId == null ? null : String(callId); tool.skill_id = payload.skill_id; tool.action = payload.action; tool.args = payload.args; state.timelineNodes.push(tool);
+    } else if (type === 'tool_call_complete') {
+      var completedId = eventValue(payload, ['call_id', 'callId', 'id'], null), match = state.timelineNodes.find(function (n) { return n.type === 'tool' && n.callId === String(completedId); });
+      if (!match) { match = timelineNode(state, 'tool', '未匹配工具调用'); match.callId = completedId == null ? null : String(completedId); match.startedAt = now; }
+      match.completedAt = eventValue(payload, ['completed_at', 'completedAt', 'timestamp'], now); match.elapsedMs = eventValue(payload, ['elapsed_ms', 'elapsedMs'], match.startedAt != null && match.completedAt != null ? Number(match.completedAt) - Number(match.startedAt) : null);
+      var hasData = Object.prototype.hasOwnProperty.call(payload, 'data') || Object.prototype.hasOwnProperty.call(payload, 'result'), result = eventValue(payload, ['data', 'result'], null); if (hasData) { match.result = result; if (match.callId != null) state.toolResultsByCallId[match.callId] = result; }
+      var terminal = String(eventValue(payload, ['status', 'state', 'outcome', 'type'], '')).toLowerCase(), toolError = payload.error || (terminal === 'error' || terminal === 'timeout' ? payload : null);
+      if (toolError || terminal === 'failed') { match.status = 'failed'; match.error = presentError(toolError && toolError.code ? toolError : { code: terminal === 'timeout' ? 'LLM_TIMEOUT' : 'UNKNOWN', detail: (toolError && (toolError.detail || toolError.message)) || payload.detail }); }
+      else match.status = terminal === 'success' || terminal === 'succeeded' || terminal === 'ok' ? 'succeeded' : 'degraded';
+    } else if (type === 'content_delta') {
+      state.fullMarkdown += String(eventValue(payload, ['text', 'delta', 'content'], ''));
+    } else if (type === 'error') {
+      var presented = presentError(payload.error || payload); state.errors.push(presented); var en = timelineNode(state, 'error', presented.title); en.status = 'failed'; en.error = presented; en.summary = presented.detail || presented.recovery; en.expanded = true; state.status = 'failed'; state._failed = true; state.timelineExpanded = true;
+    } else if (type === 'done') {
+      state.metrics.elapsedMs = eventValue(payload, ['elapsed_ms', 'elapsedMs'], state.metrics.elapsedMs); state.metrics.tokens = eventValue(payload, ['total_tokens', 'tokens'], state.metrics.tokens); state.metrics.finishReason = eventValue(payload, ['finish_reason', 'finishReason'], state.metrics.finishReason);
+      if (!state._failed) { state.status = 'succeeded'; state.summaryItems = summarizeMarkdown(state.fullMarkdown); var done = state.timelineNodes.find(function (n) { return n.type === 'done'; }) || timelineNode(state, 'done', '完成'); done.status = 'succeeded'; done.completedAt = eventValue(payload, ['completed_at', 'completedAt', 'timestamp'], null); done.elapsedMs = state.metrics.elapsedMs; done.summary = state.summaryItems.join('；'); }
+    }
+    return state;
+  }
   function redactSensitive(value) {
     var input = String(value == null ? '' : value), output = '', cursor = 0, i = 0;
     var names = /^(authorization|x-api-key|api[_-]?key|access_token|token|cookie|secret)$/i;
@@ -224,5 +272,5 @@
   }
   var errors = { LLM_NOT_CONFIGURED: ['模型尚未配置', '请先完成模型配置后重试'], LLM_AUTH_FAILED: ['模型认证失败', '请检查 API 密钥后重试'], LLM_MODEL_UNAVAILABLE: ['模型暂不可用', '请稍后重试或选择其他模型'], LLM_CAPABILITY_UNSUPPORTED: ['模型不支持此能力', '请更换支持该能力的模型'], LLM_TIMEOUT: ['请求超时', '请稍后重试'], SSE_HTTP_ERROR: ['服务连接失败', '请稍后重试'], SSE_INCOMPLETE: ['响应未完成', '请重试'] };
   function presentError(error) { var code = error && error.code, item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试']; return { code: code || 'UNKNOWN', title: item[0], recovery: item[1], detail: redactSensitive(error && (error.detail || error.message || '')) }; }
-  root.ChatPresentation = { escapeHtml: escapeHtml, renderMarkdown: renderMarkdown, summarizeMarkdown: summarizeMarkdown, redactSensitive: redactSensitive, presentError: presentError };
+  root.ChatPresentation = { escapeHtml: escapeHtml, renderMarkdown: renderMarkdown, summarizeMarkdown: summarizeMarkdown, redactSensitive: redactSensitive, presentError: presentError, createResponseState: createResponseState, applyEvent: applyEvent };
 }(typeof window !== 'undefined' ? window : this));
