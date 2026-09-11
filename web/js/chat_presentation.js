@@ -12,9 +12,14 @@
     return /^(https?:|mailto:)/i.test(value) ? value : null;
   }
 
+  function isMarkdownPunctuation(value) {
+    var code = String(value || '').charCodeAt(0);
+    return (code >= 33 && code <= 47) || (code >= 58 && code <= 64) || (code >= 91 && code <= 96) || (code >= 123 && code <= 126);
+  }
+
   function findLabelEnd(text, start) {
     for (var i = start; i < text.length; i++) {
-      if (text[i] === '\\' && i + 1 < text.length) { i++; continue; }
+      if (text[i] === '\\' && i + 1 < text.length && isMarkdownPunctuation(text[i + 1])) { i++; continue; }
       if (text[i] === '`') {
         var codeEnd = text.indexOf('`', i + 1);
         if (codeEnd !== -1 && text.slice(i + 1, codeEnd).indexOf('\n') === -1) { i = codeEnd; continue; }
@@ -31,14 +36,14 @@
     if (text[i] === '<') {
       i++;
       while (i < text.length && text[i] !== '>' && text[i] !== '\n') {
-        if (text[i] === '\\' && i + 1 < text.length) { url += text[i + 1]; i += 2; }
+        if (text[i] === '\\' && i + 1 < text.length && isMarkdownPunctuation(text[i + 1])) { url += text[i + 1]; i += 2; }
         else url += text[i++];
       }
       if (text[i] !== '>') return null;
       i++;
     } else {
       while (i < text.length && !/[\s)]/.test(text[i])) {
-        if (text[i] === '\\' && i + 1 < text.length) { url += text[i + 1]; i += 2; }
+        if (text[i] === '\\' && i + 1 < text.length && isMarkdownPunctuation(text[i + 1])) { url += text[i + 1]; i += 2; }
         else url += text[i++];
       }
     }
@@ -50,7 +55,7 @@
     i++;
     title = '';
     while (i < text.length && text[i] !== '\n') {
-      if (text[i] === '\\' && i + 1 < text.length) { title += text[i + 1]; i += 2; continue; }
+      if (text[i] === '\\' && i + 1 < text.length && isMarkdownPunctuation(text[i + 1])) { title += text[i + 1]; i += 2; continue; }
       if (text[i] === quote) { closed = true; i++; break; }
       title += text[i++];
     }
@@ -62,7 +67,7 @@
   function findInlineEnd(text, start, delimiter) {
     for (var i = start; i <= text.length - delimiter.length; i++) {
       if (text[i] === '\n') return -1;
-      if (text[i] === '\\' && i + 1 < text.length) { i++; continue; }
+      if (text[i] === '\\' && i + 1 < text.length && isMarkdownPunctuation(text[i + 1])) { i++; continue; }
       if (text.slice(i, i + delimiter.length) === delimiter) return i;
     }
     return -1;
@@ -74,7 +79,7 @@
     if (depth >= 32) return escapeHtml(text);
     var out = '', i = 0;
     while (i < text.length) {
-      if (text[i] === '\\' && i + 1 < text.length) {
+      if (text[i] === '\\' && i + 1 < text.length && isMarkdownPunctuation(text[i + 1])) {
         out += escapeHtml(text[i + 1]); i += 2; continue;
       }
       if (text[i] === '`') {
@@ -155,7 +160,7 @@
   }
   function redactSensitive(value) {
     var input = String(value == null ? '' : value), output = '', cursor = 0, i = 0;
-    var names = /^(authorization|api[_-]?key|token|cookie|secret)$/i;
+    var names = /^(authorization|x-api-key|api[_-]?key|access_token|token|cookie|secret)$/i;
     function quotedEnd(start, quote) {
       for (var p = start + 1; p < input.length; p++) {
         if (input[p] === '\\' && p + 1 < input.length) { p++; continue; }
@@ -178,7 +183,7 @@
         p = keyEnd + 1;
       } else {
         if (start > 0 && /[A-Za-z0-9_-]/.test(input[start - 1])) return null;
-        var found = input.slice(start).match(/^(authorization|api[_-]?key|token|cookie|secret)/i);
+        var found = input.slice(start).match(/^(authorization|x-api-key|api[_-]?key|access_token|token|cookie|secret)/i);
         if (!found || /[A-Za-z0-9_-]/.test(input[start + found[0].length] || '')) return null;
         key = found[0]; keyEnd = start + found[0].length; p = keyEnd;
       }

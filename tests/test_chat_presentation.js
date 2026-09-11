@@ -34,6 +34,10 @@ assert(!nested.includes('\u0000'));
 assert(!api.renderMarkdown('literal \u0000 text').includes('\u0000'));
 assert.strictEqual(api.renderMarkdown('`\uE0000\uE001`'), '<p><code>\uE0000\uE001</code></p>');
 assert.strictEqual(api.renderMarkdown('private \uE00017\uE001 and \uF8FF; nul \u0000 end'), '<p>private \uE00017\uE001 and \uF8FF; nul  end</p>');
+const ordinaryBackslashes = String.raw`Path C:\Users\cvdnn and \alpha`;
+assert.strictEqual(api.renderMarkdown(ordinaryBackslashes), '<p>Path C:\\Users\\cvdnn and \\alpha</p>');
+assert.strictEqual(api.renderMarkdown(String.raw`\*literal\*`), '<p>*literal*</p>');
+assert.strictEqual(api.renderMarkdown('`C:\\Users\\cvdnn`'), '<p><code>C:\\Users\\cvdnn</code></p>');
 const adjacentTable = api.renderMarkdown('Introduction\n| A | B |\n|---|---|\n| 1 | 2 |');
 assert(adjacentTable.includes('<p>Introduction</p>') && adjacentTable.includes('<table>'));
 assert.strictEqual(api.renderMarkdown('ordinary\na | b\nlast'), '<p>ordinary<br>a | b<br>last</p>');
@@ -92,6 +96,17 @@ for (const authorization of [
   const expected = 'Authorization: [REDACTED]\nnext: visible';
   assert.strictEqual(api.redactSensitive(authorization + '\nnext: visible'), expected);
   assert.strictEqual(api.presentError({ code: 'OTHER', detail: authorization + '\nnext: visible' }).detail, expected);
+}
+for (const credential of [
+  'x-api-key: sk-SECRET123',
+  'x-api-key=SECRET123',
+  '{"x-api-key":"SECRET123"}',
+  'access_token: SECRET123',
+  'access_token=SECRET123',
+  '{"access_token":"SECRET123"}'
+]) {
+  assert(!api.redactSensitive(credential).includes('SECRET123'), credential);
+  assert(!api.presentError({ code: 'OTHER', detail: credential }).detail.includes('SECRET123'), credential);
 }
 
 for (const code of ['LLM_NOT_CONFIGURED','LLM_AUTH_FAILED','LLM_MODEL_UNAVAILABLE','LLM_CAPABILITY_UNSUPPORTED','LLM_TIMEOUT','SSE_HTTP_ERROR','SSE_INCOMPLETE']) {
