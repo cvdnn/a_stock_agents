@@ -19,6 +19,13 @@ assert(/<code>code<\/code>[\s\S]*<em>em<\/em>[\s\S]*target="_blank"/.test(html))
 const entities = api.renderMarkdown('`a < b` [q](https://example.com/?a=1&b=2)');
 assert(entities.includes('<code>a &lt; b</code>'));
 assert(entities.includes('href="https://example.com/?a=1&amp;b=2"'));
+const nested = api.renderMarkdown('[`API`](https://example.com) [*em* label](https://example.com "title")');
+assert(nested.includes('<a href="https://example.com" target="_blank" rel="noopener noreferrer"><code>API</code></a>'));
+assert(nested.includes('<a href="https://example.com" target="_blank" rel="noopener noreferrer"><em>em</em> label</a>'));
+assert(!nested.includes('\u0000'));
+assert(!api.renderMarkdown('literal \u0000 text').includes('\u0000'));
+const adjacentTable = api.renderMarkdown('Introduction\n| A | B |\n|---|---|\n| 1 | 2 |');
+assert(adjacentTable.includes('<p>Introduction</p>') && adjacentTable.includes('<table>'));
 const compactTable = api.renderMarkdown('| A | B |\n|-|-|\n| x | y |');
 assert(/<table>[\s\S]*<th>A<\/th>[\s\S]*<td>x<\/td>/.test(compactTable));
 
@@ -44,6 +51,10 @@ assert(!/SECRET123|TOKEN123/.test(api.redactSensitive('{"api_key":"SECRET123","t
 assert(!/SECRET123/.test(api.redactSensitive('{"Authorization":"Bearer SECRET123"}')));
 assert(!/SECRET123/.test(api.redactSensitive("{'api_key': 'SECRET123'}")));
 assert(!/SECRET123/.test(api.presentError({ code: 'OTHER', detail: '{"Authorization":"Bearer SECRET123"}' }).detail));
+for (const credential of ['Authorization: Basic dXNlcjpwYXNz', '{"api_key":"prefix\\"SECRET_SUFFIX"}', 'api_key="two word secret"']) {
+  assert(!/dXNlcjpwYXNz|SECRET_SUFFIX|two word secret/.test(api.redactSensitive(credential)));
+  assert(!/dXNlcjpwYXNz|SECRET_SUFFIX|two word secret/.test(api.presentError({ code: 'OTHER', detail: credential }).detail));
+}
 
 for (const code of ['LLM_NOT_CONFIGURED','LLM_AUTH_FAILED','LLM_MODEL_UNAVAILABLE','LLM_CAPABILITY_UNSUPPORTED','LLM_TIMEOUT','SSE_HTTP_ERROR','SSE_INCOMPLETE']) {
   const result = api.presentError({ code, detail: 'Authorization: Bearer leaked token=bad' });
