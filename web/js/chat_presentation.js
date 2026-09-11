@@ -173,7 +173,7 @@
     return fallback;
   }
   function timelineNode(state, type, title) {
-    var node = { nodeId: type + '-' + state._nextNode++, type: type, title: String(title || ''), status: 'pending', startedAt: null, completedAt: null, elapsedMs: null, summary: '', result: null, error: null, expanded: false };
+    var node = { nodeId: 'node-' + state._nextNode++, type: type, title: String(title || ''), status: 'pending', startedAt: null, completedAt: null, elapsedMs: null, summary: '', result: null, error: null, expanded: false };
     state.timelineNodes.push(node); return node;
   }
   function applyEvent(state, type, payload) {
@@ -184,12 +184,12 @@
       var thought = eventValue(payload, ['content', 'text', 'summary'], '');
       if (String(thought || '').trim()) { var tn = timelineNode(state, 'thought', eventValue(payload, ['title'], '思考')); tn.status = 'succeeded'; tn.summary = String(thought); tn.startedAt = now; tn.completedAt = eventValue(payload, ['completed_at', 'completedAt'], now); }
     } else if (type === 'tool_call_start') {
-      var callId = eventValue(payload, ['call_id', 'callId', 'id'], null), nodeId = callId == null ? null : String(callId);
-      if (!nodeId || state.timelineNodes.some(function (n) { return n.nodeId === nodeId; })) nodeId = 'tool-' + state._nextNode++;
-      var tool = { nodeId: nodeId, type: 'tool', title: String(eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用')), status: 'running', startedAt: now, completedAt: null, elapsedMs: null, summary: '', result: null, error: null, expanded: false };
-      tool.callId = callId == null ? null : String(callId); tool.skill_id = payload.skill_id; tool.action = payload.action; tool.args = payload.args; state.timelineNodes.push(tool);
+      var callId = eventValue(payload, ['call_id', 'callId', 'id'], null);
+      var tool = timelineNode(state, 'tool', eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用'));
+      tool.status = 'running'; tool.startedAt = now;
+      tool.callId = callId == null ? null : String(callId); tool.skill_id = payload.skill_id; tool.action = payload.action; tool.args = payload.args;
     } else if (type === 'tool_call_complete') {
-      var completedId = eventValue(payload, ['call_id', 'callId', 'id'], null), match = state.timelineNodes.find(function (n) { return n.type === 'tool' && n.callId === String(completedId); });
+      var completedId = eventValue(payload, ['call_id', 'callId', 'id'], null), completedKey = completedId == null ? null : String(completedId), match = state.timelineNodes.find(function (n) { return n.type === 'tool' && n.callId === completedKey && n.status === 'running'; });
       if (!match) { match = timelineNode(state, 'tool', '未匹配工具调用'); match.callId = completedId == null ? null : String(completedId); match.startedAt = now; }
       match.completedAt = eventValue(payload, ['completed_at', 'completedAt', 'timestamp'], now); match.elapsedMs = eventValue(payload, ['elapsed_ms', 'elapsedMs'], match.startedAt != null && match.completedAt != null ? Number(match.completedAt) - Number(match.startedAt) : null);
       var hasData = Object.prototype.hasOwnProperty.call(payload, 'data') || Object.prototype.hasOwnProperty.call(payload, 'result'), result = eventValue(payload, ['data', 'result'], null); if (hasData) { match.result = result; if (match.callId != null) state.toolResultsByCallId[match.callId] = result; }
