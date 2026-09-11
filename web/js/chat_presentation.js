@@ -166,8 +166,12 @@
     };
     Object.defineProperty(state, '_nextNode', { value: 1, writable: true, enumerable: false });
     Object.defineProperty(state, '_failed', { value: false, writable: true, enumerable: false });
+    Object.defineProperty(state, '_toolNodesByCallId', { value: Object.create(null), writable: true, enumerable: false });
     return state;
   }
+  function snapshot(value) { if (value == null) return value; try { return JSON.parse(JSON.stringify(value)); } catch (e) { return String(value); } }
+  function timestamp(value) { if (value == null) return null; var n = typeof value === 'number' ? value : Date.parse(value); return Number.isFinite(n) ? n : null; }
+  function duration(value) { var n = Number(value); return Number.isFinite(n) && n >= 0 ? n : null; }
   function eventValue(payload, names, fallback) {
     for (var i = 0; i < names.length; i++) if (payload && payload[names[i]] != null) return payload[names[i]];
     return fallback;
@@ -179,29 +183,31 @@
   function applyEvent(state, type, payload) {
     if (!state || !type) return state;
     payload = payload || {};
-    var now = eventValue(payload, ['timestamp', 'started_at', 'startedAt'], null);
+    var now = timestamp(eventValue(payload, ['timestamp', 'received_at', 'started_at', 'startedAt'], null));
     if (type === 'thought') {
       var thought = eventValue(payload, ['content', 'text', 'summary'], '');
-      if (String(thought || '').trim()) { var tn = timelineNode(state, 'thought', eventValue(payload, ['title'], '思考')); tn.status = 'succeeded'; tn.summary = String(thought); tn.startedAt = now; tn.completedAt = eventValue(payload, ['completed_at', 'completedAt'], now); }
+      if (String(thought || '').trim()) { var tn = timelineNode(state, 'thought', eventValue(payload, ['title'], '思考')); tn.status = 'succeeded'; tn.summary = String(thought); tn.startedAt = now; tn.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt'], now)); }
     } else if (type === 'tool_call_start') {
-      var callId = eventValue(payload, ['call_id', 'callId', 'id'], null);
-      var tool = timelineNode(state, 'tool', eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用'));
-      tool.status = 'running'; tool.startedAt = now;
-      tool.callId = callId == null ? null : String(callId); tool.skill_id = payload.skill_id; tool.action = payload.action; tool.args = payload.args;
+      var callId = eventValue(payload, ['call_id', 'callId', 'id'], null), callKey = callId == null ? null : String(callId);
+      var tool = callKey != null ? state._toolNodesByCallId[callKey] : null;
+      if (!tool) { tool = timelineNode(state, 'tool', eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用')); tool.callId = callKey; if (callKey != null) state._toolNodesByCallId[callKey] = tool; }
+      if (tool.status === 'pending' || tool.status === 'running') tool.status = 'running';
+      tool.startedAt = now == null ? tool.startedAt : now; tool.skill_id = snapshot(payload.skill_id); tool.action = snapshot(payload.action); tool.args = snapshot(payload.args);
     } else if (type === 'tool_call_complete') {
-      var completedId = eventValue(payload, ['call_id', 'callId', 'id'], null), completedKey = completedId == null ? null : String(completedId), match = state.timelineNodes.find(function (n) { return n.type === 'tool' && n.callId === completedKey && n.status === 'running'; });
-      if (!match) { match = timelineNode(state, 'tool', '未匹配工具调用'); match.callId = completedId == null ? null : String(completedId); match.startedAt = now; }
-      match.completedAt = eventValue(payload, ['completed_at', 'completedAt', 'timestamp'], now); match.elapsedMs = eventValue(payload, ['elapsed_ms', 'elapsedMs'], match.startedAt != null && match.completedAt != null ? Number(match.completedAt) - Number(match.startedAt) : null);
-      var hasData = Object.prototype.hasOwnProperty.call(payload, 'data') || Object.prototype.hasOwnProperty.call(payload, 'result'), result = eventValue(payload, ['data', 'result'], null); if (hasData) { match.result = result; if (match.callId != null) state.toolResultsByCallId[match.callId] = result; }
+      var completedId = eventValue(payload, ['call_id', 'callId', 'id'], null), completedKey = completedId == null ? null : String(completedId), match = completedKey != null ? state._toolNodesByCallId[completedKey] : state.timelineNodes.find(function (n) { return n.type === 'tool' && n.callId == null && n.status === 'running'; });
+      if (!match) { match = timelineNode(state, 'tool', '未匹配工具调用'); match.callId = completedKey; if (completedKey != null) state._toolNodesByCallId[completedKey] = match; match.startedAt = now; }
+      match.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt', 'timestamp'], now)); var explicitElapsed = Object.prototype.hasOwnProperty.call(payload, 'elapsed_ms') || Object.prototype.hasOwnProperty.call(payload, 'elapsedMs'); match.elapsedMs = explicitElapsed ? duration(eventValue(payload, ['elapsed_ms', 'elapsedMs'], null)) : (match.startedAt != null && match.completedAt != null && match.completedAt >= match.startedAt ? match.completedAt - match.startedAt : null);
+      var hasData = Object.prototype.hasOwnProperty.call(payload, 'data') || Object.prototype.hasOwnProperty.call(payload, 'result'), result = eventValue(payload, ['data', 'result'], null); if (hasData) { match.result = snapshot(result); if (match.callId != null) state.toolResultsByCallId[match.callId] = snapshot(result); }
+      if (Object.prototype.hasOwnProperty.call(payload, 'summary')) match.summary = String(payload.summary || '');
       var terminal = String(eventValue(payload, ['status', 'state', 'outcome', 'type'], '')).toLowerCase(), toolError = payload.error || (terminal === 'error' || terminal === 'timeout' ? payload : null);
-      if (toolError || terminal === 'failed') { match.status = 'failed'; match.error = presentError(toolError && toolError.code ? toolError : { code: terminal === 'timeout' ? 'LLM_TIMEOUT' : 'UNKNOWN', detail: (toolError && (toolError.detail || toolError.message)) || payload.detail }); }
+      if (toolError || terminal === 'failed') { var errorDetail = toolError && (toolError.detail || toolError.message || (typeof toolError === 'string' ? toolError : '')); match.status = 'failed'; match.error = presentError(toolError && toolError.code ? toolError : { code: terminal === 'timeout' ? 'LLM_TIMEOUT' : 'UNKNOWN', detail: errorDetail || payload.detail }); if (terminal === 'timeout' || terminal === 'error' || toolError) { match.expanded = true; state.timelineExpanded = true; } }
       else match.status = terminal === 'success' || terminal === 'succeeded' || terminal === 'ok' ? 'succeeded' : 'degraded';
     } else if (type === 'content_delta') {
       state.fullMarkdown += String(eventValue(payload, ['text', 'delta', 'content'], ''));
     } else if (type === 'error') {
-      var presented = presentError(payload.error || payload); state.errors.push(presented); var en = timelineNode(state, 'error', presented.title); en.status = 'failed'; en.error = presented; en.summary = presented.detail || presented.recovery; en.expanded = true; state.status = 'failed'; state._failed = true; state.timelineExpanded = true;
+      var errorInput = payload.error && typeof payload.error === 'object' ? Object.assign({}, payload, payload.error) : payload, presented = presentError(errorInput); state.errors.push(presented); var en = timelineNode(state, 'error', presented.title); en.status = 'failed'; en.error = presented; en.summary = presented.detail || presented.recovery; en.expanded = true; state.status = 'failed'; state._failed = true; state.timelineExpanded = true;
     } else if (type === 'done') {
-      state.metrics.elapsedMs = eventValue(payload, ['elapsed_ms', 'elapsedMs'], state.metrics.elapsedMs); state.metrics.tokens = eventValue(payload, ['total_tokens', 'tokens'], state.metrics.tokens); state.metrics.finishReason = eventValue(payload, ['finish_reason', 'finishReason'], state.metrics.finishReason);
+      state.metrics.elapsedMs = duration(eventValue(payload, ['elapsed_ms', 'elapsedMs'], state.metrics.elapsedMs)); state.metrics.tokens = eventValue(payload, ['total_tokens', 'tokens'], state.metrics.tokens); state.metrics.finishReason = eventValue(payload, ['finish_reason', 'finishReason'], state.metrics.finishReason);
       if (!state._failed) { state.status = 'succeeded'; state.summaryItems = summarizeMarkdown(state.fullMarkdown); var done = state.timelineNodes.find(function (n) { return n.type === 'done'; }) || timelineNode(state, 'done', '完成'); done.status = 'succeeded'; done.completedAt = eventValue(payload, ['completed_at', 'completedAt', 'timestamp'], null); done.elapsedMs = state.metrics.elapsedMs; done.summary = state.summaryItems.join('；'); }
     }
     return state;
@@ -271,6 +277,6 @@
     return output + input.slice(cursor);
   }
   var errors = { LLM_NOT_CONFIGURED: ['模型尚未配置', '请先完成模型配置后重试'], LLM_AUTH_FAILED: ['模型认证失败', '请检查 API 密钥后重试'], LLM_MODEL_UNAVAILABLE: ['模型暂不可用', '请稍后重试或选择其他模型'], LLM_CAPABILITY_UNSUPPORTED: ['模型不支持此能力', '请更换支持该能力的模型'], LLM_TIMEOUT: ['请求超时', '请稍后重试'], SSE_HTTP_ERROR: ['服务连接失败', '请稍后重试'], SSE_INCOMPLETE: ['响应未完成', '请重试'] };
-  function presentError(error) { var code = error && error.code, item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试']; return { code: code || 'UNKNOWN', title: item[0], recovery: item[1], detail: redactSensitive(error && (error.detail || error.message || '')) }; }
+  function presentError(error) { var code = error && error.code, item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试']; return { code: code || 'UNKNOWN', title: item[0], recovery: item[1], detail: redactSensitive(error && (error.detail || error.message || error.error || '')) }; }
   root.ChatPresentation = { escapeHtml: escapeHtml, renderMarkdown: renderMarkdown, summarizeMarkdown: summarizeMarkdown, redactSensitive: redactSensitive, presentError: presentError, createResponseState: createResponseState, applyEvent: applyEvent };
 }(typeof window !== 'undefined' ? window : this));
