@@ -3539,6 +3539,37 @@ function deleteModelFromProvider(modelId) {
 // 8.2 Section 2: Model Roles Dynamic Dropdown Generator (对齐图2)
 // --------------------------------------------------------------------------
 
+function isRoleOptionCompatible(role, option) {
+  if (!option || !option.value) return false;
+  if (role === 'chat' || role === 'quant') {
+    return Array.isArray(option.capabilities) && option.capabilities.includes('tools');
+  }
+  return true;
+}
+
+function chooseDefaultRoleOption(role, availableOptions) {
+  const modelOptions = availableOptions.filter(option => option.value);
+  if (!modelOptions.length) return null;
+
+  const withCapability = capability => modelOptions.find(option =>
+    Array.isArray(option.capabilities) && option.capabilities.includes(capability)
+  );
+
+  if (role === 'summary') {
+    return withCapability('fast') || modelOptions[0];
+  }
+  if (role === 'debate') {
+    return withCapability('reasoning') || modelOptions[0];
+  }
+  if (role === 'vision') {
+    return withCapability('vision') || modelOptions[0];
+  }
+  if (role === 'chat' || role === 'quant') {
+    return modelOptions.find(option => isRoleOptionCompatible(role, option)) || null;
+  }
+  return modelOptions[0];
+}
+
 function renderModelRolesDropdowns() {
   const roleKeys = ['chat', 'summary', 'quant', 'debate', 'vision'];
 
@@ -3555,7 +3586,8 @@ function renderModelRolesDropdowns() {
           value: `${m.id}|${p.provider_id}`,
           label: `${m.name || m.id} | ${p.name}`,
           provider_id: p.provider_id,
-          model_id: m.id
+          model_id: m.id,
+          capabilities: m.capabilities || ['chat']
         });
       }
     });
@@ -3573,26 +3605,21 @@ function renderModelRolesDropdowns() {
     const currentAssignment = AppState.modelRoles[role];
     if (currentAssignment && currentAssignment.model_id && currentAssignment.provider_id) {
       const targetVal = `${currentAssignment.model_id}|${currentAssignment.provider_id}`;
-      if (availableOptions.some(o => o.value === targetVal)) {
+      const currentOption = availableOptions.find(option => option.value === targetVal);
+      if (isRoleOptionCompatible(role, currentOption)) {
         select.value = targetVal;
         return;
       }
     }
+    select.value = '';
+    handleRoleChange(role, '');
 
     // Smart default selection if unset and options available
     if (availableOptions.length > 1 && !select.value) {
-      if (role === 'summary') {
-        const flashOpt = availableOptions.find(o => o.label.toLowerCase().includes('flash') || o.label.toLowerCase().includes('mini'));
-        if (flashOpt) select.value = flashOpt.value;
-      } else if (role === 'debate') {
-        const reasonOpt = availableOptions.find(o => o.label.toLowerCase().includes('reasoner') || o.label.toLowerCase().includes('r1') || o.label.toLowerCase().includes('o1'));
-        if (reasonOpt) select.value = reasonOpt.value;
-      } else if (role === 'vision') {
-        const visOpt = availableOptions.find(o => o.label.toLowerCase().includes('vision') || o.label.toLowerCase().includes('vl') || o.label.toLowerCase().includes('4o'));
-        if (visOpt) select.value = visOpt.value;
-      }
-      if (!select.value && availableOptions[1]) {
-        select.value = availableOptions[1].value;
+      const defaultOption = chooseDefaultRoleOption(role, availableOptions);
+      if (defaultOption) {
+        select.value = defaultOption.value;
+        handleRoleChange(role, select.value);
       }
     }
   });

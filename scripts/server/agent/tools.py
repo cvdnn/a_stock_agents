@@ -241,6 +241,25 @@ def _sync_astock_action_plan(
     return result
 
 
+def _extract_latest_tech_summary(tech: Dict[str, Any]) -> Dict[str, Any]:
+    ma = tech.get("ma") if isinstance(tech.get("ma"), dict) else {}
+    macd = tech.get("macd") if isinstance(tech.get("macd"), dict) else {}
+    raw_rsi = tech.get("rsi")
+    legacy_rsi6 = raw_rsi.get("rsi6") if isinstance(raw_rsi, dict) else None
+    rsi = raw_rsi.get("rsi14") if isinstance(raw_rsi, dict) else raw_rsi
+    if rsi is None:
+        rsi = legacy_rsi6
+
+    return {
+        "ma5": tech.get("ma5") if tech.get("ma5") is not None else ma.get("ma5"),
+        "ma10": tech.get("ma10") if tech.get("ma10") is not None else ma.get("ma10"),
+        "ma20": tech.get("ma20") if tech.get("ma20") is not None else ma.get("ma20"),
+        "macd_hist": tech.get("macd_bar") if tech.get("macd_bar") is not None else macd.get("hist"),
+        "rsi": rsi,
+        "rsi6": legacy_rsi6,
+    }
+
+
 def _sync_astock_evaluate(code: str) -> Dict[str, Any]:
     bridge = DataBridge()
     q = bridge.get_realtime_quote(code)
@@ -261,13 +280,7 @@ def _sync_astock_evaluate(code: str) -> Dict[str, Any]:
         "current_price": float(q.get("price", klines[-1][2])) if q else float(klines[-1][2]),
         "total_score": scores["total"],
         "scores_detail": scores,
-        "tech_summary": {
-            "ma5": tech.get("ma", {}).get("ma5"),
-            "ma10": tech.get("ma", {}).get("ma10"),
-            "ma20": tech.get("ma", {}).get("ma20"),
-            "macd_hist": tech.get("macd", {}).get("hist"),
-            "rsi6": tech.get("rsi", {}).get("rsi6"),
-        },
+        "tech_summary": _extract_latest_tech_summary(tech),
     }
 
 
