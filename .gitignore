@@ -51,3 +51,7 @@ backups/
 # Distribution archives
 *.zip
 *.tar.gz
+
+# Tool scratch & brainstorming workspaces
+.superpowers/
+
