@@ -16,23 +16,33 @@ assert(/<pre><code class="language-js">const x = 1;<\/code><\/pre>/.test(html));
 assert(/<blockquote>quoted<\/blockquote>/.test(html));
 assert(/<ol>[\s\S]*<li>first<\/li>/.test(html));
 assert(/<code>code<\/code>[\s\S]*<em>em<\/em>[\s\S]*target="_blank"/.test(html));
+const entities = api.renderMarkdown('`a < b` [q](https://example.com/?a=1&b=2)');
+assert(entities.includes('<code>a &lt; b</code>'));
+assert(entities.includes('href="https://example.com/?a=1&amp;b=2"'));
+const compactTable = api.renderMarkdown('| A | B |\n|-|-|\n| x | y |');
+assert(/<table>[\s\S]*<th>A<\/th>[\s\S]*<td>x<\/td>/.test(compactTable));
 
 const unsafe = api.renderMarkdown('<img src=x onerror=alert(1)> [bad](javascript:alert(1)) [data](data:text/html,x)');
 assert(!/<img|href="javascript:|href="data:/.test(unsafe));
 assert(/&lt;img src=x onerror=alert\(1\)&gt;/.test(unsafe));
 
 const summary = api.summarizeMarkdown('# 核心结论\n\n- First useful point\n- First useful point\n\n## 风险\n\nRisk item\n\n普通段落');
-assert.strictEqual(JSON.stringify(summary), JSON.stringify(['First useful point', 'Risk item', '普通段落']));
+assert.strictEqual(JSON.stringify(summary), JSON.stringify(['First useful point', 'Risk item']));
+assert.strictEqual(JSON.stringify(api.summarizeMarkdown('前置证据\n\n## 核心结论\n- 趋势偏弱\n- 严守止损\n\n## 详情\n补充说明')), JSON.stringify(['趋势偏弱', '严守止损']));
+assert(!api.summarizeMarkdown('---\n|---|---|\n> 装饰').some((x) => /^-+$/.test(x) || /^\|/.test(x)));
 assert(api.summarizeMarkdown('普通段落\n\n- list item\n\n```x\nnoise\n```').length >= 2);
 assert(api.summarizeMarkdown('x'.repeat(500), 5)[0].length <= 120);
 
-const redacted = api.redactSensitive('Authorization: Bearer abc123 api_key=secret token: xyz cookie=foo secret=bar');
-assert(!/abc123|=secret|: xyz|=foo|=bar/.test(redacted));
+const redacted = api.redactSensitive('Authorization: Bearer abc123 api_key=secret token: xyz cookie=foo secret=bar Cookie: sid=one; theme=dark');
+assert(!/abc123|=secret|: xyz|=foo|=bar|sid=one|theme=dark/.test(redacted));
+assert(!/SECRET123|TOKEN123/.test(api.redactSensitive('{"api_key":"SECRET123","token":"TOKEN123"}')));
 
 for (const code of ['LLM_NOT_CONFIGURED','LLM_AUTH_FAILED','LLM_MODEL_UNAVAILABLE','LLM_CAPABILITY_UNSUPPORTED','LLM_TIMEOUT','SSE_HTTP_ERROR','SSE_INCOMPLETE']) {
   const result = api.presentError({ code, detail: 'Authorization: Bearer leaked token=bad' });
-  assert(result.title && result.recovery && !/leaked|bad/.test(JSON.stringify(result)));
+  assert(result.title && result.recovery && result.code === code && !/leaked|bad/.test(JSON.stringify(result)));
 }
+assert.strictEqual(api.presentError({ code: 'LLM_NOT_CONFIGURED' }).title, '模型尚未配置');
+assert.strictEqual(api.presentError({ code: 'toString' }).code, 'toString');
 assert(/暂时|重试|联系|配置/.test(api.presentError({ code: 'OTHER', detail: '<script>x</script>' }).recovery));
 assert.strictEqual(api.escapeHtml('&<>"\''), '&amp;&lt;&gt;&quot;&#39;');
 console.log('PASS');
