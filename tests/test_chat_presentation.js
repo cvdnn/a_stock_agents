@@ -27,8 +27,13 @@ assert(!/<img|href="javascript:|href="data:/.test(unsafe));
 assert(/&lt;img src=x onerror=alert\(1\)&gt;/.test(unsafe));
 
 const summary = api.summarizeMarkdown('# 核心结论\n\n- First useful point\n- First useful point\n\n## 风险\n\nRisk item\n\n普通段落');
-assert.strictEqual(JSON.stringify(summary), JSON.stringify(['First useful point', 'Risk item']));
+assert.strictEqual(JSON.stringify(summary), JSON.stringify(['First useful point', 'Risk item', '普通段落']));
 assert.strictEqual(JSON.stringify(api.summarizeMarkdown('前置证据\n\n## 核心结论\n- 趋势偏弱\n- 严守止损\n\n## 详情\n补充说明')), JSON.stringify(['趋势偏弱', '严守止损']));
+assert.strictEqual(JSON.stringify(api.summarizeMarkdown('普通证据\n## 核心结论\n谨慎买入')), JSON.stringify(['谨慎买入']));
+assert.strictEqual(JSON.stringify(api.summarizeMarkdown('## 核心结论\n谨慎买入\n- 控制仓位')), JSON.stringify(['谨慎买入', '控制仓位']));
+assert.strictEqual(JSON.stringify(api.summarizeMarkdown('> 风险较高')), JSON.stringify(['风险较高']));
+assert.strictEqual(JSON.stringify(api.summarizeMarkdown('有意义的普通内容\n## 核心结论\n---')), JSON.stringify(['有意义的普通内容']));
+assert.strictEqual(JSON.stringify(api.summarizeMarkdown('constructor\ntoString')), JSON.stringify(['constructor', 'toString']));
 assert(!api.summarizeMarkdown('---\n|---|---|\n> 装饰').some((x) => /^-+$/.test(x) || /^\|/.test(x)));
 assert(api.summarizeMarkdown('普通段落\n\n- list item\n\n```x\nnoise\n```').length >= 2);
 assert(api.summarizeMarkdown('x'.repeat(500), 5)[0].length <= 120);
@@ -36,6 +41,9 @@ assert(api.summarizeMarkdown('x'.repeat(500), 5)[0].length <= 120);
 const redacted = api.redactSensitive('Authorization: Bearer abc123 api_key=secret token: xyz cookie=foo secret=bar Cookie: sid=one; theme=dark');
 assert(!/abc123|=secret|: xyz|=foo|=bar|sid=one|theme=dark/.test(redacted));
 assert(!/SECRET123|TOKEN123/.test(api.redactSensitive('{"api_key":"SECRET123","token":"TOKEN123"}')));
+assert(!/SECRET123/.test(api.redactSensitive('{"Authorization":"Bearer SECRET123"}')));
+assert(!/SECRET123/.test(api.redactSensitive("{'api_key': 'SECRET123'}")));
+assert(!/SECRET123/.test(api.presentError({ code: 'OTHER', detail: '{"Authorization":"Bearer SECRET123"}' }).detail));
 
 for (const code of ['LLM_NOT_CONFIGURED','LLM_AUTH_FAILED','LLM_MODEL_UNAVAILABLE','LLM_CAPABILITY_UNSUPPORTED','LLM_TIMEOUT','SSE_HTTP_ERROR','SSE_INCOMPLETE']) {
   const result = api.presentError({ code, detail: 'Authorization: Bearer leaked token=bad' });
