@@ -21,11 +21,25 @@ assert(entities.includes('<code>a &lt; b</code>'));
 assert(entities.includes('href="https://example.com/?a=1&amp;b=2"'));
 const nested = api.renderMarkdown('[`API`](https://example.com) [*em* label](https://example.com "title")');
 assert(nested.includes('<a href="https://example.com" target="_blank" rel="noopener noreferrer"><code>API</code></a>'));
-assert(nested.includes('<a href="https://example.com" target="_blank" rel="noopener noreferrer"><em>em</em> label</a>'));
+assert(nested.includes('<a href="https://example.com" title="title" target="_blank" rel="noopener noreferrer"><em>em</em> label</a>'));
+const escapedLabel = api.renderMarkdown('[a & b](https://example.com) [`API`](https://example.com) [*API*](https://example.com) [<"x">](https://example.com)');
+assert(escapedLabel.includes('>a &amp; b</a>'));
+assert(!escapedLabel.includes('&amp;amp;'));
+assert(escapedLabel.includes('><code>API</code></a>'));
+assert(escapedLabel.includes('><em>API</em></a>'));
+assert(escapedLabel.includes('>&lt;&quot;x&quot;&gt;</a>'));
+const titledLink = api.renderMarkdown('[API](https://example.com "A & \\"quoted\\"")');
+assert(titledLink.includes('title="A &amp; &quot;quoted&quot;"'));
 assert(!nested.includes('\u0000'));
 assert(!api.renderMarkdown('literal \u0000 text').includes('\u0000'));
+assert.strictEqual(api.renderMarkdown('`\uE0000\uE001`'), '<p><code>\uE0000\uE001</code></p>');
+assert.strictEqual(api.renderMarkdown('private \uE00017\uE001 and \uF8FF; nul \u0000 end'), '<p>private \uE00017\uE001 and \uF8FF; nul  end</p>');
 const adjacentTable = api.renderMarkdown('Introduction\n| A | B |\n|---|---|\n| 1 | 2 |');
 assert(adjacentTable.includes('<p>Introduction</p>') && adjacentTable.includes('<table>'));
+assert.strictEqual(api.renderMarkdown('ordinary\na | b\nlast'), '<p>ordinary<br>a | b<br>last</p>');
+const paragraphThenTable = api.renderMarkdown('ordinary\nlast\na | b\n---|---\n1 | 2');
+assert(paragraphThenTable.includes('<p>ordinary<br>last</p>\n<table>'));
+assert(paragraphThenTable.includes('<th>a</th><th>b</th>'));
 const compactTable = api.renderMarkdown('| A | B |\n|-|-|\n| x | y |');
 assert(/<table>[\s\S]*<th>A<\/th>[\s\S]*<td>x<\/td>/.test(compactTable));
 
@@ -54,6 +68,30 @@ assert(!/SECRET123/.test(api.presentError({ code: 'OTHER', detail: '{"Authorizat
 for (const credential of ['Authorization: Basic dXNlcjpwYXNz', '{"api_key":"prefix\\"SECRET_SUFFIX"}', 'api_key="two word secret"']) {
   assert(!/dXNlcjpwYXNz|SECRET_SUFFIX|two word secret/.test(api.redactSensitive(credential)));
   assert(!/dXNlcjpwYXNz|SECRET_SUFFIX|two word secret/.test(api.presentError({ code: 'OTHER', detail: credential }).detail));
+}
+for (const credential of [
+  'Authorization: SECRET_SUFFIX\nnext: visible',
+  'Authorization: Basic dXNlcjpwYXNz\nnext: visible',
+  'Authorization: Bearer SECRET_SUFFIX trailing material\nnext: visible',
+  'Authorization: Digest username="Mufasa", realm="test", nonce="SECRET_SUFFIX", opaque="more-secret"\nnext: visible',
+  '{"api_key":"it\'s SECRET_SUFFIX"}',
+  'api_key="prefix\\"SECRET_SUFFIX"',
+  "{'api_key':'it\\'s SECRET_SUFFIX'}",
+  "api_key='prefix\\'SECRET_SUFFIX'"
+]) {
+  const clean = api.redactSensitive(credential);
+  assert(!/SECRET_SUFFIX|dXNlcjpwYXNz|Mufasa|more-secret/.test(clean), clean);
+  assert(!/SECRET_SUFFIX|dXNlcjpwYXNz|Mufasa|more-secret/.test(api.presentError({ code: 'OTHER', detail: credential }).detail));
+}
+for (const authorization of [
+  'Authorization: SECRET_SUFFIX',
+  'Authorization: Basic dXNlcjpwYXNz',
+  'Authorization: Bearer SECRET_SUFFIX trailing material',
+  'Authorization: Digest username="Mufasa", realm="test", nonce="SECRET_SUFFIX", opaque="more-secret"'
+]) {
+  const expected = 'Authorization: [REDACTED]\nnext: visible';
+  assert.strictEqual(api.redactSensitive(authorization + '\nnext: visible'), expected);
+  assert.strictEqual(api.presentError({ code: 'OTHER', detail: authorization + '\nnext: visible' }).detail, expected);
 }
 
 for (const code of ['LLM_NOT_CONFIGURED','LLM_AUTH_FAILED','LLM_MODEL_UNAVAILABLE','LLM_CAPABILITY_UNSUPPORTED','LLM_TIMEOUT','SSE_HTTP_ERROR','SSE_INCOMPLETE']) {
