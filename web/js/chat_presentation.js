@@ -193,9 +193,11 @@
       var tool = callKey != null ? state._toolNodesByCallId[callKey] : null;
       if (!tool) { tool = timelineNode(state, 'tool', eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用')); tool.callId = callKey; if (callKey != null) state._toolNodesByCallId[callKey] = tool; }
       if (tool.status === 'pending' || tool.status === 'running') tool.status = 'running';
-      tool.startedAt = now == null ? tool.startedAt : now; if (tool.completedAt != null && tool.startedAt != null) tool.elapsedMs = tool.completedAt >= tool.startedAt ? tool.completedAt - tool.startedAt : null;
+      tool.startedAt = now == null ? tool.startedAt : now; if (!tool._elapsedExplicit && tool.elapsedMs == null && tool.completedAt != null && tool.startedAt != null) tool.elapsedMs = tool.completedAt >= tool.startedAt ? tool.completedAt - tool.startedAt : null;
       if (eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], null) != null) tool.title = String(eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用'));
-      tool.skill_id = snapshot(payload.skill_id); tool.action = snapshot(payload.action); tool.args = snapshot(payload.args);
+      if (payload.skill_id != null || payload.skillId != null) tool.skill_id = snapshot(payload.skill_id != null ? payload.skill_id : payload.skillId);
+      if (payload.action != null) tool.action = snapshot(payload.action);
+      if (Object.prototype.hasOwnProperty.call(payload, 'args') && payload.args != null) tool.args = snapshot(payload.args);
     } else if (type === 'tool_call_complete') {
       var completedId = eventValue(payload, ['call_id', 'callId', 'id'], null), completedKey = completedId == null ? null : String(completedId), match = completedKey != null ? state._toolNodesByCallId[completedKey] : state.timelineNodes.find(function (n) { return n.type === 'tool' && n.callId == null && n.status === 'running'; });
       if (!match) { match = timelineNode(state, 'tool', eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '未匹配工具调用')); match.callId = completedKey; if (completedKey != null) state._toolNodesByCallId[completedKey] = match; match.startedAt = now; match.skill_id = snapshot(payload.skill_id); match.action = snapshot(payload.action); match.args = snapshot(payload.args); }
@@ -203,8 +205,9 @@
       var hasData = Object.prototype.hasOwnProperty.call(payload, 'data') || Object.prototype.hasOwnProperty.call(payload, 'result'), result = eventValue(payload, ['data', 'result'], null); if (hasData) { match.result = snapshot(result); if (match.callId != null) state.toolResultsByCallId[match.callId] = snapshot(result); }
       if (Object.prototype.hasOwnProperty.call(payload, 'summary')) match.summary = String(payload.summary || '');
       var terminal = String(eventValue(payload, ['status', 'state', 'outcome', 'type'], '')).toLowerCase(), toolError = payload.error || (terminal === 'error' || terminal === 'timeout' ? payload : null);
-      if (toolError || terminal === 'failed') { var wasFailed = match.status === 'failed', errorDetail = toolError && (toolError.detail || toolError.message || (typeof toolError === 'string' ? toolError : '')); match.status = 'failed'; match.error = presentError(toolError && toolError.code ? toolError : { code: terminal === 'timeout' ? 'LLM_TIMEOUT' : 'UNKNOWN', detail: errorDetail || payload.detail }); if (!wasFailed && !state._toolFailureSeen) { match.expanded = true; state.timelineExpanded = true; state._toolFailureSeen = true; } }
-      else match.status = terminal === 'success' || terminal === 'succeeded' || terminal === 'ok' ? 'succeeded' : 'degraded';
+      if (toolError || terminal === 'failed') { var wasFailed = match.status === 'failed', errorDetail = toolError && (toolError.detail || toolError.message || (typeof toolError === 'string' ? toolError : '')); match.status = 'failed'; match.result = null; if (match.callId != null) delete state.toolResultsByCallId[match.callId]; match.error = presentError(toolError && toolError.code ? toolError : { code: terminal === 'timeout' ? 'LLM_TIMEOUT' : 'UNKNOWN', detail: errorDetail || payload.detail }); if (!wasFailed && !state._toolFailureSeen) { match.expanded = true; state.timelineExpanded = true; state._toolFailureSeen = true; } }
+      else { match.status = terminal === 'success' || terminal === 'succeeded' || terminal === 'ok' ? 'succeeded' : 'degraded'; if (match.status === 'succeeded') match.error = null; }
+      if (explicitElapsed) Object.defineProperty(match, '_elapsedExplicit', { value: true, writable: true, configurable: true, enumerable: false });
     } else if (type === 'content_delta') {
       state.fullMarkdown += String(eventValue(payload, ['text', 'delta', 'content'], ''));
     } else if (type === 'error') {
