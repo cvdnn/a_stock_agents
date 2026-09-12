@@ -6544,21 +6544,41 @@ input:checked + .slider:before {
 }
 
 .quick-pill-title {
-  color: var(--text-muted);
-  font-size: 10.5px;
+  color: var(--text-title, #1F2329);
+  font-size: 11.5px;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-pill-icon {
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+}
+
+.quick-pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quick-pill-val {
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 500;
   color: #1677FF;
+  padding-left: 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
 }
 
 .quick-pill-box:hover .quick-pill-val {

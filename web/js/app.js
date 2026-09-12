@@ -175,15 +175,24 @@ function getWelcomeMessageHtml() {
           <div class="quick-iron-header">⚡ 快捷操作推荐（点击直接发起智能体分析）：</div>
           <div class="quick-iron-grid">
             <div class="quick-pill-box" onclick="executeQuickAction('评估持股策略')" title="诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单">
-              <div class="quick-pill-title">🛡️ 评估持股策略</div>
+              <div class="quick-pill-title">
+                <span class="quick-pill-icon">🛡️</span>
+                <span class="quick-pill-text">评估持股策略</span>
+              </div>
               <div class="quick-pill-val">立即评估 &gt;</div>
             </div>
             <div class="quick-pill-box" onclick="executeQuickAction('分析今日大盘行情')" title="四大指数走势研判、两市放量动能、情绪温度与主线轮动">
-              <div class="quick-pill-title">📈 分析今日大盘行情</div>
+              <div class="quick-pill-title">
+                <span class="quick-pill-icon">📈</span>
+                <span class="quick-pill-text">分析今日大盘行情</span>
+              </div>
               <div class="quick-pill-val">一键分析 &gt;</div>
             </div>
             <div class="quick-pill-box" onclick="executeQuickAction('收益分析')" title="复盘资产净值走势、夏普比率、最大回撤与多因子收益归因">
-              <div class="quick-pill-title">💰 收益分析</div>
+              <div class="quick-pill-title">
+                <span class="quick-pill-icon">💰</span>
+                <span class="quick-pill-text">收益分析</span>
+              </div>
               <div class="quick-pill-val">查看分析 &gt;</div>
             </div>
           </div>
