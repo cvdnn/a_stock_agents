@@ -256,7 +256,7 @@ function executeQuickAction(actionType) {
     const prompt = '请深度分析今日A股大盘行情走势、两市成交量能、四大指数强弱分化与核心板块轮动主线。';
     appendChatMessage('user', prompt);
     if (typeof UIEngine !== 'undefined') {
-      executeA2UITask('分析今日大盘行情');
+      executeA2UITask(prompt);
     } else {
       const tpl = PromptTemplates['行情分析'];
       streamAIResponse(tpl, '今日A股大盘行情与主线轮动深度研判', '等待后端返回可验证行情证据', { userText: prompt });
@@ -5931,12 +5931,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.prompt-pill').forEach(pill => {
     pill.addEventListener('click', () => {
       const key = pill.innerText.replace(/\[|\]/g, '').trim();
-      appendChatMessage('user', `请帮我执行【${key}】并出具研报`);
+      const promptText = `请帮我执行【${key}】并出具研报`;
+      appendChatMessage('user', promptText);
       if (typeof UIEngine !== 'undefined') {
-        executeA2UITask(key);
+        executeA2UITask(promptText);
       } else {
         const content = PromptTemplates[key] || PromptTemplates['行情分析'];
-        streamAIResponse(content, `${key} 深度诊断`);
+        streamAIResponse(content, `${key} 深度诊断`, '', { userText: promptText });
       }
     });
   });

@@ -362,16 +362,18 @@ def get_messages(
     limit: int = 100,
     db_path: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
-    """Retrieve message history for a session ordered chronologically."""
+    """Retrieve message history for a session ordered chronologically (latest `limit` records)."""
     conn = get_connection(db_path)
     try:
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT * FROM messages
-            WHERE session_id = ?
-            ORDER BY id ASC
-            LIMIT ?
+            SELECT * FROM (
+                SELECT * FROM messages
+                WHERE session_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+            ) ORDER BY id ASC
             """,
             (session_id, limit),
         )

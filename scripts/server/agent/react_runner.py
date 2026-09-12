@@ -178,8 +178,12 @@ class AgentReActRunner:
 
         try:
             # 4. Prepare message history for LLM with state machine sanitization
-            history_rows = get_messages(session_id=sid, limit=30)
+            history_rows = get_messages(session_id=sid, limit=50)
             clean_history = sanitize_history_for_llm(history_rows)
+            # Ensure the current user prompt is guaranteed to be at the tail of clean_history
+            if not clean_history or clean_history[-1].get("role") != "user" or clean_history[-1].get("content") != message:
+                clean_history.append({"role": "user", "content": message})
+
             llm_messages: List[Dict[str, Any]] = [
                 {"role": "system", "content": AGENT_SYSTEM_PROMPT}
             ] + clean_history

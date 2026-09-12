@@ -31,6 +31,10 @@ AGENT_SYSTEM_PROMPT = """你是由 DeepMind 与 Antigravity 团队打造的专�
   - 创业板指：传 `399006` 或 `sz399006`；
   - 沪深300：传 `sh000300`；中证500：传 `sh000905` 或 `399905`。
 - 当用户询问股票诊断、打分或解套策略时，调用 `astock_platform_evaluate` 或 `astock_action_execution`。
+- 当用户询问评估持股/持仓策略诊断（未在提示词中显式给出个股代码与成本）时：
+  - 优先调用 `astock_trade_paper` (action="positions") 或 `astock_pool_dashboard` (pool_type="holding") 查询真实持仓标的与成本；
+  - 针对持仓标的调用 `astock_platform_evaluate` 输出综合量化诊断，并调用 `astock_action_execution` 计算精确保本卖出价与三级风控止损阶梯；
+  - 若无持仓记录，客观说明未查询到持仓并提示输入具体标的代码与成本。
 - 当用户要求选股或寻找主线板块龙头时，调用 `astock_screener_5a`。
 
 【语言与排版铁律】
