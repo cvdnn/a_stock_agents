@@ -285,5 +285,247 @@
   }
   var errors = { LLM_NOT_CONFIGURED: ['模型尚未配置', '请先完成模型配置后重试'], LLM_AUTH_FAILED: ['模型认证失败', '请检查 API 密钥后重试'], LLM_MODEL_UNAVAILABLE: ['模型暂不可用', '请稍后重试或选择其他模型'], LLM_CAPABILITY_UNSUPPORTED: ['模型不支持此能力', '请更换支持该能力的模型'], LLM_TIMEOUT: ['请求超时', '请稍后重试'], SSE_HTTP_ERROR: ['服务连接失败', '请稍后重试'], SSE_INCOMPLETE: ['响应未完成', '请重试'] };
   function presentError(error) { var code = error && error.code, item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试']; return { code: code || 'UNKNOWN', title: item[0], recovery: item[1], detail: redactSensitive(error && (error.detail || error.message || error.error || '')) }; }
-  root.ChatPresentation = { escapeHtml: escapeHtml, renderMarkdown: renderMarkdown, summarizeMarkdown: summarizeMarkdown, redactSensitive: redactSensitive, presentError: presentError, createResponseState: createResponseState, applyEvent: applyEvent };
+
+  function decomposeTask(promptText, meta) {
+    promptText = String(promptText || '').trim();
+    meta = meta || {};
+    var operators = meta.operators || {};
+    var stock = (operators.stocks && operators.stocks[0]) || null;
+    var stockLabel = stock ? (stock.name + ' (' + stock.code + ')') : (promptText.match(/(\d{6})/g) ? promptText.match(/(\d{6})/g)[0] : '');
+
+    var isBreakeven = /保本|止损|成本|风控|挂单|卖出价/.test(promptText);
+    var is5A = /5A|选股|多因子|筛选|共振/.test(promptText);
+    var isMACD = /MACD|金叉|背离|形态|波谷/.test(promptText);
+    var isPaper = /模拟盘|买入|卖出|交易|仓位|下单/.test(promptText);
+    var isDebate = /辩论|多空|研报|深度研判/.test(promptText);
+    var isReturns = /收益|盈亏|净值|归因/.test(promptText);
+
+    var targetSkill = 'astock-platform-evaluate';
+    var sopName = 'A股全流程综合研报';
+    var deliverableName = 'report_market_overview.md';
+
+    if (isBreakeven) {
+      targetSkill = 'astock-action-execution';
+      sopName = '实战反应动作与精确保本价精算';
+      deliverableName = stock ? ('action_plan_' + stock.code + '.md') : 'action_plan.md';
+    } else if (is5A) {
+      targetSkill = 'astock-screener-5a';
+      sopName = '五维共振旋转选股与龙头池初筛';
+      deliverableName = '5a_screening_pool.md';
+    } else if (isMACD) {
+      targetSkill = 'astock-strategy-macd';
+      sopName = 'MACD水下二次金叉与底背离形态识别';
+      deliverableName = stock ? ('macd_pattern_' + stock.code + '.md') : 'macd_analysis.md';
+    } else if (isPaper) {
+      targetSkill = 'astock-trade-paper';
+      sopName = '真实滑点模拟撮合与持仓风控';
+      deliverableName = 'paper_trade_execution.md';
+    } else if (isDebate) {
+      targetSkill = 'astock-agent-debate';
+      sopName = '7大分析师多空辩论研判';
+      deliverableName = stock ? ('debate_' + stock.code + '.md') : 'debate_report.md';
+    } else if (isReturns) {
+      targetSkill = 'astock-quant-engine';
+      sopName = '多因子量化收益全景归因';
+      deliverableName = 'portfolio_attribution.md';
+    } else if (stock) {
+      targetSkill = 'astock-data-feed';
+      sopName = '个股量价走势与筹码穿透诊断';
+      deliverableName = 'report_' + stock.code + '.md';
+    }
+
+    var steps = [
+      {
+        type: 'intent',
+        title: '判断意图 ' + (stockLabel ? (stockLabel + ' 研判') : (promptText.slice(0, 18) || '任务执行')),
+        summary: '用户需求匹配 SOP「' + sopName + '」，提取核心参数与治理策略。',
+        status: 'succeeded'
+      },
+      {
+        type: 'sop',
+        title: '选择SOP ' + sopName,
+        summary: '规划执行路径：前置数据核验 ➔ 调度 ' + targetSkill + ' ➔ 交叉风控审计。',
+        status: 'succeeded'
+      },
+      {
+        type: 'tool',
+        title: '能力调用 ' + targetSkill,
+        skill_id: targetSkill,
+        action: 'execute_pipeline',
+        summary: '调度就地量化技能底座，规定执行核心运算与数据检验。',
+        status: 'pending',
+        deliverable: { filename: deliverableName }
+      },
+      {
+        type: 'result',
+        title: '整理任务结果',
+        summary: '汇总结构化数据与生成交付物 ' + deliverableName + '。',
+        status: 'pending'
+      }
+    ];
+
+    return {
+      sopName: sopName,
+      targetSkill: targetSkill,
+      deliverableName: deliverableName,
+      stockLabel: stockLabel,
+      steps: steps
+    };
+  }
+
+  function detectDeliverables(markdown, toolData) {
+    var files = [];
+    var seen = new Set();
+    var addFile = function (fn, desc) {
+      if (fn && !seen.has(fn)) {
+        seen.add(fn);
+        files.push({ filename: fn, desc: desc || fn });
+      }
+    };
+
+    if (markdown) {
+      var matches = String(markdown).matchAll(/`?([a-zA-Z0-9_\-]+\.(?:md|json|csv|html))`?/g);
+      for (var m of matches) {
+        var fn = m[1];
+        if (fn.endsWith('.md') || fn.endsWith('.json')) {
+          addFile(fn, '研报交付物文档');
+        }
+      }
+    }
+
+    if (toolData) {
+      if (Array.isArray(toolData.deliverables)) {
+        toolData.deliverables.forEach(function (d) {
+          if (typeof d === 'string') addFile(d);
+          else if (d && d.name) addFile(d.name, d.desc);
+        });
+      }
+      if (toolData.deliverable_file) addFile(toolData.deliverable_file);
+      if (toolData.report_file) addFile(toolData.report_file);
+    }
+    return files;
+  }
+
+  function renderExecutionTimelineHtml(state, options) {
+    if (!state) return '';
+    options = options || {};
+    var hasFailed = state.status === 'failed' || (state.timelineNodes && state.timelineNodes.some(function (n) { return n.status === 'failed'; }));
+    var isStreaming = state.status === 'streaming';
+    var isDone = state.status === 'succeeded' || (!isStreaming && !hasFailed);
+    var expanded = state.timelineExpanded !== false;
+    var durationText = state.metrics && state.metrics.elapsedMs != null ? ((state.metrics.elapsedMs / 1000).toFixed(1) + 's') : '';
+
+    var headerClass = 'timeline-toggle-bar' + (hasFailed ? ' has-error' : (isStreaming ? ' is-running' : ' is-done'));
+    var headerTitle = hasFailed ? '执行遇到问题' : (isStreaming ? '任务执行中...' : '执行记录');
+    var headerIcon = hasFailed ? '⚠️' : (isStreaming ? '<span class="header-spin-ring"></span>' : '📋');
+
+    var html = '<div class="execution-record-box' + (hasFailed ? ' error-mode' : '') + '" id="recordBox_' + escapeHtml(state.responseId) + '">';
+    html += '<button type="button" class="' + headerClass + '" onclick="window.toggleTimelineRecord && window.toggleTimelineRecord(\'' + escapeHtml(state.responseId) + '\')" aria-expanded="' + (expanded ? 'true' : 'false') + '">';
+    html += '  <div class="toggle-bar-left">';
+    html += '    <span class="record-icon">' + headerIcon + '</span>';
+    html += '    <span class="record-title">' + headerTitle + '</span>';
+    if (durationText) {
+      html += '    <span class="record-duration">耗时 ' + durationText + '</span>';
+    }
+    html += '  </div>';
+    html += '  <span class="record-chevron">' + (expanded ? '∨' : '>') + '</span>';
+    html += '</button>';
+
+    html += '<div class="timeline-nodes-list' + (expanded ? '' : ' hidden') + '" id="nodesList_' + escapeHtml(state.responseId) + '">';
+
+    var nodes = state.timelineNodes || [];
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      var isNodeFailed = n.status === 'failed';
+      var isNodeRunning = n.status === 'running';
+      var isNodeDone = n.status === 'succeeded';
+      var itemClass = 'timeline-node-item' + (isNodeFailed ? ' node-failed' : (isNodeRunning ? ' node-running' : ' node-done'));
+
+      var nodeIcon = '•';
+      if (n.type === 'intent') nodeIcon = '📝';
+      else if (n.type === 'sop') nodeIcon = '⇥';
+      else if (n.type === 'thought') nodeIcon = '💭';
+      else if (n.type === 'confirmation') nodeIcon = '🎯';
+      else if (n.type === 'tool') nodeIcon = isNodeFailed ? '❌' : (isNodeRunning ? '⏳' : '🔧');
+      else if (n.type === 'result' || n.type === 'done') nodeIcon = '📄';
+      else if (n.type === 'error') nodeIcon = '⚠️';
+
+      var nodeTitle = n.title;
+      if (n.type === 'tool') {
+        var skillLabel = n.skill_id || n.action || n.title || '技能调用';
+        if (isNodeFailed) nodeTitle = '能力调用失败 ' + skillLabel;
+        else if (isNodeRunning) nodeTitle = '能力调用中 ' + skillLabel;
+        else nodeTitle = '能力调用完成 ' + skillLabel;
+      }
+
+      html += '<div class="' + itemClass + '" id="' + escapeHtml(n.nodeId) + '">';
+      html += '  <div class="node-main-row">';
+      html += '    <span class="node-icon">' + nodeIcon + '</span>';
+      html += '    <div class="node-text-col">';
+      html += '      <div class="node-title' + (isNodeFailed ? ' text-failed' : '') + '">' + escapeHtml(nodeTitle) + '</div>';
+
+      var subInfo = n.summary || '';
+      if (!subInfo && n.action) subInfo = '第 ' + (i + 1) + ' 个动作 · ' + n.action;
+      if (isNodeFailed && n.error) {
+        subInfo = (n.error.code ? (n.error.code + ' · ') : '') + (n.error.detail || n.error.title || '执行异常');
+      }
+      if (subInfo) {
+        html += '      <div class="node-subtext' + (isNodeFailed ? ' text-failed-sub' : '') + '">' + escapeHtml(subInfo) + '</div>';
+      }
+      html += '    </div>';
+      html += '  </div>';
+
+      // Collapsible tool result drawer (as in Image 1 and Image 3)
+      if (n.result != null || (n.error && n.error.detail)) {
+        var isDrawerOpen = n.expanded === true;
+        var drawerData = n.result != null ? n.result : { error: n.error };
+        html += '  <div class="node-drawer-wrap">';
+        html += '    <button type="button" class="node-drawer-btn" onclick="window.toggleNodeDrawer && window.toggleNodeDrawer(\'' + escapeHtml(state.responseId) + '\', \'' + escapeHtml(n.nodeId) + '\')">';
+        html += '      <span class="drawer-arrow">' + (isDrawerOpen ? '▼' : '▶') + '</span> 查看能力结果';
+        html += '    </button>';
+        html += '    <div class="node-drawer-body' + (isDrawerOpen ? ' open' : ' closed') + '" id="drawer_' + escapeHtml(n.nodeId) + '">';
+        html += '      <pre class="json-code-box"><code>' + escapeHtml(JSON.stringify(drawerData, null, 2)) + '</code></pre>';
+        html += '    </div>';
+        html += '  </div>';
+      }
+
+      // Deliverable clickable link (Requirement 6)
+      if (n.deliverable && n.deliverable.filename) {
+        var fn = n.deliverable.filename;
+        html += '  <div class="node-deliverable-wrap">';
+        html += '    <span class="deliverable-link-chip" onclick="window.openDeliverableInWorkbench && window.openDeliverableInWorkbench(\'' + escapeHtml(fn) + '\')" title="在右侧工作台打开文件">';
+        html += '      📄 ' + escapeHtml(fn) + ' <span class="open-arrow">↗</span>';
+        html += '    </span>';
+        html += '  </div>';
+      }
+
+      html += '</div>';
+    }
+
+    // Working animation at bottom while active (Requirement 2)
+    if (isStreaming) {
+      html += '<div class="timeline-working-indicator">';
+      html += '  <span class="working-spinner-ring"></span>';
+      html += '  <span class="working-text">working...</span>';
+      html += '</div>';
+    }
+
+    html += '</div>'; // end timeline-nodes-list
+    html += '</div>'; // end execution-record-box
+
+    return html;
+  }
+
+  root.ChatPresentation = {
+    escapeHtml: escapeHtml,
+    renderMarkdown: renderMarkdown,
+    summarizeMarkdown: summarizeMarkdown,
+    redactSensitive: redactSensitive,
+    presentError: presentError,
+    createResponseState: createResponseState,
+    applyEvent: applyEvent,
+    decomposeTask: decomposeTask,
+    detectDeliverables: detectDeliverables,
+    renderExecutionTimelineHtml: renderExecutionTimelineHtml
+  };
 }(typeof window !== 'undefined' ? window : this));

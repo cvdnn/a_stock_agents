@@ -6689,5 +6689,507 @@ input:checked + .switch-slider:before {
   word-break: break-all;
 }
 
+/* ==========================================================================
+   Task Execution Process & Timeline UI Styles (Matches Reference Images 1/2/3)
+   ========================================================================== */
 
+/* 1. Main Collapsible Execution Box - Compact Layout */
+.execution-record-box {
+  margin: 4px 0 6px 0;
+  border: 1px solid #E2E8F0;
+  border-radius: 5px;
+  background: #FFFFFF;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
 
+.execution-record-box.error-mode {
+  border-color: #FFA39E;
+  background: #FFFBFB;
+}
+
+.timeline-toggle-bar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: #F8FAFC;
+  border: none;
+  border-bottom: 1px solid #EDF2F7;
+  cursor: pointer;
+  font-size: 10.5px;
+  color: #1D2129;
+  transition: background-color 0.15s ease;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.timeline-toggle-bar:hover {
+  background: #F1F5F9;
+}
+
+.timeline-toggle-bar.has-error {
+  background: #FFF1F0;
+  color: #CF1322;
+  border-bottom-color: #FFA39E;
+}
+
+.timeline-toggle-bar.has-error .record-title {
+  color: #CF1322;
+  font-weight: 700;
+}
+
+.timeline-toggle-bar.is-running {
+  background: #F0F7FF;
+  border-bottom-color: #BAE0FF;
+}
+
+.toggle-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.record-icon {
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-spin-ring {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid rgba(22, 119, 255, 0.25);
+  border-top-color: #1677FF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.record-title {
+  font-weight: 600;
+  font-size: 10.5px;
+}
+
+.record-duration {
+  font-size: 9.5px;
+  color: #86909C;
+  margin-left: 2px;
+}
+
+.record-chevron {
+  font-size: 9px;
+  color: #86909C;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+}
+
+/* 2. Timeline Step Items - Compact & Tight Spacing */
+.timeline-nodes-list {
+  padding: 2px 7px 4px 7px;
+  background: #FAFBFC;
+}
+
+.timeline-nodes-list.hidden {
+  display: none;
+}
+
+.timeline-node-item {
+  padding: 2.5px 0;
+  border-bottom: 1px dashed #EAEFF5;
+  transition: all 0.2s ease;
+}
+
+.timeline-node-item:last-child {
+  border-bottom: none;
+}
+
+.node-main-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.node-icon {
+  font-size: 10.5px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1.25;
+}
+
+.node-text-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.node-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #2D3748;
+  line-height: 1.25;
+}
+
+.node-title.text-failed {
+  color: #F5222D;
+  font-weight: 700;
+}
+
+.node-subtext {
+  font-size: 9.5px;
+  color: #86909C;
+  margin-top: 1px;
+  line-height: 1.25;
+  word-break: break-all;
+}
+
+.node-subtext.text-failed-sub {
+  color: #CF1322;
+  background: #FFF1F0;
+  border: 1px solid #FFA39E;
+  border-radius: 3px;
+  padding: 1.5px 5px;
+  margin-top: 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+/* 3. Collapsible Ability Result Drawer (Image 1 & 3) */
+.node-drawer-wrap {
+  margin-top: 2px;
+  margin-left: 19px;
+}
+
+.node-drawer-btn {
+  background: none;
+  border: none;
+  color: #4A5568;
+  font-size: 9.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.node-drawer-btn:hover {
+  background: #EDF2F7;
+  color: #1677FF;
+}
+
+.drawer-arrow {
+  font-size: 8px;
+  color: #718096;
+}
+
+.node-drawer-body {
+  margin-top: 2px;
+}
+
+.node-drawer-body.closed {
+  display: none;
+}
+
+.node-drawer-body.open {
+  display: block;
+}
+
+.json-code-box {
+  margin: 0;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  line-height: 1.3;
+  color: #1F2937;
+  max-height: 160px;
+  overflow-y: auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* 4. Deliverable File Link Chip (Requirement 6) */
+.node-deliverable-wrap {
+  margin-top: 3px;
+  margin-left: 19px;
+}
+
+.deliverable-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #F0F5FF;
+  border: 1px solid #ADC6FF;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 9.5px;
+  color: #1677FF;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.deliverable-link-chip:hover {
+  background: #D6E4FF;
+  border-color: #85A5FF;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.deliverable-link-chip .open-arrow {
+  font-size: 9px;
+}
+
+/* 5. Working Animation Indicator (Requirement 2) */
+.timeline-working-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 4px 2px 19px;
+  color: #1677FF;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.working-spinner-ring {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid rgba(22, 119, 255, 0.25);
+  border-top-color: #1677FF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.working-text {
+  letter-spacing: 0.3px;
+  animation: pulseText 1.6s ease-in-out infinite;
+}
+
+@keyframes pulseText {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* 6. Human-in-the-Loop Confirmation Panel (Requirement 4) */
+.chat-confirmation-panel {
+  background: #FFFBE6;
+  border: 1px solid #FFE58F;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 6px rgba(250, 140, 22, 0.08);
+}
+
+.confirmation-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.confirmation-icon {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.confirmation-info {
+  flex: 1;
+}
+
+.confirmation-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #D46B08;
+}
+
+.confirmation-desc {
+  font-size: 11.5px;
+  color: #595959;
+  margin-top: 3px;
+  line-height: 1.45;
+}
+
+.confirmation-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+.btn-confirm-act {
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-confirm-yes {
+  background: #1677FF;
+  color: #FFFFFF;
+  border: 1px solid #1677FF;
+}
+
+.btn-confirm-yes:hover {
+  background: #4096FF;
+  border-color: #4096FF;
+}
+
+.btn-confirm-no {
+  background: #FFFFFF;
+  color: #595959;
+  border: 1px solid #D9D9D9;
+}
+
+.btn-confirm-no:hover {
+  background: #F5F5F5;
+  color: #262626;
+}
+
+/* 7. Button States: Cancel and Disabled (Requirement 7) */
+.send-btn.btn-cancelling {
+  background: linear-gradient(135deg, #FF4D4F 0%, #CF1322 100%) !important;
+  border-color: #FF4D4F !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 6px rgba(245, 34, 45, 0.25) !important;
+}
+
+.send-btn.btn-cancelling:hover {
+  background: linear-gradient(135deg, #FF7875 0%, #D9363E 100%) !important;
+}
+
+.input-tool-btn.btn-disabled,
+.input-tool-btn:disabled {
+  opacity: 0.35 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}
+
+.chat-input-wrapper.input-disabled,
+#chatInput[contenteditable="false"] {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+  background: #F5F5F5;
+}
+
+/* 8. Background Session & Indicator (Requirement 8) */
+.header-bg-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #E6F4FF;
+  border: 1px solid #91CAFF;
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #0958D9;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: all 0.2s ease;
+}
+
+.header-bg-indicator:hover {
+  background: #BAE0FF;
+}
+
+.bg-indicator-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1677FF;
+  animation: pulse 1.2s infinite;
+}
+
+.session-running-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #1677FF;
+  background: #E6F4FF;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+/* 9. Deliverable Workspace Viewer Pane (Requirement 6) */
+.deliverable-viewer-card {
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.deliverable-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #FAFBFC;
+  border-bottom: 1px solid #EAEEF4;
+}
+
+.deliverable-viewer-title-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deliverable-file-icon {
+  font-size: 16px;
+}
+
+.deliverable-file-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1D2129;
+}
+
+.deliverable-type-badge {
+  font-size: 11px;
+  background: #E6F4FF;
+  color: #1677FF;
+  border: 1px solid #ADC6FF;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.deliverable-viewer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-deliverable-action {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid #D9D9D9;
+  background: #FFFFFF;
+  color: #4A5568;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-deliverable-action:hover {
+  background: #F0F5FF;
+  border-color: #ADC6FF;
+  color: #1677FF;
+}
+
+.deliverable-viewer-content {
+  padding: 18px 20px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #2D3748;
+}

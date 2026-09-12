@@ -124,6 +124,10 @@
             <h3 class="chat-simple-title" id="chatHeaderTitle">投研助手</h3>
             <span class="chat-status-dot" id="chatHeaderStatus">● 在线</span>
           </div>
+          <div class="header-bg-indicator" id="headerBgIndicator" style="display: none;" onclick="focusActiveSession()" title="点击切回正在执行的任务">
+            <span class="bg-indicator-pulse"></span>
+            <span class="bg-indicator-text">任务后台执行中...</span>
+          </div>
           <button class="btn-workbench-launcher" id="btnWorkbenchLauncher" onclick="toggleWorkbenchCollapse()" title="展开工作台">
             <span class="workbench-btn-icon">📊</span>
             <span class="workbench-btn-label">工作台</span>
@@ -274,8 +278,27 @@
                 </div>
 
                 <!-- 2. 输入区域 (富文本高亮回填 + 原生属性兼容) -->
-                <div class="chat-input-wrapper" onclick="focusChatInput()">
+                <div class="chat-input-wrapper" id="chatInputWrapper" onclick="focusChatInput()">
                   <div class="chat-textarea chat-input-rich" id="chatInput" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="请输入您的问题，或输入 @ 快速插入标的/技能，输入 # 快速选择大模型..."></div>
+                </div>
+
+                <!-- 2.5 人机手动确认面板 (独占交互，阻断其他输入) -->
+                <div class="chat-confirmation-panel" id="chatConfirmationPanel" style="display: none;">
+                  <div class="confirmation-banner">
+                    <span class="confirmation-icon">⚠️</span>
+                    <div class="confirmation-info">
+                      <div class="confirmation-title" id="confirmationTitle">需要您确认操作</div>
+                      <div class="confirmation-desc" id="confirmationDesc">即将调用技能执行关键交易或风控动作，请确认是否继续。</div>
+                    </div>
+                  </div>
+                  <div class="confirmation-actions">
+                    <button type="button" class="btn-confirm-act btn-confirm-yes" id="btnConfirmYes" onclick="handleConfirmationDecision(true)">
+                      <span>✓ 确认执行</span>
+                    </button>
+                    <button type="button" class="btn-confirm-act btn-confirm-no" id="btnConfirmNo" onclick="handleConfirmationDecision(false)">
+                      <span>✕ 拒绝 / 取消</span>
+                    </button>
+                  </div>
                 </div>
 
                 <!-- 3. 底部微功能图标栏与提交按钮 (【+】【@】【#】并显示名称) -->
@@ -328,6 +351,26 @@
       <!-- 3.3 Independent Vertical Scroll Content Viewport -->
       <div class="right-content-scroll" id="rightContentScroll">
         
+        <!-- View Pane 0: 交付物结果文件查看 (支持 xxx.md / 代码产物等) -->
+        <div class="right-pane" id="pane-deliverable" style="display: none;">
+          <div class="deliverable-viewer-card">
+            <div class="deliverable-viewer-header">
+              <div class="deliverable-viewer-title-box">
+                <span class="deliverable-file-icon">📄</span>
+                <span class="deliverable-file-name" id="deliverableFileName">report.md</span>
+                <span class="deliverable-type-badge">任务交付物</span>
+              </div>
+              <div class="deliverable-viewer-actions">
+                <button type="button" class="btn-deliverable-action" onclick="copyDeliverableContent()">📋 复制内容</button>
+                <button type="button" class="btn-deliverable-action" onclick="closeDeliverablePane()">✕ 关闭返回</button>
+              </div>
+            </div>
+            <div class="deliverable-viewer-content markdown-body" id="deliverableFileBody">
+              <!-- 动态呈现交付物渲染内容 -->
+            </div>
+          </div>
+        </div>
+
         <!-- View Pane 1: 投研助手综合工作台 (默认六大板块) -->
         <div class="right-pane active" id="pane-dashboard">
           <div class="dashboard-grid">
@@ -1969,6 +2012,7 @@
   <script src="js/charts.js"></script>
   <script src="js/ui_engine.js"></script>
   <script src="js/components/astock.js"></script>
+  <script src="js/chat_presentation.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

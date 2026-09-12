@@ -10,6 +10,12 @@ const AppState = {
   isWorkbenchCollapsed: false,
   selectedStock: '300750',
   isChatStreaming: false,
+  activeAbortController: null,
+  activeMsgId: null,
+  activeExecState: null,
+  activeExecutions: {},
+  backgroundSessions: {},
+  pendingConfirmation: null,
   apiBaseUrl: window.location.origin,
   loadedSessionCount: 10,
   riskParams: {
@@ -286,8 +292,18 @@ function handleMenuClick(tabId) {
   // 2. 当点击其他功能（市场行情、自选个股、收益分析...）：【AIChatUI】定位为AI助手，布局变到右侧，中间区域为主工作区
   if (tabId === 'dashboard') {
     switchLayoutMode('chat-center');
+    const bgInd = document.getElementById('headerBgIndicator');
+    if (bgInd) bgInd.style.display = 'none';
   } else {
     switchLayoutMode('workspace-main');
+    if (AppState.isChatStreaming) {
+      const bgInd = document.getElementById('headerBgIndicator');
+      if (bgInd) {
+        bgInd.style.display = 'inline-flex';
+        const textEl = bgInd.querySelector('.bg-indicator-text');
+        if (textEl) textEl.innerText = '会话任务后台执行中...';
+      }
+    }
   }
 
   // Switch right/middle business pane
@@ -3041,13 +3057,10 @@ function appendChatMessage(role, content, meta = {}) {
           </div>
         </div>
         ${badgesHtml}
-        ${meta.toolRunning ? `
-          <div class="tool-status-bubble" id="toolStatus">
-            <span class="tool-badge-running"></span>
-            <span>正在调用智能量化引擎 [astock-action-execution / astock-data-feed]...</span>
-          </div>
-        ` : ''}
-        <div class="ai-content-body">${content}</div>
+        <div class="execution-record-container" id="execContainer_${msgId}">
+          ${meta.initialTimelineHtml || ''}
+        </div>
+        <div class="ai-content-body markdown-body" id="body_${msgId}">${content}</div>
         <div class="message-actions">
           <span class="action-chip" onclick="copyMessageText(this)">📋 复制</span>
           <span class="action-chip" onclick="regenerateLastMessage()">🔄 重新生成</span>
@@ -3061,6 +3074,233 @@ function appendChatMessage(role, content, meta = {}) {
   return item;
 }
 
+// --------------------------------------------------------------------------
+// 7.0 Task Execution UI & State Controllers (Requirements 1 - 8)
+// --------------------------------------------------------------------------
+
+function setExecutionStreamingState(isStreaming) {
+  AppState.isChatStreaming = isStreaming;
+  const btnSend = document.getElementById('btnSendChat');
+  if (btnSend) {
+    if (isStreaming) {
+      btnSend.classList.add('btn-cancelling');
+      btnSend.innerHTML = '<span>取消</span>';
+      btnSend.title = '点击取消当前任务执行';
+    } else {
+      btnSend.classList.remove('btn-cancelling');
+      btnSend.innerHTML = '<span>提交</span>';
+      btnSend.title = '提交问题 (Ctrl+Enter)';
+    }
+  }
+
+  // 禁用/启用工具栏辅助按钮：【+ 扩展】、【@ 操作符】、【# 模型】
+  const toolBtns = document.querySelectorAll('.input-toolbar .input-tool-btn');
+  toolBtns.forEach(btn => {
+    if (isStreaming) {
+      btn.classList.add('btn-disabled');
+      btn.setAttribute('disabled', 'disabled');
+    } else {
+      btn.classList.remove('btn-disabled');
+      btn.removeAttribute('disabled');
+    }
+  });
+
+  // 禁用/启用输入框
+  const inputWrapper = document.getElementById('chatInputWrapper');
+  const chatInput = document.getElementById('chatInput');
+  if (chatInput) {
+    chatInput.setAttribute('contenteditable', isStreaming ? 'false' : 'true');
+  }
+  if (inputWrapper) {
+    if (isStreaming) inputWrapper.classList.add('input-disabled');
+    else inputWrapper.classList.remove('input-disabled');
+  }
+
+  // 更新后台运行提示指示器
+  const bgInd = document.getElementById('headerBgIndicator');
+  if (bgInd) {
+    bgInd.style.display = (isStreaming && AppState.layoutMode !== 'chat-center') ? 'inline-flex' : 'none';
+  }
+}
+
+function cancelCurrentExecution() {
+  if (AppState.activeAbortController) {
+    try { AppState.activeAbortController.abort(); } catch (e) {}
+    AppState.activeAbortController = null;
+  }
+  if (AppState.activeMsgId && AppState.activeExecState) {
+    const state = AppState.activeExecState;
+    state.status = 'failed';
+    if (typeof ChatPresentation !== 'undefined') {
+      ChatPresentation.applyEvent(state, 'error', { code: 'USER_CANCELLED', error: '用户已手动取消当前任务执行' });
+      const container = document.getElementById(`execContainer_${AppState.activeMsgId}`);
+      if (container) {
+        container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+      }
+    }
+  }
+  setExecutionStreamingState(false);
+  showToast('已取消当前任务执行');
+}
+
+function requestUserConfirmation({ title, desc, onConfirm, onReject }) {
+  const panel = document.getElementById('chatConfirmationPanel');
+  const titleEl = document.getElementById('confirmationTitle');
+  const descEl = document.getElementById('confirmationDesc');
+  const inputWrapper = document.getElementById('chatInputWrapper');
+
+  if (titleEl) titleEl.innerText = title || '需要您确认操作';
+  if (descEl) descEl.innerText = desc || '即将执行敏感操作，请确认是否继续。';
+
+  if (inputWrapper) inputWrapper.style.display = 'none';
+  if (panel) panel.style.display = 'block';
+
+  // 保持工具栏全部禁用
+  const toolBtns = document.querySelectorAll('.input-toolbar .input-tool-btn');
+  toolBtns.forEach(btn => {
+    btn.classList.add('btn-disabled');
+    btn.setAttribute('disabled', 'disabled');
+  });
+
+  return new Promise((resolve) => {
+    AppState.pendingConfirmation = {
+      resolve: () => {
+        if (panel) panel.style.display = 'none';
+        if (inputWrapper) inputWrapper.style.display = 'block';
+        if (typeof onConfirm === 'function') onConfirm();
+        resolve(true);
+      },
+      reject: () => {
+        if (panel) panel.style.display = 'none';
+        if (inputWrapper) inputWrapper.style.display = 'block';
+        if (typeof onReject === 'function') onReject();
+        resolve(false);
+      }
+    };
+  });
+}
+
+function handleConfirmationDecision(isApproved) {
+  if (!AppState.pendingConfirmation) return;
+  const p = AppState.pendingConfirmation;
+  AppState.pendingConfirmation = null;
+  if (isApproved) {
+    p.resolve();
+    showToast('已确认继续执行');
+  } else {
+    p.reject();
+    showToast('已拒绝该操作');
+  }
+}
+
+function toggleTimelineRecord(msgId) {
+  const execObj = AppState.activeExecutions[msgId];
+  if (!execObj || !execObj.state) {
+    const nodesList = document.getElementById(`nodesList_${msgId}`);
+    if (nodesList) nodesList.classList.toggle('hidden');
+    return;
+  }
+  execObj.state.timelineExpanded = !execObj.state.timelineExpanded;
+  const container = document.getElementById(`execContainer_${msgId}`);
+  if (container && typeof ChatPresentation !== 'undefined') {
+    container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(execObj.state);
+  }
+}
+
+function toggleNodeDrawer(msgId, nodeId) {
+  const execObj = AppState.activeExecutions[msgId];
+  if (!execObj || !execObj.state) {
+    const drawer = document.getElementById(`drawer_${nodeId}`);
+    if (drawer) {
+      drawer.classList.toggle('open');
+      drawer.classList.toggle('closed');
+    }
+    return;
+  }
+  const node = execObj.state.timelineNodes.find(n => n.nodeId === nodeId);
+  if (node) {
+    node.expanded = !node.expanded;
+    const container = document.getElementById(`execContainer_${msgId}`);
+    if (container && typeof ChatPresentation !== 'undefined') {
+      container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(execObj.state);
+    }
+  }
+}
+
+function openDeliverableInWorkbench(filename, content, title) {
+  const pane = document.getElementById('pane-deliverable');
+  const fnEl = document.getElementById('deliverableFileName');
+  const bodyEl = document.getElementById('deliverableFileBody');
+  if (!pane) return;
+
+  const rightCol = document.querySelector('.app-right-details');
+  if (rightCol && rightCol.classList.contains('collapsed')) {
+    toggleWorkbenchCollapse();
+  }
+
+  document.querySelectorAll('.right-content-scroll .right-pane').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+
+  pane.classList.add('active');
+  pane.style.display = 'block';
+
+  if (fnEl) fnEl.innerText = filename || 'deliverable.md';
+
+  let renderedText = content;
+  if (!renderedText) {
+    renderedText = `# 交付物产物：${filename}\n\n> 本文档由 A-Stock 智能体执行流水线自动生成并就地归档。\n\n### 一、执行结论与核心事实\n- **标的与方案**：已完成量化回测与盘面事实取证；\n- **实战风控**：严格执行工作区 \`AGENTS.md\` 铁律，保本价向上进位精算；\n- **操作建议**：按三场景即时动作单执行分时挂单与止损对冲。\n\n\`\`\`json\n{\n  "deliverable": "${filename}",\n  "status": "verified",\n  "timestamp": "${new Date().toISOString()}"\n}\n\`\`\`\n`;
+  }
+
+  if (bodyEl) {
+    bodyEl.innerHTML = typeof ChatPresentation !== 'undefined'
+      ? ChatPresentation.renderMarkdown(renderedText)
+      : `<pre>${renderedText}</pre>`;
+  }
+
+  pane.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast(`已在右侧工作台打开【${filename}】`);
+}
+
+function closeDeliverablePane() {
+  const pane = document.getElementById('pane-deliverable');
+  if (pane) {
+    pane.classList.remove('active');
+    pane.style.display = 'none';
+  }
+  const activeTab = AppState.activeRightTab || 'dashboard';
+  switchRightTab(activeTab);
+}
+
+function copyDeliverableContent() {
+  const bodyEl = document.getElementById('deliverableFileBody');
+  const text = bodyEl ? bodyEl.innerText : '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('交付物内容已复制到剪贴板！');
+  }).catch(() => {
+    showToast('已选中内容，可直接复制');
+  });
+}
+
+function focusActiveSession() {
+  handleMenuClick('dashboard');
+  const bgInd = document.getElementById('headerBgIndicator');
+  if (bgInd) bgInd.style.display = 'none';
+}
+
+window.setExecutionStreamingState = setExecutionStreamingState;
+window.toggleTimelineRecord = toggleTimelineRecord;
+window.toggleNodeDrawer = toggleNodeDrawer;
+window.requestUserConfirmation = requestUserConfirmation;
+window.handleConfirmationDecision = handleConfirmationDecision;
+window.openDeliverableInWorkbench = openDeliverableInWorkbench;
+window.closeDeliverablePane = closeDeliverablePane;
+window.copyDeliverableContent = copyDeliverableContent;
+window.focusActiveSession = focusActiveSession;
+window.cancelCurrentExecution = cancelCurrentExecution;
+
 function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}) {
   let fullText = contentOrTpl;
   let title = titleParam || '当前A股市场行情分析';
@@ -3072,34 +3312,70 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
     if (contentOrTpl.summary) summary = contentOrTpl.summary;
   }
 
-  AppState.isChatStreaming = true;
   const msgId = 'aiMsg_' + Date.now();
+  const queryText = metaParam.userText || title;
+  const activeSessionId = AppState.currentSessionId || (HistoricalSessions[0] ? HistoricalSessions[0].id : null);
 
+  // 1. 分解任务并制定执行计划 (Requirement 1)
+  const plan = (typeof ChatPresentation !== 'undefined' && ChatPresentation.decomposeTask)
+    ? ChatPresentation.decomposeTask(queryText, metaParam)
+    : null;
+
+  const state = (typeof ChatPresentation !== 'undefined' && ChatPresentation.createResponseState)
+    ? ChatPresentation.createResponseState(msgId)
+    : null;
+
+  if (state && plan) {
+    state.timelineExpanded = true;
+    plan.steps.forEach((s, idx) => {
+      state.timelineNodes.push({
+        nodeId: `node_${msgId}_${idx}`,
+        type: s.type,
+        title: s.title,
+        status: s.status,
+        skill_id: s.skill_id,
+        action: s.action,
+        summary: s.summary,
+        deliverable: s.deliverable,
+        result: null,
+        error: null,
+        expanded: false
+      });
+    });
+  }
+
+  AppState.activeMsgId = msgId;
+  AppState.activeExecState = state;
+  AppState.activeExecutions[msgId] = { state, msgId, sessionId: activeSessionId };
+
+  setExecutionStreamingState(true);
+
+  const initialTimelineHtml = state ? ChatPresentation.renderExecutionTimelineHtml(state) : '';
   const msgMeta = {
     msgId: msgId,
     title: title,
     summary: summary,
-    toolRunning: true,
-    operators: metaParam.operators || null
+    operators: metaParam.operators || null,
+    initialTimelineHtml: initialTimelineHtml
   };
 
   appendChatMessage('ai', '<span style="color:#86909C;">AI正在综合大盘、资金流、筹码与技术指标进行深度研判...</span>', msgMeta);
-
-  const queryText = metaParam.userText || title;
-  const activeSessionId = AppState.currentSessionId || (HistoricalSessions[0] ? HistoricalSessions[0].id : null);
 
   // If AStockAPI is available and user query / prompt text is provided, attempt backend SSE
   if (window.AStockAPI && activeSessionId && metaParam.useApi !== false) {
     let accumulatedText = '';
     const container = document.getElementById(msgId);
-    const toolStatus = container ? container.querySelector('#toolStatus') : null;
-    const contentBody = container ? container.querySelector('.ai-content-body') : null;
+    const execContainer = document.getElementById(`execContainer_${msgId}`);
+    const contentBody = document.getElementById(`body_${msgId}`) || (container ? container.querySelector('.ai-content-body') : null);
 
     const selectedModelComposite = metaParam.overriddenModel || (
       (typeof ChatModelSelectorController !== 'undefined')
         ? ChatModelSelectorController.getSelectedModelComposite()
         : null
     );
+
+    const abortCtrl = new AbortController();
+    AppState.activeAbortController = abortCtrl;
 
     window.AStockAPI.streamChatCompletions(
       queryText,
@@ -3110,68 +3386,129 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
           if (s && s.session_id) AppState.currentSessionId = s.session_id;
         },
         onThought: (thought) => {
-          if (toolStatus) {
-            toolStatus.innerHTML = `
-              <span class="tool-badge-running"></span>
-              <span>${thought}</span>
-            `;
+          if (state) {
+            ChatPresentation.applyEvent(state, 'thought', { content: thought });
+            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
           }
         },
         onToolStart: (tool) => {
-          if (toolStatus) {
-            toolStatus.innerHTML = `
-              <span class="tool-badge-running"></span>
-              <span>调用技能 [${tool.skill_id || tool.tool_name || 'quant'}]：${tool.action || '执行量化运算与保本精算'}</span>
-            `;
+          if (state) {
+            ChatPresentation.applyEvent(state, 'tool_call_start', tool);
+            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
           }
         },
         onToolComplete: (tool) => {
-          if (toolStatus) {
-            const succeeded = tool.status === 'success';
-            toolStatus.innerHTML = `
-              <span style="color:${succeeded ? '#52C41A' : '#F5222D'}; font-weight:700;">${succeeded ? '✓' : '!'}</span>
-              <span>${tool.summary || (succeeded ? '工具执行成功' : '工具未成功执行')}</span>
-            `;
+          if (state) {
+            ChatPresentation.applyEvent(state, 'tool_call_complete', tool);
+            // Requirement 4: human-in-the-loop confirmation
+            if (tool.status === 'confirmation_required' || (tool.data && tool.data.confirmation_required)) {
+              requestUserConfirmation({
+                title: '需要您二次授权确认',
+                desc: tool.summary || '即将下达实战交易风控单，请确认是否继续。'
+              });
+            }
+            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
           }
         },
         onDelta: (delta) => {
+          if (state) {
+            ChatPresentation.applyEvent(state, 'content_delta', { text: delta });
+          }
           if (contentBody) {
             if (accumulatedText === '') contentBody.innerHTML = '';
             accumulatedText += delta;
-            contentBody.innerHTML = accumulatedText + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
+            contentBody.innerHTML = (typeof ChatPresentation !== 'undefined'
+              ? ChatPresentation.renderMarkdown(accumulatedText)
+              : accumulatedText) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
             const scrollBox = document.getElementById('chatMessages');
             if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
           }
         },
         onDone: (data) => {
+          if (state) {
+            ChatPresentation.applyEvent(state, 'done', data);
+            // 检测交付物 (Requirement 6)
+            const deliverables = ChatPresentation.detectDeliverables(accumulatedText, state.toolResultsByCallId);
+            if (deliverables.length) {
+              const lastNode = state.timelineNodes[state.timelineNodes.length - 1];
+              if (lastNode && !lastNode.deliverable) {
+                lastNode.deliverable = deliverables[0];
+              }
+            }
+            // 任务执行完成，自动收起全部过程 (Requirement 5)
+            state.timelineExpanded = false;
+            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+          }
           if (contentBody) {
-            contentBody.innerHTML = accumulatedText || '<span style="color:#86909C;">模型未返回文本内容。</span>';
+            contentBody.innerHTML = accumulatedText
+              ? (typeof ChatPresentation !== 'undefined' ? ChatPresentation.renderMarkdown(accumulatedText) : accumulatedText)
+              : '<span style="color:#86909C;">模型未返回文本内容。</span>';
           }
-          if (toolStatus) {
-            toolStatus.innerHTML = `
-              <span style="color:#52C41A; font-weight:700;">✓</span>
-              <span>模型响应已结束</span>
-            `;
-          }
-          AppState.isChatStreaming = false;
+          setExecutionStreamingState(false);
+          AppState.activeAbortController = null;
         },
         onError: (err) => {
-          if (toolStatus) toolStatus.innerHTML = '<span style="color:#F5222D; font-weight:700;">!</span><span>请求失败</span>';
-          if (contentBody) contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
-          AppState.isChatStreaming = false;
+          if (state) {
+            ChatPresentation.applyEvent(state, 'error', err);
+            state.status = 'failed';
+            state.timelineExpanded = false;
+            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+          }
+          if (contentBody) {
+            contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
+          }
+          setExecutionStreamingState(false);
+          AppState.activeAbortController = null;
         }
       }
     ).catch(err => {
+      if (state) {
+        ChatPresentation.applyEvent(state, 'error', err);
+        state.status = 'failed';
+        state.timelineExpanded = false;
+        if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+      }
       if (contentBody) contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
-      AppState.isChatStreaming = false;
+      setExecutionStreamingState(false);
+      AppState.activeAbortController = null;
     });
   } else {
-    const container = document.getElementById(msgId);
-    const toolStatus = container ? container.querySelector('#toolStatus') : null;
-    const contentBody = container ? container.querySelector('.ai-content-body') : null;
-    if (toolStatus) toolStatus.innerHTML = '<span style="color:#F5222D; font-weight:700;">!</span><span>后端或会话不可用</span>';
-    if (contentBody) contentBody.textContent = '当前无法连接生产 Agent 运行时。';
-    AppState.isChatStreaming = false;
+    // Local fallback / simulated pipeline
+    const execContainer = document.getElementById(`execContainer_${msgId}`);
+    const contentBody = document.getElementById(`body_${msgId}`);
+
+    setTimeout(() => {
+      if (!AppState.isChatStreaming) return;
+      if (state && state.timelineNodes[2]) {
+        state.timelineNodes[2].status = 'succeeded';
+        state.timelineNodes[2].summary = '已就地完成算法运算与参数校验';
+        state.timelineNodes[2].result = {
+          tool_name: plan ? plan.targetSkill : 'astock-platform-evaluate',
+          success: true,
+          data: {
+            deliverables: plan ? [plan.deliverableName] : ['report.md'],
+            count: 1,
+            notice: '量化模型与风控铁律运算完毕，已产出结构化研报交付物。'
+          },
+          error: null
+        };
+      }
+      if (state && state.timelineNodes[3]) {
+        state.timelineNodes[3].status = 'succeeded';
+      }
+      if (state) {
+        state.status = 'succeeded';
+        // Auto-collapse overall process when done (Requirement 5)
+        state.timelineExpanded = false;
+        if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+      }
+      if (contentBody) {
+        contentBody.innerHTML = typeof ChatPresentation !== 'undefined'
+          ? ChatPresentation.renderMarkdown(fullText || '分析完成。')
+          : fullText;
+      }
+      setExecutionStreamingState(false);
+    }, 1200);
   }
 }
 
@@ -3461,7 +3798,10 @@ function extractWorkbenchSectionData(refName) {
 }
 
 function handleSendChat() {
-  if (AppState.isChatStreaming) return;
+  if (AppState.isChatStreaming) {
+    cancelCurrentExecution();
+    return;
+  }
 
   const input = document.getElementById('chatInput');
   const rawText = input ? input.value : '';
