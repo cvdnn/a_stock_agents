@@ -1957,7 +1957,7 @@ const AtOperatorController = {
     }
 
     // 若当前光标前紧挨着 '@' 字符，则将其消除
-    if (range.startContainer.nodeType === Node.TEXT_NODE) {
+    if (range.startContainer.nodeType === (typeof Node !== "undefined" ? Node.TEXT_NODE : 3)) {
       const textNode = range.startContainer;
       const offset = range.startOffset;
       if (offset > 0 && textNode.textContent.charAt(offset - 1) === '@') {
@@ -2008,6 +2008,461 @@ function focusChatInput() {
   if (input) input.focus();
 }
 window.focusChatInput = focusChatInput;
+// ==========================================================================
+// 【# 模型】弹出浮窗与回填控制器 (ModelPopupController)
+// ==========================================================================
+const ModelPopupController = {
+  isOpen: false,
+  focusPane: 'sidebar', // 'sidebar' | 'content'
+  sidebarIndex: 0,
+  selectedIndex: 0,
+  activeProviderId: null,
+  searchQuery: '',
+
+  init() {
+    const popup = document.getElementById('modelSelectorPopup');
+    if (popup) {
+      popup.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    const searchInput = document.getElementById('modelSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.handleSearch(e.target.value);
+      });
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          const items = this.getFilteredModels();
+          if (items.length) {
+            this.focusPane = 'content';
+            this.selectedIndex = 0;
+            this.updateSelection();
+            searchInput.blur();
+            if (popup) popup.focus();
+          }
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          this.focusPane = 'sidebar';
+          this.renderSidebar();
+          this.renderContent();
+          searchInput.blur();
+          if (popup) popup.focus();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          this.selectCurrentModel();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.close();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!this.isOpen) return;
+      const searchInput = document.getElementById('modelSearchInput');
+      if (document.activeElement === searchInput) return;
+      const navKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'];
+      if (navKeys.includes(e.key)) {
+        e.preventDefault();
+        this.handleKeyDown(e);
+      }
+    }, true);
+
+    document.addEventListener('click', (e) => {
+      if (this.isOpen) {
+        const popup = document.getElementById('modelSelectorPopup');
+        const modelBtn = document.getElementById('btnModelTrigger');
+        const badge = document.getElementById('chatCurrentModelBadge');
+        if (!document.contains(e.target)) return;
+        const path = e.composedPath ? e.composedPath() : [];
+        if (popup && (popup.contains(e.target) || path.includes(popup))) return;
+        if (modelBtn && (modelBtn.contains(e.target) || path.includes(modelBtn))) return;
+        if (badge && (badge.contains(e.target) || path.includes(badge))) return;
+        this.close();
+      }
+    });
+
+    this.updateCurrentBadgeDisplay();
+  },
+
+  getEnabledProviders() {
+    return (AppState.providers || []).filter(p => p.enabled !== false);
+  },
+
+  getActiveProvider() {
+    const enabled = this.getEnabledProviders();
+    if (!enabled.length) return null;
+    let p = enabled.find(x => x.provider_id === this.activeProviderId);
+    if (!p) {
+      this.activeProviderId = enabled[0].provider_id;
+      p = enabled[0];
+    }
+    return p;
+  },
+
+  getFilteredModels() {
+    const provider = this.getActiveProvider();
+    if (!provider || !provider.models) return [];
+    const models = provider.models.filter(m => m.selected !== false);
+    const list = models.length > 0 ? models : provider.models;
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(m => (m.id && m.id.toLowerCase().includes(q)) || (m.name && m.name.toLowerCase().includes(q)));
+  },
+
+  open() {
+    const popup = document.getElementById('modelSelectorPopup');
+    if (!popup) return;
+
+    // 若 @ 操作符浮窗打开则互斥关闭
+    if (typeof AtOperatorController !== 'undefined' && AtOperatorController.isOpen) {
+      AtOperatorController.close();
+    }
+
+    const enabled = this.getEnabledProviders();
+    const savedProviderId = localStorage.getItem('astock_chat_selected_provider');
+    if (savedProviderId && enabled.some(p => p.provider_id === savedProviderId)) {
+      this.activeProviderId = savedProviderId;
+      this.sidebarIndex = enabled.findIndex(p => p.provider_id === savedProviderId);
+    } else {
+      this.activeProviderId = enabled.length ? enabled[0].provider_id : null;
+      this.sidebarIndex = 0;
+    }
+
+    this.isOpen = true;
+    this.focusPane = 'sidebar';
+    this.searchQuery = '';
+    this.selectedIndex = 0;
+
+    const searchInput = document.getElementById('modelSearchInput');
+    if (searchInput) searchInput.value = '';
+    const clearBtn = document.getElementById('modelSearchClear');
+    if (clearBtn) clearBtn.style.display = 'none';
+
+    popup.style.display = 'block';
+    const triggerBtn = document.getElementById('btnModelTrigger');
+    if (triggerBtn) triggerBtn.classList.add('active');
+
+    this.renderSidebar();
+    this.renderContent();
+    popup.focus();
+  },
+
+  close() {
+    const popup = document.getElementById('modelSelectorPopup');
+    if (popup) popup.style.display = 'none';
+    this.isOpen = false;
+    const triggerBtn = document.getElementById('btnModelTrigger');
+    if (triggerBtn) triggerBtn.classList.remove('active');
+  },
+
+  toggle(e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    if (this.isOpen) {
+      this.close();
+    } else {
+      this.open();
+    }
+  },
+
+  renderSidebar() {
+    const sidebar = document.getElementById('modelPopupSidebar');
+    if (!sidebar) return;
+
+    const enabled = this.getEnabledProviders();
+    if (!enabled.length) {
+      sidebar.innerHTML = '<div style="padding:16px 12px; font-size:12px; color:#94A3B8; text-align:center;">暂无启用供应商<br><button class="model-popup-config-btn" style="margin-top:8px;" onclick="openProvidersSettingsModal()">＋ 新增供应商</button></div>';
+      return;
+    }
+
+    sidebar.innerHTML = enabled.map((p, idx) => {
+      const isActive = p.provider_id === this.activeProviderId;
+      const isFocused = this.focusPane === 'sidebar' && idx === this.sidebarIndex;
+      const modelCount = (p.models || []).length;
+      return `
+        <div class="at-cat-item ${isActive ? 'active' : ''} ${isFocused ? 'menu-focused' : ''}"
+             onclick="ModelPopupController.handleProviderClick('${p.provider_id}', ${idx})"
+             title="${p.name || p.provider_id}">
+          <div class="at-cat-icon">🏢</div>
+          <div class="at-cat-info">
+            <span class="at-cat-name">${p.name || p.provider_id}</span>
+            <span class="at-cat-count">${modelCount} 模型</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  handleProviderClick(providerId, idx) {
+    this.activeProviderId = providerId;
+    this.sidebarIndex = idx;
+    this.focusPane = 'sidebar';
+    this.selectedIndex = 0;
+    this.renderSidebar();
+    this.renderContent();
+  },
+
+  handleSearch(val) {
+    this.searchQuery = val;
+    this.selectedIndex = 0;
+    const clearBtn = document.getElementById('modelSearchClear');
+    if (clearBtn) clearBtn.style.display = val ? 'inline-block' : 'none';
+    this.renderContent();
+  },
+
+  clearSearch() {
+    this.searchQuery = '';
+    const searchInput = document.getElementById('modelSearchInput');
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+    }
+    const clearBtn = document.getElementById('modelSearchClear');
+    if (clearBtn) clearBtn.style.display = 'none';
+    this.selectedIndex = 0;
+    this.renderContent();
+  },
+
+  focusSearch() {
+    const searchInput = document.getElementById('modelSearchInput');
+    if (searchInput) searchInput.focus();
+  },
+
+  renderContent() {
+    const container = document.getElementById('modelPopupContent');
+    if (!container) return;
+
+    const provider = this.getActiveProvider();
+    if (!provider) {
+      container.innerHTML = '<div style="padding:28px 16px; text-align:center; color:#94A3B8; font-size:12px;">请先在左侧选择模型供应商</div>';
+      return;
+    }
+
+    const models = this.getFilteredModels();
+    if (!models.length) {
+      container.innerHTML = `
+        <div style="padding:28px 16px; text-align:center; color:#94A3B8; font-size:12px;">
+          暂无匹配的模型<br>
+          <button class="model-popup-config-btn" style="margin-top:10px;" onclick="openProvidersSettingsModal()">⚙️ 管理此供应商模型</button>
+        </div>
+      `;
+      return;
+    }
+
+    const savedModelId = localStorage.getItem('astock_chat_selected_model');
+
+    container.innerHTML = models.map((m, idx) => {
+      const isSelected = this.focusPane === 'content' && idx === this.selectedIndex;
+      const isCurrentActive = (m.id === savedModelId);
+      const caps = m.capabilities || ['chat'];
+      const capBadges = [];
+      if (caps.includes('chat')) capBadges.push('<span class="op-badge op-badge-stock" style="font-size:10.5px; padding:1px 5px;">💬 对话</span>');
+      if (caps.includes('reasoning')) capBadges.push('<span class="op-badge op-badge-algo" style="font-size:10.5px; padding:1px 5px;">🧠 思考</span>');
+      if (caps.includes('tools')) capBadges.push('<span class="op-badge op-badge-skill" style="font-size:10.5px; padding:1px 5px;">🔧 工具</span>');
+      if (caps.includes('fast')) capBadges.push('<span class="op-badge op-badge-ref" style="font-size:10.5px; padding:1px 5px;">⚡ 极速</span>');
+
+      return `
+        <div class="at-item-card ${isSelected ? 'selected' : ''}"
+             onclick="ModelPopupController.selectModelByIndex(${idx})"
+             onmouseenter="if (ModelPopupController.focusPane === 'content') { ModelPopupController.selectedIndex = ${idx}; ModelPopupController.updateSelection(); }"
+             title="点击选择模型：# ${m.id}(${provider.name || provider.provider_id})">
+          <div class="at-item-row-top">
+            <span class="at-item-name">${m.name || m.id}</span>
+            <span class="at-item-code">${m.id}</span>
+            ${isCurrentActive ? '<span class="at-stock-badge at-badge-watchlist">当前</span>' : ''}
+          </div>
+          <div class="at-item-row-bottom" style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+            <div style="display:flex; align-items:center; gap:4px;">${capBadges.join('')}</div>
+            <span style="font-size:11px; color:#94A3B8; margin-left:auto;">${provider.name || provider.provider_id}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  selectModelByIndex(idx) {
+    this.focusPane = 'content';
+    this.selectedIndex = idx;
+    this.selectCurrentModel();
+  },
+
+  selectCurrentModel() {
+    const models = this.getFilteredModels();
+    const model = models[this.selectedIndex];
+    const provider = this.getActiveProvider();
+    if (!model || !provider) return;
+
+    this.backfillToInput(provider, model);
+    this.close();
+  },
+
+  updateSelection() {
+    const cards = document.querySelectorAll('#modelPopupContent .at-item-card');
+    cards.forEach((card, idx) => {
+      if (idx === this.selectedIndex) {
+        card.classList.add('selected');
+        card.scrollIntoView({ block: 'nearest' });
+      } else {
+        card.classList.remove('selected');
+      }
+    });
+  },
+
+  handleKeyDown(e) {
+    const enabled = this.getEnabledProviders();
+    const models = this.getFilteredModels();
+
+    if (e.key === 'Escape') {
+      this.close();
+      return;
+    }
+
+    if (this.focusPane === 'sidebar') {
+      if (e.key === 'ArrowDown') {
+        if (this.sidebarIndex < enabled.length - 1) {
+          this.sidebarIndex++;
+          this.activeProviderId = enabled[this.sidebarIndex].provider_id;
+          this.selectedIndex = 0;
+          this.renderSidebar();
+          this.renderContent();
+        }
+      } else if (e.key === 'ArrowUp') {
+        if (this.sidebarIndex > 0) {
+          this.sidebarIndex--;
+          this.activeProviderId = enabled[this.sidebarIndex].provider_id;
+          this.selectedIndex = 0;
+          this.renderSidebar();
+          this.renderContent();
+        }
+      } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        if (models.length) {
+          this.focusPane = 'content';
+          this.selectedIndex = 0;
+          this.renderSidebar();
+          this.updateSelection();
+        }
+      }
+    } else if (this.focusPane === 'content') {
+      if (e.key === 'ArrowDown') {
+        if (this.selectedIndex < models.length - 1) {
+          this.selectedIndex++;
+          this.updateSelection();
+        }
+      } else if (e.key === 'ArrowUp') {
+        if (this.selectedIndex > 0) {
+          this.selectedIndex--;
+          this.updateSelection();
+        }
+      } else if (e.key === 'ArrowLeft') {
+        this.focusPane = 'sidebar';
+        this.renderSidebar();
+        this.updateSelection();
+      } else if (e.key === 'Enter') {
+        this.selectCurrentModel();
+      }
+    }
+  },
+
+  backfillToInput(provider, model) {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+
+    input.focus();
+
+    const providerName = provider.name || provider.provider_id;
+    const modelId = model.id;
+    const insertText = `# ${modelId}(${providerName})`;
+
+    // 创建高亮加粗标签节点（.at-token.at-token-model）
+    const tokenSpan = document.createElement('span');
+    tokenSpan.className = 'at-token at-token-model';
+    tokenSpan.contentEditable = 'false';
+    tokenSpan.dataset.category = 'model';
+    tokenSpan.dataset.provider = provider.provider_id;
+    tokenSpan.dataset.model = modelId;
+    tokenSpan.innerText = insertText;
+
+    const spaceNode = document.createTextNode(' ');
+
+    const sel = window.getSelection();
+    let range = null;
+    if (sel && sel.rangeCount > 0) {
+      range = sel.getRangeAt(0);
+      if (!input.contains(range.commonAncestorContainer)) {
+        range = null;
+      }
+    }
+
+    if (!range) {
+      range = document.createRange();
+      range.selectNodeContents(input);
+      range.collapse(false);
+    }
+
+    // 若当前光标前紧挨着 '#' 字符，将其消除
+    if (range.startContainer.nodeType === (typeof Node !== "undefined" ? Node.TEXT_NODE : 3)) {
+      const textNode = range.startContainer;
+      const offset = range.startOffset;
+      if (offset > 0 && textNode.textContent.charAt(offset - 1) === '#') {
+        textNode.textContent = textNode.textContent.slice(0, offset - 1) + textNode.textContent.slice(offset);
+        range.setStart(textNode, offset - 1);
+        range.setEnd(textNode, offset - 1);
+      }
+    }
+
+    range.deleteContents();
+    range.insertNode(spaceNode);
+    range.insertNode(tokenSpan);
+
+    const newRange = document.createRange();
+    newRange.setStartAfter(spaceNode);
+    newRange.setEndAfter(spaceNode);
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+
+    // 记录到本地状态与全局控制器
+    localStorage.setItem('astock_chat_selected_provider', provider.provider_id);
+    localStorage.setItem('astock_chat_selected_model', modelId);
+    if (window.ChatModelSelectorController) {
+      ChatModelSelectorController.render();
+    }
+
+    this.updateCurrentBadgeDisplay();
+    showToast(`已选定模型【${insertText}】`);
+  },
+
+  updateCurrentBadgeDisplay() {
+    const badgeText = document.getElementById('chatCurrentModelText');
+    if (!badgeText) return;
+
+    const savedProviderId = localStorage.getItem('astock_chat_selected_provider');
+    const savedModelId = localStorage.getItem('astock_chat_selected_model');
+
+    const enabled = this.getEnabledProviders();
+    let p = enabled.find(x => x.provider_id === savedProviderId) || enabled[0];
+    if (p) {
+      const m = (p.models || []).find(x => x.id === savedModelId) || (p.models && p.models[0]);
+      const pName = p.name || p.provider_id;
+      const mId = m ? (m.name || m.id) : (savedModelId || '未设模型');
+      badgeText.innerText = `${pName} / ${mId}`;
+      if (badgeText.parentElement) {
+        badgeText.parentElement.title = `当前生效模型: ${pName} / ${mId} (点击更换)`;
+      }
+    } else {
+      badgeText.innerText = '未配置模型';
+    }
+  }
+};
+window.ModelPopupController = ModelPopupController;
+window.openModelPopup = () => ModelPopupController.open();
+window.closeModelPopup = () => ModelPopupController.close();
+window.toggleModelPopup = (e) => ModelPopupController.toggle(e);
+
 
 function clearChatInput() {
   const input = document.getElementById('chatInput');
@@ -2397,6 +2852,12 @@ function setupChatInputCompatibility() {
       }
     }
 
+    if (e.key === '#' || (e.shiftKey && e.key === '3')) {
+      setTimeout(() => {
+        if (typeof ModelPopupController !== 'undefined') ModelPopupController.open();
+      }, 20);
+    }
+
     if (e.key === '@' || (e.shiftKey && e.key === '2')) {
       setTimeout(() => {
         AtOperatorController.open();
@@ -2405,6 +2866,9 @@ function setupChatInputCompatibility() {
   });
 
   chatInput.addEventListener('input', (e) => {
+    if (e.data === '#') {
+      if (typeof ModelPopupController !== 'undefined') ModelPopupController.open();
+    }
     if (e.data === '@') {
       AtOperatorController.open();
     }
@@ -2413,6 +2877,7 @@ function setupChatInputCompatibility() {
 
 function formatUserContentWithAtBadges(text) {
   if (!text) return '';
+  text = text.replace(/(#[^\s(（]+[(（][^\s)）]+[)）])/g, '<span class="at-token at-token-model">$1</span>');
   return text.replace(/(@[^\s]+)/g, (match) => {
     let catClass = 'at-token-algo';
     if (match.includes('60') || match.includes('30') || match.includes('00') || match.includes('68')) {
@@ -2539,10 +3004,16 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
     const toolStatus = container ? container.querySelector('#toolStatus') : null;
     const contentBody = container ? container.querySelector('.ai-content-body') : null;
 
+    const selectedModelComposite = metaParam.overriddenModel || (
+      (typeof ChatModelSelectorController !== 'undefined')
+        ? ChatModelSelectorController.getSelectedModelComposite()
+        : null
+    );
+
     window.AStockAPI.streamChatCompletions(
       queryText,
       activeSessionId,
-      null,
+      selectedModelComposite,
       {
         onStart: (s) => {
           if (s && s.session_id) AppState.currentSessionId = s.session_id;
@@ -2627,7 +3098,7 @@ function executeA2UITask(promptText = '分析市场行情', stockParam = null, o
 // --------------------------------------------------------------------------
 // 7.2 任务路由与 @操作符 综合执行引擎
 // --------------------------------------------------------------------------
-function executeOperatorTask(text, operators) {
+function executeOperatorTask(text, operators, overriddenModel = null) {
   // 1. 如果包含股票标的，优先执行该股票的量化研报与诊断
   if (operators.stocks && operators.stocks.length > 0) {
     const targetStock = operators.stocks[0];
@@ -2896,7 +3367,7 @@ function extractWorkbenchSectionData(refName) {
     tpl = PromptTemplates['选股模型'];
   }
 
-  streamAIResponse(tpl.body, tpl.title, tpl.summary, { operators, userText: text });
+  streamAIResponse(tpl.body, tpl.title, tpl.summary, { operators, userText: text, overriddenModel });
 }
 
 function handleSendChat() {
@@ -2914,6 +3385,27 @@ function handleSendChat() {
     skills: [],
     algos: []
   };
+
+  // 0. 模型匹配 (# 模型id(供应商) 或 #模型id)
+  let userOverriddenModel = null;
+  const modelTagRegex = /#\s*([^\s(（]+)(?:[(（]([^\s)）]+)[)）])?/g;
+  let mm;
+  while ((mm = modelTagRegex.exec(text)) !== null) {
+    const rawModelId = mm[1];
+    const rawProviderName = mm[2] || '';
+    let targetProvider = null;
+    if (rawProviderName && AppState.providers) {
+      targetProvider = AppState.providers.find(p => p.name === rawProviderName || p.provider_id === rawProviderName);
+    }
+    if (!targetProvider && AppState.providers) {
+      targetProvider = AppState.providers.find(p => (p.models || []).some(m => m.id === rawModelId));
+    }
+    if (targetProvider) {
+      userOverriddenModel = `${rawModelId}|${targetProvider.provider_id}`;
+    } else {
+      userOverriddenModel = rawModelId;
+    }
+  }
 
   // 1. 股票标的匹配
   const stockRegex = /@?([^\s(（]+)[(（](\d{6})[)）]/g;
@@ -2951,7 +3443,7 @@ function handleSendChat() {
   input.value = '';
 
   // 任务路由与执行 (执行与提示符相关的任务)
-  executeOperatorTask(text, operators);
+  executeOperatorTask(text, operators, userOverriddenModel);
 }
 
 function copyMessageText(btn) {
@@ -3006,6 +3498,168 @@ function switchSettingsSec(secId) {
 }
 
 // --------------------------------------------------------------------------
+// 8.0 AIChat Input Bar Model & Provider Selector Controller
+// --------------------------------------------------------------------------
+const ChatModelSelectorController = {
+  storageKeyProvider: 'astock_chat_selected_provider',
+  storageKeyModel: 'astock_chat_selected_model',
+
+  init() {
+    this.render();
+  },
+
+  getEnabledProviders() {
+    return (AppState.providers || []).filter(p => p.enabled !== false);
+  },
+
+  getProviderById(providerId) {
+    return (AppState.providers || []).find(p => p.provider_id === providerId);
+  },
+
+  render() {
+    const providerSelect = document.getElementById('chatProviderSelect');
+    const modelSelect = document.getElementById('chatModelSelect');
+    if (!providerSelect || !modelSelect) return;
+
+    const enabledProviders = this.getEnabledProviders();
+
+    if (enabledProviders.length === 0) {
+      providerSelect.innerHTML = '<option value="">无可用供应商</option>';
+      providerSelect.disabled = true;
+      modelSelect.innerHTML = '<option value="">未配置模型</option>';
+      modelSelect.disabled = true;
+      return;
+    }
+
+    providerSelect.disabled = false;
+    modelSelect.disabled = false;
+
+    // 1. 确定选中的 provider_id
+    let savedProviderId = localStorage.getItem(this.storageKeyProvider);
+    let savedModelId = localStorage.getItem(this.storageKeyModel);
+
+    const chatRole = AppState.modelRoles && AppState.modelRoles.chat;
+    if (!savedProviderId || !enabledProviders.some(p => p.provider_id === savedProviderId)) {
+      if (chatRole && chatRole.provider_id && enabledProviders.some(p => p.provider_id === chatRole.provider_id)) {
+        savedProviderId = chatRole.provider_id;
+        if (!savedModelId && chatRole.model_id) savedModelId = chatRole.model_id;
+      } else {
+        savedProviderId = enabledProviders[0].provider_id;
+      }
+    }
+
+    // 2. 渲染供应商下拉列表
+    providerSelect.innerHTML = enabledProviders.map(p => {
+      const isSelected = p.provider_id === savedProviderId ? 'selected' : '';
+      const safeId = (p.provider_id || '').replace(/"/g, '&quot;');
+      const safeName = (p.name || p.provider_id || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return '<option value="' + safeId + '" ' + isSelected + '>' + safeName + '</option>';
+    }).join('');
+    providerSelect.value = savedProviderId;
+
+    // 3. 联动渲染该供应商下的模型列表
+    this.renderModelsForProvider(savedProviderId, savedModelId);
+  },
+
+  renderModelsForProvider(providerId, preferredModelId = null) {
+    const modelSelect = document.getElementById('chatModelSelect');
+    if (!modelSelect) return;
+
+    const provider = this.getProviderById(providerId);
+    if (!provider || !provider.models || provider.models.length === 0) {
+      modelSelect.innerHTML = '<option value="">暂无可用模型</option>';
+      modelSelect.disabled = true;
+      localStorage.setItem(this.storageKeyProvider, providerId);
+      localStorage.removeItem(this.storageKeyModel);
+      return;
+    }
+
+    modelSelect.disabled = false;
+    const availableModels = provider.models.filter(m => m.selected !== false);
+    const modelsToRender = availableModels.length > 0 ? availableModels : provider.models;
+
+    let targetModelId = preferredModelId;
+    if (!targetModelId || !modelsToRender.some(m => m.id === targetModelId)) {
+      const chatRole = AppState.modelRoles && AppState.modelRoles.chat;
+      if (chatRole && chatRole.provider_id === providerId && modelsToRender.some(m => m.id === chatRole.model_id)) {
+        targetModelId = chatRole.model_id;
+      } else {
+        targetModelId = modelsToRender[0].id;
+      }
+    }
+
+    modelSelect.innerHTML = modelsToRender.map(m => {
+      const isSelected = m.id === targetModelId ? 'selected' : '';
+      const safeId = (m.id || '').replace(/"/g, '&quot;');
+      const rawName = m.name && m.name !== m.id ? (m.name + ' (' + m.id + ')') : m.id;
+      const safeName = rawName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return '<option value="' + safeId + '" ' + isSelected + '>' + safeName + '</option>';
+    }).join('');
+
+    if (targetModelId) {
+      modelSelect.value = targetModelId;
+    }
+
+    localStorage.setItem(this.storageKeyProvider, providerId);
+    if (targetModelId) {
+      localStorage.setItem(this.storageKeyModel, targetModelId);
+    }
+  },
+
+  handleProviderChange(newProviderId) {
+    if (!newProviderId) return;
+    const providerSelect = document.getElementById('chatProviderSelect');
+    if (providerSelect) providerSelect.value = newProviderId;
+    localStorage.setItem(this.storageKeyProvider, newProviderId);
+    this.renderModelsForProvider(newProviderId);
+  },
+
+  handleModelChange(newModelId) {
+    if (!newModelId) return;
+    const modelSelect = document.getElementById('chatModelSelect');
+    if (modelSelect) modelSelect.value = newModelId;
+    localStorage.setItem(this.storageKeyModel, newModelId);
+  },
+
+  getSelectedModelComposite() {
+    const providerSelect = document.getElementById('chatProviderSelect');
+    const modelSelect = document.getElementById('chatModelSelect');
+    const providerId = (providerSelect && providerSelect.value) ? providerSelect.value : (localStorage.getItem(this.storageKeyProvider) || '');
+    const modelId = (modelSelect && modelSelect.value) ? modelSelect.value : (localStorage.getItem(this.storageKeyModel) || '');
+
+    if (modelId && providerId) {
+      return modelId + '|' + providerId;
+    }
+    if (modelId) return modelId;
+    return null;
+  },
+
+  getSelectedModelInfo() {
+    const providerSelect = document.getElementById('chatProviderSelect');
+    const modelSelect = document.getElementById('chatModelSelect');
+    const providerId = (providerSelect && providerSelect.value) ? providerSelect.value : (localStorage.getItem(this.storageKeyProvider) || '');
+    const modelId = (modelSelect && modelSelect.value) ? modelSelect.value : (localStorage.getItem(this.storageKeyModel) || '');
+    const provider = this.getProviderById(providerId);
+    return {
+      providerId: providerId,
+      providerName: provider ? (provider.name || provider.provider_id) : providerId,
+      modelId: modelId,
+      composite: (modelId && providerId) ? (modelId + '|' + providerId) : modelId
+    };
+  },
+
+  openConfig() {
+    if (typeof openSettingsModal === 'function') {
+      openSettingsModal();
+      if (typeof switchSettingsSec === 'function') {
+        switchSettingsSec('providers');
+      }
+    }
+  }
+};
+window.ChatModelSelectorController = ChatModelSelectorController;
+
+// --------------------------------------------------------------------------
 // 8.1 Providers & Model Roles Core Controller
 // --------------------------------------------------------------------------
 
@@ -3056,6 +3710,7 @@ async function initProvidersSettings() {
   renderProvidersList();
   renderActiveProviderDetail();
   renderModelRolesDropdowns();
+  ChatModelSelectorController.init();
 }
 
 function loadRolesFromLocalStorage() {
@@ -3178,6 +3833,8 @@ function deleteCurrentProvider() {
   renderProvidersList();
   renderActiveProviderDetail();
   renderModelRolesDropdowns();
+  if (window.ChatModelSelectorController) ChatModelSelectorController.render();
+  if (window.ModelPopupController) ModelPopupController.updateCurrentBadgeDisplay();
   showToast(`已删除供应商【${name}】`);
 }
 
@@ -3287,6 +3944,7 @@ function toggleCurrentProviderEnabled(checked) {
     p.enabled = checked;
     renderProvidersList(document.getElementById('providerSearchInput')?.value || '');
     renderModelRolesDropdowns();
+    if (window.ChatModelSelectorController) ChatModelSelectorController.render();
     showToast(checked ? `已启用供应商【${p.name}】` : `已停用供应商【${p.name}】`);
   }
 }
@@ -3691,6 +4349,7 @@ async function saveSettings() {
   if (minCommInput) AppState.riskParams.minCommission = parseFloat(minCommInput.value) || 5.0;
 
   closeSettingsModal();
+  if (window.ChatModelSelectorController) ChatModelSelectorController.render();
   showToast('✅ 系统设置已成功保存！模型接入与角色分配已热重载生效');
 }
 
@@ -4577,6 +5236,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Setup Chat Input Compatibility & @ Operator Controller
   setupChatInputCompatibility();
   AtOperatorController.init();
+  ModelPopupController.init();
 
   // 3. Setup Prompt Pills
   document.querySelectorAll('.prompt-pill').forEach(pill => {

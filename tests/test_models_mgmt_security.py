@@ -75,8 +75,44 @@ def test_omitted_or_empty_key_preserves_secret_and_explicit_clear_removes_it() -
 
 
 def test_connection_requests_accept_provider_id_not_browser_secrets() -> None:
-    from server.api.models_mgmt import FetchRemoteModelsRequest, TestConnectionRequest
+    from server.api.models_mgmt import FetchRemoteModelsRequest, TestConnectionRequest, TestModelRequest
 
     assert set(TestConnectionRequest.model_fields) == {"provider_id", "timeout_seconds"}
     assert set(FetchRemoteModelsRequest.model_fields) == {"provider_id", "timeout_seconds"}
+    assert "model_id" in TestModelRequest.model_fields
+
+
+def test_test_model_endpoint_not_found_and_mocked_success(monkeypatch) -> None:
+    import httpx
+
+    with TestClient(app) as client:
+        # Non-existent provider
+        res = client.post("/api/models/test-model", json={"provider_id": "non_existent_prov", "model_id": "m1"})
+        assert res.status_code == 404
+
+        # SSRF blocked target
+        res_ssrf = client.post("/api/models/test-model", json={
+            "provider_id": "prov_temp",
+            "model_id": "m1",
+            "base_url": "http://169.254.169.254/v1"
+        })
+        assert res_ssrf.status_code == 400
+
+        # Mocked upstream 200 response
+        async def mock_post(self, url, *args, **kwargs):
+            return httpx.Response(200, json={"choices": [{"message": {"content": "pong"}}]})
+
+        monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+        res_ok = client.post("/api/models/test-model", json={
+            "provider_id": "prov_temp",
+            "model_id": "mock-deepseek",
+            "base_url": "https://api.deepseek.com/v1",
+            "api_key": "sk-test"
+        })
+        assert res_ok.status_code == 200
+        data = res_ok.json()
+        assert data["status"] == "ok"
+        assert "latency_ms" in data
+        assert data["model_id"] == "mock-deepseek"
 

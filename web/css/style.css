@@ -976,6 +976,12 @@ h1, h2, h3, h4 {
   border-color: #D3ADF7;
 }
 
+.at-token.at-token-model {
+  color: #006D75;
+  background: #E6FFFB;
+  border-color: #87E8DE;
+}
+
 /* 浮窗容器 (同宽对齐输入框，位于上方) */
 .at-operator-popup {
   position: absolute;
@@ -1550,6 +1556,205 @@ h1, h2, h3, h4 {
   border-color: #93C5FD;
   color: #0958D9;
   box-shadow: 0 2px 5px rgba(22, 119, 255, 0.15);
+}
+
+.icon-text-btn.model-btn {
+  background: #E6FFFB;
+  border-color: #87E8DE;
+  color: #006D75;
+  font-weight: 600;
+}
+
+.icon-text-btn.model-btn:hover,
+.icon-text-btn.model-btn.active {
+  background: #B5F5EC;
+  border-color: #5CDBD3;
+  color: #00474F;
+  box-shadow: 0 2px 5px rgba(0, 109, 117, 0.15);
+}
+
+.at-popup-badge.model-badge {
+  background: linear-gradient(135deg, #006D75, #13C2C2);
+  color: #FFFFFF;
+}
+
+.model-popup-config-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.model-popup-config-btn:hover {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #006D75;
+}
+
+.chat-current-model-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 12px;
+  font-size: 11.5px;
+  color: #166534;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-current-model-badge:hover {
+  background: #DCFCE7;
+  border-color: #86EFAC;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(22, 101, 52, 0.12);
+}
+
+.curr-model-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22C55E;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   AIChat 输入框模型与供应商联动选择器样式
+   ========================================================================== */
+.chat-model-selector-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 2px 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+  max-width: calc(100% - 240px);
+}
+
+.chat-model-selector-container:hover {
+  border-color: #CBD5E1;
+  background: #F1F5F9;
+}
+
+.chat-model-selector-container:focus-within {
+  border-color: #93C5FD;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.model-select-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.model-select-icon {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.85;
+  user-select: none;
+}
+
+.model-select-divider {
+  color: #94A3B8;
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.chat-model-dropdown {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 14px 2px 2px;
+  margin: 0;
+  max-width: 130px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  background-size: 8px 8px;
+}
+
+.chat-model-dropdown:hover {
+  color: #0F172A;
+}
+
+.chat-model-dropdown:focus {
+  color: #1677FF;
+}
+
+.chat-model-dropdown option {
+  background: #FFFFFF;
+  color: #1E293B;
+  font-size: 12px;
+}
+
+.chat-model-dropdown optgroup {
+  font-weight: 700;
+  color: #64748B;
+  font-size: 11px;
+  background: #F8FAFC;
+}
+
+.btn-model-quick-config {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #64748B;
+  font-size: 11px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-model-quick-config:hover {
+  background: #E2E8F0;
+  color: #1E293B;
+  transform: rotate(30deg);
+}
+
+@media (max-width: 768px) {
+  .chat-model-selector-container {
+    max-width: 180px;
+  }
+  .chat-model-dropdown {
+    max-width: 75px;
+    font-size: 11px;
+  }
 }
 
 .send-btn {
@@ -4894,7 +5099,7 @@ input:checked + .slider:before {
 .provider-edit-form {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
 }
 
 .provider-header-row {
@@ -5133,11 +5338,11 @@ input:checked + .switch-slider:before {
 .models-section {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 160px;
+  flex: none;
+  min-height: auto;
   border-top: 1px solid #E8EEF5;
   padding-top: 10px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .models-section-header {
@@ -5169,6 +5374,24 @@ input:checked + .switch-slider:before {
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 8px;
+}
+
+.model-select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-title);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  margin-left: 2px;
+}
+
+.model-select-all-label input[type="checkbox"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
 }
 
 .model-search-inline {
@@ -5227,13 +5450,58 @@ input:checked + .switch-slider:before {
   background: #F0F5FF;
 }
 
+.btn-del-unselected:hover {
+  border-color: #FF4D4F;
+  color: #FF4D4F;
+  background: #FFF1F0;
+}
+
+.btn-test-model {
+  height: 22px;
+  padding: 0 7px;
+  font-size: 10.5px;
+  border-radius: 4px;
+  border: 1px solid #D9D9D9;
+  background: #FFFFFF;
+  cursor: pointer;
+  color: #595959;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+
+.btn-test-model:hover {
+  border-color: #1677FF;
+  color: #1677FF;
+  background: #F0F5FF;
+}
+
+.btn-test-model.testing {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.btn-test-model.success {
+  border-color: #52C41A;
+  color: #52C41A;
+  background: #F6FFED;
+}
+
+.btn-test-model.error {
+  border-color: #FF4D4F;
+  color: #FF4D4F;
+  background: #FFF1F0;
+}
+
 .models-list-scroll {
-  flex: 1;
-  overflow-y: auto;
+  flex: none;
+  overflow-y: visible;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-right: 4px;
+  padding-right: 0;
 }
 
 .model-item-card {

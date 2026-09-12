@@ -48,6 +48,14 @@ class FetchRemoteModelsRequest(BaseModel):
     timeout_seconds: int = Field(default=15, ge=1, le=60)
 
 
+class TestModelRequest(BaseModel):
+    provider_id: str
+    model_id: str
+    api_key: Optional[str] = Field(default=None, description="Temporary or updated API key")
+    base_url: Optional[str] = Field(default=None, description="Temporary or updated Base URL")
+    timeout_seconds: int = Field(default=15, ge=1, le=60)
+
+
 class ModelRolesPayload(BaseModel):
     roles: Dict[str, Dict[str, str]] = Field(
         ...,
@@ -113,11 +121,40 @@ def _validated_models_url(base_url: str) -> str:
     return f"{base_url.strip().rstrip('/')}/models"
 
 
+def _validated_chat_url(base_url: str) -> str:
+    """Allow saved HTTP(S) providers while rejecting common SSRF targets for chat completions."""
+    parsed = urlparse(base_url.strip().rstrip("/"))
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise HTTPException(status_code=400, detail="Provider Base URL must use HTTP(S)")
+    if parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="Provider Base URL must not contain credentials")
+
+    hostname = parsed.hostname.lower()
+    if hostname in {"metadata.google.internal", "metadata.azure.internal"}:
+        raise HTTPException(status_code=400, detail="Provider Base URL target is not allowed")
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        address = None
+    if address and (
+        address.is_link_local
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_unspecified
+        or (address.is_private and not address.is_loopback)
+    ):
+        raise HTTPException(status_code=400, detail="Provider Base URL target is not allowed")
+    return f"{base_url.strip().rstrip('/')}/chat/completions"
+
+
 def _provider_headers(provider: Dict[str, Any]) -> Dict[str, str]:
     headers = {str(key): str(value) for key, value in (provider.get("custom_headers") or {}).items()}
     headers.setdefault("Accept", "application/json")
     if provider.get("api_key"):
         headers.setdefault("Authorization", f"Bearer {provider['api_key']}")
+    if "openrouter" in (provider.get("base_url") or "").lower():
+        headers.setdefault("HTTP-Referer", "http://localhost:6300")
+        headers.setdefault("X-Title", "A-Stock Agents")
     return headers
 
 
@@ -175,6 +212,87 @@ async def test_connection(req: TestConnectionRequest):
     if resp.status_code in (401, 403):
         raise HTTPException(status_code=502, detail="Provider authentication failed")
     raise HTTPException(status_code=502, detail=f"Provider returned HTTP {resp.status_code}")
+
+
+@router.post("/test-model")
+async def test_model(req: TestModelRequest):
+    """
+    Test whether a specific model of a provider is functional.
+    Sends a minimal ping probe to {base_url}/chat/completions.
+    """
+    provider = get_provider_by_id(req.provider_id.strip())
+    # If not found in DB but caller provided base_url and api_key (e.g. newly added provider)
+    if not provider:
+        if req.base_url:
+            provider = {
+                "provider_id": req.provider_id,
+                "base_url": req.base_url,
+                "api_key": req.api_key or "",
+                "enabled": True,
+                "custom_headers": {},
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Provider not found")
+
+    base_url = (req.base_url or provider.get("base_url", "")).strip()
+    target = _validated_chat_url(base_url)
+    headers = _provider_headers(provider)
+    if req.api_key:
+        headers["Authorization"] = f"Bearer {req.api_key.strip()}"
+
+    payload = {
+        "model": req.model_id.strip(),
+        "messages": [{"role": "user", "content": "hi"}],
+        "max_tokens": 5,
+        "stream": False,
+    }
+
+    start_t = time.time()
+    try:
+        async with httpx.AsyncClient(timeout=float(req.timeout_seconds), follow_redirects=False) as client:
+            resp = await client.post(target, headers=headers, json=payload)
+    except httpx.ConnectError:
+        return {"status": "error", "message": "无法连接服务，请检查网络或 API 地址", "model_id": req.model_id}
+    except httpx.TimeoutException:
+        return {"status": "error", "message": f"请求超时 ({req.timeout_seconds}秒)", "model_id": req.model_id}
+    except httpx.HTTPError as e:
+        return {"status": "error", "message": f"网络请求异常: {str(e)}", "model_id": req.model_id}
+
+    latency_ms = int((time.time() - start_t) * 1000)
+
+    if resp.status_code in (200, 201):
+        return {
+            "status": "ok",
+            "latency_ms": latency_ms,
+            "message": f"模型响应正常 ({latency_ms}ms)",
+            "model_id": req.model_id,
+        }
+
+    # Extract detailed error message from upstream JSON if available
+    err_detail = f"HTTP {resp.status_code}"
+    try:
+        err_json = resp.json()
+        if isinstance(err_json, dict):
+            if "error" in err_json:
+                err_obj = err_json["error"]
+                if isinstance(err_obj, dict):
+                    err_detail = err_obj.get("message") or err_detail
+                elif isinstance(err_obj, str):
+                    err_detail = err_obj
+            elif "message" in err_json:
+                err_detail = err_json["message"]
+            elif "detail" in err_json:
+                err_detail = err_json["detail"]
+    except Exception:
+        if resp.text:
+            err_detail = resp.text[:120]
+
+    return {
+        "status": "error",
+        "latency_ms": latency_ms,
+        "message": f"可用性检测失败 [{resp.status_code}]: {err_detail}",
+        "model_id": req.model_id,
+    }
 
 
 @router.post("/fetch-remote")

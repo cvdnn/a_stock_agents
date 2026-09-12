@@ -218,12 +218,59 @@
                   </div>
                 </div>
 
-                <!-- 2. 输入区域 (富文本高亮回填 + 原生属性兼容) -->
-                <div class="chat-input-wrapper" onclick="focusChatInput()">
-                  <div class="chat-textarea chat-input-rich" id="chatInput" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="请输入您的问题，或输入 @ 快速插入股票、引用、技能与算法操作符..."></div>
+                <!-- 1.1 【#模型】浮窗 (弹出于输入框上方，风格同@操作符浮窗，左侧供应商右侧模型列表) -->
+                <div class="at-operator-popup model-selector-popup" id="modelSelectorPopup" style="display: none;" tabindex="-1">
+                  <div class="at-popup-header">
+                    <div class="at-popup-title-wrap">
+                      <span class="at-popup-badge model-badge">#</span>
+                      <span class="at-popup-title">大模型选择</span>
+                      <span class="at-popup-subtitle">供应商 · 模型列表</span>
+                    </div>
+                    <div class="at-popup-header-actions" style="display:flex; align-items:center; gap:8px;">
+                      <button type="button" class="model-popup-config-btn" onclick="openProvidersSettingsModal()" title="配置模型供应商与API Key">
+                        <span>⚙️ 设置</span>
+                      </button>
+                      <button type="button" class="at-popup-close-btn" id="btnCloseModelPopup" onclick="closeModelPopup()" title="关闭 (ESC)">
+                        <span>×</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="at-popup-body">
+                    <!-- 左侧：供应商选择 -->
+                    <div class="at-popup-sidebar model-popup-sidebar" id="modelPopupSidebar">
+                      <!-- 动态渲染：DeepSeek / OpenAI / Ollama 等各启用供应商 -->
+                    </div>
+                    <!-- 右侧：对应供应商旗下的模型列表 (含搜索框与卡片列表) -->
+                    <div class="at-popup-content-wrapper" id="modelPopupContentWrapper">
+                      <div class="at-stock-search-wrap" id="modelSearchWrap" style="display: flex;">
+                        <input type="text" class="at-stock-search-input" id="modelSearchInput" placeholder="输入模型名称或标识搜索 (如 deepseek-chat/r1/gpt-4o)..." oninput="ModelPopupController.handleSearch(this.value)" autocomplete="off" />
+                        <div class="at-stock-search-actions">
+                          <button type="button" class="at-stock-search-clear" id="modelSearchClear" onclick="ModelPopupController.clearSearch()" title="清空搜索" style="display: none;">×</button>
+                          <button type="button" class="at-stock-search-btn" id="modelSearchBtn" onclick="ModelPopupController.focusSearch()" title="搜索">🔍</button>
+                        </div>
+                      </div>
+                      <div class="at-popup-content model-popup-content" id="modelPopupContent">
+                        <!-- 动态渲染相应模型卡片 -->
+                      </div>
+                    </div>
+                  </div>
+                  <div class="at-popup-footer">
+                    <div class="at-footer-shortcuts">
+                      <span class="shortcut-item"><kbd>ESC</kbd> 关闭</span>
+                      <span class="shortcut-item"><kbd>▲▼</kbd> 切换</span>
+                      <span class="shortcut-item"><kbd>→</kbd> 进列表</span>
+                      <span class="shortcut-item"><kbd>←</kbd> 返回供应商</span>
+                      <span class="shortcut-item"><kbd>↵</kbd> 回填</span>
+                    </div>
+                  </div>
                 </div>
 
-                <!-- 3. 底部微功能图标栏与提交按钮 (仅保留【+】【@】并显示名称) -->
+                <!-- 2. 输入区域 (富文本高亮回填 + 原生属性兼容) -->
+                <div class="chat-input-wrapper" onclick="focusChatInput()">
+                  <div class="chat-textarea chat-input-rich" id="chatInput" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="请输入您的问题，或输入 @ 快速插入标的/技能，输入 # 快速选择大模型..."></div>
+                </div>
+
+                <!-- 3. 底部微功能图标栏与提交按钮 (【+】【@】【#】并显示名称) -->
                 <div class="input-toolbar">
                   <div class="tool-buttons">
                     <button type="button" class="input-tool-btn icon-text-btn" onclick="showToast('扩展功能面板已就绪')" title="扩展功能">
@@ -234,6 +281,15 @@
                       <span class="btn-icon-symbol">@</span>
                       <span class="btn-icon-text">操作符</span>
                     </button>
+                    <button type="button" class="input-tool-btn icon-text-btn model-btn" id="btnModelTrigger" onclick="toggleModelPopup(event)" title="大模型选择 (# 供应商/模型)">
+                      <span class="btn-icon-symbol">#</span>
+                      <span class="btn-icon-text">模型</span>
+                    </button>
+                  </div>
+                  <!-- 当前模型指示徽章 (点击亦可呼出模型选择浮窗) -->
+                  <div class="chat-current-model-badge" id="chatCurrentModelBadge" onclick="toggleModelPopup(event)" title="当前生效大模型，点击更换">
+                    <span class="curr-model-dot"></span>
+                    <span class="curr-model-text" id="chatCurrentModelText">模型加载中...</span>
                   </div>
                   <button type="button" class="send-btn" id="btnSendChat" onclick="handleSendChat()">
                     <span>提交</span>
@@ -1623,9 +1679,13 @@
                     <div class="models-header-left">
                       <span class="models-title">模型</span>
                       <span class="model-count-pill" id="currModelCount">0</span>
+                      <label class="model-select-all-label" title="全选 / 取消全选全部模型">
+                        <input type="checkbox" id="selectAllModelsCheckbox" onchange="toggleSelectAllModels(this.checked)">
+                        <span>全选</span>
+                      </label>
                       <div class="model-search-inline">
                         <span class="search-icon-sm">🔍</span>
-                        <input type="text" class="model-filter-input" placeholder="搜索模型..." oninput="filterCurrentProviderModels(this.value)">
+                        <input type="text" class="model-filter-input" id="currModelFilterInput" placeholder="搜索模型..." oninput="filterCurrentProviderModels(this.value)">
                       </div>
                     </div>
                     <div class="models-header-actions">
@@ -1634,6 +1694,9 @@
                       </button>
                       <button type="button" class="btn-model-action" onclick="promptAddCustomModel()" title="手动添加特定模型名称">
                         <span class="btn-icon">＋</span> 手动添加
+                      </button>
+                      <button type="button" class="btn-model-action btn-del-unselected" id="btnDelUnselected" onclick="deleteUnselectedModels()" title="删除当前列表中所有未选中的模型">
+                        <span class="btn-icon">🗑️</span> 删除未选
                       </button>
                     </div>
                   </div>
