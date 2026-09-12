@@ -1741,7 +1741,7 @@ h1, h2, h3, h4 {
 }
 
 /* 模型弹窗 - 模型卡片（垂直两行结构：第1行模型ID+当前徽标，第2行特征列表） */
-.model-item-card {
+.model-selector-popup .model-item-card {
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
@@ -1757,31 +1757,29 @@ h1, h2, h3, h4 {
   gap: 6px;
 }
 
-.model-item-card:hover {
+.model-selector-popup .model-item-card:hover {
   background: #F8FAFC;
   border-color: #CBD5E1;
 }
 
-/* 当前生效的模型默认具备高亮底色和边框 */
-.model-item-card.current-active-model {
+.model-selector-popup .model-item-card.current-active-model {
   background: #F0FDF4;
   border-color: #86EFAC;
   box-shadow: 0 1px 3px rgba(34, 197, 94, 0.08);
 }
 
-.model-item-card.current-active-model .model-item-id {
+.model-selector-popup .model-item-card.current-active-model .model-item-id {
   color: #15803D;
   font-weight: 700;
 }
 
-/* 键盘聚焦或选中的模型项高亮展示 */
-.model-item-card.selected {
+.model-selector-popup .model-item-card.selected {
   background: #DCFCE7 !important;
   border-color: #22C55E !important;
   box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25) !important;
 }
 
-.model-item-card.selected .model-item-id {
+.model-selector-popup .model-item-card.selected .model-item-id {
   color: #14532D !important;
   font-weight: 700;
 }
@@ -1794,7 +1792,7 @@ h1, h2, h3, h4 {
   width: 100%;
 }
 
-.model-item-id {
+.model-selector-popup .model-item-id {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", monospace;
   font-size: 13px;
   font-weight: 600;
@@ -1805,8 +1803,8 @@ h1, h2, h3, h4 {
   flex: 1;
 }
 
-.model-item-card:hover .model-item-id,
-.model-item-card.selected .model-item-id {
+.model-selector-popup .model-item-card:hover .model-item-id,
+.model-selector-popup .model-item-card.selected .model-item-id {
   color: #166534;
 }
 
@@ -5746,68 +5744,134 @@ input:checked + .switch-slider:before {
   padding-right: 0;
 }
 
-.model-item-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 7px 10px;
+.models-list-scroll .model-item-card,
+.settings-model-item-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 12px;
   background: #F9FBFC;
   border: 1px solid #E8EEF5;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
+  gap: 12px;
 }
 
-.model-item-card:hover {
+.models-list-scroll .model-item-card:hover,
+.settings-model-item-card:hover {
   background: #F0F7FF;
   border-color: #BAE0FF;
 }
 
-.model-item-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+.models-list-scroll .model-item-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  flex: 0 1 auto !important;
+  flex-wrap: nowrap !important;
 }
 
-.model-item-checkbox {
+.models-list-scroll .model-item-checkbox {
   cursor: pointer;
   width: 14px;
   height: 14px;
+  flex-shrink: 0;
 }
 
-.model-item-id {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-title);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.models-list-scroll .model-item-id,
+.settings-model-item-card .model-item-id {
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #1E293B !important;
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 320px !important;
 }
 
-.model-caps {
-  display: flex;
-  gap: 4px;
+/* 紧随模型名称后面的模型标识信息（例如：文本、极速等） */
+.settings-model-caps {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  margin-left: 2px !important;
+  flex-shrink: 0 !important;
+  flex-wrap: nowrap !important;
+}
+
+.settings-model-cap-tag {
+  display: inline-flex;
   align-items: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
-.cap-badge {
-  font-size: 11px;
-  opacity: 0.85;
+.settings-model-cap-tag.tag-chat {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.settings-model-cap-tag.tag-tools {
+  background: #FFF7ED;
+  color: #C2410C;
+  border: 1px solid #FED7AA;
+}
+
+.settings-model-cap-tag.tag-fast {
+  background: #FEFCE8;
+  color: #A16207;
+  border: 1px solid #FEF08A;
+}
+
+.settings-model-cap-tag.tag-reasoning {
+  background: #FAF5FF;
+  color: #7E22CE;
+  border: 1px solid #E9D5FF;
+}
+
+.settings-model-cap-tag.tag-vision {
+  background: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
+}
+
+/* 最右侧操作区：【检测】与【关闭】按钮，与左侧信息中间保持开阔间隔隔开 */
+.models-list-scroll .model-item-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-left: auto !important;
+  padding-left: 20px !important;
+  flex-shrink: 0 !important;
 }
 
 .btn-del-model {
-  background: transparent;
-  border: none;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  border-radius: 4px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
   cursor: pointer;
-  color: #BFBFBF;
-  font-size: 12px;
-  transition: all 0.2s;
-  padding: 2px 4px;
-  border-radius: 3px;
+  color: #94A3B8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s;
+  white-space: nowrap;
 }
 
 .btn-del-model:hover {
   color: #FF4D4F;
+  border-color: #FFA39E;
   background: #FFF1F0;
 }
 

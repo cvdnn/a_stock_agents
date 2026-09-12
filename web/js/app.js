@@ -4609,6 +4609,157 @@ function promptAddCustomModel() {
   renderModelRolesDropdowns();
 }
 
+function updateSelectAllCheckboxState(modelsList = null) {
+  const cb = document.getElementById('selectAllModelsCheckbox');
+  if (!cb) return;
+
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p || !p.models || p.models.length === 0) {
+    cb.checked = false;
+    cb.indeterminate = false;
+    cb.disabled = true;
+    return;
+  }
+
+  cb.disabled = false;
+  const list = modelsList !== null ? modelsList : p.models;
+  if (list.length === 0) {
+    cb.checked = false;
+    cb.indeterminate = false;
+    return;
+  }
+
+  const selectedCount = list.filter(m => m.selected !== false).length;
+  if (selectedCount === 0) {
+    cb.checked = false;
+    cb.indeterminate = false;
+  } else if (selectedCount === list.length) {
+    cb.checked = true;
+    cb.indeterminate = false;
+  } else {
+    cb.checked = false;
+    cb.indeterminate = true;
+  }
+}
+
+function toggleSelectAllModels(checked) {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p || !p.models) return;
+
+  const filterInput = document.getElementById('currModelFilterInput');
+  const keyword = filterInput ? filterInput.value.trim().toLowerCase() : '';
+
+  if (keyword) {
+    p.models.forEach(m => {
+      const match = m.id.toLowerCase().includes(keyword) || (m.name && m.name.toLowerCase().includes(keyword));
+      if (match) {
+        m.selected = checked;
+      }
+    });
+  } else {
+    p.models.forEach(m => {
+      m.selected = checked;
+    });
+  }
+
+  renderCurrentProviderModels(keyword);
+  renderModelRolesDropdowns();
+  if (window.ChatModelSelectorController) ChatModelSelectorController.render();
+  if (window.ModelPopupController) ModelPopupController.updateCurrentBadgeDisplay();
+}
+
+function deleteUnselectedModels() {
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p || !p.models || p.models.length === 0) {
+    showToast('当前供应商没有模型可清理');
+    return;
+  }
+
+  const unselected = p.models.filter(m => m.selected === false);
+  if (unselected.length === 0) {
+    showToast('当前没有未选中的模型（所有模型均已勾选）');
+    return;
+  }
+
+  if (!confirm(`确定要删除全部 ${unselected.length} 个未选中的模型吗？`)) {
+    return;
+  }
+
+  p.models = p.models.filter(m => m.selected !== false);
+  const filterInput = document.getElementById('currModelFilterInput');
+  const keyword = filterInput ? filterInput.value.trim() : '';
+  renderCurrentProviderModels(keyword);
+  renderModelRolesDropdowns();
+  if (window.ChatModelSelectorController) ChatModelSelectorController.render();
+  if (window.ModelPopupController) ModelPopupController.updateCurrentBadgeDisplay();
+  showToast(`已成功删除 ${unselected.length} 个未选模型`);
+}
+
+async function testSingleModel(modelId, event) {
+  if (event) event.stopPropagation();
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p) {
+    showToast('请先选择供应商');
+    return;
+  }
+
+  const safeId = CSS.escape ? CSS.escape(modelId) : modelId.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+  const btn = document.querySelector(`.btn-test-model[data-model-id="${safeId}"]`);
+  if (btn) {
+    btn.disabled = true;
+    btn.className = 'btn-test-model testing';
+    btn.innerHTML = '<span>⏳</span><span>检测中...</span>';
+  }
+
+  const keyInput = document.getElementById('currProviderKey');
+  const urlInput = document.getElementById('currProviderUrl');
+  const tempKey = keyInput ? keyInput.value.trim() : '';
+  const tempUrl = urlInput ? urlInput.value.trim() : '';
+
+  try {
+    const payload = {
+      provider_id: p.provider_id,
+      model_id: modelId,
+      timeout_seconds: 15
+    };
+    if (tempKey) payload.api_key = tempKey;
+    if (tempUrl) payload.base_url = tempUrl;
+
+    const resp = await fetch('/api/models/test-model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const res = await resp.json().catch(() => ({}));
+    if (resp.ok && res.status === 'ok') {
+      if (btn) {
+        btn.className = 'btn-test-model success';
+        btn.innerHTML = `<span>✅</span><span>${res.latency_ms}ms</span>`;
+        btn.title = `模型响应正常，耗时: ${res.latency_ms}ms`;
+      }
+      showToast(`✅ 模型【${modelId}】可用 (${res.latency_ms}ms)`);
+    } else {
+      const errMsg = res.message || res.detail || `HTTP ${resp.status}`;
+      if (btn) {
+        btn.className = 'btn-test-model error';
+        btn.innerHTML = '<span>❌</span><span>不可用</span>';
+        btn.title = `检测失败: ${errMsg}`;
+      }
+      showToast(`❌ 模型【${modelId}】不可用: ${errMsg}`);
+    }
+  } catch (err) {
+    if (btn) {
+      btn.className = 'btn-test-model error';
+      btn.innerHTML = '<span>❌</span><span>异常</span>';
+      btn.title = err.message;
+    }
+    showToast(`❌ 检测请求异常: ${err.message}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function renderCurrentProviderModels(filterText = '') {
   const container = document.getElementById('currModelListContainer');
   const countBadge = document.getElementById('currModelCount');
@@ -4618,6 +4769,7 @@ function renderCurrentProviderModels(filterText = '') {
   if (!p || !p.models) {
     container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 11.5px;">暂无模型，点击【获取模型列表】或【＋ 手动添加】</div>';
     if (countBadge) countBadge.innerText = '0';
+    updateSelectAllCheckboxState([]);
     return;
   }
 
@@ -4630,6 +4782,8 @@ function renderCurrentProviderModels(filterText = '') {
   const selectedCount = p.models.filter(m => m.selected !== false).length;
   if (countBadge) countBadge.innerText = `${selectedCount}/${p.models.length}`;
 
+  updateSelectAllCheckboxState(filtered);
+
   if (filtered.length === 0) {
     container.innerHTML = `
       <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 11.5px;">
@@ -4641,24 +4795,41 @@ function renderCurrentProviderModels(filterText = '') {
 
   container.innerHTML = filtered.map(m => {
     const isChecked = m.selected !== false;
-    const caps = m.capabilities || ['chat'];
+    
+    // 获取或推断该模型的能力标识
+    let caps = m.capabilities;
+    if (!caps || !caps.length) {
+      caps = ['chat'];
+      const lower = (m.id || '').toLowerCase();
+      if (lower.includes('vision') || lower.includes('vl') || lower.includes('4o')) caps.push('vision');
+      if (lower.includes('reasoner') || lower.includes('r1') || lower.includes('thinking')) caps.push('reasoning');
+      if (lower.includes('coder') || lower.includes('code') || lower.includes('deepseek') || lower.includes('pro')) caps.push('tools');
+      if (lower.includes('flash') || lower.includes('fast') || lower.includes('mini')) caps.push('fast');
+    }
 
-    const capIcons = [];
-    if (caps.includes('chat')) capIcons.push('<span class="cap-badge" title="支持对话">💬</span>');
-    if (caps.includes('vision')) capIcons.push('<span class="cap-badge" title="支持视觉多模态">👁️</span>');
-    if (caps.includes('reasoning')) capIcons.push('<span class="cap-badge" title="支持深度思考推理">🧠</span>');
-    if (caps.includes('tools')) capIcons.push('<span class="cap-badge" title="支持工具调用与代码">🔧</span>');
-    if (caps.includes('fast')) capIcons.push('<span class="cap-badge" title="低延迟快速模型">⚡</span>');
+    // 1) 模型标识信息跟在模型名称后面，例如：文本，极速等
+    const capBadges = [];
+    if (caps.includes('chat')) capBadges.push('<span class="settings-model-cap-tag tag-chat">文本</span>');
+    if (caps.includes('tools')) capBadges.push('<span class="settings-model-cap-tag tag-tools">工具</span>');
+    if (caps.includes('fast')) capBadges.push('<span class="settings-model-cap-tag tag-fast">极速</span>');
+    if (caps.includes('reasoning')) capBadges.push('<span class="settings-model-cap-tag tag-reasoning">思考</span>');
+    if (caps.includes('vision')) capBadges.push('<span class="settings-model-cap-tag tag-vision">视觉</span>');
+
+    const escapedModelId = (m.id || '').replace(/"/g, '&quot;');
+    const jsModelId = (m.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
     return `
-      <div class="model-item-card">
+      <div class="model-item-card settings-model-item-card">
         <div class="model-item-left">
-          <input type="checkbox" class="model-item-checkbox" ${isChecked ? 'checked' : ''} onchange="toggleModelSelection('${m.id}', this.checked)">
-          <span class="model-item-id" title="${m.id}">${m.name || m.id}</span>
+          <input type="checkbox" class="model-item-checkbox" ${isChecked ? 'checked' : ''} onchange="toggleModelSelection('${jsModelId}', this.checked)">
+          <span class="model-item-id" title="${escapedModelId}">${m.name || m.id}</span>
+          <div class="settings-model-caps">${capBadges.join('')}</div>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <div class="model-caps">${capIcons.join('')}</div>
-          <button type="button" class="btn-del-model" onclick="deleteModelFromProvider('${m.id}')" title="从列表移除">✕</button>
+        <div class="model-item-actions">
+          <button type="button" class="btn-test-model" data-model-id="${escapedModelId}" onclick="testSingleModel('${jsModelId}', event)" title="检测该模型是否可用">
+            <span>🧪</span><span>检测</span>
+          </button>
+          <button type="button" class="btn-del-model" onclick="deleteModelFromProvider('${jsModelId}')" title="关闭/从列表移除此模型">✕</button>
         </div>
       </div>
     `;
@@ -4678,7 +4849,17 @@ function toggleModelSelection(modelId, checked) {
     const countBadge = document.getElementById('currModelCount');
     const selectedCount = p.models.filter(x => x.selected !== false).length;
     if (countBadge) countBadge.innerText = `${selectedCount}/${p.models.length}`;
+    
+    const filterInput = document.getElementById('currModelFilterInput');
+    const keyword = filterInput ? filterInput.value.trim().toLowerCase() : '';
+    const filtered = p.models.filter(item => {
+      if (!keyword) return true;
+      return item.id.toLowerCase().includes(keyword) || (item.name && item.name.toLowerCase().includes(keyword));
+    });
+    updateSelectAllCheckboxState(filtered);
     renderModelRolesDropdowns();
+    if (window.ChatModelSelectorController) ChatModelSelectorController.render();
+    if (window.ModelPopupController) ModelPopupController.updateCurrentBadgeDisplay();
   }
 }
 
@@ -4686,9 +4867,20 @@ function deleteModelFromProvider(modelId) {
   const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
   if (!p || !p.models) return;
   p.models = p.models.filter(m => m.id !== modelId);
-  renderCurrentProviderModels();
+  const filterInput = document.getElementById('currModelFilterInput');
+  const keyword = filterInput ? filterInput.value.trim() : '';
+  renderCurrentProviderModels(keyword);
   renderModelRolesDropdowns();
+  if (window.ChatModelSelectorController) ChatModelSelectorController.render();
+  if (window.ModelPopupController) ModelPopupController.updateCurrentBadgeDisplay();
 }
+
+window.toggleSelectAllModels = toggleSelectAllModels;
+window.deleteUnselectedModels = deleteUnselectedModels;
+window.testSingleModel = testSingleModel;
+window.toggleModelSelection = toggleModelSelection;
+window.deleteModelFromProvider = deleteModelFromProvider;
+window.filterCurrentProviderModels = filterCurrentProviderModels;
 
 // --------------------------------------------------------------------------
 // 8.2 Section 2: Model Roles Dynamic Dropdown Generator (对齐图2)
