@@ -379,7 +379,6 @@
             <div class="quant-card dashboard-full-col" id="section-portfolio-overview">
               <div class="card-header">
                 <div class="card-title">
-                  <span class="section-num-badge">1</span>
                   <span>投资概要</span>
                   <span class="section-subtext-pill">全景账户画像与实战风控总览</span>
                 </div>
@@ -459,7 +458,6 @@
             <div class="quant-card" id="section-market-indices">
               <div class="card-header">
                 <div class="card-title">
-                  <span class="section-num-badge">2-1</span>
                   <span>大盘指数</span>
                   <span class="section-subtext-pill">大盘宽基基准跟踪</span>
                 </div>
@@ -550,7 +548,6 @@
             <div class="quant-card" id="section-market-analysis">
               <div class="card-header">
                 <div class="card-title">
-                  <span class="section-num-badge">2-2</span>
                   <span>行情分析</span>
                   <span class="section-subtext-pill">盘面量价与情绪温度</span>
                 </div>
@@ -612,7 +609,6 @@
             <div class="quant-card" id="section-watchlist-indices">
               <div class="card-header">
                 <div class="card-title">
-                  <span class="section-num-badge">3-1</span>
                   <span>自选指数</span>
                   <span class="section-subtext-pill">聚焦用户关心的板块与赛道</span>
                 </div>
@@ -717,7 +713,6 @@
             <div class="quant-card" id="section-investment-analysis">
               <div class="card-header">
                 <div class="card-title">
-                  <span class="section-num-badge">3-2</span>
                   <span>投资分析</span>
                   <span class="section-subtext-pill">量化风控与投资归因看板</span>
                 </div>
@@ -767,7 +762,6 @@
             <div class="quant-card dashboard-full-col" id="section-realtime-monitor">
               <div class="card-header">
                 <div class="card-title">
-                  <span class="section-num-badge">4</span>
                   <span>盯盘</span>
                   <span class="section-subtext-pill">盘中高频策略异动流水</span>
                 </div>
@@ -777,22 +771,40 @@
                 </div>
               </div>
 
-              <!-- 盯盘预警即时事件流水 -->
+              <!-- 盯盘预警即时事件流水 (左侧固定时间+标签，右侧内容2行式布局确保第2列严格对齐) -->
               <div class="monitor-stream-list" id="dashMonitorStreamList">
                 <div class="monitor-stream-item stream-buy">
                   <span class="stream-time tabular-nums">09:32:15</span>
+                  <div class="stream-stock-col">
+                    <span class="stream-stock-name">中芯国际</span>
+                    <span class="stream-stock-code tabular-nums">（688981）</span>
+                  </div>
                   <span class="stream-tag tag-buy">放量突破</span>
-                  <span class="stream-text">【中芯国际 688981】放量突破前高平台 ¥98.20，5分钟大单净买入 1.25 亿元，触发趋势突破买点</span>
+                  <div class="stream-desc-text" title="放量突破前高平台 ¥98.20，5分钟大单净买入 1.25 亿元，触发趋势突破买点">
+                    放量突破前高平台 ¥98.20，5分钟大单净买入 1.25 亿元，触发趋势突破买点
+                  </div>
                 </div>
                 <div class="monitor-stream-item stream-buy">
                   <span class="stream-time tabular-nums">09:45:08</span>
+                  <div class="stream-stock-col">
+                    <span class="stream-stock-name">海光信息</span>
+                    <span class="stream-stock-code tabular-nums">（688041）</span>
+                  </div>
                   <span class="stream-tag tag-buy">大单净买入</span>
-                  <span class="stream-text">【海光信息 688041】主力超大单集中流入，量价共振显著，回踩 MA20 均线确认支撑</span>
+                  <div class="stream-desc-text" title="主力超大单集中流入，量价共振显著，回踩 MA20 均线确认支撑">
+                    主力超大单集中流入，量价共振显著，回踩 MA20 均线确认支撑
+                  </div>
                 </div>
                 <div class="monitor-stream-item stream-neutral">
                   <span class="stream-time tabular-nums">10:02:40</span>
+                  <div class="stream-stock-col">
+                    <span class="stream-stock-name">宁德时代</span>
+                    <span class="stream-stock-code tabular-nums">（300750）</span>
+                  </div>
                   <span class="stream-tag tag-risk">水下金叉</span>
-                  <span class="stream-text">【宁德时代 300750】完成 60分钟水下二次金叉验底形态，处于安全边际支撑位上方</span>
+                  <div class="stream-desc-text" title="完成 60分钟水下二次金叉验底形态，处于安全边际支撑位上方">
+                    完成 60分钟水下二次金叉验底形态，处于安全边际支撑位上方
+                  </div>
                 </div>
               </div>
 

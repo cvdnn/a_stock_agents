@@ -947,11 +947,13 @@ async function loadDashboardData() {
           else if (ev.type === 'risk') { itemClass = 'stream-risk'; tagClass = 'tag-risk'; }
           return `
             <div class="monitor-stream-item ${itemClass}">
-              <div class="monitor-stream-left">
-                <span class="monitor-stream-tag ${tagClass}">${ev.tag}</span>
-                <span><strong>【${ev.name} ${ev.code}】</strong> ${ev.desc}</span>
+              <span class="stream-time tabular-nums">${ev.time}</span>
+              <div class="stream-stock-col">
+                <span class="stream-stock-name">${ev.name}</span>
+                <span class="stream-stock-code tabular-nums">（${ev.code}）</span>
               </div>
-              <span class="monitor-stream-time tabular-nums">${ev.time}</span>
+              <span class="stream-tag ${tagClass}">${ev.tag}</span>
+              <div class="stream-desc-text" title="${ev.desc}">${ev.desc}</div>
             </div>
           `;
         }).join('');
