@@ -7061,6 +7061,207 @@ input:checked + .switch-slider:before {
   50% { opacity: 1; }
 }
 
+/* ==========================================================================
+   执行过程树形层级缩进显示框架 (Tree Indentation & Hierarchy Guidelines)
+   ========================================================================== */
+
+/* 1. 树状分支容器：用空格构建明显的横向缩进，并通过左侧垂直细线构建层级导轨 */
+.timeline-branch-container {
+  position: relative;
+  margin-left: 6px;                 /* 紧凑对齐 */
+  padding-left: 8px;                /* 缩进由 14px 缩减为 8px，大幅节约横向宽度 */
+  border-left: 1.5px solid #E2E8F0;  /* 纵向层级连接引导线 (Hierarchy Guide Line) */
+  margin-top: 2px;
+  margin-bottom: 3px;
+}
+
+.timeline-branch-container.level-2-branch {
+  margin-left: 4px;                 /* 二级缩进起点 */
+  padding-left: 6px;                /* 二级缩进由 12px 缩减为 6px */
+  border-left: 1px dashed #CBD5E1;   /* 虚线导轨更轻巧灵动 */
+}
+
+.timeline-branch-container.collapsed {
+  display: none !important;
+}
+
+[data-theme="dark"] .timeline-branch-container {
+  border-left-color: #334155;
+}
+
+/* 2. 分支折叠/展开指示器与按钮 */
+.branch-toggle-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 3px;
+  font-size: 8.5px;
+  color: #86909C;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.branch-toggle-btn:hover {
+  color: #1677FF;
+  background: rgba(22, 119, 255, 0.08);
+}
+
+/* 3. 子智能体卡片 (Level 1 Subagent Card) */
+.subagent-node-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 2px 5px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  transition: all 0.2s ease;
+}
+
+.subagent-node-card:hover {
+  border-color: #CBD5E1;
+  background: #F1F5F9;
+}
+
+[data-theme="dark"] .subagent-node-card {
+  background: #1E293B;
+  border-color: #334155;
+}
+
+.subagent-header-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.subagent-icon {
+  font-size: 10.5px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.subagent-name {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #1E293B;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .subagent-name {
+  color: #F1F5F9;
+}
+
+.subagent-divider {
+  font-size: 8.5px;
+  color: #CBD5E1;
+  margin: 0 1px;
+}
+
+.subagent-status-text {
+  font-size: 9px;
+  color: #64748B;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 4. 二级操作步骤与聚合条 (Level 2 Action & Step) */
+.step-leaf-item {
+  position: relative;
+  padding: 1px 0;
+  margin-bottom: 1.5px;
+}
+
+.step-summary-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  color: #475569;
+  cursor: pointer;
+  padding: 1px 3px;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.step-summary-bar:hover {
+  background: #EDF2F7;
+  color: #1677FF;
+}
+
+.step-summary-bar .step-bullet {
+  font-size: 7.5px;
+  color: #94A3B8;
+}
+
+.step-summary-bar .step-title {
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.step-summary-bar .step-chevron {
+  font-size: 7.5px;
+  color: #94A3B8;
+  transition: transform 0.15s ease;
+}
+
+/* 5. 三级展开说明与详情文字 (Level 3 Detail) */
+.step-detail-text {
+  margin-top: 1.5px;
+  margin-left: 4px;                 /* 缩减内部边距 */
+  padding: 2px 5px;
+  font-size: 8.5px;
+  color: #64748B;
+  line-height: 1.35;
+  background: #FFFFFF;
+  border-left: 2px solid #CBD5E1;
+  border-radius: 0 3px 3px 0;
+  word-break: break-all;
+}
+
+[data-theme="dark"] .step-detail-text {
+  background: #0F172A;
+  color: #94A3B8;
+  border-left-color: #475569;
+}
+
+/* 6. 对话或执行被压缩/折叠分割线 */
+.timeline-compressed-divider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  color: #94A3B8;
+  font-size: 8.5px;
+  user-select: none;
+}
+
+.timeline-compressed-divider::before,
+.timeline-compressed-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E2E8F0;
+}
+
+[data-theme="dark"] .timeline-compressed-divider::before,
+[data-theme="dark"] .timeline-compressed-divider::after {
+  background: #334155;
+}
+
+
 /* 6. Human-in-the-Loop Confirmation Panel (Requirement 4) */
 .chat-confirmation-panel {
   background: #FFFBE6;

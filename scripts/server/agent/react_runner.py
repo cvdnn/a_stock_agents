@@ -118,6 +118,67 @@ def sanitize_history_for_llm(history_rows: List[Dict[str, Any]]) -> List[Dict[st
     return result
 
 
+def process_delta_think_tags(
+    delta_text: str,
+    in_think_tag: bool,
+    think_buffer: str,
+) -> tuple[str, str, bool, str]:
+    """
+    Process streaming delta text to cleanly extract <think>...</think> blocks.
+    Returns: (content_text, thought_text, in_think_tag, think_buffer)
+    """
+    full_text = think_buffer + delta_text
+    think_buffer = ""
+    content_parts: List[str] = []
+    thought_parts: List[str] = []
+
+    idx = 0
+    while idx < len(full_text):
+        if not in_think_tag:
+            tag_pos = full_text.find("<think>", idx)
+            if tag_pos == -1:
+                partial_match = False
+                for p_len in range(1, min(7, len(full_text) - idx + 1)):
+                    candidate = full_text[-p_len:]
+                    if "<think>".startswith(candidate):
+                        content_parts.append(full_text[idx : len(full_text) - p_len])
+                        think_buffer = candidate
+                        partial_match = True
+                        break
+                if not partial_match:
+                    content_parts.append(full_text[idx:])
+                break
+            else:
+                content_parts.append(full_text[idx:tag_pos])
+                idx = tag_pos + len("<think>")
+                in_think_tag = True
+        else:
+            tag_pos = full_text.find("</think>", idx)
+            if tag_pos == -1:
+                partial_match = False
+                for p_len in range(1, min(8, len(full_text) - idx + 1)):
+                    candidate = full_text[-p_len:]
+                    if "</think>".startswith(candidate):
+                        thought_parts.append(full_text[idx : len(full_text) - p_len])
+                        think_buffer = candidate
+                        partial_match = True
+                        break
+                if not partial_match:
+                    thought_parts.append(full_text[idx:])
+                break
+            else:
+                thought_parts.append(full_text[idx:tag_pos])
+                idx = tag_pos + len("</think>")
+                in_think_tag = False
+
+    return (
+        "".join(content_parts),
+        "".join(thought_parts),
+        in_think_tag,
+        think_buffer,
+    )
+
+
 class AgentReActRunner:
     """Agent runtime managing multi-turn conversation, Skill Governance, and typed AgentEvents."""
 
@@ -203,6 +264,15 @@ class AgentReActRunner:
                 accumulated_thought = ""
                 accumulated_tool_calls: List[Dict[str, Any]] = []
 
+                # Buffers for decoupling intermediate tool call preamble from final content
+                pending_content_buffer = ""
+                is_tool_call_step = False
+                content_stream_flushed = False
+
+                # Buffer for streaming <think> tags
+                in_think_tag = False
+                think_tag_buffer = ""
+
                 stream_gen = provider.stream_chat(
                     messages=llm_messages,
                     tools=tools_to_pass,
@@ -213,19 +283,78 @@ class AgentReActRunner:
                     if chunk.usage:
                         total_tokens = chunk.usage.get("total_tokens", total_tokens)
 
-                    # Stream thought/reasoning
+                    # Stream explicit thought/reasoning (e.g. reasoning_content)
                     if chunk.thought:
                         accumulated_thought += chunk.thought
                         yield ThoughtEvent(content=chunk.thought)
 
-                    # Stream text delta
-                    if chunk.delta_text:
-                        accumulated_text += chunk.delta_text
-                        yield ContentDeltaEvent(text=chunk.delta_text)
-
-                    # Stream tool calls
+                    # Tool call detection
                     if chunk.tool_calls:
                         accumulated_tool_calls.extend(chunk.tool_calls)
+                        is_tool_call_step = True
+                    if chunk.tool_call_deltas:
+                        is_tool_call_step = True
+                    if chunk.finish_reason == "tool_calls":
+                        is_tool_call_step = True
+
+                    # If tool calling detected, any buffered content is thought preamble: divert to thought immediately
+                    if is_tool_call_step and pending_content_buffer:
+                        accumulated_thought += pending_content_buffer
+                        yield ThoughtEvent(content=pending_content_buffer)
+                        pending_content_buffer = ""
+
+                    # Stream text delta
+                    if chunk.delta_text:
+                        content_txt, thought_txt, in_think_tag, think_tag_buffer = process_delta_think_tags(
+                            chunk.delta_text,
+                            in_think_tag,
+                            think_tag_buffer,
+                        )
+
+                        if thought_txt:
+                            accumulated_thought += thought_txt
+                            yield ThoughtEvent(content=thought_txt)
+
+                        if not content_txt:
+                            continue
+
+                        if is_tool_call_step:
+                            # Already known to be tool call step: route preamble to thought
+                            accumulated_thought += content_txt
+                            yield ThoughtEvent(content=content_txt)
+                        else:
+                            if not tools_to_pass:
+                                # No tools enabled: stream directly as final content
+                                accumulated_text += content_txt
+                                yield ContentDeltaEvent(text=content_txt)
+                            elif content_stream_flushed:
+                                # Already verified this step is final answer: stream directly
+                                accumulated_text += content_txt
+                                yield ContentDeltaEvent(text=content_txt)
+                            else:
+                                # Buffer initial text to verify if tool calls follow
+                                pending_content_buffer += content_txt
+                                if len(pending_content_buffer) >= 80:
+                                    accumulated_text += pending_content_buffer
+                                    yield ContentDeltaEvent(text=pending_content_buffer)
+                                    pending_content_buffer = ""
+                                    content_stream_flushed = True
+
+                # Flush any leftover think buffer if any
+                if think_tag_buffer:
+                    if in_think_tag:
+                        accumulated_thought += think_tag_buffer
+                        yield ThoughtEvent(content=think_tag_buffer)
+                    else:
+                        if is_tool_call_step:
+                            accumulated_thought += think_tag_buffer
+                            yield ThoughtEvent(content=think_tag_buffer)
+                        elif content_stream_flushed or not tools_to_pass:
+                            accumulated_text += think_tag_buffer
+                            yield ContentDeltaEvent(text=think_tag_buffer)
+                        else:
+                            pending_content_buffer += think_tag_buffer
+                    think_tag_buffer = ""
 
                 # Deduplicate tool calls if provider emitted multiple or duplicates
                 deduped_tool_calls: List[Dict[str, Any]] = []
@@ -239,11 +368,27 @@ class AgentReActRunner:
                     deduped_tool_calls.append(tc)
                 accumulated_tool_calls = deduped_tool_calls
 
-                # If assistant generated text, add to LLM context
+                if accumulated_tool_calls:
+                    is_tool_call_step = True
+
+                # Finalize pending buffer for this step
+                if is_tool_call_step:
+                    if pending_content_buffer:
+                        accumulated_thought += pending_content_buffer
+                        yield ThoughtEvent(content=pending_content_buffer)
+                        pending_content_buffer = ""
+                else:
+                    if pending_content_buffer:
+                        accumulated_text += pending_content_buffer
+                        yield ContentDeltaEvent(text=pending_content_buffer)
+                        pending_content_buffer = ""
+                        content_stream_flushed = True
+
+                # If assistant generated text or calls, add to LLM context
                 if accumulated_text or accumulated_thought or accumulated_tool_calls:
                     asst_msg: Dict[str, Any] = {
                         "role": "assistant",
-                        "content": accumulated_text,
+                        "content": accumulated_text if not accumulated_tool_calls else "",
                     }
                     if accumulated_tool_calls:
                         asst_msg["tool_calls"] = accumulated_tool_calls
@@ -251,19 +396,21 @@ class AgentReActRunner:
 
                 # Persist assistant step to database
                 if accumulated_tool_calls:
+                    # Intermediate tool step: content must be empty, preambles stored as thought
                     add_message(
                         session_id=sid,
                         role="assistant",
-                        content=accumulated_text,
-                        thought=accumulated_thought if accumulated_thought else None,
+                        content="",
+                        thought=accumulated_thought.strip() if accumulated_thought else None,
                         tool_calls=accumulated_tool_calls,
                     )
                 else:
+                    # Final response step
                     add_message(
                         session_id=sid,
                         role="assistant",
                         content=accumulated_text,
-                        thought=accumulated_thought if accumulated_thought else None,
+                        thought=accumulated_thought.strip() if accumulated_thought else None,
                     )
                     break
 

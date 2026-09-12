@@ -377,10 +377,113 @@ assert.strictEqual(streamThoughtState.timelineNodes[0].summary, '模型正在结
 const longThought = '用户再次提出全流程大盘行情深度研判诉求。结合当前深证成指与上证指数走势，准备调用底层量化引擎获取最新4级降级实时行情与技术形态指标，以便为用户生成严格符合实战三原则的操盘研报。';
 const longThoughtState = api.createResponseState('thought-long-test');
 api.applyEvent(longThoughtState, 'thought', { content: longThought });
-const longHtml = api.renderExecutionTimelineHtml(longThoughtState);
-assert.match(longHtml, /node-thought-card/, '长思考过程必须渲染 node-thought-card');
-assert.match(longHtml, /展开完整思考过程/, '长思考过程必须包含折叠展开按钮');
-assert.match(longHtml, /thought-full-box/, '长思考过程必须渲染 thought-full-box 容器');
+// 4. 验证模型思考内容与过渡垫话不会在结果 Markdown 中展示
+const rawPreambledReport = `我将先核查投资组合持仓数据（模拟账户 + 持仓池双通道），确认数据后再进行全景收益分析。
+
+# 💼 投资组合全景收益分析 —— 执行报告
+
+核查结果：❌ 当前账户为空仓状态，已终止收益分析`;
+
+const cleanedReport = api.cleanMarkdownContent(rawPreambledReport);
+assert.strictEqual(cleanedReport.startsWith('# 💼 投资组合全景收益分析'), true, '必须剥离工具调用前的思考垫话');
+assert.strictEqual(cleanedReport.includes('我将先核查'), false, '清洗后正文绝不包含“我将先核查”');
+
+// 验证 <think> 标签剥离
+const thinkTaggedReport = `<think>用户要求评估持仓策略，先检查双通道数据。</think>
+# 📋 持仓诊断执行报告
+
+一、核查结果`;
+const cleanedThinkReport = api.cleanMarkdownContent(thinkTaggedReport);
+assert.strictEqual(cleanedThinkReport.startsWith('# 📋 持仓诊断执行报告'), true, '必须剥离 <think> 标签内容');
+assert.strictEqual(cleanedThinkReport.includes('<think>'), false);
+assert.strictEqual(cleanedThinkReport.includes('先检查双通道数据'), false);
+
+// 5. 验证收到 tool_call_start 时清空 fullMarkdown 缓冲区
+const toolStartState = api.createResponseState('pre-tool-clear-test');
+api.applyEvent(toolStartState, 'content_delta', { text: '我将再次执行持仓核查...' });
+assert.strictEqual(toolStartState.fullMarkdown, '我将再次执行持仓核查...');
+api.applyEvent(toolStartState, 'tool_call_start', { call_id: 'c-test', skill_id: 'astock_pool_dashboard' });
+assert.strictEqual(toolStartState.fullMarkdown, '', 'tool_call_start 必须重置 fullMarkdown 缓冲区');
+
+// 6. 验证执行过程树形层级缩进框架 (Hierarchy & Tree Indentation Framework)
+const planTree = api.decomposeTask('分析 600519 茅台并给出保本价与止损动作');
+assert.ok(planTree.steps.length >= 3, '规划任务必须生成至少3个阶段步骤');
+const execStep = planTree.steps.find(s => s.type === 'tool' || s.skill_id === 'astock-action-execution');
+assert.ok(execStep, '必须包含动作执行与保本价精算工具节点');
+assert.strictEqual(execStep.agentName, 'Action Execution Agent', '必须映射到 Action Execution Agent 子智能体');
+assert.ok(Array.isArray(execStep.children) && execStep.children.length >= 2, '工具节点必须包含细化子步骤树');
+
+// 验证树形 HTML 渲染：必须包含缩进容器、子智能体卡片与二级分支
+const treeState = api.createResponseState('tree-test');
+treeState.timelineNodes.push(execStep);
+const treeHtml = api.renderExecutionTimelineHtml(treeState);
+
+assert.match(treeHtml, /class="[^"]*timeline-branch-container[^"]*"/, '必须渲染 timeline-branch-container 树状缩进容器');
+assert.match(treeHtml, /class="[^"]*subagent-node-card[^"]*"/, '必须渲染 subagent-node-card 子智能体卡片');
+assert.match(treeHtml, /Action Execution Agent/, '必须展示子智能体名称');
+assert.match(treeHtml, /class="[^"]*level-2-branch[^"]*"/, '必须渲染 level-2-branch 二级缩进导轨');
+assert.match(treeHtml, /class="[^"]*step-summary-bar[^"]*"/, '必须渲染 step-summary-bar 步骤聚合摘要行');
+assert.match(treeHtml, /class="[^"]*branch-toggle-btn[^"]*"/, '必须提供分支折叠/展开指示器');
+
+// 验证分支折叠行为
+const collapsedState = api.createResponseState('collapsed-tree-test');
+const collapsedStep = Object.assign({}, execStep, { expanded: false });
+collapsedState.timelineNodes.push(collapsedStep);
+const collapsedHtml = api.renderExecutionTimelineHtml(collapsedState);
+assert.match(collapsedHtml, /timeline-branch-container\s+collapsed/, '折叠时必须带有 collapsed 类名隐藏子树');
+// 7. 验证在存在预设任务规划（末尾有 result 节点）时，流式 thought 增量绝不可被拆分成数十个独立卡片
+const streamWithPlanState = api.createResponseState('stream-with-plan-test');
+const taskPlan = api.decomposeTask('评估持股策略');
+taskPlan.steps.forEach(s => streamWithPlanState.timelineNodes.push(Object.assign({}, s)));
+const initialNodeCount = streamWithPlanState.timelineNodes.length;
+
+// 模拟截图中触发 bug 的增量词片
+const streamTokens = ['用户', '再次要求', '分析今日', '大盘', '行情。', '这是一个', '重复请求', '，但', '数据可能', '已经更新'];
+for (const token of streamTokens) {
+  api.applyEvent(streamWithPlanState, 'thought', { content: token });
+}
+
+// 验证：思考节点必须仅增加 1 个，绝不可拆分成 10 个！
+const thoughtNodes = streamWithPlanState.timelineNodes.filter(n => n.type === 'thought');
+assert.strictEqual(thoughtNodes.length, 1, '在存在预设计划时，流式思考必须聚合成 1 个节点，绝不可拆断成数十个卡片！');
+assert.strictEqual(thoughtNodes[0].summary, '用户再次要求分析今日大盘行情。这是一个重复请求，但数据可能已经更新');
+
+// 8. 验证连续多个同类工具调用（如截图中10个astock_data_feed）自动聚合为单智能体任务卡片
+const batchToolsState = api.createResponseState('batch-tools-test');
+const indexQuotes = [
+  { code: '000001', name: '上证指数', price: '3888.11 (-1.18%)' },
+  { code: '399001', name: '深证成指', price: '13471.26 (-1.08%)' },
+  { code: '399006', name: '创业板指', price: '3322.04 (-0.49%)' },
+  { code: '000688', name: '科创50', price: '4510.16 (-0.84%)' },
+  { code: '000905', name: '中证500', price: '7580.54 (-1.78%)' },
+  { code: '000852', name: '中证1000', price: '2465.84 (-1.45%)' }
+];
+
+indexQuotes.forEach((q, idx) => {
+  api.applyEvent(batchToolsState, 'tool_call_start', { call_id: 'call_' + idx, skill_id: 'astock_data_feed' });
+  api.applyEvent(batchToolsState, 'tool_call_complete', {
+    call_id: 'call_' + idx,
+    skill_id: 'astock_data_feed',
+    status: 'success',
+    summary: '现价 ' + q.price,
+    data: { code: q.code, name: q.name }
+  });
+});
+
+const batchHtml = api.renderExecutionTimelineHtml(batchToolsState);
+
+// 断言：在 HTML 中绝不能出现 6 个平铺的独立一级卡片，而必须创建批量父任务卡片
+assert.match(batchHtml, /能力调用astock_data_feed任务（批量6次调用）/, '必须生成标准格式的批量父任务标题（无【】包裹）');
+assert(!batchHtml.includes('【能力调用'), '批量父任务标题无需包含【】括号');
+assert.match(batchHtml, /Data Feed Agent/, '必须归属到同一个 Data Feed Agent 智能体卡片');
+assert.match(batchHtml, /已聚合挂接 6 次子任务调用并汇总数据/, '必须包含批量聚合挂接子任务概要');
+// 挂接子任务断言
+assert.match(batchHtml, /子任务 1: astock_data_feed · 现价 3888\.11 \(-1\.18%\)/, '子任务1必须作为挂接子任务');
+assert.match(batchHtml, /子任务 2: astock_data_feed · 现价 13471\.26 \(-1\.08%\)/, '子任务2必须作为挂接子任务');
+assert.match(batchHtml, /子任务 6: astock_data_feed · 现价 2465\.84 \(-1\.45%\)/, '子任务6必须作为挂接子任务');
 
 console.log('PASS');
+
+
+
 

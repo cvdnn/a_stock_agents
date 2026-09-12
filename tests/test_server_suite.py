@@ -28,7 +28,8 @@ from server.agent.tools import (
     execute_tool,
     extract_risk_card,
 )
-from server.agent.react_runner import AgentReActRunner
+from server.agent.react_runner import AgentReActRunner, process_delta_think_tags
+from server.agent.events import ContentDeltaEvent, ThoughtEvent
 
 
 @pytest.fixture
@@ -201,6 +202,31 @@ class TestAgentTools:
 class TestAgentReActRunner:
     """Test ReAct runtime SSE event generation and conversation workflow."""
 
+    def test_process_delta_think_tags(self):
+        # 1. Plain text without think tags
+        c, th, in_tag, buf = process_delta_think_tags("普通正文", False, "")
+        assert c == "普通正文"
+        assert th == ""
+        assert in_tag is False
+        assert buf == ""
+
+        # 2. Entire block in think tags
+        c, th, in_tag, buf = process_delta_think_tags("<think>模型内部思考</think>正式正文", False, "")
+        assert c == "正式正文"
+        assert th == "模型内部思考"
+        assert in_tag is False
+
+        # 3. Streaming think tag split across chunks
+        c1, th1, in_tag1, buf1 = process_delta_think_tags("<think>第一阶段思考", False, "")
+        assert c1 == ""
+        assert th1 == "第一阶段思考"
+        assert in_tag1 is True
+
+        c2, th2, in_tag2, buf2 = process_delta_think_tags("第二阶段思考</think>最终回复", in_tag1, buf1)
+        assert c2 == "最终回复"
+        assert th2 == "第二阶段思考"
+        assert in_tag2 is False
+
     @pytest.mark.asyncio
     async def test_react_stream_events_flow(self):
         runner = AgentReActRunner(default_model="mock")
@@ -216,6 +242,63 @@ class TestAgentReActRunner:
         assert "event: conversation_start" in full_stream
         assert "event: thought" in full_stream
         assert "event: done" in full_stream
+
+    @pytest.mark.asyncio
+    async def test_tool_calling_preamble_does_not_leak_to_content_delta(self, monkeypatch):
+        """
+        Verify that when a model outputs preamble text alongside tool_calls in step 1,
+        the preamble text is routed to ThoughtEvent and NEVER leaked into ContentDeltaEvent.
+        """
+        from server.llm.base import BaseLLMProvider
+
+        class PreambleMockProvider(BaseLLMProvider):
+            async def stream_chat(self, messages, tools=None, temperature=0.2, **kwargs):
+                last_msg = messages[-1] if messages else {}
+                if last_msg.get("role") == "tool":
+                    # Step 2: Final response
+                    yield LLMStreamChunk(delta_text="# 💼 投资组合全景收益分析 —— 执行报告\n\n数据核查完成。")
+                    yield LLMStreamChunk(finish_reason="stop")
+                else:
+                    # Step 1: Outputs thinking monologue AND tool call
+                    yield LLMStreamChunk(delta_text="我将先核查投资组合持仓数据（模拟账户 + 持仓池双通道），确认数据后再进行全景收益分析。")
+                    yield LLMStreamChunk(
+                        tool_calls=[{
+                            "id": "call_mock_1",
+                            "type": "function",
+                            "function": {
+                                "name": "astock_quote",
+                                "arguments": json.dumps({"code": "600519"})
+                            }
+                        }],
+                        finish_reason="tool_calls"
+                    )
+
+        monkeypatch.setattr(
+            LLMProviderFactory,
+            "get_provider",
+            lambda *args, **kwargs: PreambleMockProvider("mock-preamble")
+        )
+
+        runner = AgentReActRunner(default_model="mock-preamble")
+        thought_events = []
+        content_events = []
+
+        async for event in runner.run_chat(message="请核查投资组合数据", tools_enabled=True):
+            if isinstance(event, ThoughtEvent):
+                thought_events.append(event.content)
+            elif isinstance(event, ContentDeltaEvent):
+                content_events.append(event.text)
+
+        full_thought = "".join(thought_events)
+        full_content = "".join(content_events)
+
+        # 1. Preamble MUST be captured as thought
+        assert "我将先核查投资组合持仓数据" in full_thought
+        # 2. Preamble MUST NOT appear in final content delta
+        assert "我将先核查投资组合持仓数据" not in full_content
+        # 3. Final response MUST appear in content delta
+        assert "# 💼 投资组合全景收益分析" in full_content
+
 
 
 class TestFastAPIRoutes:

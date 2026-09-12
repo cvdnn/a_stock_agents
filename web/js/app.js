@@ -3217,15 +3217,84 @@ function toggleNodeDrawer(msgId, nodeId) {
     }
     return;
   }
-  const node = execObj.state.timelineNodes.find(n => n.nodeId === nodeId);
+  let node = execObj.state.timelineNodes.find(n => n.nodeId === nodeId);
+  if (!node && nodeId.startsWith('group_')) {
+    const rawId = nodeId.replace(/^group_/, '');
+    node = execObj.state.timelineNodes.find(n => n.nodeId === rawId);
+  }
   if (node) {
-    node.expanded = !node.expanded;
+    node.expandedDrawer = !node.expandedDrawer;
     const container = document.getElementById(`execContainer_${msgId}`);
     if (container && typeof ChatPresentation !== 'undefined') {
       container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(execObj.state);
     }
+  } else {
+    const drawer = document.getElementById(`drawer_${nodeId}`);
+    if (drawer) {
+      drawer.classList.toggle('open');
+      drawer.classList.toggle('closed');
+    }
   }
 }
+
+function toggleBranchCollapse(msgId, nodeId) {
+  const execObj = AppState.activeExecutions[msgId];
+  if (!execObj || !execObj.state) {
+    const branch = document.getElementById(`branch_${nodeId}`);
+    const toggleBtn = document.getElementById(`toggle_${nodeId}`);
+    if (branch) {
+      branch.classList.toggle('collapsed');
+      if (toggleBtn) {
+        toggleBtn.textContent = branch.classList.contains('collapsed') ? '>' : '∨';
+      }
+    }
+    return;
+  }
+  let node = execObj.state.timelineNodes.find(n => n.nodeId === nodeId);
+  if (!node && nodeId.startsWith('group_')) {
+    const rawId = nodeId.replace(/^group_/, '');
+    node = execObj.state.timelineNodes.find(n => n.nodeId === rawId);
+  }
+  if (node) {
+    node.expanded = node.expanded === false ? true : false;
+    const container = document.getElementById(`execContainer_${msgId}`);
+    if (container && typeof ChatPresentation !== 'undefined') {
+      container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(execObj.state);
+    }
+  } else {
+    const branch = document.getElementById(`branch_${nodeId}`);
+    const toggleBtn = document.getElementById(`toggle_${nodeId}`);
+    if (branch) {
+      branch.classList.toggle('collapsed');
+      if (toggleBtn) {
+        toggleBtn.textContent = branch.classList.contains('collapsed') ? '>' : '∨';
+      }
+    }
+  }
+}
+
+function toggleStepDetail(msgId, stepId) {
+  const detailEl = document.getElementById(`detail_${stepId}`);
+  const arrowEl = document.getElementById(`arrow_${stepId}`);
+  if (detailEl) {
+    const isHidden = detailEl.classList.contains('hidden') || detailEl.style.display === 'none';
+    if (isHidden) {
+      detailEl.classList.remove('hidden');
+      detailEl.style.display = 'block';
+      if (arrowEl) arrowEl.textContent = '∨';
+    } else {
+      detailEl.classList.add('hidden');
+      detailEl.style.display = 'none';
+      if (arrowEl) arrowEl.textContent = '>';
+    }
+  }
+}
+
+window.toggleTimelineRecord = toggleTimelineRecord;
+window.toggleNodeDrawer = toggleNodeDrawer;
+window.toggleBranchCollapse = toggleBranchCollapse;
+window.toggleStepDetail = toggleStepDetail;
+
 
 function openDeliverableInWorkbench(filename, content, title) {
   const pane = document.getElementById('pane-deliverable');
@@ -3331,15 +3400,20 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
       state.timelineNodes.push({
         nodeId: `node_${msgId}_${idx}`,
         type: s.type,
+        level: s.level || 0,
         title: s.title,
         status: s.status,
         skill_id: s.skill_id,
+        agentName: s.agentName || null,
+        agentRole: s.agentRole || null,
+        agentIcon: s.agentIcon || null,
         action: s.action,
         summary: s.summary,
         deliverable: s.deliverable,
+        children: s.children || null,
         result: null,
         error: null,
-        expanded: false
+        expanded: s.expanded !== false
       });
     });
   }
@@ -3395,6 +3469,11 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
           if (state) {
             ChatPresentation.applyEvent(state, 'tool_call_start', tool);
             if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+          }
+          // 防御性清除：工具开始调用时，前置任何思考垫话绝不作为正文展示
+          if (accumulatedText) {
+            accumulatedText = '';
+            if (contentBody) contentBody.innerHTML = '';
           }
         },
         onToolComplete: (tool) => {

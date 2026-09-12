@@ -122,8 +122,19 @@
   function isTableDelimiter(line) { return /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)+\|?\s*$/.test(line); }
   function isTableStart(lines, index) { return index + 1 < lines.length && isTableRow(lines[index]) && isTableDelimiter(lines[index + 1]); }
 
+  function cleanMarkdownContent(markdown) {
+    if (!markdown) return '';
+    var text = String(markdown).replace(/\r\n?/g, '\n');
+    // 1. Strip <think>...</think> tags
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    // 2. Strip leading thought preambles before markdown headers
+    text = text.replace(/^\s*(?:我将(?:先|再次|按|通过|调度|立即)?|收到，(?:我将|现在)?|正在为您?|现在开始)[^\n]+(?=\n+#{1,6}\s)/, '');
+    return text.trim();
+  }
+
   function renderMarkdown(markdown) {
-    var lines = String(markdown == null ? '' : markdown).replace(/\r\n?/g, '\n').split('\n');
+    var cleaned = cleanMarkdownContent(markdown);
+    var lines = cleaned.split('\n');
     var html = [], i = 0;
     while (i < lines.length) {
       var line = lines[i];
@@ -179,7 +190,14 @@
   }
   function timelineNode(state, type, title) {
     var node = { nodeId: 'node-' + state._nextNode++, type: type, title: String(title || ''), status: 'pending', startedAt: null, completedAt: null, elapsedMs: null, summary: '', result: null, error: null, expanded: false };
-    state.timelineNodes.push(node); return node;
+    // 智能排序：如果有待执行的 'result' 节点，新执行节点应插入在 'result' 节点之前，确保任务总结与交付物永远收口在最后
+    var resultIndex = state.timelineNodes.findIndex(function(n) { return n.type === 'result' && n.status === 'pending'; });
+    if (resultIndex !== -1 && (type === 'thought' || type === 'tool' || type === 'stage')) {
+      state.timelineNodes.splice(resultIndex, 0, node);
+    } else {
+      state.timelineNodes.push(node);
+    }
+    return node;
   }
   function applyEvent(state, type, payload) {
     if (!state || !type) return state;
@@ -189,10 +207,23 @@
       var thought = eventValue(payload, ['content', 'text', 'summary'], '');
       var thoughtStr = String(thought || '');
       if (thoughtStr) {
-        var lastNode = state.timelineNodes.length ? state.timelineNodes[state.timelineNodes.length - 1] : null;
-        if (lastNode && lastNode.type === 'thought') {
-          lastNode.summary = (lastNode.summary || '') + thoughtStr;
-          lastNode.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt'], now)) || now;
+        // 智能检索当前轮次活动的思考节点（即使末尾有预置的 result 节点也能平滑累加）
+        var targetThoughtNode = null;
+        for (var idx = state.timelineNodes.length - 1; idx >= 0; idx--) {
+          var candidate = state.timelineNodes[idx];
+          if (candidate.type === 'thought') {
+            targetThoughtNode = candidate;
+            break;
+          }
+          // 如果逆序查找时先遇到了活跃或已完成的工具调用（非占位），说明进入了下一轮思考
+          if (candidate.type === 'tool' && candidate.nodeId !== 'step-exec' && candidate.status !== 'pending') {
+            break;
+          }
+        }
+
+        if (targetThoughtNode) {
+          targetThoughtNode.summary = (targetThoughtNode.summary || '') + thoughtStr;
+          targetThoughtNode.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt'], now)) || now;
         } else if (thoughtStr.trim()) {
           var tn = timelineNode(state, 'thought', eventValue(payload, ['title'], '模型思考推演'));
           tn.status = 'succeeded';
@@ -202,9 +233,22 @@
         }
       }
     } else if (type === 'tool_call_start') {
+      state.fullMarkdown = '';
       var callId = eventValue(payload, ['call_id', 'callId', 'id'], null), callKey = callId == null ? null : String(callId);
       var tool = callKey != null ? state._toolNodesByCallId[callKey] : null;
-      if (!tool) { tool = timelineNode(state, 'tool', eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用')); tool.callId = callKey; if (callKey != null) state._toolNodesByCallId[callKey] = tool; }
+      if (!tool) {
+        // 如果列表中存在占位的 step-exec 且为 pending，优先复用该槽位
+        var placeholderIndex = state.timelineNodes.findIndex(function(n) { return n.nodeId === 'step-exec' && n.status === 'pending'; });
+        if (placeholderIndex !== -1) {
+          tool = state.timelineNodes[placeholderIndex];
+          tool.callId = callKey;
+          if (callKey != null) state._toolNodesByCallId[callKey] = tool;
+        } else {
+          tool = timelineNode(state, 'tool', eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用'));
+          tool.callId = callKey;
+          if (callKey != null) state._toolNodesByCallId[callKey] = tool;
+        }
+      }
       if (tool.status === 'pending' || tool.status === 'running') tool.status = 'running';
       tool.startedAt = now == null ? tool.startedAt : now; if (!tool._elapsedExplicit && tool.elapsedMs == null && tool.completedAt != null && tool.startedAt != null) tool.elapsedMs = tool.completedAt >= tool.startedAt ? tool.completedAt - tool.startedAt : null;
       if (eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], null) != null) tool.title = String(eventValue(payload, ['title', 'skill_id', 'skillId', 'action'], '工具调用'));
@@ -262,7 +306,17 @@
       var errorInput = payload.error && typeof payload.error === 'object' ? Object.assign({}, payload, payload.error) : payload, presented = presentError(errorInput); state.errors.push(presented); var en = timelineNode(state, 'error', presented.title); en.status = 'failed'; en.error = presented; en.summary = presented.detail || presented.recovery; en.expanded = true; state.status = 'failed'; state._failed = true; state.timelineExpanded = true;
     } else if (type === 'done') {
       state.metrics.elapsedMs = duration(eventValue(payload, ['elapsed_ms', 'elapsedMs'], state.metrics.elapsedMs)); state.metrics.tokens = eventValue(payload, ['total_tokens', 'tokens'], state.metrics.tokens); state.metrics.finishReason = eventValue(payload, ['finish_reason', 'finishReason'], state.metrics.finishReason);
-      if (!state._failed) { state.status = 'succeeded'; state.summaryItems = summarizeMarkdown(state.fullMarkdown); var done = state.timelineNodes.find(function (n) { return n.type === 'done'; }) || timelineNode(state, 'done', '完成'); done.status = 'succeeded'; done.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt', 'timestamp'], null)); done.elapsedMs = state.metrics.elapsedMs; done.summary = state.summaryItems.join('；'); }
+      if (!state._failed) {
+        state.status = 'succeeded';
+        state.summaryItems = summarizeMarkdown(state.fullMarkdown);
+        var resultNode = state.timelineNodes.find(function (n) { return n.type === 'result'; });
+        var doneNode = state.timelineNodes.find(function (n) { return n.type === 'done'; });
+        var targetNode = resultNode || doneNode || timelineNode(state, 'done', '完成');
+        targetNode.status = 'succeeded';
+        targetNode.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt', 'timestamp'], null));
+        targetNode.elapsedMs = state.metrics.elapsedMs;
+        targetNode.summary = state.summaryItems.join('；');
+      }
     }
     return state;
   }
@@ -403,30 +457,67 @@
       deliverableName = 'report_' + stock.code + '.md';
     }
 
+    var agentInfo = resolveSkillAgent(targetSkill);
+
     var steps = [
       {
+        nodeId: 'step-intent',
         type: 'intent',
+        level: 0,
         title: '判断意图 ' + (stockLabel ? (stockLabel + ' 研判') : (promptText.slice(0, 18) || '任务执行')),
         summary: '用户需求匹配 SOP「' + sopName + '」，提取核心参数与治理策略。',
         status: 'succeeded'
       },
       {
+        nodeId: 'step-sop',
         type: 'sop',
+        level: 0,
         title: '选择SOP ' + sopName,
         summary: '规划执行路径：前置数据核验 ➔ 调度 ' + targetSkill + ' ➔ 交叉风控审计。',
         status: 'succeeded'
       },
       {
+        nodeId: 'step-exec',
         type: 'tool',
+        level: 0,
         title: '能力调用 ' + targetSkill,
         skill_id: targetSkill,
+        agentName: agentInfo.name,
+        agentRole: agentInfo.role,
+        agentIcon: agentInfo.icon,
         action: 'execute_pipeline',
         summary: '调度就地量化技能底座，规定执行核心运算与数据检验。',
         status: 'pending',
-        deliverable: { filename: deliverableName }
+        deliverable: { filename: deliverableName },
+        expanded: true,
+        children: [
+          {
+            stepId: 'sub-1',
+            title: '前置数据与参数核验',
+            summary: '核对标的 ' + (stockLabel || '自选池') + ' 交易日历与行情基线',
+            detail: '已就地校验数据桥接源，优先读取实时行情，保障数据完整。',
+            status: 'succeeded'
+          },
+          {
+            stepId: 'sub-2',
+            title: '调度核心算子 ' + targetSkill,
+            summary: '运行算法流水线与指标矩阵计算',
+            detail: '基于量化底座零依赖执行，完成截面因子与策略研判。',
+            status: 'pending'
+          },
+          {
+            stepId: 'sub-3',
+            title: '交叉风控审计与生成交付物',
+            summary: '生成结构化分析文档 ' + deliverableName,
+            detail: '遵循实战三原则：最低保本价、三级止损阶梯与三场景反应动作单。',
+            status: 'pending'
+          }
+        ]
       },
       {
+        nodeId: 'step-result',
         type: 'result',
+        level: 0,
         title: '整理任务结果',
         summary: '汇总结构化数据与生成交付物 ' + deliverableName + '。',
         status: 'pending'
@@ -440,6 +531,33 @@
       stockLabel: stockLabel,
       steps: steps
     };
+  }
+
+  var SKILL_AGENT_MAP = {
+    'astock-screener-5a': { name: '5A Screener Agent', role: '五维共振选股智能体', icon: '🤖' },
+    'astock-platform-evaluate': { name: 'Evaluation Agent', role: '综合研报与解套智能体', icon: '📊' },
+    'astock-action-execution': { name: 'Action Execution Agent', role: '实战反应与保本价风控智能体', icon: '🛡️' },
+    'astock-strategy-macd': { name: 'MACD Pattern Agent', role: '形态识别智能体', icon: '📈' },
+    'astock-agent-debate': { name: 'Debate Orchestrator', role: '7大分析师多空辩论', icon: '⚖️' },
+    'astock-data-feed': { name: 'Data Feed Agent', role: '行情与筹码穿透智能体', icon: '🔍' },
+    'astock-strategy-tuige': { name: 'Tuige Shortline Agent', role: '短线接力规则智能体', icon: '⚡' },
+    'astock-strategy-mainboard': { name: 'Mainboard Swing Agent', role: '主板波段智能体', icon: '🎯' },
+    'astock-trade-paper': { name: 'Paper Trading Agent', role: '模拟撮合交易智能体', icon: '💹' },
+    'astock-quant-engine': { name: 'Quant Pipeline Agent', role: '量化因子工程引擎', icon: '⚙️' },
+    'astock-pool-audit': { name: 'Pool Audit Agent', role: '股票池审查智能体', icon: '📋' },
+    'astock-pool-dashboard': { name: 'Pool Dashboard Agent', role: '股票池全景看板', icon: '💼' }
+  };
+
+  function resolveSkillAgent(skillId) {
+    if (!skillId) return { name: 'Quant Agent', role: '量化执行智能体', icon: '🤖' };
+    var normalized = String(skillId).trim().replace(/_/g, '-');
+    if (SKILL_AGENT_MAP[normalized]) return SKILL_AGENT_MAP[normalized];
+    for (var key in SKILL_AGENT_MAP) {
+      if (normalized.indexOf(key) !== -1 || key.indexOf(normalized) !== -1) {
+        return SKILL_AGENT_MAP[key];
+      }
+    }
+    return { name: skillId + ' Agent', role: '专职执行智能体', icon: '🤖' };
   }
 
   function detectDeliverables(markdown, toolData) {
@@ -475,6 +593,47 @@
     return files;
   }
 
+  function groupContinuousHomogeneousTools(nodes) {
+    if (!nodes || nodes.length <= 1) return nodes;
+    var grouped = [];
+    var i = 0;
+    while (i < nodes.length) {
+      var n = nodes[i];
+      if (n.type === 'tool' && n.nodeId !== 'step-exec') {
+        var skillKey = n.skill_id || n.action;
+        var run = [n];
+        var j = i + 1;
+        while (j < nodes.length && nodes[j].type === 'tool' && (nodes[j].skill_id || nodes[j].action) === skillKey && nodes[j].nodeId !== 'step-exec') {
+          run.push(nodes[j]);
+          j++;
+        }
+        if (run.length > 1) {
+          var hasFailed = run.some(function (x) { return x.status === 'failed'; });
+          var hasRunning = run.some(function (x) { return x.status === 'running'; });
+          var allDone = run.every(function (x) { return x.status === 'succeeded'; });
+          var status = hasFailed ? 'failed' : (hasRunning ? 'running' : (allDone ? 'succeeded' : 'degraded'));
+
+          var groupNode = {
+            nodeId: 'group_' + n.nodeId,
+            type: 'tool_group',
+            skill_id: skillKey,
+            action: n.action,
+            status: status,
+            items: run,
+            expanded: n.expanded !== false,
+            expandedDrawer: false
+          };
+          grouped.push(groupNode);
+          i = j;
+          continue;
+        }
+      }
+      grouped.push(n);
+      i++;
+    }
+    return grouped;
+  }
+
   function renderExecutionTimelineHtml(state, options) {
     if (!state) return '';
     options = options || {};
@@ -502,7 +661,9 @@
 
     html += '<div class="timeline-nodes-list' + (expanded ? '' : ' hidden') + '" id="nodesList_' + escapeHtml(state.responseId) + '">';
 
-    var nodes = state.timelineNodes || [];
+    var rawNodes = state.timelineNodes || [];
+    var nodes = groupContinuousHomogeneousTools(rawNodes);
+
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i];
       var isNodeFailed = n.status === 'failed';
@@ -514,32 +675,23 @@
       if (n.type === 'thought') {
         var thoughtText = String(n.summary || '').trim();
         var isThoughtOpen = n.expanded === true;
-        var isLong = thoughtText.length > 70 || thoughtText.indexOf('\n') !== -1;
-        var previewText = isLong ? (thoughtText.slice(0, 70) + '...') : thoughtText;
+        var isLong = thoughtText.length > 50 || thoughtText.indexOf('\n') !== -1;
+        var previewText = isLong ? (thoughtText.slice(0, 48) + '...') : thoughtText;
 
         html += '<div class="' + itemClass + ' node-thought-card" id="' + escapeHtml(n.nodeId) + '">';
         html += '  <div class="node-main-row">';
         html += '    <span class="node-icon">🧠</span>';
-        html += '    <div class="node-text-col">';
-        html += '      <div class="node-title">' + escapeHtml(n.title || '模型思考推演') + '</div>';
-        if (!isLong) {
-          if (thoughtText) {
-            html += '      <div class="node-subtext">' + escapeHtml(thoughtText) + '</div>';
-          }
-        } else {
-          if (!isThoughtOpen && previewText) {
-            html += '      <div class="node-subtext">' + escapeHtml(previewText) + '</div>';
-          }
-          html += '      <div class="node-drawer-wrap" style="margin-left:0; margin-top:2px;">';
-          html += '        <button type="button" class="node-drawer-btn" onclick="window.toggleNodeDrawer && window.toggleNodeDrawer(\'' + escapeHtml(state.responseId) + '\', \'' + escapeHtml(n.nodeId) + '\')">';
-          html += '          <span class="drawer-arrow">' + (isThoughtOpen ? '▼' : '▶') + '</span> ' + (isThoughtOpen ? '收起思考过程' : '展开完整思考过程');
-          html += '        </button>';
-          html += '        <div class="node-drawer-body' + (isThoughtOpen ? ' open' : ' closed') + '" id="drawer_' + escapeHtml(n.nodeId) + '">';
-          html += '          <div class="thought-full-box">' + escapeHtml(thoughtText) + '</div>';
-          html += '        </div>';
-          html += '      </div>';
+        html += '    <div class="node-text-col" style="cursor: pointer;" onclick="window.toggleNodeDrawer && window.toggleNodeDrawer(\'' + escapeHtml(state.responseId) + '\', \'' + escapeHtml(n.nodeId) + '\')">';
+        html += '      <div class="node-title">' + escapeHtml(n.title || '模型思考推演');
+        html += '        <span class="drawer-arrow" style="margin-left: 4px; font-size: 8px; color: #86909C;">' + (isThoughtOpen ? '▼' : '▶') + '</span>';
+        html += '      </div>';
+        if (!isThoughtOpen && previewText) {
+          html += '      <div class="node-subtext" style="color:#64748B;">' + escapeHtml(previewText) + '</div>';
         }
         html += '    </div>';
+        html += '  </div>';
+        html += '  <div class="node-drawer-body' + (isThoughtOpen ? ' open' : ' closed') + '" id="drawer_' + escapeHtml(n.nodeId) + '" style="margin-top: 3px; margin-left: 19px;">';
+        html += '    <div class="thought-full-box">' + escapeHtml(thoughtText) + '</div>';
         html += '  </div>';
         html += '</div>';
         continue;
@@ -550,27 +702,29 @@
       else if (n.type === 'sop') nodeIcon = '⇥';
       else if (n.type === 'thought') nodeIcon = '🧠';
       else if (n.type === 'confirmation') nodeIcon = '🎯';
-      else if (n.type === 'tool') nodeIcon = isNodeFailed ? '❌' : (isNodeDegraded ? '⚠️' : (isNodeRunning ? '⏳' : '🔧'));
+      else if (n.type === 'tool' || n.type === 'tool_group' || n.type === 'stage') nodeIcon = isNodeFailed ? '❌' : (isNodeDegraded ? '⚠️' : (isNodeRunning ? '⏳' : '🔧'));
       else if (n.type === 'result' || n.type === 'done') nodeIcon = '📄';
       else if (n.type === 'error') nodeIcon = '⚠️';
 
       var nodeTitle = n.title;
-      if (n.type === 'tool') {
+      var isGroup = n.type === 'tool_group';
+
+      if (n.type === 'tool' || isGroup) {
         var skillLabel = n.skill_id || n.action || n.title || '技能调用';
-        if (isNodeFailed) nodeTitle = '能力调用失败 ' + skillLabel;
-        else if (isNodeRunning) nodeTitle = '能力调用中 ' + skillLabel;
-        else if (isNodeDegraded) nodeTitle = '能力暂未可用 ' + skillLabel;
-        else nodeTitle = '能力调用完成 ' + skillLabel;
+        var prefix = isNodeFailed ? '能力调用失败 ' : (isNodeRunning ? '能力调用中 ' : (isNodeDegraded ? '能力暂未可用 ' : '能力调用完成 '));
+        if (isGroup) {
+          nodeTitle = '能力调用' + skillLabel + '任务（批量' + n.items.length + '次调用）';
+        } else {
+          nodeTitle = prefix + skillLabel;
+        }
       }
 
-      html += '<div class="' + itemClass + '" id="' + escapeHtml(n.nodeId) + '">';
-      html += '  <div class="node-main-row">';
-      html += '    <span class="node-icon">' + nodeIcon + '</span>';
-      html += '    <div class="node-text-col">';
-      html += '      <div class="node-title' + (isNodeFailed ? ' text-failed' : '') + '">' + escapeHtml(nodeTitle) + '</div>';
-
       var subInfo = n.summary || '';
-      if (!subInfo && n.action) subInfo = '第 ' + (i + 1) + ' 个动作 · ' + n.action;
+      if (isGroup) {
+        subInfo = isNodeRunning ? ('正在执行 ' + n.items.length + ' 次批量调用...') : ('已聚合挂接 ' + n.items.length + ' 次子任务调用并汇总数据');
+      } else if (!subInfo && n.action) {
+        subInfo = '第 ' + (i + 1) + ' 个动作 · ' + n.action;
+      }
       if (isNodeFailed && n.error) {
         var errTitle = n.error.title || n.error.detail || '执行异常';
         var codePrefix = n.error.code && n.error.code !== 'UNKNOWN' && !/^\d{6}$/.test(String(n.error.code)) ? (n.error.code + ' · ') : '';
@@ -578,37 +732,135 @@
       } else if (isNodeDegraded && !subInfo) {
         subInfo = '能力暂未接入生产引擎';
       }
+
+      var isBranchNode = n.type === 'tool' || isGroup || n.type === 'stage' || (n.children && n.children.length > 0);
+      var isBranchExpanded = n.expanded !== false;
+
+      html += '<div class="' + itemClass + (isBranchNode ? ' tree-parent-node' : '') + '" id="' + escapeHtml(n.nodeId) + '">';
+      html += '  <div class="node-main-row">';
+      html += '    <span class="node-icon">' + nodeIcon + '</span>';
+      html += '    <div class="node-text-col">';
+      html += '      <div class="node-title' + (isNodeFailed ? ' text-failed' : '') + '">' + escapeHtml(nodeTitle) + '</div>';
       if (subInfo) {
         html += '      <div class="node-subtext' + (isNodeFailed ? ' text-failed-sub' : '') + '">' + escapeHtml(subInfo) + '</div>';
       }
       html += '    </div>';
+
+      if (isBranchNode) {
+        html += '    <button type="button" class="branch-toggle-btn" id="toggle_' + escapeHtml(n.nodeId) + '" onclick="window.toggleBranchCollapse && window.toggleBranchCollapse(\'' + escapeHtml(state.responseId) + '\', \'' + escapeHtml(n.nodeId) + '\')" title="切换子层级展开/收起">';
+        html += isBranchExpanded ? '∨' : '>';
+        html += '    </button>';
+      }
       html += '  </div>';
 
-      // Collapsible tool result drawer (as in Image 1 and Image 3)
-      if (n.result != null || (n.error && n.error.detail)) {
-        var isDrawerOpen = n.expanded === true;
-        var drawerData = n.result != null ? n.result : { error: n.error };
-        html += '  <div class="node-drawer-wrap">';
-        html += '    <button type="button" class="node-drawer-btn" onclick="window.toggleNodeDrawer && window.toggleNodeDrawer(\'' + escapeHtml(state.responseId) + '\', \'' + escapeHtml(n.nodeId) + '\')">';
-        html += '      <span class="drawer-arrow">' + (isDrawerOpen ? '▼' : '▶') + '</span> 查看能力结果';
-        html += '    </button>';
-        html += '    <div class="node-drawer-body' + (isDrawerOpen ? ' open' : ' closed') + '" id="drawer_' + escapeHtml(n.nodeId) + '">';
-        html += '      <pre class="json-code-box"><code>' + escapeHtml(JSON.stringify(drawerData, null, 2)) + '</code></pre>';
+      // 树形缩进显示框架 (Indented Tree Branch Container with Left Hierarchy Guide Line)
+      if (isBranchNode) {
+        var agent = resolveSkillAgent(n.skill_id);
+        var agentName = n.agentName || agent.name;
+        var agentIcon = n.agentIcon || agent.icon;
+        var agentStatus = isNodeRunning ? '正在调度执行...' : (isNodeFailed ? '执行遇到异常' : (isNodeDegraded ? '能力暂未接入' : (isGroup ? ('批量执行完成 (' + n.items.length + '项)') : '执行完成')));
+
+        html += '  <div class="timeline-branch-container' + (isBranchExpanded ? '' : ' collapsed') + '" id="branch_' + escapeHtml(n.nodeId) + '">';
+
+        // Level 1: 子智能体卡片
+        html += '    <div class="subagent-node-card status-' + (isNodeFailed ? 'failed' : (isNodeRunning ? 'running' : 'done')) + '">';
+        html += '      <div class="subagent-header-row">';
+        html += '        <span class="subagent-icon">' + agentIcon + '</span>';
+        html += '        <span class="subagent-name">' + escapeHtml(agentName) + '</span>';
+        html += '        <span class="subagent-divider">|</span>';
+        html += '        <span class="subagent-status-text">' + escapeHtml(agentStatus) + '</span>';
+        html += '      </div>';
         html += '    </div>';
-        html += '  </div>';
+
+        // Level 2: 操作步骤与调用子树（二级缩进 + 层级引导线）
+        html += '    <div class="timeline-branch-container level-2-branch">';
+
+        if (isGroup) {
+          // 批量父任务下的每个原子调用作为挂接子任务展示
+          for (var itemIdx = 0; itemIdx < n.items.length; itemIdx++) {
+            var itemObj = n.items[itemIdx];
+            var subCallId = escapeHtml(itemObj.nodeId || (n.nodeId + '_sub_' + itemIdx));
+            var itemIcon = itemObj.status === 'failed' ? '❌' : (itemObj.status === 'running' ? '⏳' : (itemObj.status === 'degraded' ? '⚠️' : '•'));
+            var itemSummary = itemObj.summary || (itemObj.action ? (itemObj.action + ' 完成') : '调用成功');
+            var itemSkill = itemObj.skill_id || skillLabel;
+            var itemTitle = '子任务 ' + (itemIdx + 1) + ': ' + itemSkill + ' · ' + itemSummary;
+
+            html += '      <div class="step-leaf-item" id="' + subCallId + '">';
+            html += '        <div class="step-summary-bar">';
+            html += '          <span class="step-bullet">' + itemIcon + '</span>';
+            html += '          <span class="step-title">' + escapeHtml(itemTitle) + '</span>';
+            html += '        </div>';
+            if (itemObj.args && typeof itemObj.args === 'object' && Object.keys(itemObj.args).length > 0) {
+              var argsStr = '';
+              try { argsStr = JSON.stringify(itemObj.args); } catch(e) { argsStr = String(itemObj.args); }
+              html += '        <div class="step-detail-text" style="display:block; margin-top:1px; margin-left:14px; font-size:11px; color:#64748B;">';
+              html += '          参数: ' + escapeHtml(argsStr);
+              html += '        </div>';
+            }
+            html += '      </div>';
+          }
+        } else if (n.children && n.children.length) {
+          for (var c = 0; c < n.children.length; c++) {
+            var sub = n.children[c];
+            var subId = escapeHtml(sub.stepId || (n.nodeId + '_sub_' + c));
+            var subTitle = sub.title || ('步骤 ' + (c + 1));
+            var hasSubDetail = Boolean(sub.detail);
+
+            html += '      <div class="step-leaf-item">';
+            html += '        <div class="step-summary-bar" onclick="window.toggleStepDetail && window.toggleStepDetail(\'' + escapeHtml(state.responseId) + '\', \'' + subId + '\')">';
+            html += '          <span class="step-bullet">•</span>';
+            html += '          <span class="step-title">' + escapeHtml(subTitle) + '</span>';
+            if (hasSubDetail) {
+              html += '          <span class="step-chevron" id="arrow_' + subId + '">></span>';
+            }
+            html += '        </div>';
+            if (hasSubDetail) {
+              html += '        <div class="step-detail-text hidden" id="detail_' + subId + '">';
+              html += escapeHtml(sub.detail);
+              html += '        </div>';
+            }
+            html += '      </div>';
+          }
+        } else {
+          // 动态单工具调用降级/默认步骤展示
+          html += '      <div class="step-leaf-item">';
+          html += '        <div class="step-summary-bar">';
+          html += '          <span class="step-bullet">•</span>';
+          html += '          <span class="step-title">' + escapeHtml(subInfo || '执行底层量化引擎计算') + '</span>';
+          html += '        </div>';
+          html += '      </div>';
+        }
+
+        // Collapsible tool result drawer (as in Image 1 and Image 3)
+        var drawerObj = isGroup ? { batch_count: n.items.length, results: n.items.map(function(x){ return x.result; }) } : (n.result != null ? n.result : { error: n.error });
+        var hasDrawerData = isGroup ? n.items.some(function(x){ return x.result != null; }) : (n.result != null || (n.error && n.error.detail));
+        if (hasDrawerData) {
+          var isDrawerOpen = n.expandedDrawer === true;
+          html += '      <div class="node-drawer-wrap" style="margin-left: 2px;">';
+          html += '        <button type="button" class="node-drawer-btn" onclick="window.toggleNodeDrawer && window.toggleNodeDrawer(\'' + escapeHtml(state.responseId) + '\', \'' + escapeHtml(n.nodeId) + '\')">';
+          html += '          <span class="drawer-arrow">' + (isDrawerOpen ? '▼' : '▶') + '</span> 查看能力结果';
+          html += '        </button>';
+          html += '        <div class="node-drawer-body' + (isDrawerOpen ? ' open' : ' closed') + '" id="drawer_' + escapeHtml(n.nodeId) + '">';
+          html += '          <pre class="json-code-box"><code>' + escapeHtml(JSON.stringify(drawerObj, null, 2)) + '</code></pre>';
+          html += '        </div>';
+          html += '      </div>';
+        }
+
+        // Deliverable clickable link (Requirement 6)
+        if (n.deliverable && n.deliverable.filename) {
+          var fn = n.deliverable.filename;
+          html += '      <div class="node-deliverable-wrap" style="margin-left: 2px;">';
+          html += '        <span class="deliverable-link-chip" onclick="window.openDeliverableInWorkbench && window.openDeliverableInWorkbench(\'' + escapeHtml(fn) + '\')" title="在右侧工作台打开文件">';
+          html += '          📄 ' + escapeHtml(fn) + ' <span class="open-arrow">↗</span>';
+          html += '        </span>';
+          html += '      </div>';
+        }
+
+        html += '    </div>'; // end level-2-branch
+        html += '  </div>'; // end timeline-branch-container
       }
 
-      // Deliverable clickable link (Requirement 6)
-      if (n.deliverable && n.deliverable.filename) {
-        var fn = n.deliverable.filename;
-        html += '  <div class="node-deliverable-wrap">';
-        html += '    <span class="deliverable-link-chip" onclick="window.openDeliverableInWorkbench && window.openDeliverableInWorkbench(\'' + escapeHtml(fn) + '\')" title="在右侧工作台打开文件">';
-        html += '      📄 ' + escapeHtml(fn) + ' <span class="open-arrow">↗</span>';
-        html += '    </span>';
-        html += '  </div>';
-      }
-
-      html += '</div>';
+      html += '</div>'; // end timeline-node-item
     }
 
     // Working animation at bottom while active (Requirement 2)
@@ -627,6 +879,7 @@
 
   root.ChatPresentation = {
     escapeHtml: escapeHtml,
+    cleanMarkdownContent: cleanMarkdownContent,
     renderMarkdown: renderMarkdown,
     summarizeMarkdown: summarizeMarkdown,
     redactSensitive: redactSensitive,
