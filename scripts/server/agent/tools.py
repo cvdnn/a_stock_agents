@@ -164,18 +164,35 @@ def _sync_astock_technical(code: str, count: int = 60) -> Dict[str, Any]:
     bridge = DataBridge()
     klines = bridge.tencent_kline(code, count=count)
     if not klines or len(klines) < 15:
-        return {"error": f"股票 {code} 的历史K线数据不足。"}
+        return {"error": f"股票/标的 {code} 的历史K线数据不足。"}
     tech_all = calc_all(klines)
     latest = tech_all.get("latest", {})
     return {
         "code": code,
         "klines_count": len(klines),
         "latest_close": float(klines[-1][2]),
-        "ma": latest.get("ma", {}),
-        "macd": latest.get("macd", {}),
-        "kdj": latest.get("kdj", {}),
-        "rsi": latest.get("rsi", {}),
-        "boll": latest.get("boll", {}),
+        "ma": {
+            "ma5": latest.get("ma5"),
+            "ma10": latest.get("ma10"),
+            "ma20": latest.get("ma20"),
+            "ma60": latest.get("ma60"),
+        },
+        "macd": {
+            "dif": latest.get("dif"),
+            "dea": latest.get("dea"),
+            "hist": latest.get("macd_bar"),
+        },
+        "kdj": {
+            "k": latest.get("kdj_k"),
+            "d": latest.get("kdj_d"),
+        },
+        "rsi": latest.get("rsi"),
+        "boll": {
+            "upper": latest.get("boll_upper"),
+            "mid": latest.get("boll_mid"),
+            "lower": latest.get("boll_lower"),
+            "width": latest.get("boll_width"),
+        },
         "atr": latest.get("atr", 0.0),
     }
 
@@ -320,9 +337,20 @@ def _sync_astock_screen_5a(limit: int = 10, dynamic_mode: Optional[str] = None, 
 
 def _sync_astock_data_feed(code: Optional[str] = None, action: str = "quote", count: int = 60, **kwargs: Any) -> Dict[str, Any]:
     target_code = code or kwargs.get("symbol") or kwargs.get("stock_code") or ""
-    act = action or kwargs.get("act") or "quote"
+    act = (action or kwargs.get("act") or "quote").lower().strip()
     if act == "tech":
         return _sync_astock_technical(code=target_code, count=count)
+    if act in ("history", "kline"):
+        bridge = DataBridge()
+        klines = bridge.tencent_kline(target_code, count=count)
+        if not klines:
+            return {"error": "DATA_UNAVAILABLE", "message": f"股票/标的 {target_code} 的历史K线暂不可用。"}
+        return {
+            "code": target_code,
+            "count": len(klines),
+            "klines": klines[-count:],
+            "latest_close": float(klines[-1][2]) if klines else None,
+        }
     return _sync_astock_quote(code=target_code)
 
 

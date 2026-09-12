@@ -10,6 +10,7 @@ import sys
 import yaml
 import logging
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
 VERSION = "3.0.0"
 
@@ -73,16 +74,58 @@ DEFAULT_CYCLICAL_SECTORS = {
 }
 
 
+# 常见指数代码及别名映射表
+COMMON_INDEX_ALIAS: Dict[str, str] = {
+    # 通达信与常用简易代码
+    "999999": "sh000001",
+    "sh999999": "sh000001",
+    "000300": "sh000300",  # 沪深300指数（上交所代码）
+    "000905": "sh000905",  # 中证500指数
+    "000852": "sh000852",  # 中证1000指数
+    "000016": "sh000016",  # 上证50指数
+    "399001": "sz399001",  # 深证成指
+    "399006": "sz399006",  # 创业板指
+    "399106": "sz399106",  # 深证综指
+    "399300": "sz399300",  # 沪深300（深交所代码）
+    "399905": "sz399905",  # 中证500（深交所代码）
+    "399852": "sz399852",  # 中证1000（深交所代码）
+    # 中文别名
+    "上证指数": "sh000001",
+    "上证": "sh000001",
+    "沪指": "sh000001",
+    "大盘": "sh000001",
+    "深证成指": "sz399001",
+    "深指": "sz399001",
+    "深成指": "sz399001",
+    "创业板指": "sz399006",
+    "创业板": "sz399006",
+    "创指": "sz399006",
+    "沪深300": "sh000300",
+    "中证500": "sh000905",
+    "中证1000": "sh000852",
+    "上证50": "sh000016",
+    "科创50": "sh000688",
+}
+
+SHANGHAI_INDEX_CODES = {"000300", "000905", "000852", "000016"}
+
+
 def infer_market_prefix(code: str) -> str:
     """推断市场前缀 (sh/sz/bj) — 单点真实源 (SSOT)"""
     s = str(code).strip().lower()
+    if s in COMMON_INDEX_ALIAS:
+        return COMMON_INDEX_ALIAS[s][:2]
     if s.startswith("sh") or s.endswith((".sh", ".ss")):
         return MARKET_PREFIX_SH
     if s.startswith("bj") or s.endswith(".bj"):
         return MARKET_PREFIX_BJ
     if s.startswith("sz") or s.endswith(".sz"):
         return MARKET_PREFIX_SZ
-    clean = s.replace("sh", "").replace("sz", "").replace("bj", "").split(".")[0]
+    clean = s.replace("sh", "").replace("sz", "").replace("bj", "").replace(".", "").replace("_", "").replace("-", "")
+    if clean in COMMON_INDEX_ALIAS:
+        return COMMON_INDEX_ALIAS[clean][:2]
+    if clean in SHANGHAI_INDEX_CODES:
+        return MARKET_PREFIX_SH
     if clean.startswith(("8", "4", "92")):
         return MARKET_PREFIX_BJ
     elif clean.startswith(("6", "5", "9")):
@@ -91,10 +134,16 @@ def infer_market_prefix(code: str) -> str:
         return MARKET_PREFIX_SZ
 
 
-
 def normalize_symbol(code: str, with_prefix: bool = True) -> str:
     """标准化股票代码为带前缀或纯数字格式，如 sh600519 或 600519"""
-    clean = str(code).strip().lower().replace("sh", "").replace("sz", "").replace("bj", "").split(".")[0]
+    s = str(code).strip().lower()
+    if s in COMMON_INDEX_ALIAS:
+        target = COMMON_INDEX_ALIAS[s]
+        return target if with_prefix else target[2:]
+    clean = s.replace("sh", "").replace("sz", "").replace("bj", "").replace(".", "").replace("_", "").replace("-", "")
+    if clean in COMMON_INDEX_ALIAS:
+        target = COMMON_INDEX_ALIAS[clean]
+        return target if with_prefix else target[2:]
     if not with_prefix:
         return clean
     prefix = infer_market_prefix(code)

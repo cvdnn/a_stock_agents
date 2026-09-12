@@ -33,13 +33,17 @@ except ImportError:
 
 
 def _validate_stock_code(code: str) -> str:
-    """白名单校验股票代码，只允许 1-10 位字母数字，防范命令注入。"""
+    """白名单校验股票代码，支持纯代码、带市场前缀/后缀代码及常用指数别名，防范命令注入。"""
     if not code or not isinstance(code, str):
         raise ValueError(f"Invalid stock code: {code}")
-    clean = code.strip()
+    raw = code.strip()
+    if re.match(r"^[a-zA-Z0-9]{1,10}$", raw):
+        return raw
+    normalized = DataBridge.normalize_symbol(raw, with_prefix=True)
+    clean = normalized.replace("sh", "").replace("sz", "").replace("bj", "")
     if not re.match(r"^[a-zA-Z0-9]{1,10}$", clean):
         raise ValueError(f"Stock code contains illegal characters: {code}")
-    return clean
+    return normalized
 
 
 class QuoteDict(dict):
@@ -265,7 +269,7 @@ class DataBridge:
 
     @staticmethod
     def tencent_kline(code: str, count: int = 120) -> List[List]:
-        """获取腾讯前复权日K线（零依赖）
+        """获取腾讯前复权日K线（零依赖，个股取qfqday，指数取day）
         返回: [[date, open, close, high, low, volume], ...]
         """
         norm = DataBridge.normalize_symbol(code)
@@ -275,7 +279,8 @@ class DataBridge:
             resp = urllib.request.urlopen(req, timeout=10)
             data = json.loads(resp.read().decode("utf-8"))
             if norm in data.get("data", {}):
-                return data["data"][norm].get("qfqday", [])
+                node_data = data["data"][norm]
+                return node_data.get("qfqday") or node_data.get("day") or []
         except Exception as e:
             logger.warning(f"[L1] 腾讯K线获取失败 ({code}): {e}")
         return []
@@ -330,7 +335,8 @@ class DataBridge:
             return result.get(norm) or result.get(clean_code) or list(result.values())[0]
 
         # L2: a-share-data 脚本
-        return self._run_script("fetch_realtime.py", f"--quote {clean_code} --json")
+        pure_num = clean_code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_realtime.py", f"--quote {pure_num} --json")
 
     def get_kline(self, code: str, start: str, end: str) -> Optional[Dict]:
         """获取K线数据 — 自动降级"""
@@ -409,8 +415,9 @@ class DataBridge:
             logger.warning(f"Invalid stock code for CYQ: {exc}")
             return None
 
+        pure_num = clean_code.replace("sh", "").replace("sz", "").replace("bj", "")
         result = self._run_script("fetch_patched.py",
-                                   f"fetch_realtime.py --cyq {clean_code} --json",
+                                   f"fetch_realtime.py --cyq {pure_num} --json",
                                    use_patch=True, timeout=30)
         if result:
             return result

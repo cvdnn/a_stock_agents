@@ -187,7 +187,20 @@
     var now = timestamp(eventValue(payload, ['timestamp', 'received_at', 'started_at', 'startedAt'], null));
     if (type === 'thought') {
       var thought = eventValue(payload, ['content', 'text', 'summary'], '');
-      if (String(thought || '').trim()) { var tn = timelineNode(state, 'thought', eventValue(payload, ['title'], '思考')); tn.status = 'succeeded'; tn.summary = String(thought); tn.startedAt = now; tn.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt'], now)); }
+      var thoughtStr = String(thought || '');
+      if (thoughtStr) {
+        var lastNode = state.timelineNodes.length ? state.timelineNodes[state.timelineNodes.length - 1] : null;
+        if (lastNode && lastNode.type === 'thought') {
+          lastNode.summary = (lastNode.summary || '') + thoughtStr;
+          lastNode.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt'], now)) || now;
+        } else if (thoughtStr.trim()) {
+          var tn = timelineNode(state, 'thought', eventValue(payload, ['title'], '模型思考推演'));
+          tn.status = 'succeeded';
+          tn.summary = thoughtStr;
+          tn.startedAt = now;
+          tn.completedAt = timestamp(eventValue(payload, ['completed_at', 'completedAt'], now)) || now;
+        }
+      }
     } else if (type === 'tool_call_start') {
       var callId = eventValue(payload, ['call_id', 'callId', 'id'], null), callKey = callId == null ? null : String(callId);
       var tool = callKey != null ? state._toolNodesByCallId[callKey] : null;
@@ -204,30 +217,41 @@
       var suppliedCompleted = eventValue(payload, ['completed_at', 'completedAt', 'timestamp', 'received_at'], null); if (suppliedCompleted != null) match.completedAt = timestamp(suppliedCompleted); var rawElapsed = eventValue(payload, ['elapsed_ms', 'elapsedMs'], null), explicitElapsed = (Object.prototype.hasOwnProperty.call(payload, 'elapsed_ms') || Object.prototype.hasOwnProperty.call(payload, 'elapsedMs')) && duration(rawElapsed) != null; if (explicitElapsed) match.elapsedMs = duration(rawElapsed); else if (match.elapsedMs == null && match.startedAt != null && match.completedAt != null && match.completedAt >= match.startedAt) match.elapsedMs = match.completedAt - match.startedAt;
       var hasData = Object.prototype.hasOwnProperty.call(payload, 'data') || Object.prototype.hasOwnProperty.call(payload, 'result'), result = eventValue(payload, ['data', 'result'], null); if (hasData) { match.result = snapshot(result); if (match.callId != null) state.toolResultsByCallId[match.callId] = snapshot(result); }
       if (Object.prototype.hasOwnProperty.call(payload, 'summary')) match.summary = String(payload.summary || '');
-      var previousStatus = match.status, terminal = String(eventValue(payload, ['status', 'state', 'outcome', 'type'], '')).toLowerCase();
+      var previousStatus = match.status;
+      var terminal = String(eventValue(payload, ['status', 'state', 'outcome', 'type'], '')).toLowerCase();
       var isUnavailable = terminal === 'unavailable' || (payload.data && typeof payload.data === 'object' && payload.data.status === 'unavailable');
       var isTimeout = terminal === 'timeout' || (payload.data && typeof payload.data === 'object' && payload.data.status === 'timeout');
-      var isFailed = terminal === 'failed' || terminal === 'error' || (payload.data && typeof payload.data === 'object' && payload.data.status === 'error');
-      var toolError = !isUnavailable && (payload.error || (payload.data && typeof payload.data === 'object' && (payload.data.code || (isFailed && payload.data.error) || payload.data.message) ? payload.data : null) || (isFailed || isTimeout ? payload : null));
+      var hasExplicitError = Boolean(payload.error);
+      var isDataError = Boolean(payload.data && typeof payload.data === 'object' && payload.data.status === 'error');
+      var isFailed = terminal === 'failed' || terminal === 'error' || isDataError || hasExplicitError;
+      var isSuccess = terminal === 'success' || terminal === 'succeeded' || terminal === 'ok';
+
       if (isUnavailable) {
         match.status = 'degraded';
         match.error = null;
-      } else if (toolError || isFailed || isTimeout) {
+      } else if (isSuccess && !hasExplicitError && !isDataError) {
+        match.status = 'succeeded';
+        match.error = null;
+      } else if (isFailed || isTimeout) {
         var wasFailed = match.status === 'failed';
+        var toolError = payload.error || (payload.data && typeof payload.data === 'object' && (payload.data.error || (isDataError && payload.data.message)) ? payload.data : null) || (payload.data && typeof payload.data === 'object' && payload.data.code && !/^\d{6}$/.test(String(payload.data.code)) ? payload.data : null) || payload;
         var errorDetail = toolError && (toolError.detail || toolError.message || (typeof toolError.error === 'string' ? toolError.error : '') || (typeof toolError === 'string' ? toolError : ''));
         var rawCode = toolError && toolError.code;
+        if (rawCode && /^\d{6}$/.test(String(rawCode))) {
+          rawCode = null;
+        }
         if (!rawCode && toolError && typeof toolError.error === 'string' && errors[toolError.error]) {
           rawCode = toolError.error;
         }
         match.status = 'failed';
         if (!hasData && previousStatus !== 'failed') { match.result = null; if (match.callId != null) delete state.toolResultsByCallId[match.callId]; }
         var errorObj = typeof toolError === 'object' && toolError !== null ? Object.assign({}, toolError) : {};
-        errorObj.code = rawCode || toolError.code || (isTimeout ? 'LLM_TIMEOUT' : 'UNKNOWN');
+        errorObj.code = rawCode || (isTimeout ? 'LLM_TIMEOUT' : 'CAPABILITY_EXECUTION_FAILED');
         errorObj.detail = errorDetail || payload.detail;
         match.error = presentError(errorObj);
         if (!wasFailed && !state._toolFailureSeen) { match.expanded = true; state.timelineExpanded = true; state._toolFailureSeen = true; }
       } else {
-        match.status = terminal === 'success' || terminal === 'succeeded' || terminal === 'ok' ? 'succeeded' : 'degraded';
+        match.status = 'degraded';
         match.error = null;
       }
       if (!hasData && previousStatus !== match.status) { match.result = null; if (match.callId != null) delete state.toolResultsByCallId[match.callId]; }
@@ -321,7 +345,9 @@
     ORDER_RESULT_INVALID: ['订单请求无效', '订单执行失败或参数不合规'],
   };
   function presentError(error) {
-    var code = error && (error.code || error.error), item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试'];
+    var rawCode = error && (error.code || error.error);
+    var code = (rawCode && !/^\d{6}$/.test(String(rawCode))) ? rawCode : null;
+    var item = code && Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试'];
     var rawDetail = error && (error.detail != null ? error.detail : (error.message || error.error || ''));
     if (typeof rawDetail === 'object' && rawDetail !== null) {
       rawDetail = rawDetail.detail || rawDetail.message || rawDetail.error || JSON.stringify(rawDetail);
@@ -485,10 +511,44 @@
       var isNodeDegraded = n.status === 'degraded';
       var itemClass = 'timeline-node-item' + (isNodeFailed ? ' node-failed' : (isNodeRunning ? ' node-running' : (isNodeDegraded ? ' node-degraded' : ' node-done')));
 
+      if (n.type === 'thought') {
+        var thoughtText = String(n.summary || '').trim();
+        var isThoughtOpen = n.expanded === true;
+        var isLong = thoughtText.length > 70 || thoughtText.indexOf('\n') !== -1;
+        var previewText = isLong ? (thoughtText.slice(0, 70) + '...') : thoughtText;
+
+        html += '<div class="' + itemClass + ' node-thought-card" id="' + escapeHtml(n.nodeId) + '">';
+        html += '  <div class="node-main-row">';
+        html += '    <span class="node-icon">🧠</span>';
+        html += '    <div class="node-text-col">';
+        html += '      <div class="node-title">' + escapeHtml(n.title || '模型思考推演') + '</div>';
+        if (!isLong) {
+          if (thoughtText) {
+            html += '      <div class="node-subtext">' + escapeHtml(thoughtText) + '</div>';
+          }
+        } else {
+          if (!isThoughtOpen && previewText) {
+            html += '      <div class="node-subtext">' + escapeHtml(previewText) + '</div>';
+          }
+          html += '      <div class="node-drawer-wrap" style="margin-left:0; margin-top:2px;">';
+          html += '        <button type="button" class="node-drawer-btn" onclick="window.toggleNodeDrawer && window.toggleNodeDrawer(\'' + escapeHtml(state.responseId) + '\', \'' + escapeHtml(n.nodeId) + '\')">';
+          html += '          <span class="drawer-arrow">' + (isThoughtOpen ? '▼' : '▶') + '</span> ' + (isThoughtOpen ? '收起思考过程' : '展开完整思考过程');
+          html += '        </button>';
+          html += '        <div class="node-drawer-body' + (isThoughtOpen ? ' open' : ' closed') + '" id="drawer_' + escapeHtml(n.nodeId) + '">';
+          html += '          <div class="thought-full-box">' + escapeHtml(thoughtText) + '</div>';
+          html += '        </div>';
+          html += '      </div>';
+        }
+        html += '    </div>';
+        html += '  </div>';
+        html += '</div>';
+        continue;
+      }
+
       var nodeIcon = '•';
       if (n.type === 'intent') nodeIcon = '📝';
       else if (n.type === 'sop') nodeIcon = '⇥';
-      else if (n.type === 'thought') nodeIcon = '💭';
+      else if (n.type === 'thought') nodeIcon = '🧠';
       else if (n.type === 'confirmation') nodeIcon = '🎯';
       else if (n.type === 'tool') nodeIcon = isNodeFailed ? '❌' : (isNodeDegraded ? '⚠️' : (isNodeRunning ? '⏳' : '🔧'));
       else if (n.type === 'result' || n.type === 'done') nodeIcon = '📄';
@@ -513,7 +573,8 @@
       if (!subInfo && n.action) subInfo = '第 ' + (i + 1) + ' 个动作 · ' + n.action;
       if (isNodeFailed && n.error) {
         var errTitle = n.error.title || n.error.detail || '执行异常';
-        subInfo = (n.error.code ? (n.error.code + ' · ') : '') + errTitle;
+        var codePrefix = n.error.code && n.error.code !== 'UNKNOWN' && !/^\d{6}$/.test(String(n.error.code)) ? (n.error.code + ' · ') : '';
+        subInfo = codePrefix + errTitle;
       } else if (isNodeDegraded && !subInfo) {
         subInfo = '能力暂未接入生产引擎';
       }

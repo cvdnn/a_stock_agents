@@ -306,4 +306,81 @@ const receivedTiming = api.createResponseState('received-timing');
 api.applyEvent(receivedTiming, 'tool_call_start', { call_id: 'rt', started_at: 1000 });
 api.applyEvent(receivedTiming, 'tool_call_complete', { call_id: 'rt', status: 'success', received_at: 1500 });
 assert.strictEqual(receivedTiming.timelineNodes[0].elapsedMs, 500);
+
+// --- 针对截图 Bug 的严格回归测试 ---
+// 1. 验证 A 股股票数据（包含 code: '000001'）在 status: 'success' 时决不被误判为失败
+const stockState = api.createResponseState('stock-quote-test');
+api.applyEvent(stockState, 'tool_call_start', {
+  call_id: 'quote-1',
+  skill_id: 'astock_data_feed',
+  title: '能力调用 astock_data_feed'
+});
+api.applyEvent(stockState, 'tool_call_complete', {
+  call_id: 'quote-1',
+  skill_id: 'astock_data_feed',
+  status: 'success',
+  summary: '现价 11.74 (-0.93%)',
+  data: {
+    code: '000001',
+    name: '平安银行',
+    price: 11.74,
+    change_pct: -0.93,
+    high: 11.86,
+    low: 11.71,
+    open: 11.82,
+    prev_close: 11.85,
+    turnover_pct: 0.43,
+    pe: 5.24,
+    market_cap: 2278.25,
+    time: '20260911161454',
+    skill_id: 'astock_data_feed',
+    status: 'success'
+  }
+});
+const node = stockState.timelineNodes.find(n => n.callId === 'quote-1');
+assert.ok(node, '必须存在 quote-1 节点');
+assert.strictEqual(node.status, 'succeeded', '成功返回股票行情时节点状态必须为 succeeded，绝不能为 failed');
+assert.strictEqual(node.error, null, '节点 error 必须为 null');
+assert.strictEqual(node.result.code, '000001');
+assert.strictEqual(node.summary, '现价 11.74 (-0.93%)');
+
+const htmlRendered = api.renderExecutionTimelineHtml(stockState);
+assert.match(htmlRendered, /能力调用完成 astock_data_feed/, '必须渲染为能力调用完成');
+assert.doesNotMatch(htmlRendered, /能力调用失败/, '绝不可渲染为能力调用失败');
+assert.doesNotMatch(htmlRendered, /000001 · 请求失败/, '绝不可将股票代码误判为错误码输出请求失败');
+assert.match(htmlRendered, /现价 11\.74 \(-0\.93%\)/, '必须正确展示行情摘要');
+
+// 2. 验证即便发生真实错误，6位股票代码也绝对不可被当成错误代码输出
+const stockErrState = api.createResponseState('stock-err-test');
+api.applyEvent(stockErrState, 'tool_call_start', { call_id: 'err-1', skill_id: 'astock_data_feed' });
+api.applyEvent(stockErrState, 'tool_call_complete', {
+  call_id: 'err-1',
+  status: 'error',
+  data: { code: '000001', message: '数据源连接超时' }
+});
+const errNode = stockErrState.timelineNodes.find(n => n.callId === 'err-1');
+assert.strictEqual(errNode.status, 'failed');
+assert.notStrictEqual(errNode.error.code, '000001', '错误码绝对不能被设为股票代码 000001');
+const errHtml = api.renderExecutionTimelineHtml(stockErrState);
+assert.doesNotMatch(errHtml, /000001 · 请求失败/, '不可展示 000001 · 请求失败');
+
+// 3. 验证流式推理思考内容平滑累加，杜绝拆分成数十个独立卡片
+const streamThoughtState = api.createResponseState('thought-stream-test');
+const thoughtDeltas = ['模型', '正在', '结合', '盘面', '特征', '分析', '大盘', '走势'];
+for (const delta of thoughtDeltas) {
+  api.applyEvent(streamThoughtState, 'thought', { content: delta });
+}
+assert.strictEqual(streamThoughtState.timelineNodes.length, 1, '多次流式 thought delta 必须累加至同一个思考节点');
+assert.strictEqual(streamThoughtState.timelineNodes[0].summary, '模型正在结合盘面特征分析大盘走势');
+
+// 测试长思考过程抽屉展示
+const longThought = '用户再次提出全流程大盘行情深度研判诉求。结合当前深证成指与上证指数走势，准备调用底层量化引擎获取最新4级降级实时行情与技术形态指标，以便为用户生成严格符合实战三原则的操盘研报。';
+const longThoughtState = api.createResponseState('thought-long-test');
+api.applyEvent(longThoughtState, 'thought', { content: longThought });
+const longHtml = api.renderExecutionTimelineHtml(longThoughtState);
+assert.match(longHtml, /node-thought-card/, '长思考过程必须渲染 node-thought-card');
+assert.match(longHtml, /展开完整思考过程/, '长思考过程必须包含折叠展开按钮');
+assert.match(longHtml, /thought-full-box/, '长思考过程必须渲染 thought-full-box 容器');
+
 console.log('PASS');
+

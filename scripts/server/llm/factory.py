@@ -45,11 +45,16 @@ class LLMProviderFactory:
                 target_provider_id = role_info.get("provider_id")
                 target_model = role_info.get("model_id")
 
-        # Check if model has format "model_id|provider_id"
-        if target_model and "|" in target_model:
-            parts = target_model.split("|", 1)
-            target_model = parts[0].strip()
-            target_provider_id = parts[1].strip()
+        # Check if model has format "model_id|provider_id" or "provider_id:model_id"
+        if target_model and ("|" in target_model or ":" in target_model):
+            sep = "|" if "|" in target_model else ":"
+            parts = target_model.split(sep, 1)
+            if parts[0].startswith("prov_"):
+                target_provider_id = parts[0].strip()
+                target_model = parts[1].strip()
+            else:
+                target_model = parts[0].strip()
+                target_provider_id = parts[1].strip()
 
         prov_rec = None
         # Check if model has format "model_id(provider_name_or_id)"
