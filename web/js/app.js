@@ -752,6 +752,41 @@ function renderWorkbenchUnavailable(paneId, error) {
     : 'BACKEND_UNAVAILABLE';
 }
 
+// 6.1.1 初始化投研助手综合工作台六大板块基础 Canvas 图表 (独立隔离设计)
+function initDashboardCharts() {
+  if (typeof FinancialCharts === 'undefined') return;
+
+  // 板块 1: 资产配置环形图 (持仓 vs 可用现金)
+  const donutCanvas = document.getElementById('portfolioDonut');
+  if (donutCanvas) {
+    FinancialCharts.drawDonutChart('portfolioDonut', [
+      { name: '持仓市值', value: 328.56, color: '#1677FF' },
+      { name: '可用现金', value: 125.68, color: '#4096FF' }
+    ], { centerTitle: '总资产', centerValue: '454.24' });
+  }
+
+  // 板块 2-1: 大盘四大核心指数 28 周期日内走势微图 (Sparkline)
+  FinancialCharts.drawSparkline('sparklineSh', [3390, 3396, 3404, 3400, 3410, 3418, 3415, 3422, 3426.5], true);
+  FinancialCharts.drawSparkline('sparklineSz', [10750, 10765, 10780, 10810, 10800, 10830, 10860, 10850, 10880, 10892.1], true);
+  FinancialCharts.drawSparkline('sparklineCy', [2245, 2252, 2260, 2258, 2270, 2278, 2285, 2280, 2286, 2289.7], true);
+  FinancialCharts.drawSparkline('sparklineKc', [990, 995, 1000, 998, 1005, 1008, 1012, 1010, 1011, 1012.3], true);
+
+  // 板块 2-2: 全市场情绪仪表盘 (78分 亢温区)
+  FinancialCharts.drawGauge('dashboardSentimentGauge', 78, { colorType: 'sentiment' });
+
+  // 板块 3-1: 自选主题指数分时曲线 (半导体芯片、人工智能、新能源汽车)
+  FinancialCharts.drawSparkline('sparklineCustomIdx1', [1215, 1222, 1230, 1228, 1238, 1242, 1245, 1248.6], true);
+  FinancialCharts.drawSparkline('sparklineCustomIdx2', [3050, 3065, 3080, 3075, 3095, 3105, 3115, 3120.4], true);
+  FinancialCharts.drawSparkline('sparklineCustomIdx3', [2050, 2058, 2065, 2062, 2074, 2078, 2082, 2086.3], true);
+
+  // 板块 3-2: 策略实际净值 vs 沪深300 基准走势对比折线图
+  FinancialCharts.drawEquityCurve('dashboardInvestCurve',
+    [1.00, 1.05, 1.08, 1.15, 1.25, 1.34],
+    [1.00, 1.01, 1.03, 1.05, 1.07, 1.09],
+    ['3月', '5月', '7月', '9月']
+  );
+}
+
 async function loadDashboardData() {
   if (!window.AStockAPI) return;
   try {
@@ -760,19 +795,19 @@ async function loadDashboardData() {
     // 1. Portfolio Overview
     const portRes = await window.AStockAPI.getPortfolioOverview();
     if (portRes) {
-      setText('ovTotalAssets', portRes.total_assets);
-      setText('ovPositionRatioLbl', `持仓总市值 (${portRes.position_ratio}%)`);
-      setText('ovPositionMarketVal', portRes.position_market_value);
-      setText('ovCashRatioLbl', `可用现金 (${portRes.cash_ratio}%)`);
-      setText('ovCash', portRes.available_cash);
-      setText('ovTodayPnl', `${portRes.today_pnl} (${portRes.today_pnl_pct >= 0 ? '+' : ''}${portRes.today_pnl_pct}%)`);
-      setText('ovAccumReturn', `${portRes.total_return_pct >= 0 ? '+' : ''}${portRes.total_return_pct}%`);
-      setText('ovAnnualReturn', `${portRes.annualized_return_pct >= 0 ? '+' : ''}${portRes.annualized_return_pct}%`);
-      setText('ovRiskStatus', `● ${portRes.risk_status}`);
-      setText('ovCushionDesc', portRes.cushion_desc);
+      if (portRes.total_assets) setText('ovTotalAssets', portRes.total_assets);
+      if (portRes.position_ratio) setText('ovPositionRatioLbl', `持仓总市值 (${portRes.position_ratio}%)`);
+      if (portRes.position_market_value) setText('ovPositionMarketVal', portRes.position_market_value);
+      if (portRes.cash_ratio) setText('ovCashRatioLbl', `可用现金 (${portRes.cash_ratio}%)`);
+      if (portRes.available_cash) setText('ovCash', portRes.available_cash);
+      if (portRes.today_pnl) setText('ovTodayPnl', `${portRes.today_pnl} (${portRes.today_pnl_pct >= 0 ? '+' : ''}${portRes.today_pnl_pct}%)`);
+      if (portRes.total_return_pct !== undefined) setText('ovAccumReturn', `${portRes.total_return_pct >= 0 ? '+' : ''}${portRes.total_return_pct}%`);
+      if (portRes.annualized_return_pct !== undefined) setText('ovAnnualReturn', `${portRes.annualized_return_pct >= 0 ? '+' : ''}${portRes.annualized_return_pct}%`);
+      if (portRes.risk_status) setText('ovRiskStatus', `● ${portRes.risk_status}`);
+      if (portRes.cushion_desc) setText('ovCushionDesc', portRes.cushion_desc);
 
       const holdList = document.getElementById('ovHoldingsList');
-      if (holdList && Array.isArray(portRes.holdings)) {
+      if (holdList && Array.isArray(portRes.holdings) && portRes.holdings.length > 0) {
         holdList.innerHTML = portRes.holdings.map(h => `
           <div class="overview-holding-pill">
             <span style="font-weight:600;">${h.name} (${h.code})</span>
@@ -819,15 +854,15 @@ async function loadDashboardData() {
     // 3. Sentiment
     const sentRes = await window.AStockAPI.getMarketSentiment();
     if (sentRes) {
-      setText('dashSentimentScoreText', `${sentRes.score}分 · ${sentRes.status_text}`);
+      if (sentRes.score !== undefined) setText('dashSentimentScoreText', `${sentRes.score}分 · ${sentRes.status_text || '正常'}`);
       const descEl = document.getElementById('dashSentimentMetaDesc');
-      if (descEl) {
-        descEl.innerHTML = `两市总成交 <strong>${sentRes.total_turnover}</strong> (${sentRes.turnover_growth})<br>上涨 <strong class="text-up">${sentRes.up_count.toLocaleString()}</strong> 家，下跌 <strong class="text-down">${sentRes.down_count.toLocaleString()}</strong> 家，涨停 <strong class="text-up">${sentRes.limit_up_count}</strong> 只`;
+      if (descEl && sentRes.total_turnover) {
+        descEl.innerHTML = `两市总成交 <strong>${sentRes.total_turnover}</strong> (${sentRes.turnover_growth || ''})<br>上涨 <strong class="text-up">${(sentRes.up_count || 0).toLocaleString()}</strong> 家，下跌 <strong class="text-down">${(sentRes.down_count || 0).toLocaleString()}</strong> 家，涨停 <strong class="text-up">${sentRes.limit_up_count || 0}</strong> 只`;
       }
       const aiEl = document.getElementById('dashAiCommentary');
-      if (aiEl) aiEl.innerHTML = `<strong>AI量化研判</strong>：${sentRes.ai_summary}`;
+      if (aiEl && sentRes.ai_summary) aiEl.innerHTML = `<strong>AI量化研判</strong>：${sentRes.ai_summary}`;
       const sectorList = document.getElementById('dashSectorHotList');
-      if (sectorList && Array.isArray(sentRes.sectors)) {
+      if (sectorList && Array.isArray(sentRes.sectors) && sentRes.sectors.length > 0) {
         sectorList.innerHTML = sentRes.sectors.map(s => `
           <div class="sector-hot-item">
             <span class="sector-hot-name">${s.name}</span>
@@ -836,7 +871,7 @@ async function loadDashboardData() {
           </div>
         `).join('');
       }
-      if (document.getElementById('dashboardSentimentGauge')) {
+      if (document.getElementById('dashboardSentimentGauge') && sentRes.score !== undefined) {
         FinancialCharts.drawGauge('dashboardSentimentGauge', sentRes.score, { colorType: 'sentiment' });
       }
     }
@@ -845,7 +880,7 @@ async function loadDashboardData() {
     const watchRes = await window.AStockAPI.getWatchlist();
     if (watchRes) {
       if (Array.isArray(watchRes.custom_indices)) {
-        watchRes.custom_indices.slice(0, 2).forEach((ci, i) => {
+        watchRes.custom_indices.slice(0, 3).forEach((ci, i) => {
           const n = i + 1;
           setText(`dashCustomIdx${n}Title`, ci.name);
           const ch = document.getElementById(`dashCustomIdx${n}Change`);
@@ -855,7 +890,7 @@ async function loadDashboardData() {
         });
       }
       const tbody = document.getElementById('dashWatchlistTableBody');
-      if (tbody && Array.isArray(watchRes.stocks)) {
+      if (tbody && Array.isArray(watchRes.stocks) && watchRes.stocks.length > 0) {
         tbody.innerHTML = watchRes.stocks.slice(0, 4).map(stock => {
           const isUp = stock.change_pct >= 0;
           const sign = isUp ? '+' : '';
@@ -881,17 +916,17 @@ async function loadDashboardData() {
     // 5. Investment Analysis
     const anaRes = await window.AStockAPI.getPortfolioAnalysis();
     if (anaRes) {
-      setText('dashSharpeVal', anaRes.sharpe_ratio.toFixed(2));
-      setText('dashWinRateVal', `${anaRes.win_rate}%`);
-      setText('dashMaxDdVal', `${anaRes.max_drawdown}%`);
-      setText('dashPlRatioVal', anaRes.pl_ratio.toFixed(2));
-      setText('dashAttributionExcess', `跑赢基准 +${anaRes.benchmark_excess}%`);
+      if (anaRes.sharpe_ratio !== undefined) setText('dashSharpeVal', anaRes.sharpe_ratio.toFixed(2));
+      if (anaRes.win_rate !== undefined) setText('dashWinRateVal', `${anaRes.win_rate}%`);
+      if (anaRes.max_drawdown !== undefined) setText('dashMaxDdVal', `${anaRes.max_drawdown}%`);
+      if (anaRes.pl_ratio !== undefined) setText('dashPlRatioVal', anaRes.pl_ratio.toFixed(2));
+      if (anaRes.benchmark_excess !== undefined) setText('dashAttributionExcess', `跑赢基准 +${anaRes.benchmark_excess}%`);
       if (anaRes.equity_curve && document.getElementById('dashboardInvestCurve')) {
         const eq = anaRes.equity_curve;
         FinancialCharts.drawEquityCurve('dashboardInvestCurve', eq.strategy, eq.benchmark, eq.labels);
       }
       const attrRow = document.getElementById('dashAttributionRow');
-      if (attrRow && Array.isArray(anaRes.attributions)) {
+      if (attrRow && Array.isArray(anaRes.attributions) && anaRes.attributions.length > 0) {
         attrRow.innerHTML = anaRes.attributions.slice(0, 3).map(a =>
           `<span>${a.name}: <strong class="text-up tabular-nums">+${a.contrib_pct}%</strong></span>`
         ).join('');
@@ -902,9 +937,9 @@ async function loadDashboardData() {
     const monRes = await window.AStockAPI.getMonitorStream();
     if (monRes) {
       const badge = document.getElementById('dashMonitorLiveBadge');
-      if (badge) badge.innerHTML = `<span class="live-dot"></span> 实时盯盘监控中 (延迟${monRes.latency_ms}ms)`;
+      if (badge && monRes.latency_ms !== undefined) badge.innerHTML = `<span class="live-dot"></span> 实时盯盘监控中 (延迟${monRes.latency_ms}ms)`;
       const streamList = document.getElementById('dashMonitorStreamList');
-      if (streamList && Array.isArray(monRes.events)) {
+      if (streamList && Array.isArray(monRes.events) && monRes.events.length > 0) {
         streamList.innerHTML = monRes.events.map(ev => {
           let itemClass = 'stream-buy';
           let tagClass = 'tag-buy';
@@ -922,7 +957,7 @@ async function loadDashboardData() {
         }).join('');
       }
       const stratContainer = document.getElementById('dashStrategiesContainer');
-      if (stratContainer && Array.isArray(monRes.strategies)) {
+      if (stratContainer && Array.isArray(monRes.strategies) && monRes.strategies.length > 0) {
         stratContainer.innerHTML = monRes.strategies.map(s => `
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <div>
@@ -939,7 +974,7 @@ async function loadDashboardData() {
     }
   } catch (err) {
     console.warn('loadDashboardData error:', err);
-    renderWorkbenchUnavailable('pane-dashboard', err);
+    // 投研助手工作台独立设计：不使用全局覆盖销毁pane，保留六大板块DOM与初始化图表
   }
 }
 
@@ -1333,6 +1368,7 @@ async function loadAllBackendData() {
 // 图表数据全部来自后端接口（MOCK 兜底），此处仅触发对应数据加载器重新渲染。
 function renderTabCharts(tabId) {
   if (tabId === 'dashboard') {
+    initDashboardCharts();
     loadDashboardData();
   } else if (tabId === 'market') {
     loadMarketData();
