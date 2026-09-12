@@ -265,6 +265,14 @@
                   </div>
                 </div>
 
+                <!-- 1.9 【特殊信息行】(当有模型信息或内容时，在原有的输入框上方显示增加高度显示) -->
+                <div class="chat-special-model-line" id="chatSpecialModelLine" style="display: none;">
+                  <div class="special-line-left">
+                    <span class="at-token at-token-model" id="specialModelToken" onclick="ModelPopupController.open()" title="点击更换指定模型"># 模型</span>
+                  </div>
+                  <button type="button" class="special-line-close" id="btnSpecialModelClose" onclick="ModelPopupController.clearSpecialModelLine(event)" title="取消指定此模型">×</button>
+                </div>
+
                 <!-- 2. 输入区域 (富文本高亮回填 + 原生属性兼容) -->
                 <div class="chat-input-wrapper" onclick="focusChatInput()">
                   <div class="chat-textarea chat-input-rich" id="chatInput" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="请输入您的问题，或输入 @ 快速插入标的/技能，输入 # 快速选择大模型..."></div>
@@ -285,11 +293,6 @@
                       <span class="btn-icon-symbol">#</span>
                       <span class="btn-icon-text">模型</span>
                     </button>
-                  </div>
-                  <!-- 当前模型指示徽章 (点击亦可呼出模型选择浮窗) -->
-                  <div class="chat-current-model-badge" id="chatCurrentModelBadge" onclick="toggleModelPopup(event)" title="当前生效大模型，点击更换">
-                    <span class="curr-model-dot"></span>
-                    <span class="curr-model-text" id="chatCurrentModelText">模型加载中...</span>
                   </div>
                   <button type="button" class="send-btn" id="btnSendChat" onclick="handleSendChat()">
                     <span>提交</span>

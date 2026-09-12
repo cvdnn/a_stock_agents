@@ -897,14 +897,14 @@ h1, h2, h3, h4 {
 }
 
 .chat-input-wrapper {
-  min-height: 38px;
+  min-height: 62px;
   cursor: text;
 }
 
 .chat-textarea {
   width: 100%;
-  min-height: 38px;
-  max-height: 120px;
+  min-height: 62px;
+  max-height: 192px;
   overflow-y: auto;
   border: none;
   background: transparent;
@@ -938,40 +938,40 @@ h1, h2, h3, h4 {
   border: 1px solid #91CAFF;
   border-radius: 4px;
   padding: 1px 6px;
-  margin: 0 1px;
+  margin: 0 2px;
   font-size: 12px;
-  user-select: none;
+  line-height: 1.4;
   vertical-align: baseline;
-  line-height: 1.35;
-  box-shadow: 0 1px 2px rgba(22, 119, 255, 0.08);
+  user-select: all;
+  transition: var(--transition-fast);
 }
 
 .at-token.at-token-watchlist {
-  color: #D46B08;
-  background: #FFF7E6;
-  border-color: #FFD591;
+  color: #D48806;
+  background: #FFFBE6;
+  border-color: #FFE58F;
 }
 
 .at-token.at-token-stock {
-  color: #0958D9;
-  background: #E6F4FF;
-  border-color: #91CAFF;
-}
-
-.at-token.at-token-ref {
-  color: #135200;
-  background: #F6FFED;
-  border-color: #B7EB8F;
-}
-
-.at-token.at-token-skill {
   color: #D4380D;
   background: #FFF2E8;
   border-color: #FFBB96;
 }
 
+.at-token.at-token-ref {
+  color: #0958D9;
+  background: #E6F4FF;
+  border-color: #91CAFF;
+}
+
+.at-token.at-token-skill {
+  color: #389E0D;
+  background: #F6FFED;
+  border-color: #B7EB8F;
+}
+
 .at-token.at-token-algo {
-  color: #531DAB;
+  color: #722ED1;
   background: #F9F0FF;
   border-color: #D3ADF7;
 }
@@ -980,6 +980,82 @@ h1, h2, h3, h4 {
   color: #006D75;
   background: #E6FFFB;
   border-color: #87E8DE;
+}
+
+/* ==========================================================================
+   输入框上方【特殊信息行】（当有模型信息或内容时在输入框上方显示，增加高度显示）
+   ========================================================================== */
+.chat-special-model-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 6px;
+  user-select: none;
+  animation: specialLineSlideDown 0.18s ease-out;
+}
+
+@keyframes specialLineSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.special-line-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-special-model-line .at-token-model {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.chat-special-model-line .at-token-model:hover {
+  background: #DCFCE7;
+  border-color: #86EFAC;
+  box-shadow: 0 1px 4px rgba(22, 101, 52, 0.15);
+}
+
+.special-line-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  font-size: 13px;
+  line-height: 1;
+  color: #15803D;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: rgba(34, 197, 94, 0.12);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.special-line-close:hover {
+  background: #FEE2E2;
+  color: #EF4444;
 }
 
 /* 浮窗容器 (同宽对齐输入框，位于上方) */
@@ -1528,6 +1604,8 @@ h1, h2, h3, h4 {
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .icon-text-btn:hover {
@@ -1598,38 +1676,202 @@ h1, h2, h3, h4 {
   color: #006D75;
 }
 
-.chat-current-model-badge {
-  display: inline-flex;
+/* ==========================================================================
+   大模型选择浮窗专属样式 (双行供应商列表 + 双行模型卡片)
+   ========================================================================== */
+.model-popup-sidebar .model-provider-item {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  background: #F0FDF4;
-  border: 1px solid #BBF7D0;
-  border-radius: 12px;
-  font-size: 11.5px;
-  color: #166534;
+  justify-content: center;
+  padding: 8px 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  max-width: 220px;
+  transition: all 0.15s ease;
+  user-select: none;
+  border: 1px solid transparent;
+  gap: 2px;
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.model-popup-sidebar .model-provider-item:hover {
+  background: #F1F5F9;
+}
+
+.model-popup-sidebar .model-provider-item.active {
+  background: #EDF5FF;
+  border-color: #1677FF;
+}
+
+.model-popup-sidebar .model-provider-item.menu-focused {
+  background: #EDF5FF;
+  border-color: #1677FF;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.18);
+}
+
+.model-provider-name {
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1E293B;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.chat-current-model-badge:hover {
-  background: #DCFCE7;
-  border-color: #86EFAC;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 5px rgba(22, 101, 52, 0.12);
+.model-provider-item.active .model-provider-name,
+.model-provider-item.menu-focused .model-provider-name {
+  color: #1677FF;
 }
 
-.curr-model-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22C55E;
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+.model-provider-count {
+  width: 100%;
+  text-align: center;
+  font-size: 11.5px;
+  color: #64748B;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.model-provider-item.active .model-provider-count,
+.model-provider-item.menu-focused .model-provider-count {
+  color: #2563EB;
+}
+
+/* 模型弹窗 - 模型卡片（垂直两行结构：第1行模型ID+当前徽标，第2行特征列表） */
+.model-item-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  padding: 9px 12px !important;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  margin-bottom: 6px;
+  user-select: none;
+  gap: 6px;
+}
+
+.model-item-card:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+/* 当前生效的模型默认具备高亮底色和边框 */
+.model-item-card.current-active-model {
+  background: #F0FDF4;
+  border-color: #86EFAC;
+  box-shadow: 0 1px 3px rgba(34, 197, 94, 0.08);
+}
+
+.model-item-card.current-active-model .model-item-id {
+  color: #15803D;
+  font-weight: 700;
+}
+
+/* 键盘聚焦或选中的模型项高亮展示 */
+.model-item-card.selected {
+  background: #DCFCE7 !important;
+  border-color: #22C55E !important;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25) !important;
+}
+
+.model-item-card.selected .model-item-id {
+  color: #14532D !important;
+  font-weight: 700;
+}
+
+.model-item-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.model-item-id {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1E293B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.model-item-card:hover .model-item-id,
+.model-item-card.selected .model-item-id {
+  color: #166534;
+}
+
+.model-item-current-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #15803D;
+  background: #DCFCE7;
+  border: 1px solid #86EFAC;
+  border-radius: 10px;
   flex-shrink: 0;
+}
+
+.model-item-row2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.model-feature-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.model-feature-tag.tag-chat {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.model-feature-tag.tag-tools {
+  background: #FFF7ED;
+  color: #C2410C;
+  border: 1px solid #FED7AA;
+}
+
+.model-feature-tag.tag-fast {
+  background: #FEFCE8;
+  color: #A16207;
+  border: 1px solid #FEF08A;
+}
+
+.model-feature-tag.tag-reasoning {
+  background: #FAF5FF;
+  color: #7E22CE;
+  border: 1px solid #E9D5FF;
+}
+
+.model-feature-tag.tag-vision {
+  background: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
 }
 
 /* ==========================================================================

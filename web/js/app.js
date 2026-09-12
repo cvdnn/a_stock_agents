@@ -2085,7 +2085,63 @@ const ModelPopupController = {
       }
     });
 
+    this.ensureInitialModelLine();
     this.updateCurrentBadgeDisplay();
+  },
+
+  renderSpecialModelLine(provider, model) {
+    const specialLine = document.getElementById('chatSpecialModelLine');
+    if (!specialLine) return;
+
+    const providerName = provider.name || provider.provider_id;
+    const modelId = model.id;
+    const insertText = `# ${modelId}(${providerName})`;
+
+    specialLine.innerHTML = `
+      <div class="special-line-left">
+        <span class="at-token at-token-model" data-category="model" data-provider="${provider.provider_id}" data-model="${modelId}" onclick="ModelPopupController.open()" title="点击更换指定模型">${insertText}</span>
+      </div>
+      <button type="button" class="special-line-close" onclick="ModelPopupController.clearSpecialModelLine(event)" title="取消指定此模型">×</button>
+    `;
+    specialLine.style.display = 'flex';
+  },
+
+  ensureInitialModelLine() {
+    const savedProviderId = localStorage.getItem('astock_chat_selected_provider');
+    const savedModelId = localStorage.getItem('astock_chat_selected_model');
+
+    const enabled = this.getEnabledProviders();
+    let p = null;
+    let m = null;
+
+    if (savedProviderId && enabled.length) {
+      p = enabled.find(x => x.provider_id === savedProviderId);
+      if (p) {
+        m = (p.models || []).find(x => x.id === savedModelId) || (p.models && p.models[0]);
+      }
+    }
+
+    if (!p && enabled.length) {
+      const chatRole = AppState.modelRoles && AppState.modelRoles.chat;
+      if (chatRole && chatRole.provider_id) {
+        p = enabled.find(x => x.provider_id === chatRole.provider_id);
+        if (p) {
+          m = (p.models || []).find(x => x.id === chatRole.model_id) || (p.models && p.models[0]);
+        }
+      }
+    }
+
+    if (!p && savedModelId) {
+      p = { provider_id: savedProviderId || 'default', name: savedProviderId || '默认' };
+      m = { id: savedModelId };
+    }
+
+    if (p && m) {
+      this.renderSpecialModelLine(p, m);
+    } else {
+      const specialLine = document.getElementById('chatSpecialModelLine');
+      if (specialLine) specialLine.style.display = 'none';
+    }
   },
 
   getEnabledProviders() {
@@ -2124,6 +2180,8 @@ const ModelPopupController = {
 
     const enabled = this.getEnabledProviders();
     const savedProviderId = localStorage.getItem('astock_chat_selected_provider');
+    const savedModelId = localStorage.getItem('astock_chat_selected_model');
+
     if (savedProviderId && enabled.some(p => p.provider_id === savedProviderId)) {
       this.activeProviderId = savedProviderId;
       this.sidebarIndex = enabled.findIndex(p => p.provider_id === savedProviderId);
@@ -2133,9 +2191,20 @@ const ModelPopupController = {
     }
 
     this.isOpen = true;
-    this.focusPane = 'sidebar';
     this.searchQuery = '';
-    this.selectedIndex = 0;
+
+    const models = this.getFilteredModels();
+    let modelIdx = -1;
+    if (savedModelId) {
+      modelIdx = models.findIndex(m => m.id === savedModelId);
+    }
+    if (modelIdx !== -1) {
+      this.selectedIndex = modelIdx;
+      this.focusPane = 'content';
+    } else {
+      this.selectedIndex = 0;
+      this.focusPane = 'content';
+    }
 
     const searchInput = document.getElementById('modelSearchInput');
     if (searchInput) searchInput.value = '';
@@ -2148,6 +2217,7 @@ const ModelPopupController = {
 
     this.renderSidebar();
     this.renderContent();
+    this.updateSelection();
     popup.focus();
   },
 
@@ -2183,14 +2253,11 @@ const ModelPopupController = {
       const isFocused = this.focusPane === 'sidebar' && idx === this.sidebarIndex;
       const modelCount = (p.models || []).length;
       return `
-        <div class="at-cat-item ${isActive ? 'active' : ''} ${isFocused ? 'menu-focused' : ''}"
+        <div class="model-provider-item ${isActive ? 'active' : ''} ${isFocused ? 'menu-focused' : ''}"
              onclick="ModelPopupController.handleProviderClick('${p.provider_id}', ${idx})"
              title="${p.name || p.provider_id}">
-          <div class="at-cat-icon">🏢</div>
-          <div class="at-cat-info">
-            <span class="at-cat-name">${p.name || p.provider_id}</span>
-            <span class="at-cat-count">${modelCount} 模型</span>
-          </div>
+          <div class="model-provider-name">${p.name || p.provider_id}</div>
+          <div class="model-provider-count">(${modelCount})</div>
         </div>
       `;
     }).join('');
@@ -2199,10 +2266,14 @@ const ModelPopupController = {
   handleProviderClick(providerId, idx) {
     this.activeProviderId = providerId;
     this.sidebarIndex = idx;
-    this.focusPane = 'sidebar';
-    this.selectedIndex = 0;
+    this.focusPane = 'content';
+    const savedModelId = localStorage.getItem('astock_chat_selected_model');
+    const models = this.getFilteredModels();
+    const modelIdx = models.findIndex(m => m.id === savedModelId);
+    this.selectedIndex = modelIdx !== -1 ? modelIdx : 0;
     this.renderSidebar();
     this.renderContent();
+    this.updateSelection();
   },
 
   handleSearch(val) {
@@ -2257,26 +2328,43 @@ const ModelPopupController = {
     container.innerHTML = models.map((m, idx) => {
       const isSelected = this.focusPane === 'content' && idx === this.selectedIndex;
       const isCurrentActive = (m.id === savedModelId);
-      const caps = m.capabilities || ['chat'];
+
+      let caps = m.capabilities;
+      if (!caps || !caps.length) {
+        caps = ['chat'];
+        const lower = (m.id || '').toLowerCase();
+        if (lower.includes('vision') || lower.includes('vl') || lower.includes('4o')) caps.push('vision');
+        if (lower.includes('reasoner') || lower.includes('r1') || lower.includes('thinking')) caps.push('reasoning');
+        if (lower.includes('coder') || lower.includes('code') || lower.includes('deepseek') || lower.includes('pro')) caps.push('tools');
+        if (lower.includes('flash') || lower.includes('fast') || lower.includes('mini')) caps.push('fast');
+      }
+
       const capBadges = [];
-      if (caps.includes('chat')) capBadges.push('<span class="op-badge op-badge-stock" style="font-size:10.5px; padding:1px 5px;">💬 对话</span>');
-      if (caps.includes('reasoning')) capBadges.push('<span class="op-badge op-badge-algo" style="font-size:10.5px; padding:1px 5px;">🧠 思考</span>');
-      if (caps.includes('tools')) capBadges.push('<span class="op-badge op-badge-skill" style="font-size:10.5px; padding:1px 5px;">🔧 工具</span>');
-      if (caps.includes('fast')) capBadges.push('<span class="op-badge op-badge-ref" style="font-size:10.5px; padding:1px 5px;">⚡ 极速</span>');
+      if (caps.includes('chat')) capBadges.push('<span class="model-feature-tag tag-chat">💬 对话</span>');
+      if (caps.includes('tools')) capBadges.push('<span class="model-feature-tag tag-tools">🔧 工具</span>');
+      if (caps.includes('fast')) capBadges.push('<span class="model-feature-tag tag-fast">⚡ 极速</span>');
+      if (caps.includes('reasoning')) capBadges.push('<span class="model-feature-tag tag-reasoning">🧠 思考</span>');
+      if (caps.includes('vision')) capBadges.push('<span class="model-feature-tag tag-vision">👁️ 视觉</span>');
+
+      const currentIcon = isCurrentActive ? `
+        <span class="model-item-current-badge" title="当前生效模型">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="vertical-align:-1px; margin-right:2px;">
+            <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>当前
+        </span>
+      ` : '';
 
       return `
-        <div class="at-item-card ${isSelected ? 'selected' : ''}"
+        <div class="model-item-card at-item-card ${isCurrentActive ? 'current-active-model' : ''} ${isSelected ? 'selected' : ''}"
              onclick="ModelPopupController.selectModelByIndex(${idx})"
              onmouseenter="if (ModelPopupController.focusPane === 'content') { ModelPopupController.selectedIndex = ${idx}; ModelPopupController.updateSelection(); }"
              title="点击选择模型：# ${m.id}(${provider.name || provider.provider_id})">
-          <div class="at-item-row-top">
-            <span class="at-item-name">${m.name || m.id}</span>
-            <span class="at-item-code">${m.id}</span>
-            ${isCurrentActive ? '<span class="at-stock-badge at-badge-watchlist">当前</span>' : ''}
+          <div class="model-item-row1">
+            <span class="model-item-id" title="${m.id}">${m.id}</span>
+            ${currentIcon}
           </div>
-          <div class="at-item-row-bottom" style="display:flex; align-items:center; gap:6px; margin-top:4px;">
-            <div style="display:flex; align-items:center; gap:4px;">${capBadges.join('')}</div>
-            <span style="font-size:11px; color:#94A3B8; margin-left:auto;">${provider.name || provider.provider_id}</span>
+          <div class="model-item-row2">
+            ${capBadges.join('')}
           </div>
         </div>
       `;
@@ -2300,7 +2388,7 @@ const ModelPopupController = {
   },
 
   updateSelection() {
-    const cards = document.querySelectorAll('#modelPopupContent .at-item-card');
+    const cards = document.querySelectorAll('#modelPopupContent .model-item-card, #modelPopupContent .at-item-card');
     cards.forEach((card, idx) => {
       if (idx === this.selectedIndex) {
         card.classList.add('selected');
@@ -2376,64 +2464,57 @@ const ModelPopupController = {
     const modelId = model.id;
     const insertText = `# ${modelId}(${providerName})`;
 
-    // 创建高亮加粗标签节点（.at-token.at-token-model）
-    const tokenSpan = document.createElement('span');
-    tokenSpan.className = 'at-token at-token-model';
-    tokenSpan.contentEditable = 'false';
-    tokenSpan.dataset.category = 'model';
-    tokenSpan.dataset.provider = provider.provider_id;
-    tokenSpan.dataset.model = modelId;
-    tokenSpan.innerText = insertText;
-
-    const spaceNode = document.createTextNode(' ');
-
+    // 1. 若当前光标前紧挨着 '#' 字符，将其消除
     const sel = window.getSelection();
-    let range = null;
-    if (sel && sel.rangeCount > 0) {
-      range = sel.getRangeAt(0);
-      if (!input.contains(range.commonAncestorContainer)) {
-        range = null;
+    if (sel && sel.rangeCount > 0 && input) {
+      const range = sel.getRangeAt(0);
+      if (input.contains(range.commonAncestorContainer) && range.startContainer.nodeType === (typeof Node !== "undefined" ? Node.TEXT_NODE : 3)) {
+        const textNode = range.startContainer;
+        const offset = range.startOffset;
+        if (offset > 0 && textNode.textContent.charAt(offset - 1) === '#') {
+          textNode.textContent = textNode.textContent.slice(0, offset - 1) + textNode.textContent.slice(offset);
+        }
       }
     }
 
-    if (!range) {
-      range = document.createRange();
-      range.selectNodeContents(input);
-      range.collapse(false);
+    // 2. 清理正文输入框内散落的模型节点，保持正文纯净
+    if (input) {
+      const existingTokens = input.querySelectorAll('.at-token-model');
+      existingTokens.forEach(t => t.remove());
     }
 
-    // 若当前光标前紧挨着 '#' 字符，将其消除
-    if (range.startContainer.nodeType === (typeof Node !== "undefined" ? Node.TEXT_NODE : 3)) {
-      const textNode = range.startContainer;
-      const offset = range.startOffset;
-      if (offset > 0 && textNode.textContent.charAt(offset - 1) === '#') {
-        textNode.textContent = textNode.textContent.slice(0, offset - 1) + textNode.textContent.slice(offset);
-        range.setStart(textNode, offset - 1);
-        range.setEnd(textNode, offset - 1);
-      }
-    }
+    // 3. 在原有输入框上方渲染增加高度的【特殊信息行】
+    this.renderSpecialModelLine(provider, model);
 
-    range.deleteContents();
-    range.insertNode(spaceNode);
-    range.insertNode(tokenSpan);
-
-    const newRange = document.createRange();
-    newRange.setStartAfter(spaceNode);
-    newRange.setEndAfter(spaceNode);
-    if (sel) {
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-    }
-
-    // 记录到本地状态与全局控制器
+    // 4. 记录到本地状态与全局控制器
     localStorage.setItem('astock_chat_selected_provider', provider.provider_id);
     localStorage.setItem('astock_chat_selected_model', modelId);
     if (window.ChatModelSelectorController) {
       ChatModelSelectorController.render();
     }
 
-    this.updateCurrentBadgeDisplay();
-    showToast(`已选定模型【${insertText}】`);
+    this.renderContent();
+    showToast(`已指定生效模型【${insertText}】`);
+  },
+
+  clearSpecialModelLine(e) {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const specialLine = document.getElementById('chatSpecialModelLine');
+    if (specialLine) {
+      specialLine.style.display = 'none';
+      specialLine.innerHTML = '';
+    }
+    const input = document.getElementById('chatInput');
+    if (input) {
+      const modelTokens = input.querySelectorAll('.at-token-model');
+      modelTokens.forEach(t => t.remove());
+    }
+    localStorage.removeItem('astock_chat_selected_model');
+    this.renderContent();
+    showToast('已取消指定模型，恢复默认配置');
   },
 
   updateCurrentBadgeDisplay() {
@@ -2485,8 +2566,18 @@ function getChatInputPlainText(elem) {
     if (node.nodeType === Node.TEXT_NODE) {
       result += node.textContent;
     } else if (node.nodeType === Node.ELEMENT_NODE) {
+      if (node.classList.contains('special-line-close') || node.classList.contains('special-line-tip')) {
+        return;
+      }
+      if (node.classList.contains('chat-special-model-line')) {
+        for (let child of node.childNodes) {
+          traverse(child);
+        }
+        result += '\n';
+        return;
+      }
       if (node.classList.contains('at-token')) {
-        result += node.innerText.trim();
+        result += node.innerText.trim() + ' ';
       } else if (node.tagName === 'BR') {
         result += '\n';
       } else {
@@ -2497,7 +2588,7 @@ function getChatInputPlainText(elem) {
     }
   }
   traverse(elem);
-  return result.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+  return result.replace(/\u00A0/g, ' ').replace(/[ \t]+/g, ' ').trim();
 }
 
 function setChatInputFromText(elem, text) {
@@ -3111,8 +3202,7 @@ function executeOperatorTask(text, operators, overriddenModel = null) {
 
     const tpl = PromptTemplates['评估持股策略'];
     const title = `${targetStock.name} (${targetStock.code}) 深度诊断研报`;
-    const summary = '已提交真实持仓诊断请求，等待后端返回可验证结果';
-    streamAIResponse(tpl.body, title, summary, { operators, userText: text });
+    streamAIResponse(tpl.body, title, summary, { operators, userText: text, overriddenModel });
     return;
   }
 
@@ -3351,7 +3441,7 @@ function extractWorkbenchSectionData(refName) {
       }
     }
 
-    streamAIResponse(sectionInfo.body, sectionInfo.title, sectionInfo.summary, { operators, userText: text });
+    streamAIResponse(sectionInfo.body, sectionInfo.title, sectionInfo.summary, { operators, userText: text, overriddenModel });
     return;
   }
 
@@ -3375,8 +3465,15 @@ function handleSendChat() {
 
   const input = document.getElementById('chatInput');
   const rawText = input ? input.value : '';
-  const text = rawText ? rawText.trim() : '';
-  if (!text) return;
+  let text = rawText ? rawText.trim() : '';
+
+  // 1. 提交时，特殊信息行内容不要当作输入信息进行提交：
+  // 彻底剔除任何残留或混入正文的模型标记，保证用户问题纯净
+  text = text.replace(/#\s*[^\s(（]+(?:[(（][^\s)）]+[)）])?\s*/g, '').trim();
+  if (!text) {
+    showToast('请输入您的问题内容');
+    return;
+  }
 
   // 提取与解析 @操作符
   const operators = {
@@ -3386,24 +3483,23 @@ function handleSendChat() {
     algos: []
   };
 
-  // 0. 模型匹配 (# 模型id(供应商) 或 #模型id)
+  // 0. 模型匹配 (从输入框上方的【特殊信息行】获取生效模型，若未指定则从localStorage或系统默认读取)
   let userOverriddenModel = null;
-  const modelTagRegex = /#\s*([^\s(（]+)(?:[(（]([^\s)）]+)[)）])?/g;
-  let mm;
-  while ((mm = modelTagRegex.exec(text)) !== null) {
-    const rawModelId = mm[1];
-    const rawProviderName = mm[2] || '';
-    let targetProvider = null;
-    if (rawProviderName && AppState.providers) {
-      targetProvider = AppState.providers.find(p => p.name === rawProviderName || p.provider_id === rawProviderName);
+  const specialLine = document.getElementById('chatSpecialModelLine');
+  const specialToken = specialLine ? specialLine.querySelector('.at-token-model') : null;
+  if (specialLine && specialLine.style.display !== 'none' && specialToken) {
+    const pId = specialToken.dataset.provider;
+    const mId = specialToken.dataset.model;
+    if (mId) {
+      userOverriddenModel = pId ? `${mId}|${pId}` : mId;
     }
-    if (!targetProvider && AppState.providers) {
-      targetProvider = AppState.providers.find(p => (p.models || []).some(m => m.id === rawModelId));
-    }
-    if (targetProvider) {
-      userOverriddenModel = `${rawModelId}|${targetProvider.provider_id}`;
-    } else {
-      userOverriddenModel = rawModelId;
+  }
+
+  if (!userOverriddenModel) {
+    const savedProviderId = localStorage.getItem('astock_chat_selected_provider');
+    const savedModelId = localStorage.getItem('astock_chat_selected_model');
+    if (savedModelId) {
+      userOverriddenModel = savedProviderId ? `${savedModelId}|${savedProviderId}` : savedModelId;
     }
   }
 
@@ -3438,11 +3534,11 @@ function handleSendChat() {
   if (text.includes('移动止损') || text.includes('阶梯')) operators.algos.push('阶梯移动止损算法');
   if (text.includes('IC/IR') || text.includes('衰减')) operators.algos.push('因子IC/IR时序滚动回测');
 
-  // 渲染用户输入卡片
+  // 渲染用户输入卡片 (纯净正文，不带模型信息)
   appendChatMessage('user', text);
   input.value = '';
 
-  // 任务路由与执行 (执行与提示符相关的任务)
+  // 任务路由与执行 (执行与提示符相关的任务，模型通过 userOverriddenModel 传入)
   executeOperatorTask(text, operators, userOverriddenModel);
 }
 
@@ -3711,6 +3807,7 @@ async function initProvidersSettings() {
   renderActiveProviderDetail();
   renderModelRolesDropdowns();
   ChatModelSelectorController.init();
+  if (window.ModelPopupController) ModelPopupController.ensureInitialModelLine();
 }
 
 function loadRolesFromLocalStorage() {
