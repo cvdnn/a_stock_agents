@@ -140,6 +140,9 @@ TOOLS_DEFINITIONS: List[Dict[str, Any]] = [
 # ── Tool Handlers Implementation ─────────────────────────────────────────────
 
 def _sync_astock_quote(code: str) -> Dict[str, Any]:
+    raw_code_str = str(code).strip()
+    if ":" in raw_code_str or "@" in raw_code_str:
+        code = raw_code_str.split(":")[0].split("@")[0].strip()
     bridge = DataBridge()
     q = bridge.get_realtime_quote(code)
     if not q:
@@ -161,6 +164,9 @@ def _sync_astock_quote(code: str) -> Dict[str, Any]:
 
 
 def _sync_astock_technical(code: str, count: int = 60) -> Dict[str, Any]:
+    raw_code_str = str(code).strip()
+    if ":" in raw_code_str or "@" in raw_code_str:
+        code = raw_code_str.split(":")[0].split("@")[0].strip()
     bridge = DataBridge()
     klines = bridge.tencent_kline(code, count=count)
     if not klines or len(klines) < 15:
@@ -200,6 +206,17 @@ def _sync_astock_technical(code: str, count: int = 60) -> Dict[str, Any]:
 def _sync_astock_action_plan(
     code: str, cost: Optional[float] = None, shares: Optional[int] = None
 ) -> Dict[str, Any]:
+    raw_code_str = str(code).strip()
+    if ":" in raw_code_str or "@" in raw_code_str:
+        import re
+        m = re.match(r"^([a-zA-Z0-9]+)(?::(\d+))?(?:@([0-9.]+))?$", raw_code_str)
+        if m:
+            p_code, p_shares, p_cost = m.groups()
+            code = p_code
+            if shares is None and p_shares:
+                shares = int(p_shares)
+            if cost is None and p_cost:
+                cost = float(p_cost)
     bridge = DataBridge()
     q = bridge.get_realtime_quote(code)
     if not q or not q.get("price"):
@@ -279,6 +296,9 @@ def _extract_latest_tech_summary(tech: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _sync_astock_evaluate(code: str) -> Dict[str, Any]:
+    raw_code_str = str(code).strip()
+    if ":" in raw_code_str or "@" in raw_code_str:
+        code = raw_code_str.split(":")[0].split("@")[0].strip()
     bridge = DataBridge()
     q = bridge.get_realtime_quote(code)
     klines = bridge.tencent_kline(code, count=120)
@@ -381,7 +401,7 @@ def _sync_astock_pool_dashboard(
         if code:
             code_str = str(code).strip()
             found = [s for s in stocks if str(s.get("code", "")).strip() == code_str]
-            return {
+            res = {
                 "status": "success",
                 "pool_type": resolved_pool_type,
                 "action": resolved_action,
@@ -391,14 +411,30 @@ def _sync_astock_pool_dashboard(
                 "count": len(stocks),
                 "stocks": stocks,
             }
+            if len(stocks) == 0:
+                res["is_empty"] = True
+                res["message"] = (
+                    f"当前【{resolved_pool_type}】股池为空，尚未登记任何标的。"
+                    "不用继续分析，请直接提示用户还未登记相关股池，并提示用户登记："
+                    "例如持仓股：000222:1000@25.1234。格式：股票:股数@成本价。"
+                )
+            return res
 
-        return {
+        res = {
             "status": "success",
             "pool_type": resolved_pool_type,
             "action": resolved_action,
             "count": len(stocks),
             "stocks": stocks,
         }
+        if len(stocks) == 0:
+            res["is_empty"] = True
+            res["message"] = (
+                f"当前【{resolved_pool_type}】股池为空，尚未登记任何标的。"
+                "不用继续分析，请直接提示用户还未登记相关股池，并提示用户登记："
+                "例如持仓股：000222:1000@25.1234。格式：股票:股数@成本价。"
+            )
+        return res
     except Exception as exc:
         logger.error("Error in _sync_astock_pool_dashboard: %s", exc, exc_info=True)
         return {
@@ -450,7 +486,15 @@ def _sync_astock_trade_paper(
             return {"error": "ORDER_RESULT_INVALID", "code": "ORDER_RESULT_INVALID", "action": action}
         elif action == "positions":
             positions = am.get_positions()
-            return {"status": "success", "action": "positions", "count": len(positions), "positions": positions}
+            res = {"status": "success", "action": "positions", "count": len(positions), "positions": positions}
+            if len(positions) == 0:
+                res["is_empty"] = True
+                res["message"] = (
+                    "当前持仓为空，尚未登记任何持仓标的。"
+                    "不用继续分析，请直接提示用户还未登记相关股池，并提示用户登记："
+                    "例如持仓股：000222:1000@25.1234。格式：股票:股数@成本价。"
+                )
+            return res
         elif action == "orders":
             orders = am.get_orders()
             return {"status": "success", "action": "orders", "count": len(orders), "orders": orders}

@@ -84,3 +84,35 @@ async def test_execute_tool_astock_pool_audit():
     assert res["status"] == "success"
     assert "total_pools" in res
     assert "total_stocks" in res
+
+
+@pytest.mark.asyncio
+async def test_execute_tool_astock_pool_dashboard_empty_guidance():
+    # Query an empty pool
+    res = await tools_module.execute_tool("astock_pool_dashboard", {"pool_type": "nonexistent_empty_pool"})
+    assert res["status"] == "success"
+    assert res["count"] == 0
+    assert res.get("is_empty") is True
+    assert "000222:1000@25.1234" in res.get("message", "")
+    assert "股票:股数@成本价" in res.get("message", "")
+
+
+@pytest.mark.asyncio
+async def test_execute_tool_composite_stock_code_parsing():
+    # Pass composite stock code 000001:500@11.50 to action plan
+    res = await tools_module.execute_tool(
+        "astock_action_execution",
+        {"code": "000001:500@11.50"}
+    )
+    assert res.get("code") == "000001" or res.get("error") is None
+    if "holding" in res:
+        assert res["holding"]["cost"] == 11.50
+        assert res["holding"]["shares"] == 500
+
+
+def test_agent_system_prompt_empty_pool_guidance():
+    from server.agent.prompts import AGENT_SYSTEM_PROMPT
+    assert "000222:1000@25.1234" in AGENT_SYSTEM_PROMPT
+    assert "股票:股数@成本价" in AGENT_SYSTEM_PROMPT
+    assert "还未登记相关股池" in AGENT_SYSTEM_PROMPT
+
