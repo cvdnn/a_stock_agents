@@ -281,6 +281,21 @@ def update_session_title(session_id: str, title: str, db_path: Optional[Path] = 
         conn.close()
 
 
+def update_session_model(session_id: str, model: str, db_path: Optional[Path] = None) -> bool:
+    """Update session model and touch updated_at."""
+    conn = get_connection(db_path)
+    now = _get_utc_now_iso()
+    try:
+        with conn:
+            cur = conn.execute(
+                "UPDATE sessions SET model = ?, updated_at = ? WHERE session_id = ?",
+                (model, now, session_id),
+            )
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def add_message(
     session_id: str,
     role: str,

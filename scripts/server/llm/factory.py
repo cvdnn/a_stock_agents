@@ -17,6 +17,7 @@ from server.llm.openai_provider import OpenAIProvider
 from server.llm.errors import LLMReadinessError
 from server.llm.readiness import validate_provider_record
 
+
 logger = logging.getLogger("server.llm.factory")
 
 
@@ -50,9 +51,28 @@ class LLMProviderFactory:
             target_model = parts[0].strip()
             target_provider_id = parts[1].strip()
 
+        prov_rec = None
+        # Check if model has format "model_id(provider_name_or_id)"
+        if target_model and "(" in target_model and target_model.endswith(")"):
+            import re
+            m = re.match(r"^(.+?)\s*\((.+?)\)$", target_model)
+            if m:
+                extracted_model = m.group(1).strip()
+                extracted_prov = m.group(2).strip()
+                all_provs = list_providers()
+                matched_p = next(
+                    (p for p in all_provs if p.get("provider_id") == extracted_prov or (p.get("name") and p.get("name").strip().lower() == extracted_prov.lower())),
+                    None
+                )
+                target_model = extracted_model
+                if matched_p:
+                    target_provider_id = matched_p.get("provider_id")
+                    prov_rec = matched_p
+
         # If a provider_id was resolved or specified, use that DB provider
         if target_provider_id:
-            prov_rec = get_provider_by_id(target_provider_id)
+            if not prov_rec:
+                prov_rec = get_provider_by_id(target_provider_id)
             if not prov_rec:
                 raise LLMReadinessError(
                     "LLM_NOT_CONFIGURED",
@@ -117,16 +137,21 @@ class LLMProviderFactory:
         # Check if target_model matches any active DB provider's configured models
         all_active_providers = [p for p in list_providers() if p.get("enabled")]
         if target_model and all_active_providers:
+            target_norm = target_model.lower().split("/")[-1]
             for p in all_active_providers:
-                p_models = [m.get("id") for m in p.get("models", []) if isinstance(m, dict)]
-                if target_model in p_models:
-                    return OpenAIProvider(
-                        model_name=target_model,
-                        api_key=p.get("api_key", ""),
-                        base_url=p.get("base_url", ""),
-                        timeout=float(p.get("timeout_seconds") or 60.0),
-                        **kwargs,
-                    )
+                for m in p.get("models", []):
+                    if not isinstance(m, dict):
+                        continue
+                    m_id = m.get("id", "")
+                    m_norm = m_id.lower().split("/")[-1]
+                    if target_model == m_id or target_model.lower() == m_id.lower() or target_norm == m_norm:
+                        return OpenAIProvider(
+                            model_name=m_id,
+                            api_key=p.get("api_key", ""),
+                            base_url=p.get("base_url", ""),
+                            timeout=float(p.get("timeout_seconds") or 60.0),
+                            **kwargs,
+                        )
 
         # Fallback to Environment Variables & Static Provider resolution
         model_name = (target_model or server_settings.default_model).strip()

@@ -128,9 +128,10 @@ const AStockAPI = {
         else if (eventName === 'content_delta') onDelta(data.delta || data.content || data.text || '');
         else if (eventName === 'risk_card') onRiskCard(data);
         else if (eventName === 'error') {
-          const error = new Error(data.error || 'Agent execution failed');
+          const errorMsg = data.error || data.message || 'Agent execution failed';
+          const error = new Error(errorMsg);
           error.code = data.code || 'AGENT_ERROR';
-          error.detail = data;
+          error.detail = typeof data.detail === 'string' ? data.detail : (data.error || data.message || (typeof data === 'string' ? data : JSON.stringify(data)));
           fail(error);
         } else if (eventName === 'done') complete(data);
       };

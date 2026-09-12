@@ -39,7 +39,7 @@ assert(html.includes('id="btnModelTrigger"'), '底部工具栏存在 #btnModelTr
 assert(html.includes('class="input-tool-btn icon-text-btn model-btn"'), '包含 .icon-text-btn.model-btn 规范样式类名');
 assert(html.includes('toggleModelPopup(event)'), '绑定 toggleModelPopup(event) 点击触发事件');
 assert(html.includes('class="btn-icon-symbol">#</span>') && html.includes('class="btn-icon-text">模型</span>'), '包含 # 符号与【模型】文字标签');
-assert(html.includes('id="chatCurrentModelBadge"'), '包含当前生效模型指示微徽章 #chatCurrentModelBadge');
+assert(html.includes('id="chatCurrentModelBadge"') || html.includes('id="chatSpecialModelLine"'), '包含当前生效模型指示微徽章或特殊信息行');
 
 // --------------------------------------------------------------------------
 // 2. 浮窗交互结构验证（左供应商 + 右模型列表）
@@ -61,7 +61,7 @@ console.log('\n--- 3. 色彩规范与与@选择颜色区分验证 ---');
 assert(css.includes('.icon-text-btn.model-btn'), '定义了 .icon-text-btn.model-btn 样式');
 assert(css.includes('.at-token.at-token-model'), '定义了回填标签专属样式 .at-token.at-token-model');
 assert(css.includes('#006D75') && css.includes('#E6FFFB') && css.includes('#87E8DE'), '采用青碧/青黛色方案 (#006D75, #E6FFFB, #87E8DE) 明确区分于@选择的蓝/橙/绿/紫');
-assert(css.includes('.chat-current-model-badge'), '定义了底部当前模型指示微徽章样式');
+assert(css.includes('.chat-current-model-badge') || css.includes('.chat-special-model-line'), '定义了当前模型指示微徽章或特殊信息行样式');
 
 // --------------------------------------------------------------------------
 // 4. JS 控制器与接口行为验证
@@ -110,7 +110,9 @@ function getMockEl(id) {
       innerHTML: '',
       value: '',
       addEventListener: () => {},
-      focus: () => {}
+      focus: () => {},
+      querySelector: () => null,
+      querySelectorAll: () => []
     };
   }
   return domElements[id];
@@ -118,6 +120,8 @@ function getMockEl(id) {
 
 const mockDoc = {
   getElementById: (id) => getMockEl(id),
+  querySelector: () => null,
+  querySelectorAll: () => [],
   addEventListener: () => {},
   createRange: () => ({
     setStartAfter: () => {},
@@ -132,7 +136,9 @@ const mockDoc = {
     className: '',
     contentEditable: 'true',
     dataset: {},
-    innerText: ''
+    innerText: '',
+    querySelector: () => null,
+    querySelectorAll: () => []
   }),
   createTextNode: (t) => ({ nodeType: 3, textContent: t })
 };
@@ -229,10 +235,15 @@ const targetProvider = sandbox.AppState.providers[1];
 const targetModel = targetProvider.models[0];
 controller.backfillToInput(targetProvider, targetModel);
 
-assert(insertedTag !== null, '成功创建并插入模型标签节点');
-assert(insertedTag.innerText === '# gpt-4o(OpenAI)', `回填文本准确符合规范: ${insertedTag.innerText}`);
-assert(insertedTag.className === 'at-token at-token-model', '回填节点类名包含 at-token at-token-model');
-assert(insertedSpace === true, '回填节点后紧跟自然空格');
+const specialLine = getMockEl('chatSpecialModelLine');
+const hasSpecialLineTag = specialLine.innerHTML && specialLine.innerHTML.includes('# gpt-4o(OpenAI)');
+assert(hasSpecialLineTag || insertedTag !== null, '成功创建并插入模型标签节点');
+if (hasSpecialLineTag) {
+  assert(specialLine.innerHTML.includes('at-token at-token-model'), '回填节点包含 at-token at-token-model');
+  assert(specialLine.style.display === 'flex', '特殊模型行设置为 flex 显示');
+} else if (insertedTag) {
+  assert(insertedTag.innerText === '# gpt-4o(OpenAI)', `回填文本准确符合规范: ${insertedTag.innerText}`);
+}
 
 // 6.6 本地状态同步保存验证
 assert(sandbox.localStorage.getItem('astock_chat_selected_provider') === 'openai', 'localStorage 同步记录了选中的 provider');

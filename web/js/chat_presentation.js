@@ -320,7 +320,14 @@
     DATA_UNAVAILABLE: ['数据暂不可用', '未获取到目标股票的实时数据'],
     ORDER_RESULT_INVALID: ['订单请求无效', '订单执行失败或参数不合规'],
   };
-  function presentError(error) { var code = error && (error.code || error.error), item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试']; return { code: code || 'UNKNOWN', title: item[0], recovery: item[1], detail: redactSensitive(error && (error.detail || error.message || error.error || '')) }; }
+  function presentError(error) {
+    var code = error && (error.code || error.error), item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试'];
+    var rawDetail = error && (error.detail != null ? error.detail : (error.message || error.error || ''));
+    if (typeof rawDetail === 'object' && rawDetail !== null) {
+      rawDetail = rawDetail.detail || rawDetail.message || rawDetail.error || JSON.stringify(rawDetail);
+    }
+    return { code: code || 'UNKNOWN', title: item[0], recovery: item[1], detail: redactSensitive(rawDetail || '') };
+  }
 
   function decomposeTask(promptText, meta) {
     promptText = String(promptText || '').trim();

@@ -49,5 +49,7 @@ def classify_provider_error(exc: Exception) -> LLMReadinessError:
         return LLMReadinessError("LLM_AUTH_FAILED", "模型供应商认证失败")
     if "404" in message:
         return LLMReadinessError("LLM_MODEL_UNAVAILABLE", "模型不可用")
+    if "429" in message or "rate" in message.lower():
+        return LLMReadinessError("LLM_TIMEOUT", "模型请求过于频繁或超出配额")
     return LLMReadinessError("LLM_MODEL_UNAVAILABLE", "模型请求失败")
 

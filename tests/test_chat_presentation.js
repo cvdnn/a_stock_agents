@@ -118,6 +118,15 @@ assert.strictEqual(api.presentError({ code: 'toString' }).code, 'toString');
 assert(/暂时|重试|联系|配置/.test(api.presentError({ code: 'OTHER', detail: '<script>x</script>' }).recovery));
 assert.strictEqual(api.escapeHtml('&<>"\''), '&amp;&lt;&gt;&quot;&#39;');
 
+// Verify that object detail does not render as [object Object]
+const objErr1 = api.presentError({ code: 'LLM_MODEL_UNAVAILABLE', detail: { error: '模型请求失败', code: 'LLM_MODEL_UNAVAILABLE' } });
+assert(!objErr1.detail.includes('[object Object]'), 'detail should not be [object Object]');
+assert.strictEqual(objErr1.detail, '模型请求失败');
+
+const objErr2 = api.presentError({ code: 'LLM_TIMEOUT', detail: { message: 'gateway timeout' } });
+assert(!objErr2.detail.includes('[object Object]'), 'detail should not be [object Object]');
+assert.strictEqual(objErr2.detail, 'gateway timeout');
+
 // Reply state and execution timeline (Task 2)
 const state = api.createResponseState('r1');
 assert.strictEqual(state.status, 'streaming');

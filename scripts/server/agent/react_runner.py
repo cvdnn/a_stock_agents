@@ -31,12 +31,91 @@ from server.agent.tools import (
     extract_risk_card,
 )
 from server.config import server_settings
-from server.db import add_message, create_session, get_messages, get_session
+from server.db import add_message, create_session, get_messages, get_session, update_session_model
 from server.llm.factory import LLMProviderFactory
 from server.llm.errors import LLMReadinessError
 from server.llm.readiness import classify_provider_error
 
 logger = get_logger("server.agent.react_runner")
+
+
+def sanitize_history_for_llm(history_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Sanitize and construct an OpenAI-compliant messages list from database history.
+    Strictly guarantees:
+    1. A 'tool' role message can ONLY follow an 'assistant' message whose 'tool_calls'
+       contains a matching 'id'. Orphaned tool messages are dropped.
+    2. An 'assistant' message with 'tool_calls' has its tool_calls filtered to only those
+       that were answered, or stripped entirely if no tool answers follow.
+    3. Prevents 400 Bad Request 'Messages with role tool must be a response to a preceding message with tool_calls'.
+    """
+    parsed: List[Dict[str, Any]] = []
+    for row in history_rows:
+        r = row.get("role")
+        if r == "user":
+            parsed.append({"role": "user", "content": row.get("content") or ""})
+        elif r == "assistant":
+            tc = row.get("tool_calls")
+            if isinstance(tc, str):
+                try:
+                    tc = json.loads(tc)
+                except Exception:
+                    tc = None
+            parsed.append({
+                "role": "assistant",
+                "content": row.get("content") or "",
+                "tool_calls": tc if isinstance(tc, list) else None,
+            })
+        elif r == "tool":
+            parsed.append({
+                "role": "tool",
+                "tool_call_id": row.get("tool_call_id") or "",
+                "name": row.get("tool_name") or "",
+                "content": row.get("content") or "{}",
+            })
+
+    result: List[Dict[str, Any]] = []
+    i = 0
+    while i < len(parsed):
+        item = parsed[i]
+        if item["role"] == "user":
+            result.append(item)
+            i += 1
+        elif item["role"] == "tool":
+            # Orphaned tool message! Skip to avoid OpenAI 400 Bad Request
+            logger.warning("Dropping orphaned tool message from LLM context: %s", item.get("tool_call_id"))
+            i += 1
+        elif item["role"] == "assistant":
+            tc = item.get("tool_calls")
+            if not tc:
+                result.append({"role": "assistant", "content": item["content"]})
+                i += 1
+            else:
+                needed_ids = {c["id"] for c in tc if isinstance(c, dict) and "id" in c}
+                tool_msgs: List[Dict[str, Any]] = []
+                j = i + 1
+                while j < len(parsed) and parsed[j]["role"] == "tool":
+                    if parsed[j]["tool_call_id"] in needed_ids:
+                        tool_msgs.append(parsed[j])
+                    j += 1
+
+                answered_ids = {tm["tool_call_id"] for tm in tool_msgs}
+                if answered_ids:
+                    filtered_tc = [c for c in tc if c.get("id") in answered_ids]
+                    result.append({
+                        "role": "assistant",
+                        "content": item["content"],
+                        "tool_calls": filtered_tc,
+                    })
+                    result.extend(tool_msgs)
+                    i = j
+                else:
+                    content = item["content"].strip()
+                    if content:
+                        result.append({"role": "assistant", "content": content})
+                    i = j
+
+    return result
 
 
 class AgentReActRunner:
@@ -81,6 +160,11 @@ class AgentReActRunner:
             sess = get_session(sid)
             if not sess:
                 sess = create_session(session_id=sid, title=message[:20], model=selected_model)
+            elif sess.get("model") != selected_model and selected_model:
+                try:
+                    update_session_model(session_id=sid, model=selected_model)
+                except Exception:
+                    pass
         else:
             title = message[:25] + ("..." if len(message) > 25 else "")
             sess = create_session(title=title, model=selected_model)
@@ -93,27 +177,12 @@ class AgentReActRunner:
         yield ConversationStartEvent(session_id=sid, model=selected_model)
 
         try:
-            # 4. Prepare message history for LLM
+            # 4. Prepare message history for LLM with state machine sanitization
             history_rows = get_messages(session_id=sid, limit=30)
+            clean_history = sanitize_history_for_llm(history_rows)
             llm_messages: List[Dict[str, Any]] = [
                 {"role": "system", "content": AGENT_SYSTEM_PROMPT}
-            ]
-            for row in history_rows:
-                r = row["role"]
-                if r == "user":
-                    llm_messages.append({"role": "user", "content": row["content"]})
-                elif r == "assistant":
-                    msg_obj: Dict[str, Any] = {"role": "assistant", "content": row["content"]}
-                    if row.get("tool_calls"):
-                        msg_obj["tool_calls"] = row["tool_calls"]
-                    llm_messages.append(msg_obj)
-                elif r == "tool":
-                    llm_messages.append({
-                        "role": "tool",
-                        "tool_call_id": row.get("tool_call_id") or "call_0",
-                        "name": row.get("tool_name") or "",
-                        "content": row["content"],
-                    })
+            ] + clean_history
 
             total_tokens = 0
             step = 0
@@ -176,8 +245,16 @@ class AgentReActRunner:
                         asst_msg["tool_calls"] = accumulated_tool_calls
                     llm_messages.append(asst_msg)
 
-                # If no tool calls were requested, conversation turn is complete
-                if not accumulated_tool_calls:
+                # Persist assistant step to database
+                if accumulated_tool_calls:
+                    add_message(
+                        session_id=sid,
+                        role="assistant",
+                        content=accumulated_text,
+                        thought=accumulated_thought if accumulated_thought else None,
+                        tool_calls=accumulated_tool_calls,
+                    )
+                else:
                     add_message(
                         session_id=sid,
                         role="assistant",
