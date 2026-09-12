@@ -209,28 +209,37 @@ class FinancialCharts {
 
     const cx = width / 2;
     const cy = height * 0.82;
-    const radius = Math.min(width * 0.42, height * 0.72);
-    const strokeWidth = options.strokeWidth || 10;
+    const radius = Math.min(width * 0.40, height * 0.70);
+    const strokeWidth = options.strokeWidth || 8;
 
     const startAngle = Math.PI * 0.85;
     const endAngle = Math.PI * 2.15;
     const totalAngle = endAngle - startAngle;
 
-    // 1. 全彩虹背景刻度弧环 (从绿 -> 黄 -> 橙 -> 红)
+    // 1. 底层灰色轨道
     ctx.beginPath();
     ctx.arc(cx, cy, radius, startAngle, endAngle);
+    ctx.strokeStyle = '#F0F2F5';
+    ctx.lineWidth = strokeWidth;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 2. 彩虹/主色刻度弧环
+    const currentAngle = startAngle + totalAngle * percent;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, currentAngle);
 
     const rainbowGrad = ctx.createLinearGradient(cx - radius, cy, cx + radius, cy);
     if (options.colorType === 'control') {
-      rainbowGrad.addColorStop(0, '#85A5FF');
-      rainbowGrad.addColorStop(0.5, '#2F54EB');
-      rainbowGrad.addColorStop(1, '#10239E');
+      rainbowGrad.addColorStop(0, '#52C41A');
+      rainbowGrad.addColorStop(0.5, '#13C2C2');
+      rainbowGrad.addColorStop(1, '#1677FF');
     } else {
-      rainbowGrad.addColorStop(0, '#52C41A');   // 绿色 (低度/恐慌)
+      rainbowGrad.addColorStop(0, '#52C41A');
       rainbowGrad.addColorStop(0.35, '#73D13D');
-      rainbowGrad.addColorStop(0.65, '#FAAD14'); // 黄色 (中性)
-      rainbowGrad.addColorStop(0.85, '#FA541C'); // 橙色 (活跃)
-      rainbowGrad.addColorStop(1, '#F5222D');   // 红色 (亢奋)
+      rainbowGrad.addColorStop(0.65, '#FAAD14');
+      rainbowGrad.addColorStop(0.85, '#FA541C');
+      rainbowGrad.addColorStop(1, '#F5222D');
     }
 
     ctx.strokeStyle = rainbowGrad;
@@ -238,42 +247,39 @@ class FinancialCharts {
     ctx.lineCap = 'round';
     ctx.stroke();
 
-    // 2. 指示游标点 (Pin Indicator Dot)
-    const currentAngle = startAngle + totalAngle * percent;
+    // 3. 指示游标小点
     const pinX = cx + Math.cos(currentAngle) * radius;
     const pinY = cy + Math.sin(currentAngle) * radius;
 
-    // 外部发光白圈
     ctx.beginPath();
-    ctx.arc(pinX, pinY, strokeWidth * 0.65, 0, Math.PI * 2);
+    ctx.arc(pinX, pinY, strokeWidth * 0.6, 0, Math.PI * 2);
     ctx.fillStyle = '#FFFFFF';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-    ctx.shadowBlur = 4;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+    ctx.shadowBlur = 3;
     ctx.fill();
-    ctx.shadowBlur = 0; // 重置阴影
+    ctx.shadowBlur = 0;
 
-    // 内部核心圆点
     ctx.beginPath();
     ctx.arc(pinX, pinY, strokeWidth * 0.35, 0, Math.PI * 2);
-    ctx.fillStyle = value >= 70 ? '#F5222D' : value >= 50 ? '#FAAD14' : '#52C41A';
+    ctx.fillStyle = '#1677FF';
     ctx.fill();
 
-    // 3. 中心大字与状态标签 (如果未被 DOM 浮层接管)
-    if (options.renderText) {
-      ctx.fillStyle = '#1D2129';
-      ctx.font = `bold ${options.fontSize || 22}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${value}`, cx, cy - radius * 0.28);
+    // 4. 中心标题与数值 (如 主力控盘度 68.32%)
+    const title = options.centerTitle || '主力控盘度';
+    const valText = options.centerValue || `${value}%`;
 
-      const statusText = options.statusText || (value >= 75 ? '较强' : value >= 55 ? '活跃' : value >= 45 ? '中性' : '偏弱');
-      ctx.fillStyle = value >= 70 ? '#FA541C' : value >= 50 ? '#1677FF' : '#52C41A';
-      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
-      ctx.fillText(statusText, cx, cy - 2);
-    }
+    ctx.fillStyle = '#86909C';
+    ctx.font = '10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, cx, cy - 22);
+
+    ctx.fillStyle = '#1D2129';
+    ctx.font = 'bold 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    ctx.fillText(valText, cx, cy - 3);
   }
 
-  // 4. Donut Chart (for 资产配置 & 资金流向分布)
+  // 4. Donut Chart (for 资金流向分布 & 北向资金)
   static drawDonutChart(canvasId, segments, options = {}) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -284,8 +290,8 @@ class FinancialCharts {
     const total = segments.reduce((sum, s) => sum + s.value, 0) || 1;
     const cx = width / 2;
     const cy = height / 2;
-    const outerRadius = Math.min(cx, cy) - 6;
-    const innerRadius = outerRadius * (options.innerRatio || 0.68);
+    const outerRadius = Math.min(cx, cy) - 5;
+    const innerRadius = outerRadius * (options.innerRatio || 0.72);
 
     let startAngle = -Math.PI / 2;
 
@@ -303,60 +309,92 @@ class FinancialCharts {
       startAngle = endAngle;
     });
 
-    // Center Text
-    if (options.centerTitle || options.centerValue) {
+    // Center Text 支持多行渲染
+    if (Array.isArray(options.centerLines) && options.centerLines.length > 0) {
+      const lines = options.centerLines;
+      const totalH = lines.length * 13;
+      let startY = cy - totalH / 2 + 6;
+      lines.forEach(line => {
+        ctx.fillStyle = line.color || '#86909C';
+        const weight = line.bold ? 'bold ' : '';
+        const size = line.size || 10.5;
+        ctx.font = `${weight}${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(line.text, cx, startY);
+        startY += (size + 3);
+      });
+    } else if (options.centerTitle || options.centerValue) {
       ctx.fillStyle = '#86909C';
-      ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.font = '10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       if (options.centerTitle) {
         ctx.fillText(options.centerTitle, cx, cy - 8);
       }
-      ctx.fillStyle = '#1D2129';
+      ctx.fillStyle = options.centerValueColor || '#1D2129';
       ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
       if (options.centerValue) {
-        ctx.fillText(options.centerValue, cx, cy + 10);
+        ctx.fillText(options.centerValue, cx, cy + 8);
       }
     }
   }
 
   // 5. Multi-line Trend Chart (for 近5日资金流向: 主力 vs 散户)
-  static drawMultiLine(canvasId, labels, series) {
+  static drawMultiLine(canvasId, labels, series, options = {}) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     const { ctx, width, height } = this.setupCanvas(canvas);
 
     ctx.clearRect(0, 0, width, height);
 
-    const padding = { top: 15, right: 15, bottom: 25, left: 35 };
+    const padding = { top: 12, right: 12, bottom: 20, left: 34 };
     const usableW = width - padding.left - padding.right;
     const usableH = height - padding.top - padding.bottom;
 
     let allVals = [];
     series.forEach(s => allVals.push(...s.data));
-    const minVal = Math.min(0, ...allVals);
-    const maxVal = Math.max(0, ...allVals);
+    const minVal = options.min != null ? options.min : Math.min(-20, ...allVals);
+    const maxVal = options.max != null ? options.max : Math.max(20, ...allVals);
     const valRange = maxVal - minVal || 1;
 
     const getY = (val) => padding.top + usableH * (1 - (val - minVal) / valRange);
-    const getX = (idx) => padding.left + (idx / (labels.length - 1)) * usableW;
+    const getX = (idx) => padding.left + (idx / Math.max(1, labels.length - 1)) * usableW;
 
-    // Zero baseline
-    const zeroY = getY(0);
-    ctx.beginPath();
-    ctx.strokeStyle = '#D9E1EC';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.moveTo(padding.left, zeroY);
-    ctx.lineTo(width - padding.right, zeroY);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // Y Axis Labels & Grid
+    const yTicks = options.yTicks || [
+      { val: maxVal, text: `${maxVal}亿` },
+      { val: maxVal / 2, text: `${Math.round(maxVal / 2)}亿` },
+      { val: 0, text: '0' },
+      { val: minVal / 2, text: `${Math.round(minVal / 2)}亿` },
+      { val: minVal, text: `${minVal}亿` }
+    ];
 
-    // Draw lines
+    ctx.fillStyle = '#86909C';
+    ctx.font = '9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    yTicks.forEach(tick => {
+      const y = getY(tick.val);
+      ctx.fillText(tick.text, padding.left - 4, y);
+
+      // Grid line
+      ctx.beginPath();
+      ctx.strokeStyle = tick.val === 0 ? '#C9CDD4' : '#F0F2F5';
+      ctx.lineWidth = 1;
+      if (tick.val === 0) ctx.setLineDash([3, 3]);
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // Draw Lines
     series.forEach(s => {
       ctx.beginPath();
       ctx.strokeStyle = s.color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.8;
       s.data.forEach((val, i) => {
         const x = getX(i);
         const y = getY(val);
@@ -370,21 +408,22 @@ class FinancialCharts {
         const x = getX(i);
         const y = getY(val);
         ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
         ctx.fillStyle = '#FFFFFF';
         ctx.fill();
         ctx.strokeStyle = s.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.8;
         ctx.stroke();
       });
     });
 
     // X Axis Labels
     ctx.fillStyle = '#86909C';
-    ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    ctx.font = '9.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
     labels.forEach((label, i) => {
-      ctx.fillText(label, getX(i), height - 8);
+      ctx.fillText(label, getX(i), height - 15);
     });
   }
 
@@ -396,25 +435,45 @@ class FinancialCharts {
 
     ctx.clearRect(0, 0, width, height);
 
-    const padding = { top: 12, right: 10, bottom: 22, left: 10 };
+    const padding = { top: 10, right: 10, bottom: 20, left: options.paddingLeft || 30 };
     const usableW = width - padding.left - padding.right;
     const usableH = height - padding.top - padding.bottom;
 
-    const minVal = Math.min(0, ...values);
-    const maxVal = Math.max(0, ...values);
+    const minVal = options.min != null ? options.min : Math.min(0, ...values);
+    const maxVal = options.max != null ? options.max : Math.max(0, ...values);
     const range = maxVal - minVal || 1;
 
     const zeroY = padding.top + usableH * (1 - (0 - minVal) / range);
     const stepX = usableW / labels.length;
-    const barW = Math.max(8, stepX * 0.45);
+    const barW = Math.max(7, Math.min(18, stepX * 0.5));
 
-    // Zero line
-    ctx.beginPath();
-    ctx.strokeStyle = '#E5E6EB';
-    ctx.lineWidth = 1;
-    ctx.moveTo(padding.left, zeroY);
-    ctx.lineTo(width - padding.right, zeroY);
-    ctx.stroke();
+    // Y Axis Ticks
+    if (Array.isArray(options.yTicks)) {
+      ctx.fillStyle = '#86909C';
+      ctx.font = '9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      options.yTicks.forEach(tick => {
+        const y = padding.top + usableH * (1 - (tick.val - minVal) / range);
+        ctx.fillText(tick.text, padding.left - 4, y);
+        ctx.beginPath();
+        ctx.strokeStyle = tick.val === 0 ? '#C9CDD4' : '#F4F5F8';
+        ctx.lineWidth = 1;
+        if (tick.val === 0) ctx.setLineDash([2, 2]);
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    } else {
+      // Default Zero line
+      ctx.beginPath();
+      ctx.strokeStyle = '#E5E6EB';
+      ctx.lineWidth = 1;
+      ctx.moveTo(padding.left, zeroY);
+      ctx.lineTo(width - padding.right, zeroY);
+      ctx.stroke();
+    }
 
     values.forEach((val, i) => {
       const x = padding.left + i * stepX + (stepX - barW) / 2;
@@ -423,14 +482,19 @@ class FinancialCharts {
       const barH = Math.max(2, Math.abs(y - zeroY));
       const topY = isPositive ? y : zeroY;
 
-      ctx.fillStyle = isPositive ? '#F5222D' : '#52C41A';
+      if (options.barColor) {
+        ctx.fillStyle = options.barColor;
+      } else {
+        ctx.fillStyle = isPositive ? '#F5222D' : '#52C41A';
+      }
       ctx.fillRect(x, topY, barW, barH);
 
       // Label below
       ctx.fillStyle = '#86909C';
-      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.font = '9.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
       ctx.textAlign = 'center';
-      ctx.fillText(labels[i], padding.left + i * stepX + stepX / 2, height - 6);
+      ctx.textBaseline = 'top';
+      ctx.fillText(labels[i], padding.left + i * stepX + stepX / 2, height - 15);
     });
   }
 

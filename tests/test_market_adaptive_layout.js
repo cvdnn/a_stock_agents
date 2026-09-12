@@ -14,9 +14,9 @@ const appJs = fs.readFileSync('web/js/app.js', 'utf8');
 const chartsJs = fs.readFileSync('web/js/charts.js', 'utf8');
 
 // --------------------------------------------------------------------------
-// 1. 结构完整性断言：Row 1 (市场概览 + 市场情绪 + 快捷入口)
+// 1. 结构完整性断言：Row 1 (市场概览 + 今日要闻)
 // --------------------------------------------------------------------------
-console.log('--- 1. Row 1: 市场概览(4指数6指标) + 市场情绪(78度表盘) + 快捷入口(6大按钮) ---');
+console.log('--- 1. Row 1: 市场概览(4指数6指标) + 今日要闻(快讯列表) ---');
 
 assert(html.includes('id="pane-market"'), '必须存在 #pane-market 独立工作区容器');
 assert(html.includes('class="market-adaptive-container"'), '必须包含自适应容器 .market-adaptive-container');
@@ -39,48 +39,66 @@ sparkCanvases.forEach(id => {
 });
 console.log('✅ PASS: 市场概览四大指数与 6 项精细指标及走势微图全部就绪');
 
-// 市场情绪表盘与 6 格指标
+// 今日要闻在 Row 1 替换市场情绪断言
+const topRowMatch = html.match(/<div class="mkt-top-row">([\s\S]*?)<\/div>\s*<!-- Row 2/);
+assert(topRowMatch, '必须匹配到 .mkt-top-row 容器');
+assert(topRowMatch[1].includes('class="mkt-card mkt-overview-card"'), 'Row 1 必须包含市场概览');
+assert(topRowMatch[1].includes('class="mkt-card mkt-news-card"'), 'Row 1 今日要闻必须替换市场情绪');
+assert(!topRowMatch[1].includes('class="mkt-card mkt-sentiment-card"'), 'Row 1 不得再包含市场情绪');
+assert(!html.includes('class="mkt-card mkt-quick-card"'), '快捷入口板块已被彻底删除');
+console.log('✅ PASS: Row 1 成功由【市场概览】与【今日要闻】双核心卡片组成');
+
+// --------------------------------------------------------------------------
+// 2. 结构完整性断言：Row 2 (市场情绪位于第1板块，大盘走势位于第2板块)
+// --------------------------------------------------------------------------
+console.log('\n--- 2. Row 2: 市场情绪(第1板块) + 大盘走势K线(第2板块) ---');
+
+assert(html.includes('class="mkt-mid-row"'), '必须包含中部第二行 .mkt-mid-row');
+
+const midRowMatch = html.match(/<div class="mkt-mid-row">([\s\S]*?)<\/div>\s*<!-- Row 3/);
+assert(midRowMatch, '必须匹配到 .mkt-mid-row 容器');
+
+// 市场情绪移动到第2行第1板块位置断言
+const sentimentIdx = midRowMatch[1].indexOf('mkt-sentiment-card');
+const klineIdx = midRowMatch[1].indexOf('mkt-kline-card');
+assert(sentimentIdx !== -1, 'Row 2 必须包含市场情绪卡片');
+assert(klineIdx !== -1, 'Row 2 必须包含大盘走势卡片');
+assert(sentimentIdx < klineIdx, '【市场情绪】必须位于第2行第1板块位置，排在大盘走势之前');
+
+// 市场情绪表盘与 6 格指标检查
 assert(html.includes('id="sentimentGauge"'), '必须包含情绪表盘 Canvas #sentimentGauge');
 assert(html.includes('id="mktSentimentScore"'), '必须包含情绪评分数值元素 #mktSentimentScore');
 assert(html.includes('id="mktSentimentLabel"'), '必须包含情绪评级标签 #mktSentimentLabel');
 assert(html.includes('涨停') && html.includes('跌停') && html.includes('两市成交'), '必须包含涨停/跌停/两市成交统计');
 assert(html.includes('上涨家数') && html.includes('平盘家数') && html.includes('下跌家数'), '必须包含上涨/平盘/下跌家数统计');
-console.log('✅ PASS: 市场情绪 78 度彩虹刻度表盘与 6 格统计指标全部就绪');
 
-// 快捷入口 6 大按钮
-const quickActions = ['大盘分析', '行业轮动', '资金流向', '龙虎榜单', '主线题材', '规避风险'];
-quickActions.forEach(action => {
-  assert(html.includes(action), `快捷入口必须包含磁贴: ${action}`);
-});
-console.log('✅ PASS: 快捷入口 6 大高频操作磁贴按钮全部就绪');
-
-// --------------------------------------------------------------------------
-// 2. 结构完整性断言：Row 2 (大盘走势 + 行业概念 + 要闻热门AI)
-// --------------------------------------------------------------------------
-console.log('\n--- 2. Row 2: 大盘走势K线 + 行业/概念板块 + 今日要闻/热门概念/AI量化 ---');
-
-assert(html.includes('class="mkt-mid-row"'), '必须包含中部行 .mkt-mid-row');
+// 大盘走势主图与均线检查
 assert(html.includes('id="marketKlineCanvas"'), '必须包含大盘走势 Canvas #marketKlineCanvas');
 assert(html.includes('MA5:') && html.includes('MA10:') && html.includes('MA20:'), '必须包含均线数值标注 (MA5/10/20)');
 assert(html.includes('分时') && html.includes('日K') && html.includes('周K') && html.includes('月K'), '必须包含多周期 K 线 Tabs');
 assert(html.includes('id="mktKlineTargetSelect"'), '必须包含大盘指数选择下拉框');
+console.log('✅ PASS: Row 2 【市场情绪】成功移至第1板块位置，【大盘走势】位于第2板块位置');
 
-// 行业板块与概念主题
-assert(html.includes('class="mkt-sectors-col"'), '必须包含行业与概念复合列 .mkt-sectors-col');
+// --------------------------------------------------------------------------
+// 3. 结构完整性断言：Row 3 (行业板块与概念主题左右排列，热门概念已删除)
+// --------------------------------------------------------------------------
+console.log('\n--- 3. Row 3: 行业板块 + 概念主题 (左右排列，热门概念删除) ---');
+
+assert(html.includes('class="mkt-sectors-row"'), '必须包含第3行左右排列容器 .mkt-sectors-row');
+assert(html.includes('class="mkt-card mkt-sector-card"'), '必须包含行业板块卡片 .mkt-sector-card');
+assert(html.includes('class="mkt-card mkt-concept-card"'), '必须包含概念主题卡片 .mkt-concept-card');
 assert(html.includes('id="mktSectorGrid"'), '必须包含行业板块瓷片网格 #mktSectorGrid');
 assert(html.includes('id="mktConceptGrid"'), '必须包含概念主题瓷片网格 #mktConceptGrid');
 
-// 今日要闻 + 热门概念 + AI量化卡片
-assert(html.includes('class="mkt-side-col"'), '必须包含右侧复合列 .mkt-side-col');
-assert(html.includes('id="mktNewsList"'), '必须包含今日要闻列表 #mktNewsList');
-assert(html.includes('id="mktHotConcepts"'), '必须包含热门概念标签云 #mktHotConcepts');
-assert(html.includes('AI量化智能分析') && html.includes('triggerMarketAiExperience()'), '必须包含 AI 量化智能分析卡片与体验联动触发');
-console.log('✅ PASS: 大盘走势主图、行业与概念瓷片矩阵、要闻热门概念及 AI 量化宣传卡全部就绪');
+// 热门概念与 AI 卡片删除断言
+assert(!html.includes('class="mkt-card mkt-hot-concepts-card"'), '【热门概念】板块已成功删除');
+assert(!html.includes('class="mkt-card mkt-ai-promo-card"'), 'AI量化智能分析板块已被彻底删除');
+console.log('✅ PASS: Row 3 【行业板块】与【概念主题】左右并排呈现，【热门概念】彻底删除');
 
 // --------------------------------------------------------------------------
-// 3. 结构完整性断言：Row 3 (三大排行榜)
+// 4. 结构完整性断言：Row 4 (三大排行榜)
 // --------------------------------------------------------------------------
-console.log('\n--- 3. Row 3: 涨幅排行榜 + 跌幅排行榜 + 北向资金 ---');
+console.log('\n--- 4. Row 4: 涨幅排行榜 + 跌幅排行榜 + 北向资金 ---');
 
 assert(html.includes('class="mkt-bottom-row"'), '必须包含底部排行行 .mkt-bottom-row');
 assert(html.includes('id="mktGainersBody"'), '必须包含涨幅排行榜表格 tbody #mktGainersBody');

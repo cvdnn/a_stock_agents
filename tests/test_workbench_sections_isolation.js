@@ -119,4 +119,15 @@ assert(appJs.includes("FinancialCharts.drawGauge('dashboardSentimentGauge'"), 'a
 assert(appJs.includes("FinancialCharts.drawEquityCurve('dashboardInvestCurve'"), 'app.js 应绘制 dashboardInvestCurve');
 console.log('✅ PASS: 投研助手工作台独立图表初始化与各 Pane 数据调度隔离断言全部通过');
 
-console.log('\n🎉 所有 8 项【投研助手工作台六大板块与工作区独立性】自动化断言 100% 全部通过！\n');
+// --------------------------------------------------------------------------
+// 9. 【AI助手】默认收起规范：除了【投研助手】外，其他工作区默认收起 AI 助手
+// --------------------------------------------------------------------------
+console.log('\n--- 9. 【AI助手】默认收起断言：除【投研助手】外其他工作区默认收起 ---');
+assert(appJs.includes("container.classList.add('copilot-collapsed')"), 'app.js 必须在进入其他工作区时添加 copilot-collapsed');
+assert(appJs.includes("AppState.isCopilotCollapsed = true"), 'app.js 必须将 isCopilotCollapsed 设为 true');
+assert(appJs.includes("container.classList.remove('copilot-collapsed')"), 'app.js 必须在切回投研助手时移除 copilot-collapsed');
+assert(css.includes(".app-container.layout-workspace-main.copilot-collapsed"), 'style.css 必须具备 copilot-collapsed 全宽自适应样式');
+assert(html.includes("id=\"btnCopilotLauncher\""), 'index.html 必须具备 #btnCopilotLauncher AI助手唤起小按钮');
+console.log('✅ PASS: 【AI助手】默认收起契约断言通过：除投研助手常驻居中外，其他工作区默认全屏展开并收起AI助手');
+
+console.log('\n🎉 所有 9 项【投研助手工作台六大板块与工作区独立性】自动化断言 100% 全部通过！\n');
