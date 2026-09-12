@@ -208,55 +208,69 @@ class FinancialCharts {
     const percent = Math.min(1, Math.max(0, (value - min) / (max - min)));
 
     const cx = width / 2;
-    const cy = height * 0.78;
-    const radius = Math.min(width * 0.40, height * 0.65);
-    const strokeWidth = options.strokeWidth || 14;
+    const cy = height * 0.82;
+    const radius = Math.min(width * 0.42, height * 0.72);
+    const strokeWidth = options.strokeWidth || 10;
 
     const startAngle = Math.PI * 0.85;
     const endAngle = Math.PI * 2.15;
     const totalAngle = endAngle - startAngle;
 
-    // Track background
+    // 1. 全彩虹背景刻度弧环 (从绿 -> 黄 -> 橙 -> 红)
     ctx.beginPath();
     ctx.arc(cx, cy, radius, startAngle, endAngle);
-    ctx.strokeStyle = '#EBF0F5';
-    ctx.lineWidth = strokeWidth;
-    ctx.lineCap = 'round';
-    ctx.stroke();
 
-    // Active progress arc with gradient
-    ctx.beginPath();
-    const currentAngle = startAngle + totalAngle * percent;
-    ctx.arc(cx, cy, radius, startAngle, currentAngle);
-
-    const grad = ctx.createLinearGradient(cx - radius, cy, cx + radius, cy);
+    const rainbowGrad = ctx.createLinearGradient(cx - radius, cy, cx + radius, cy);
     if (options.colorType === 'control') {
-      // For 主力控盘: Cyan to Blue
-      grad.addColorStop(0, '#36CFC9');
-      grad.addColorStop(1, '#1677FF');
+      rainbowGrad.addColorStop(0, '#85A5FF');
+      rainbowGrad.addColorStop(0.5, '#2F54EB');
+      rainbowGrad.addColorStop(1, '#10239E');
     } else {
-      // For 市场情绪: Green (weak) -> Yellow -> Red (strong)
-      grad.addColorStop(0, '#52C41A');
-      grad.addColorStop(0.5, '#FAAD14');
-      grad.addColorStop(1, '#F5222D');
+      rainbowGrad.addColorStop(0, '#52C41A');   // 绿色 (低度/恐慌)
+      rainbowGrad.addColorStop(0.35, '#73D13D');
+      rainbowGrad.addColorStop(0.65, '#FAAD14'); // 黄色 (中性)
+      rainbowGrad.addColorStop(0.85, '#FA541C'); // 橙色 (活跃)
+      rainbowGrad.addColorStop(1, '#F5222D');   // 红色 (亢奋)
     }
 
-    ctx.strokeStyle = grad;
+    ctx.strokeStyle = rainbowGrad;
     ctx.lineWidth = strokeWidth;
     ctx.lineCap = 'round';
     ctx.stroke();
 
-    // Value text
-    ctx.fillStyle = '#1D2129';
-    ctx.font = `bold ${options.fontSize || 26}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(options.suffix ? `${value}${options.suffix}` : `${value}`, cx, cy - radius * 0.25);
+    // 2. 指示游标点 (Pin Indicator Dot)
+    const currentAngle = startAngle + totalAngle * percent;
+    const pinX = cx + Math.cos(currentAngle) * radius;
+    const pinY = cy + Math.sin(currentAngle) * radius;
 
-    // Subtitle text
-    ctx.fillStyle = options.statusColor || (value >= 60 ? '#F5222D' : value >= 40 ? '#FA8C16' : '#52C41A');
-    ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
-    ctx.fillText(options.statusText || (value >= 70 ? '较强' : value >= 50 ? '中性' : '偏弱'), cx, cy + 2);
+    // 外部发光白圈
+    ctx.beginPath();
+    ctx.arc(pinX, pinY, strokeWidth * 0.65, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+    ctx.shadowBlur = 4;
+    ctx.fill();
+    ctx.shadowBlur = 0; // 重置阴影
+
+    // 内部核心圆点
+    ctx.beginPath();
+    ctx.arc(pinX, pinY, strokeWidth * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = value >= 70 ? '#F5222D' : value >= 50 ? '#FAAD14' : '#52C41A';
+    ctx.fill();
+
+    // 3. 中心大字与状态标签 (如果未被 DOM 浮层接管)
+    if (options.renderText) {
+      ctx.fillStyle = '#1D2129';
+      ctx.font = `bold ${options.fontSize || 22}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${value}`, cx, cy - radius * 0.28);
+
+      const statusText = options.statusText || (value >= 75 ? '较强' : value >= 55 ? '活跃' : value >= 45 ? '中性' : '偏弱');
+      ctx.fillStyle = value >= 70 ? '#FA541C' : value >= 50 ? '#1677FF' : '#52C41A';
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.fillText(statusText, cx, cy - 2);
+    }
   }
 
   // 4. Donut Chart (for 资产配置 & 资金流向分布)

@@ -2510,229 +2510,911 @@ input:checked + .slider:before {
 }
 
 /* ==========================================================================
-   VIEW 2: Market Overview Dashboard (参考图 2)
+   VIEW 2: Market Overview Dashboard (像素级还原截图设计 · 容器查询全自适应架构)
    ========================================================================== */
-.market-overview-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
 
-/* Top 4 Major Indices */
-.market-indices-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr) 220px 220px;
-  gap: 14px;
-}
-
-.market-index-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  box-shadow: var(--shadow-card);
-}
-
-.market-index-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.market-index-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-title);
-}
-
-.market-index-price {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 6px 0 2px;
-}
-
-.market-index-change {
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  gap: 6px;
-}
-
-.market-index-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-light);
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.market-index-stats span {
-  color: var(--text-title);
-  font-weight: 500;
-}
-
-/* Market Sentiment Card */
-.market-sentiment-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  box-shadow: var(--shadow-card);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.gauge-box {
-  width: 160px;
-  height: 90px;
-  position: relative;
-}
-
-.sentiment-details-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+#pane-market {
+  container-type: inline-size;
+  container-name: marketContainer;
   width: 100%;
-  margin-top: 6px;
-  text-align: center;
-  font-size: 11px;
+  box-sizing: border-box;
 }
 
-/* Mid Row: Big K-Line Chart + Sectors */
-.market-mid-row {
-  display: grid;
-  grid-template-columns: 1.65fr 1fr 1fr;
-  gap: 14px;
+#pane-market:not(.active) {
+  display: none;
 }
 
-.kline-chart-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  box-shadow: var(--shadow-card);
+#pane-market.active {
+  display: block;
 }
 
-.kline-legend {
+.market-adaptive-container {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
-  font-size: 11px;
-  margin-bottom: 8px;
-}
-
-.kline-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-}
-
-.kline-canvas {
   width: 100%;
-  height: 290px;
+  box-sizing: border-box;
 }
 
-/* Sector Grid (行业板块) */
-.sector-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+/* 基础金融白底卡片体系 */
+.mkt-card {
+  background: #FFFFFF;
+  border: 1px solid #EBF0F5;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-sizing: border-box;
+  transition: box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1), transform 0.2s ease;
 }
 
-.sector-tile {
-  background: #FFF1F0;
-  border: 1px solid #FFA39E;
-  border-radius: var(--radius-sm);
-  padding: 10px 8px;
-  text-align: center;
-  cursor: pointer;
-  transition: var(--transition-fast);
+.mkt-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
 }
 
-.sector-tile:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(245, 34, 45, 0.15);
-}
-
-.sector-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-title);
-}
-
-.sector-change {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-up);
-  margin-top: 2px;
-}
-
-/* Concept Tag Cloud */
-.concept-tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.concept-tag {
-  padding: 4px 10px;
-  font-size: 11px;
-  background: #F0F4FA;
-  border-radius: 4px;
-  color: var(--primary);
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.concept-tag:hover {
-  background: var(--primary-light);
-}
-
-/* Bottom Row: Rankings */
-.market-bottom-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-}
-
-/* Bottom Banner */
-.ai-banner-strip {
-  background: linear-gradient(90deg, #EBF3FF 0%, #F0F6FF 100%);
-  border: 1px solid #D0E3FF;
-  border-radius: var(--radius-md);
-  padding: 14px 20px;
+.mkt-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #F5F7FA;
+  min-height: 40px;
+  box-sizing: border-box;
 }
 
-.banner-left h4 {
-  font-size: 14px;
-  color: var(--primary);
+.mkt-card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1D2129;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mkt-more-link {
+  font-size: 11px;
+  color: #86909C;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+}
+
+.mkt-more-link:hover {
+  color: #1677FF;
+}
+
+.mkt-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 子选项卡胶囊 (Subtabs) */
+.mkt-subtabs {
+  display: inline-flex;
+  background: #F2F3F5;
+  padding: 2px;
+  border-radius: 6px;
+  gap: 2px;
+}
+
+.mkt-subtabs .subtab {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  color: #4E5969;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.mkt-subtabs .subtab:hover {
+  color: #1677FF;
+}
+
+.mkt-subtabs .subtab.active {
+  background: #FFFFFF;
+  color: #1677FF;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* ==========================================================================
+   Row 1: 市场概览 (4大指数) + 市场情绪 + 快捷入口
+   ========================================================================== */
+.mkt-top-row {
+  display: grid;
+  grid-template-columns: minmax(520px, 2.35fr) minmax(260px, 1.05fr) minmax(240px, 0.95fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* 1. 市场概览 */
+.mkt-overview-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.mkt-indices-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 10px 12px 12px;
+  flex: 1;
+}
+
+.mkt-index-tile {
+  background: #FAFBFD;
+  border: 1px solid #EDF2F7;
+  border-radius: 8px;
+  padding: 9px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.mkt-index-tile:hover {
+  background: #FFFFFF;
+  border-color: #D0E3FF;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(22, 119, 255, 0.08);
+}
+
+.mkt-idx-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mkt-idx-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1D2129;
+}
+
+.mkt-idx-price {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 3px 0 1px;
+  line-height: 1.2;
+}
+
+.mkt-idx-change {
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
   margin-bottom: 2px;
 }
 
-.banner-left p {
-  font-size: 12px;
-  color: var(--text-body);
+.mkt-spark-wrap {
+  width: 100%;
+  height: 28px;
+  margin: 2px 0 4px;
 }
 
-.banner-btn {
-  background: var(--primary-gradient);
+.mkt-spark-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.mkt-idx-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px 4px;
+  padding-top: 6px;
+  border-top: 1px solid #F0F3F7;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.mkt-metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #86909C;
+  gap: 2px;
+}
+
+.mkt-metric-row .lbl {
+  color: #86909C;
+  white-space: nowrap;
+}
+
+.mkt-metric-row .val {
+  color: #1D2129;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+/* 2. 市场情绪 */
+.mkt-sentiment-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.mkt-gauge-wrapper {
+  position: relative;
+  width: 100%;
+  height: 88px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.mkt-gauge-canvas {
+  width: 170px;
+  height: 86px;
+  display: block;
+}
+
+.mkt-gauge-value-box {
+  position: absolute;
+  bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.mkt-gauge-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1D2129;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.mkt-gauge-badge {
+  font-size: 10px;
+  color: #FA541C;
+  background: #FFF2E8;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.mkt-sentiment-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 6px 14px 12px;
+  border-top: 1px solid #F7F8FA;
+  margin-top: auto;
+}
+
+.mkt-sent-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.mkt-sent-stat-item .label {
+  font-size: 10px;
+  color: #86909C;
+  margin-bottom: 2px;
+}
+
+.mkt-sent-stat-item .val {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+/* 3. 快捷入口 */
+.mkt-quick-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.mkt-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 12px 12px;
+  flex: 1;
+}
+
+.mkt-quick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  border-radius: 8px;
+  background: #FAFBFD;
+  border: 1px solid #F0F4F8;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.mkt-quick-btn:hover {
+  background: #FFFFFF;
+  border-color: #BAE0FF;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.mkt-quick-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5px;
+  transition: transform 0.18s ease;
+}
+
+.mkt-quick-btn:hover .mkt-quick-icon {
+  transform: scale(1.06);
+}
+
+.mkt-quick-icon.bg-orange {
+  background: linear-gradient(135deg, #FFF0E6 0%, #FFD8BF 100%);
+  color: #FA541C;
+}
+
+.mkt-quick-icon.bg-purple {
+  background: linear-gradient(135deg, #F9F0FF 0%, #EBD5FF 100%);
+  color: #722ED1;
+}
+
+.mkt-quick-icon.bg-blue {
+  background: linear-gradient(135deg, #E6F4FF 0%, #BAE0FF 100%);
+  color: #1677FF;
+}
+
+.mkt-quick-icon.bg-red-orange {
+  background: linear-gradient(135deg, #FFF1F0 0%, #FFCCC7 100%);
+  color: #F5222D;
+}
+
+.mkt-quick-icon.bg-green {
+  background: linear-gradient(135deg, #F6FFED 0%, #D9F7BE 100%);
+  color: #52C41A;
+}
+
+.mkt-quick-icon.bg-gray-blue {
+  background: linear-gradient(135deg, #F0F5FA 0%, #DAE6F0 100%);
+  color: #4E5969;
+}
+
+.mkt-quick-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4E5969;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Row 2: 大盘走势 + 行业/概念板块 + 今日要闻/热门概念/AI量化
+   ========================================================================== */
+.mkt-mid-row {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.75fr) minmax(350px, 1.35fr) minmax(260px, 1.05fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* 1. 大盘走势卡片 */
+.mkt-kline-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.mkt-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mkt-kline-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #F2F3F5;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.mkt-tab-btn {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  color: #4E5969;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.mkt-tab-btn:hover {
+  color: #1677FF;
+}
+
+.mkt-tab-btn.active {
+  background: #FFFFFF;
+  color: #1677FF;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.mkt-select-wrap {
+  position: relative;
+}
+
+.mkt-inline-select {
+  background: #FAFBFD;
+  border: 1px solid #EDF2F7;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #1D2129;
+  font-weight: 600;
+  padding: 3px 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.mkt-kline-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mkt-tool-btn {
+  background: #FAFBFD;
+  border: 1px solid #EDF2F7;
+  border-radius: 4px;
+  font-size: 10.5px;
+  color: #4E5969;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mkt-tool-btn:hover {
+  border-color: #BAE0FF;
+  color: #1677FF;
+}
+
+.mkt-kline-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px 2px;
+  font-size: 10.5px;
+}
+
+.mkt-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.text-ma5 { color: #FF7A45; }
+.text-ma10 { color: #13C2C2; }
+.text-ma20 { color: #722ED1; }
+
+.mkt-kline-canvas-box {
+  width: 100%;
+  height: 290px;
+  padding: 4px 10px 10px;
+  box-sizing: border-box;
+  flex: 1;
+}
+
+.mkt-kline-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 2. 行业与概念中间列 */
+.mkt-sectors-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mkt-sector-card,
+.mkt-concept-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.mkt-sector-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 10px 12px 12px;
+}
+
+.mkt-sector-tile {
+  background: #FFF1F0;
+  border: 1px solid #FFA39E;
+  border-radius: 6px;
+  padding: 6px 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mkt-sector-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(245, 34, 45, 0.15);
+}
+
+.mkt-sector-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1D2129;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mkt-sector-chg {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #F5222D;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+.mkt-concept-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 10px 12px 12px;
+}
+
+.mkt-concept-tile {
+  background: #FFF1F0;
+  border: 1px solid #FFA39E;
+  border-radius: 6px;
+  padding: 6px 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mkt-concept-tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(245, 34, 45, 0.15);
+}
+
+/* 3. 右侧复合列 */
+.mkt-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 今日要闻 */
+.mkt-news-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.mkt-news-list {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 12px 8px;
+}
+
+.mkt-news-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px dashed #F2F3F5;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.mkt-news-item:last-child {
+  border-bottom: none;
+}
+
+.mkt-news-item:hover .mkt-news-title {
+  color: #1677FF;
+}
+
+.mkt-news-time {
+  color: #86909C;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.mkt-news-title {
+  color: #1D2129;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 热门概念药丸标签 */
+.mkt-hot-concepts-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.mkt-hot-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 12px;
+}
+
+.mkt-tag-pill {
+  font-size: 10.5px;
+  padding: 3px 10px;
+  background: #F0F4FA;
+  border-radius: 12px;
+  color: #1677FF;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.mkt-tag-pill:hover {
+  background: #E6F4FF;
+  color: #0958D9;
+  transform: translateY(-1px);
+}
+
+/* AI量化智能分析卡片 */
+.mkt-ai-promo-card {
+  background: linear-gradient(135deg, #F0F7FF 0%, #E0EEFF 100%);
+  border: 1px solid #BAE0FF;
+  border-radius: 10px;
+  padding: 12px 14px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.08);
+}
+
+.mkt-ai-promo-chart-svg {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.mkt-ai-promo-info {
+  position: relative;
+  z-index: 1;
+}
+
+.mkt-ai-promo-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1D2129;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mkt-ai-promo-desc {
+  font-size: 10.5px;
+  color: #4E5969;
+  margin: 3px 0 8px;
+  max-width: 200px;
+  line-height: 1.35;
+}
+
+.mkt-ai-promo-btn {
+  background: #1677FF;
   color: #FFFFFF;
   border: none;
-  padding: 8px 20px;
-  border-radius: var(--radius-full);
-  font-size: 13px;
+  outline: none;
+  font-size: 11px;
   font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.3);
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.35);
+}
+
+.mkt-ai-promo-btn:hover {
+  background: #4096FF;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(22, 119, 255, 0.45);
+}
+
+/* ==========================================================================
+   Row 3: 涨幅排行榜 + 跌幅排行榜 + 北向资金 (三大排行榜)
+   ========================================================================== */
+.mkt-bottom-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.mkt-rank-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.mkt-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.mkt-rank-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.mkt-rank-table th {
+  background: #FAFBFD;
+  color: #86909C;
+  font-weight: 500;
+  padding: 7px 10px;
+  border-bottom: 1px solid #EDF2F7;
+  white-space: nowrap;
+}
+
+.mkt-rank-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #F5F7FA;
+  vertical-align: middle;
+}
+
+.mkt-rank-table tr:hover td {
+  background: #FAFBFD;
+}
+
+.mkt-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.mkt-rank-badge.rank-1 {
+  background: #FFF1F0;
+  color: #F5222D;
+  border: 1px solid #FFA39E;
+}
+
+.mkt-rank-badge.rank-2 {
+  background: #FFF7E6;
+  color: #FA8C16;
+  border: 1px solid #FFD591;
+}
+
+.mkt-rank-badge.rank-3 {
+  background: #FEFFE6;
+  color: #D48806;
+  border: 1px solid #FFFB8F;
+}
+
+.mkt-rank-badge.rank-normal {
+  background: #F2F3F5;
+  color: #86909C;
+}
+
+.mkt-stock-cell {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.mkt-stock-name {
+  font-weight: 600;
+  color: #1D2129;
+  white-space: nowrap;
+}
+
+.mkt-stock-code {
+  font-size: 10px;
+  color: #86909C;
+  font-family: var(--font-mono);
+}
+
+/* ==========================================================================
+   CSS 容器查询系统 (@container): 针对实际工作区宽度差异的自适应规则
+   ========================================================================== */
+
+/* 1. 中宽视口：容器宽度 <= 1260px (例如 1440px 屏幕伴随 AI助手 展开时，或中等窗口) */
+@container marketContainer (max-width: 1260px) {
+  .mkt-top-row {
+    grid-template-columns: 1fr 280px;
+  }
+  .mkt-quick-card {
+    grid-column: span 2;
+  }
+  .mkt-quick-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .mkt-mid-row {
+    grid-template-columns: 1.4fr 1fr;
+  }
+  .mkt-side-col {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1.2fr;
+    gap: 12px;
+  }
+  .mkt-sector-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* 2. 紧凑视口：容器宽度 <= 1000px (如 13寸本展开 AI助手，或窗口半屏) */
+@container marketContainer (max-width: 1000px) {
+  .mkt-top-row {
+    grid-template-columns: 1fr;
+  }
+  .mkt-quick-card {
+    grid-column: span 1;
+  }
+  .mkt-indices-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .mkt-quick-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .mkt-mid-row {
+    grid-template-columns: 1fr;
+  }
+  .mkt-side-col {
+    grid-column: span 1;
+    grid-template-columns: 1fr;
+  }
+  .mkt-bottom-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3. 极窄视口：容器宽度 <= 680px (超窄视口/移动端) */
+@container marketContainer (max-width: 680px) {
+  .mkt-indices-grid {
+    grid-template-columns: 1fr;
+  }
+  .mkt-sector-grid,
+  .mkt-concept-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .mkt-quick-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* ==========================================================================

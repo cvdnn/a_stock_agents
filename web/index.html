@@ -325,6 +325,7 @@
               </div>
             </div>
 
+        </div>
     </section>
 
     <!-- 3. RIGHT COLUMN: 详细内容展示区 (多标签页保留机制 + 独立上下滑动) -->
@@ -844,345 +845,430 @@
           </div>
         </div>
 
-          </div>
-        </div>
 
-        <!-- View Pane 2: 市场行情全景 -->
+        <!-- View Pane 2: 市场行情全景 (自适应金融看板) -->
         <div class="right-pane" id="pane-market">
-          <div class="market-overview-grid">
+          <div class="market-adaptive-container">
 
-          <!-- Row 1: 4 Major Indices + Sentiment Gauge + Quick Entrance -->
-          <div class="market-indices-row">
-            <!-- 1. 上证指数 -->
-            <div class="market-index-card">
-              <div class="market-index-header">
-                <span class="market-index-title">上证指数</span>
-                <span class="bg-up-tag" style="font-size:10px; padding:2px 6px; border-radius:3px;">主板</span>
+            <!-- Top Row: 市场概览 (4大指数) + 市场情绪 + 快捷入口 -->
+            <div class="mkt-top-row">
+
+              <!-- 1. 市场概览大卡片 -->
+              <div class="mkt-card mkt-overview-card">
+                <div class="mkt-card-header">
+                  <div class="mkt-card-title">市场概览</div>
+                </div>
+                <div class="mkt-indices-grid">
+                  <!-- 上证指数 -->
+                  <div class="mkt-index-tile" onclick="changeMarketTarget('000001')">
+                    <div class="mkt-idx-top">
+                      <span class="mkt-idx-name">上证指数</span>
+                    </div>
+                    <div class="mkt-idx-price text-up tabular-nums" id="mktShPrice">3,426.56</div>
+                    <div class="mkt-idx-change text-up tabular-nums" id="mktShChange">
+                      <span>▲ +24.38</span>
+                      <span>+0.72%</span>
+                    </div>
+                    <div class="mkt-spark-wrap">
+                      <canvas id="marketSparkSh" class="mkt-spark-canvas"></canvas>
+                    </div>
+                    <div class="mkt-idx-metrics">
+                      <div class="mkt-metric-row"><span class="lbl">今开</span><span class="val" id="mktShOpen">3,410.21</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">最高</span><span class="val" id="mktShHigh">3,432.76</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">成交额</span><span class="val" id="mktShTurnover">5281亿</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">昨收</span><span class="val" id="mktShPreClose">3,402.18</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">最低</span><span class="val" id="mktShLow">3,396.12</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">成交量</span><span class="val" id="mktShVol">3.21亿手</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 深证成指 -->
+                  <div class="mkt-index-tile" onclick="changeMarketTarget('399001')">
+                    <div class="mkt-idx-top">
+                      <span class="mkt-idx-name">深证成指</span>
+                    </div>
+                    <div class="mkt-idx-price text-up tabular-nums" id="mktSzPrice">10,892.14</div>
+                    <div class="mkt-idx-change text-up tabular-nums" id="mktSzChange">
+                      <span>▲ +116.24</span>
+                      <span>+1.08%</span>
+                    </div>
+                    <div class="mkt-spark-wrap">
+                      <canvas id="marketSparkSz" class="mkt-spark-canvas"></canvas>
+                    </div>
+                    <div class="mkt-idx-metrics">
+                      <div class="mkt-metric-row"><span class="lbl">今开</span><span class="val" id="mktSzOpen">10,780.32</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">最高</span><span class="val" id="mktSzHigh">10,912.65</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">成交额</span><span class="val" id="mktSzTurnover">6723亿</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">昨收</span><span class="val" id="mktSzPreClose">10,775.90</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">最低</span><span class="val" id="mktSzLow">10,721.43</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">成交量</span><span class="val" id="mktSzVol">4.16亿手</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 创业板指 -->
+                  <div class="mkt-index-tile" onclick="changeMarketTarget('399006')">
+                    <div class="mkt-idx-top">
+                      <span class="mkt-idx-name">创业板指</span>
+                    </div>
+                    <div class="mkt-idx-price text-up tabular-nums" id="mktCyPrice">2,289.76</div>
+                    <div class="mkt-idx-change text-up tabular-nums" id="mktCyChange">
+                      <span>▲ +29.32</span>
+                      <span>+1.31%</span>
+                    </div>
+                    <div class="mkt-spark-wrap">
+                      <canvas id="marketSparkCy" class="mkt-spark-canvas"></canvas>
+                    </div>
+                    <div class="mkt-idx-metrics">
+                      <div class="mkt-metric-row"><span class="lbl">今开</span><span class="val" id="mktCyOpen">2,258.43</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">最高</span><span class="val" id="mktCyHigh">2,301.24</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">成交额</span><span class="val" id="mktCyTurnover">2510亿</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">昨收</span><span class="val" id="mktCyPreClose">2,260.44</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">最低</span><span class="val" id="mktCyLow">2,231.67</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">成交量</span><span class="val" id="mktCyVol">4.54亿手</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 科创50 -->
+                  <div class="mkt-index-tile" onclick="changeMarketTarget('000688')">
+                    <div class="mkt-idx-top">
+                      <span class="mkt-idx-name">科创50</span>
+                    </div>
+                    <div class="mkt-idx-price text-up tabular-nums" id="mktKcPrice">969.43</div>
+                    <div class="mkt-idx-change text-up tabular-nums" id="mktKcChange">
+                      <span>▲ +12.87</span>
+                      <span>+1.34%</span>
+                    </div>
+                    <div class="mkt-spark-wrap">
+                      <canvas id="marketSparkKc" class="mkt-spark-canvas"></canvas>
+                    </div>
+                    <div class="mkt-idx-metrics">
+                      <div class="mkt-metric-row"><span class="lbl">今开</span><span class="val" id="mktKcOpen">956.20</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">最高</span><span class="val" id="mktKcHigh">974.35</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">成交额</span><span class="val" id="mktKcTurnover">1152亿</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">昨收</span><span class="val" id="mktKcPreClose">956.56</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">最低</span><span class="val" id="mktKcLow">951.32</span></div>
+                      <div class="mkt-metric-row"><span class="lbl">成交量</span><span class="val" id="mktKcVol">0.68亿手</span></div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="market-index-price text-up tabular-nums" id="mktShPrice">--</div>
-              <div class="market-index-change text-up tabular-nums" id="mktShChange">
-                <span>--</span>
-                <span>--</span>
+
+              <!-- 2. 市场情绪卡片 -->
+              <div class="mkt-card mkt-sentiment-card">
+                <div class="mkt-card-header">
+                  <div class="mkt-card-title">市场情绪</div>
+                  <a class="mkt-more-link" href="javascript:void(0)" onclick="showToast('查看更多市场情绪')">更多 &gt;</a>
+                </div>
+                <div class="mkt-gauge-wrapper">
+                  <canvas id="sentimentGauge" class="mkt-gauge-canvas"></canvas>
+                  <div class="mkt-gauge-value-box">
+                    <div class="mkt-gauge-num" id="mktSentimentScore">78</div>
+                    <div class="mkt-gauge-badge" id="mktSentimentLabel">较强</div>
+                  </div>
+                </div>
+                <div class="mkt-sentiment-stats-grid">
+                  <div class="mkt-sent-stat-item">
+                    <span class="label">涨停</span>
+                    <strong class="val text-up" id="mktLimitUpCount">86</strong>
+                  </div>
+                  <div class="mkt-sent-stat-item">
+                    <span class="label">跌停</span>
+                    <strong class="val text-down" id="mktLimitDownCount">6</strong>
+                  </div>
+                  <div class="mkt-sent-stat-item">
+                    <span class="label">两市成交</span>
+                    <strong class="val" id="mktTotalTurnover">1.20万亿</strong>
+                  </div>
+                  <div class="mkt-sent-stat-item">
+                    <span class="label">上涨家数</span>
+                    <strong class="val text-up" id="mktUpCount">3425</strong>
+                  </div>
+                  <div class="mkt-sent-stat-item">
+                    <span class="label">平盘家数</span>
+                    <strong class="val text-muted" id="mktFlatCount">892</strong>
+                  </div>
+                  <div class="mkt-sent-stat-item">
+                    <span class="label">下跌家数</span>
+                    <strong class="val text-down" id="mktDownCount">892</strong>
+                  </div>
+                </div>
               </div>
-              <canvas id="marketSparkSh" style="width: 100%; height: 26px; margin: 4px 0;"></canvas>
-              <div class="market-index-stats">
-                <div>今开 <span id="mktShOpen">--</span></div>
-                <div>最高 <span id="mktShHigh">--</span></div>
-                <div>昨收 <span id="mktShPreClose">--</span></div>
-                <div>成交 <span id="mktShTurnover">--</span></div>
+
+              <!-- 3. 快捷入口卡片 -->
+              <div class="mkt-card mkt-quick-card">
+                <div class="mkt-card-header">
+                  <div class="mkt-card-title">快捷入口</div>
+                </div>
+                <div class="mkt-quick-grid">
+                  <div class="mkt-quick-btn" onclick="triggerMarketQuickAction('大盘分析')">
+                    <div class="mkt-quick-icon bg-orange">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-6 6"/></svg>
+                    </div>
+                    <span class="mkt-quick-text">大盘分析</span>
+                  </div>
+                  <div class="mkt-quick-btn" onclick="triggerMarketQuickAction('行业轮动')">
+                    <div class="mkt-quick-icon bg-purple">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    </div>
+                    <span class="mkt-quick-text">行业轮动</span>
+                  </div>
+                  <div class="mkt-quick-btn" onclick="triggerMarketQuickAction('资金流向')">
+                    <div class="mkt-quick-icon bg-blue">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><circle cx="18" cy="14" r="1"/></svg>
+                    </div>
+                    <span class="mkt-quick-text">资金流向</span>
+                  </div>
+                  <div class="mkt-quick-btn" onclick="triggerMarketQuickAction('龙虎榜单')">
+                    <div class="mkt-quick-icon bg-red-orange">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg>
+                    </div>
+                    <span class="mkt-quick-text">龙虎榜单</span>
+                  </div>
+                  <div class="mkt-quick-btn" onclick="triggerMarketQuickAction('主线题材')">
+                    <div class="mkt-quick-icon bg-green">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M18 4H6v7a6 6 0 0 0 12 0V4z"/></svg>
+                    </div>
+                    <span class="mkt-quick-text">主线题材</span>
+                  </div>
+                  <div class="mkt-quick-btn" onclick="triggerMarketQuickAction('规避风险')">
+                    <div class="mkt-quick-icon bg-gray-blue">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <span class="mkt-quick-text">规避风险</span>
+                  </div>
+                </div>
               </div>
+
             </div>
 
-            <!-- 2. 深证成指 -->
-            <div class="market-index-card">
-              <div class="market-index-header">
-                <span class="market-index-title">深证成指</span>
-                <span class="bg-up-tag" style="font-size:10px; padding:2px 6px; border-radius:3px;">深市</span>
+            <!-- Mid Row: 大盘走势 + (行业板块 + 概念主题) + (今日要闻 + 热门概念 + AI量化智能分析) -->
+            <div class="mkt-mid-row">
+
+              <!-- 1. 大盘走势 -->
+              <div class="mkt-card mkt-kline-card">
+                <div class="mkt-card-header">
+                  <div class="mkt-card-title-group">
+                    <span class="mkt-card-title">大盘走势</span>
+                    <div class="mkt-kline-tabs" id="mktKlineTabs">
+                      <button type="button" class="mkt-tab-btn" onclick="switchKlinePeriod('min', this)">分时</button>
+                      <button type="button" class="mkt-tab-btn active" onclick="switchKlinePeriod('day', this)">日K</button>
+                      <button type="button" class="mkt-tab-btn" onclick="switchKlinePeriod('week', this)">周K</button>
+                      <button type="button" class="mkt-tab-btn" onclick="switchKlinePeriod('month', this)">月K</button>
+                      <button type="button" class="mkt-tab-btn mkt-tab-more" onclick="showToast('更多K线周期')">更多 &gt;</button>
+                    </div>
+                    <div class="mkt-select-wrap">
+                      <select id="mktKlineTargetSelect" class="mkt-inline-select" onchange="changeMarketTarget(this.value)">
+                        <option value="000001">上证指数 ▾</option>
+                        <option value="399001">深证成指 ▾</option>
+                        <option value="399006">创业板指 ▾</option>
+                        <option value="000688">科创50 ▾</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="mkt-kline-tools">
+                    <button type="button" class="mkt-tool-btn" onclick="showToast('对比指数功能')">◧ 对比 ▾</button>
+                    <button type="button" class="mkt-tool-btn" onclick="showToast('技术指标设置')">⚙ 指标 ▾</button>
+                  </div>
+                </div>
+
+                <!-- MA 指标图例 -->
+                <div class="mkt-kline-legend">
+                  <div class="mkt-legend-item text-ma5"><span>MA5:</span> <strong id="mktKlineMa5" class="tabular-nums">3410.32</strong></div>
+                  <div class="mkt-legend-item text-ma10"><span>MA10:</span> <strong id="mktKlineMa10" class="tabular-nums">3398.76</strong></div>
+                  <div class="mkt-legend-item text-ma20"><span>MA20:</span> <strong id="mktKlineMa20" class="tabular-nums">3376.21</strong></div>
+                </div>
+
+                <!-- Canvas 主走势图 -->
+                <div class="mkt-kline-canvas-box">
+                  <canvas id="marketKlineCanvas" class="mkt-kline-canvas"></canvas>
+                </div>
               </div>
-              <div class="market-index-price text-up tabular-nums" id="mktSzPrice">--</div>
-              <div class="market-index-change text-up tabular-nums" id="mktSzChange">
-                <span>--</span>
-                <span>--</span>
+
+              <!-- 2. 行业板块与概念主题 (中间复合列) -->
+              <div class="mkt-sectors-col">
+                <!-- 行业板块 -->
+                <div class="mkt-card mkt-sector-card">
+                  <div class="mkt-card-header">
+                    <div class="mkt-card-title">行业板块</div>
+                    <div class="mkt-header-right">
+                      <div class="mkt-subtabs" id="mktIndustrySubtabs">
+                        <button type="button" class="subtab active" onclick="switchSectorTab(this, 'industry', 'gain')">涨幅榜</button>
+                        <button type="button" class="subtab" onclick="switchSectorTab(this, 'industry', 'loss')">跌幅榜</button>
+                        <button type="button" class="subtab" onclick="switchSectorTab(this, 'industry', 'flow')">资金流向</button>
+                      </div>
+                      <a class="mkt-more-link" href="javascript:void(0)" onclick="showToast('更多行业板块')">更多 &gt;</a>
+                    </div>
+                  </div>
+                  <div class="mkt-sector-grid" id="mktSectorGrid">
+                    <!-- 2行5列共10个磁贴 -->
+                  </div>
+                </div>
+
+                <!-- 概念主题 -->
+                <div class="mkt-card mkt-concept-card">
+                  <div class="mkt-card-header">
+                    <div class="mkt-card-title">概念主题</div>
+                    <div class="mkt-header-right">
+                      <div class="mkt-subtabs" id="mktConceptSubtabs">
+                        <button type="button" class="subtab active" onclick="switchSectorTab(this, 'concept', 'gain')">涨幅榜</button>
+                        <button type="button" class="subtab" onclick="switchSectorTab(this, 'concept', 'loss')">跌幅榜</button>
+                        <button type="button" class="subtab" onclick="switchSectorTab(this, 'concept', 'more')">更多 ?</button>
+                      </div>
+                      <a class="mkt-more-link" href="javascript:void(0)" onclick="showToast('更多概念主题')">更多 &gt;</a>
+                    </div>
+                  </div>
+                  <div class="mkt-concept-grid" id="mktConceptGrid">
+                    <!-- 1行5列瓷片 -->
+                  </div>
+                </div>
               </div>
-              <canvas id="marketSparkSz" style="width: 100%; height: 26px; margin: 4px 0;"></canvas>
-              <div class="market-index-stats">
-                <div>今开 <span id="mktSzOpen">--</span></div>
-                <div>最高 <span id="mktSzHigh">--</span></div>
-                <div>昨收 <span id="mktSzPreClose">--</span></div>
-                <div>成交 <span id="mktSzTurnover">--</span></div>
+
+              <!-- 3. 今日要闻 + 热门概念 + AI量化智能分析 (右侧复合列) -->
+              <div class="mkt-side-col">
+                <!-- 今日要闻 -->
+                <div class="mkt-card mkt-news-card">
+                  <div class="mkt-card-header">
+                    <div class="mkt-card-title">今日要闻</div>
+                    <a class="mkt-more-link" href="javascript:void(0)" onclick="showToast('更多今日要闻')">更多 &gt;</a>
+                  </div>
+                  <div class="mkt-news-list" id="mktNewsList">
+                    <!-- 5条要闻快讯 -->
+                  </div>
+                </div>
+
+                <!-- 热门概念 -->
+                <div class="mkt-card mkt-hot-concepts-card">
+                  <div class="mkt-card-header">
+                    <div class="mkt-card-title">热门概念</div>
+                    <a class="mkt-more-link" href="javascript:void(0)" onclick="showToast('更多热门概念')">更多 &gt;</a>
+                  </div>
+                  <div class="mkt-hot-tags" id="mktHotConcepts">
+                    <!-- 药丸标签 -->
+                  </div>
+                </div>
+
+                <!-- AI量化智能分析横幅卡片 -->
+                <div class="mkt-card mkt-ai-promo-card">
+                  <div class="mkt-ai-promo-chart-svg">
+                    <svg width="110" height="65" viewBox="0 0 110 65" fill="none">
+                      <rect x="10" y="38" width="10" height="26" rx="2" fill="#93C5FD" fill-opacity="0.55"/>
+                      <rect x="26" y="28" width="10" height="36" rx="2" fill="#60A5FA" fill-opacity="0.65"/>
+                      <rect x="42" y="18" width="10" height="46" rx="2" fill="#3B82F6" fill-opacity="0.75"/>
+                      <rect x="58" y="10" width="10" height="54" rx="2" fill="#2563EB" fill-opacity="0.85"/>
+                      <path d="M6 46L28 32L44 24L60 12L84 6" stroke="#1D4ED8" stroke-width="2.5" stroke-linecap="round"/>
+                      <circle cx="84" cy="6" r="3.5" fill="#1D4ED8"/>
+                    </svg>
+                  </div>
+                  <div class="mkt-ai-promo-info">
+                    <div class="mkt-ai-promo-title">
+                      <span>AI量化智能分析</span>
+                    </div>
+                    <div class="mkt-ai-promo-desc">基于大数据与AI算法，挖掘市场机会</div>
+                    <button type="button" class="mkt-ai-promo-btn" onclick="triggerMarketAiExperience()">立即体验</button>
+                  </div>
+                </div>
               </div>
+
             </div>
 
-            <!-- 3. 创业板指 -->
-            <div class="market-index-card">
-              <div class="market-index-header">
-                <span class="market-index-title">创业板指</span>
-                <span class="bg-up-tag" style="font-size:10px; padding:2px 6px; border-radius:3px;">成长</span>
-              </div>
-              <div class="market-index-price text-up tabular-nums" id="mktCyPrice">--</div>
-              <div class="market-index-change text-up tabular-nums" id="mktCyChange">
-                <span>--</span>
-                <span>--</span>
-              </div>
-              <canvas id="marketSparkCy" style="width: 100%; height: 26px; margin: 4px 0;"></canvas>
-              <div class="market-index-stats">
-                <div>今开 <span id="mktCyOpen">--</span></div>
-                <div>最高 <span id="mktCyHigh">--</span></div>
-                <div>昨收 <span id="mktCyPreClose">--</span></div>
-                <div>成交 <span id="mktCyTurnover">--</span></div>
-              </div>
-            </div>
+            <!-- Bottom Row: 涨幅排行榜 + 跌幅排行榜 + 北向资金 (三大排行榜) -->
+            <div class="mkt-bottom-row">
 
-            <!-- 4. 科创50 -->
-            <div class="market-index-card">
-              <div class="market-index-header">
-                <span class="market-index-title">科创50</span>
-                <span class="bg-up-tag" style="font-size:10px; padding:2px 6px; border-radius:3px;">硬科技</span>
+              <!-- 涨幅排行榜 -->
+              <div class="mkt-card mkt-rank-card">
+                <div class="mkt-card-header">
+                  <div class="mkt-card-title">涨幅排行榜</div>
+                  <div class="mkt-header-right">
+                    <div class="mkt-subtabs" id="mktGainersSubtabs">
+                      <button type="button" class="subtab active" onclick="switchRankSubtab(this, 'gainers', 'stock')">股票</button>
+                      <button type="button" class="subtab" onclick="switchRankSubtab(this, 'gainers', 'sector')">行业</button>
+                      <button type="button" class="subtab" onclick="switchRankSubtab(this, 'gainers', 'concept')">概念</button>
+                    </div>
+                    <a class="mkt-more-link" href="javascript:void(0)" onclick="showToast('更多涨幅排行')">更多 &gt;</a>
+                  </div>
+                </div>
+                <div class="mkt-table-responsive">
+                  <table class="mkt-rank-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 44px;">排名</th>
+                        <th>名称</th>
+                        <th style="text-align: right;">最新价</th>
+                        <th style="text-align: right;">涨跌幅</th>
+                        <th style="text-align: right;">涨跌额</th>
+                      </tr>
+                    </thead>
+                    <tbody id="mktGainersBody">
+                      <!-- 涨幅榜JS渲染 -->
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div class="market-index-price text-up tabular-nums" id="mktKcPrice">--</div>
-              <div class="market-index-change text-up tabular-nums" id="mktKcChange">
-                <span>--</span>
-                <span>--</span>
-              </div>
-              <canvas id="marketSparkKc" style="width: 100%; height: 26px; margin: 4px 0;"></canvas>
-              <div class="market-index-stats">
-                <div>今开 <span id="mktKcOpen">--</span></div>
-                <div>最高 <span id="mktKcHigh">--</span></div>
-                <div>昨收 <span id="mktKcPreClose">--</span></div>
-                <div>成交 <span id="mktKcTurnover">--</span></div>
-              </div>
-            </div>
 
-            <!-- 5. 市场情绪 Gauge Card -->
-            <div class="market-sentiment-card">
-              <div style="font-size: 13px; font-weight: 600; align-self: flex-start; margin-bottom: 2px;">市场情绪</div>
-              <div class="gauge-box">
-                <canvas id="sentimentGauge" style="width: 100%; height: 100%;"></canvas>
-              </div>
-              <div class="sentiment-details-grid">
-                <div>
-                  <div style="color: #86909C; font-size: 10px;">涨停</div>
-                  <strong class="text-up tabular-nums" id="mktLimitUpCount">--</strong>
+              <!-- 跌幅排行榜 -->
+              <div class="mkt-card mkt-rank-card">
+                <div class="mkt-card-header">
+                  <div class="mkt-card-title">跌幅排行榜</div>
+                  <div class="mkt-header-right">
+                    <div class="mkt-subtabs" id="mktLosersSubtabs">
+                      <button type="button" class="subtab active" onclick="switchRankSubtab(this, 'losers', 'stock')">股票</button>
+                      <button type="button" class="subtab" onclick="switchRankSubtab(this, 'losers', 'sector')">行业</button>
+                      <button type="button" class="subtab" onclick="switchRankSubtab(this, 'losers', 'concept')">概念</button>
+                    </div>
+                    <a class="mkt-more-link" href="javascript:void(0)" onclick="showToast('更多跌幅排行')">更多 &gt;</a>
+                  </div>
                 </div>
-                <div>
-                  <div style="color: #86909C; font-size: 10px;">跌停</div>
-                  <strong class="text-down tabular-nums" id="mktLimitDownCount">--</strong>
-                </div>
-                <div>
-                  <div style="color: #86909C; font-size: 10px;">两市成交</div>
-                  <strong class="tabular-nums" id="mktTotalTurnover">--</strong>
-                </div>
-                <div>
-                  <div style="color: #86909C; font-size: 10px;">上涨家数</div>
-                  <strong class="text-up tabular-nums" id="mktUpCount">--</strong>
-                </div>
-                <div>
-                  <div style="color: #86909C; font-size: 10px;">平盘</div>
-                  <strong class="tabular-nums" id="mktFlatCount">--</strong>
-                </div>
-                <div>
-                  <div style="color: #86909C; font-size: 10px;">下跌家数</div>
-                  <strong class="text-down tabular-nums" id="mktDownCount">--</strong>
+                <div class="mkt-table-responsive">
+                  <table class="mkt-rank-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 44px;">排名</th>
+                        <th>名称</th>
+                        <th style="text-align: right;">最新价</th>
+                        <th style="text-align: right;">涨跌幅</th>
+                        <th style="text-align: right;">涨跌额</th>
+                      </tr>
+                    </thead>
+                    <tbody id="mktLosersBody">
+                      <!-- 跌幅榜JS渲染 -->
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </div>
-              </div>
-            </div>
 
-            <!-- 6. 快捷入口 -->
-            <div class="quant-card" style="margin-bottom: 0;">
-              <div class="card-header" style="margin-bottom: 8px;">
-                <div class="card-title">快捷入口</div>
-              </div>
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
-                <div class="quick-entry-btn" onclick="showToast('大盘量化分析')">
-                  <div class="quick-entry-icon icon-blue">📊</div>
-                  <div class="quick-entry-label" style="font-size: 10px;">大盘分析</div>
+              <!-- 北向资金 -->
+              <div class="mkt-card mkt-rank-card">
+                <div class="mkt-card-header">
+                  <div class="mkt-card-title">北向资金</div>
+                  <div class="mkt-header-right">
+                    <div class="mkt-subtabs" id="mktNorthSubtabs">
+                      <button type="button" class="subtab active" onclick="switchRankSubtab(this, 'northbound', 'sh')">沪股通</button>
+                      <button type="button" class="subtab" onclick="switchRankSubtab(this, 'northbound', 'sz')">深股通</button>
+                      <button type="button" class="subtab" onclick="switchRankSubtab(this, 'northbound', 'more')">更多</button>
+                    </div>
+                    <a class="mkt-more-link" href="javascript:void(0)" onclick="showToast('更多北向资金')">更多 &gt;</a>
+                  </div>
                 </div>
-                <div class="quick-entry-btn" onclick="showToast('行业轮动雷达')">
-                  <div class="quick-entry-icon icon-purple">🔄</div>
-                  <div class="quick-entry-label" style="font-size: 10px;">行业轮动</div>
-                </div>
-                <div class="quick-entry-btn" onclick="showToast('主力资金监控')">
-                  <div class="quick-entry-icon icon-cyan">💰</div>
-                  <div class="quick-entry-label" style="font-size: 10px;">资金流向</div>
-                </div>
-                <div class="quick-entry-btn" onclick="showToast('高景气家用电磁')">
-                  <div class="quick-entry-icon icon-orange">⚡</div>
-                  <div class="quick-entry-label" style="font-size: 10px;">家用电磁</div>
-                </div>
-                <div class="quick-entry-btn" onclick="showToast('主线题材共振')">
-                  <div class="quick-entry-icon icon-green">🏆</div>
-                  <div class="quick-entry-label" style="font-size: 10px;">主线题材</div>
-                </div>
-                <div class="quick-entry-btn" onclick="showToast('规避高风险板块')">
-                  <div class="quick-entry-icon icon-gray">🛡️</div>
-                  <div class="quick-entry-label" style="font-size: 10px;">规避风险</div>
+                <div class="mkt-table-responsive">
+                  <table class="mkt-rank-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 44px;">排名</th>
+                        <th>名称</th>
+                        <th style="text-align: right;">净买入(亿)</th>
+                        <th style="text-align: right;">涨跌幅</th>
+                      </tr>
+                    </thead>
+                    <tbody id="mktNorthboundBody">
+                      <!-- 北向资金JS渲染 -->
+                    </tbody>
+                  </table>
                 </div>
               </div>
+
             </div>
 
           </div>
-
-          <!-- Row 2: Big K-Line Chart + Sectors + News -->
-          <div class="market-mid-row">
-            <!-- Big Candlestick Chart -->
-            <div class="kline-chart-card">
-              <div class="card-header">
-                <div class="card-title">
-                  <span>大盘走势</span>
-                  <span style="font-size: 11.5px; color: #86909C; font-weight: normal; margin-left: 6px;">上证指数 (000001.SH)</span>
-                </div>
-                <div class="card-tabs">
-                  <div class="card-tab">分时</div>
-                  <div class="card-tab active">日K</div>
-                  <div class="card-tab">周K</div>
-                  <div class="card-tab">月K</div>
-                  <div class="card-tab">更多 ▼</div>
-                </div>
-              </div>
-
-              <!-- Indicators Legend -->
-              <div class="kline-legend">
-                <div class="kline-legend-item" style="color: #FF7A45;">
-                  <span>MA5:</span>
-                  <span class="tabular-nums" id="mktKlineMa5">--</span>
-                </div>
-                <div class="kline-legend-item" style="color: #13C2C2;">
-                  <span>MA10:</span>
-                  <span class="tabular-nums" id="mktKlineMa10">--</span>
-                </div>
-                <div class="kline-legend-item" style="color: #722ED1;">
-                  <span>MA20:</span>
-                  <span class="tabular-nums" id="mktKlineMa20">--</span>
-                </div>
-              </div>
-
-              <!-- Canvas Chart -->
-              <canvas id="marketKlineCanvas" class="kline-canvas"></canvas>
-            </div>
-
-            <!-- Industry Sectors (行业板块) -->
-            <div class="quant-card" style="margin-bottom: 0;">
-              <div class="card-header">
-                <div class="card-title">行业板块</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <div class="card-tabs">
-                    <div class="card-tab active">涨幅榜</div>
-                    <div class="card-tab">跌幅榜</div>
-                    <div class="card-tab">资金流向</div>
-                  </div>
-                  <div class="more-link">更多 &gt;</div>
-                </div>
-              </div>
-
-              <div class="sector-grid" id="mktSectorGrid">
-                <!-- 行业板块涨幅榜由后端接口渲染 -->
-              </div>
-            </div>
-
-            <!-- Today's News & Hot Concepts -->
-            <div class="quant-card" style="margin-bottom: 0;">
-              <div class="card-header">
-                <div class="card-title">今日要闻</div>
-                <div class="more-link">更多 &gt;</div>
-              </div>
-              <div class="news-briefing-list" id="mktNewsList">
-                <!-- 今日要闻由后端接口渲染 -->
-              </div>
-
-              <!-- Hot Concepts Tag Cloud -->
-              <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #F0F2F5;">
-                <div style="font-size: 12px; font-weight: 600; color: #1D2129; margin-bottom: 8px;">热门概念</div>
-                <div class="concept-tag-cloud" id="mktHotConcepts">
-                  <!-- 热门概念由后端接口渲染 -->
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Row 3: Rankings (涨幅榜, 跌幅榜, 北向资金) -->
-          <div class="market-bottom-row">
-
-            <!-- 涨幅排行榜 -->
-            <div class="quant-card" style="margin-bottom: 0;">
-              <div class="card-header">
-                <div class="card-title">涨幅排行榜</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <div class="card-tabs">
-                    <div class="card-tab active">股票</div>
-                    <div class="card-tab">行业</div>
-                    <div class="card-tab">概念</div>
-                  </div>
-                  <div class="more-link">更多 &gt;</div>
-                </div>
-              </div>
-              <table class="stock-table">
-                <thead>
-                  <tr>
-                    <th>排名</th>
-                    <th>名称</th>
-                    <th>最新价</th>
-                    <th>涨跌幅</th>
-                    <th>涨跌额</th>
-                  </tr>
-                </thead>
-                <tbody id="mktGainersBody">
-                  <!-- 涨幅榜由后端接口渲染 -->
-                </tbody>
-              </table>
-            </div>
-
-            <!-- 跌幅排行榜 -->
-            <div class="quant-card" style="margin-bottom: 0;">
-              <div class="card-header">
-                <div class="card-title">跌幅排行榜</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <div class="card-tabs">
-                    <div class="card-tab active">股票</div>
-                    <div class="card-tab">行业</div>
-                    <div class="card-tab">概念</div>
-                  </div>
-                  <div class="more-link">更多 &gt;</div>
-                </div>
-              </div>
-              <table class="stock-table">
-                <thead>
-                  <tr>
-                    <th>排名</th>
-                    <th>名称</th>
-                    <th>最新价</th>
-                    <th>涨跌幅</th>
-                    <th>涨跌额</th>
-                  </tr>
-                </thead>
-                <tbody id="mktLosersBody">
-                  <!-- 跌幅榜由后端接口渲染 -->
-                </tbody>
-              </table>
-            </div>
-
-            <!-- 北向资金 -->
-            <div class="quant-card" style="margin-bottom: 0;">
-              <div class="card-header">
-                <div class="card-title">北向资金</div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <div class="card-tabs">
-                    <div class="card-tab active">沪股通</div>
-                    <div class="card-tab">深股通</div>
-                    <div class="card-tab">更多</div>
-                  </div>
-                  <div class="more-link">更多 &gt;</div>
-                </div>
-              </div>
-              <table class="stock-table">
-                <thead>
-                  <tr>
-                    <th>排名</th>
-                    <th>名称</th>
-                    <th>净买入(亿)</th>
-                    <th>涨跌幅</th>
-                  </tr>
-                </thead>
-                <tbody id="mktNorthboundBody">
-                  <!-- 北向资金榜由后端接口渲染 -->
-                </tbody>
-              </table>
-            </div>
-
-          </div>
-
-          <!-- Bottom Banner -->
-          <div class="ai-banner-strip">
-            <div class="banner-left">
-              <h4>AI量化智能分析</h4>
-              <p>基于大数据与 AI 算法，挖掘全市场潜在异动与超额 Alpha 机会</p>
-            </div>
-            <button class="banner-btn" onclick="switchView('chat')">立即体验</button>
-          </div>
-
-        </div>
         </div>
 
         <!-- View Pane 3: 自选个股深度研判 -->
