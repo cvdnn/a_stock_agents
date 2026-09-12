@@ -53,10 +53,11 @@ Write-Host "[5/5] 运行全流程验证套件 (verify.py)..." -ForegroundColor Y
 Write-Host "======================================================================" -ForegroundColor Cyan
 Write-Host " [成功] a_stock_agents 部署完成！" -ForegroundColor Green
 Write-Host " 就地使用指引（零全局污染，开箱即用）：" -ForegroundColor Gray
+Write-Host '   - 启动服务与 Web 界面: .\run.ps1'
 Write-Host '   - Antigravity: 直接打开当前项目作为工作区，自动就地识别 17 项技能'
-Write-Host '   - Hermes/Codex: 当前目录下直接调用 .\bin\astock.cmd <子命令> --json'
-Write-Host '   - 运行 CLI:     .\bin\astock.cmd --help'
-Write-Host '   - 查询行情:     .\bin\astock.cmd data quote 600519 --json'
-Write-Host '   - 7大分析师辩论: .\bin\astock.cmd debate 600519 --json'
-Write-Host '   - 技能清单:     .\bin\astock.cmd skill list --json'
+Write-Host '   - Hermes/Codex: 当前目录下直接调用 .\bin\astock.ps1 <子命令> --json'
+Write-Host '   - 运行 CLI:     .\bin\astock.ps1 --help'
+Write-Host '   - 查询行情:     .\bin\astock.ps1 data quote 600519 --json'
+Write-Host '   - 7大分析师辩论: .\bin\astock.ps1 debate 600519 --json'
+Write-Host '   - 技能清单:     .\bin\astock.ps1 skill list --json'
 Write-Host "======================================================================" -ForegroundColor Cyan

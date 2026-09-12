@@ -1,6 +1,13 @@
 @echo off
 setlocal
 set SCRIPT_DIR=%~dp0
+
+where powershell >nul 2>nul
+if %ERRORLEVEL% equ 0 (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%astock.ps1" %*
+    exit /b %ERRORLEVEL%
+)
+
 set PROJECT_ROOT=%SCRIPT_DIR%..
 
 if exist "%PROJECT_ROOT%\.venv\Scripts\python.exe" (

@@ -18,7 +18,7 @@
 | 操作系统 | 推荐命令格式 | 示例 (查询茅台行情) |
 | :--- | :--- | :--- |
 | **Linux / macOS** | `./bin/astock <subcommand> --json` | `./bin/astock data quote 600519 --json` |
-| **Windows (CMD/PowerShell)** | `.\bin\astock.cmd <subcommand> --json` | `.\bin\astock.cmd data quote 600519 --json` |
+| **Windows (PowerShell 优先 / CMD)** | `.\bin\astock.ps1 <subcommand> --json`<br>(CMD: `.\bin\astock.cmd <subcommand> --json`) | `.\bin\astock.ps1 data quote 600519 --json` |
 | **全平台通用 Python 回退** | `python scripts/core/cli.py <subcommand> --json` | `python scripts/core/cli.py data quote 600519 --json` |
 
 ---

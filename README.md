@@ -101,20 +101,27 @@
 cd a_stock_agents
 
 # 赋予执行权限并一键安装 (自动初始化虚拟环境、依赖、.agents/skills 挂载与自检)
-chmod +x install.sh update.sh bin/astock
+chmod +x install.sh update.sh run.sh bin/astock
 ./install.sh
+
+# 一键启动项目 (Web 智能工作台 + API 统一网关)
+./run.sh
 
 # 手动运行 11/11 项全功能自动化自检
 python verify.py
 ```
 
-### 2. Windows (PowerShell)
+### 2. Windows (PowerShell / CMD)
 ```powershell
 # 进入项目目录
 cd a_stock_agents
 
 # 一键安装部署 (自动配置 Windows Directory Junction、依赖与自检)
 .\install.ps1
+
+# 一键启动项目 (Web 智能工作台 + API 统一网关)
+.\run.ps1
+# (Git Bash / WSL 用户可运行 ./run.sh)
 
 # 手动运行自检
 python verify.py
@@ -136,8 +143,8 @@ python verify.py
   - 关闭工作区后全局零残留，杜绝多处复制带来的版本冲突与环境污染。
 - **跨平台统一执行底座**：
   - **Linux / macOS**: `./bin/astock <subcommand> --json`
-  - **Windows (CMD/PowerShell)**: `.\bin\astock.cmd <subcommand> --json`
-  - **跨平台通用回退**: `python core/cli.py <subcommand> --json`
+  - **Windows (PowerShell 优先 / CMD)**: `.\bin\astock.ps1 <subcommand> --json` (CMD: `.\bin\astock.cmd <subcommand> --json`)
+  - **跨平台通用回退**: `python scripts/core/cli.py <subcommand> --json`
 
 ---
 

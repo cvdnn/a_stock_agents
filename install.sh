@@ -45,6 +45,8 @@ echo "[3/4] 安装项目核心量化与分析依赖 (requirements.txt)..."
 echo "[4/5] 设置执行权限与工作区就地挂载 (.agents/skills)..."
 chmod +x bin/astock || true
 chmod +x install.sh || true
+chmod +x update.sh || true
+chmod +x run.sh || true
 
 "${VENV_PY}" core/workspace.py
 
@@ -56,6 +58,7 @@ echo "[5/5] 运行全流程验证套件 (verify.py)..."
 echo "======================================================================"
 echo " [成功] a_stock_agents 部署完成！"
 echo " 就地使用指引（零全局污染，开箱即用）："
+echo "   - 启动服务与 Web 界面: ./run.sh (Windows: .\run.ps1)"
 echo "   - Antigravity: 直接打开当前项目作为工作区，自动就地挂载 17 项技能"
 echo "   - Hermes/Codex: 当前目录下直接调用 ./bin/astock <subcommand> --json"
 echo "   - 实时行情:     ./bin/astock data quote 600519 --json"
