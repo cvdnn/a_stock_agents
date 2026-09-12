@@ -645,6 +645,9 @@ function toggleCopilot(forceState, silent = false) {
   // Trigger resize event so Canvas charts smoothly re-render
   setTimeout(() => {
     window.dispatchEvent(new Event('resize'));
+    if (AppState.activeRightTab === 'watchlist' && typeof drawWatchlistCharts === 'function') {
+      drawWatchlistCharts();
+    }
   }, 320);
 }
 
@@ -655,6 +658,15 @@ function toggleChatCollapse() {
     return;
   }
   toggleCopilot();
+}
+
+// 统一视图/AI助手协同切换入口
+function switchView(viewName) {
+  if (viewName === 'chat' || viewName === 'copilot') {
+    toggleCopilot(false);
+  } else {
+    switchRightTab(viewName);
+  }
 }
 
 // Interactive Dynamic Calculator inside Projected View (math.ceil rule)
@@ -1523,6 +1535,10 @@ function renderWatchlistItems(stocks, selectedCode) {
     const badgeBg = stock.badgeBg || '#1677FF';
     const badgeText = stock.badge || stock.name.slice(0, 2);
 
+    const formattedPrice = stock.price >= 1000
+      ? stock.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : stock.price.toFixed(2);
+
     return `
       <div class="watchlist-stock-row ${isActive}" data-code="${stock.code}" onclick="selectWatchStock('${stock.code}')">
         <div class="stock-identity-group">
@@ -1532,7 +1548,7 @@ function renderWatchlistItems(stocks, selectedCode) {
             <div class="stock-row-code">${stock.code}</div>
           </div>
         </div>
-        <div class="stock-row-price tabular-nums ${cls}">${stock.price.toFixed(2)}</div>
+        <div class="stock-row-price tabular-nums ${cls}">${formattedPrice}</div>
         <div class="stock-row-delta tabular-nums ${cls}">${sign}${stock.change_pct.toFixed(2)}%</div>
       </div>
     `;

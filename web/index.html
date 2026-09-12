@@ -1230,330 +1230,333 @@
               </div>
             </div>
 
-            <!-- Column 2: 核心行情、K线图与个股概况 -->
-            <div class="stock-main-col">
+            <!-- Column 2: 核心工作区 (通栏宽幅K线 + 下方2列瀑布流卡片) -->
+            <div class="watchlist-main-workspace">
 
-              <!-- Stock Hero Card -->
-              <div class="stock-hero-card">
-                <div class="stock-hero-header">
-                  <div class="stock-title-cluster">
-                    <div class="stock-brand-badge" id="watchHeroBadge">CATL</div>
-                    <div class="stock-title-text">
-                      <span class="stock-hero-name" id="watchHeroName">宁德时代</span>
-                      <span class="stock-hero-code" id="watchHeroCode">300750</span>
+              <!-- Top Full-Width: 核心报价与宽幅K线走势 -->
+              <div class="watchlist-top-section">
+                <!-- Stock Hero Card -->
+                <div class="stock-hero-card">
+                  <div class="stock-hero-header">
+                    <div class="stock-title-cluster">
+                      <div class="stock-brand-badge" id="watchHeroBadge">CATL</div>
+                      <div class="stock-title-text">
+                        <span class="stock-hero-name" id="watchHeroName">宁德时代</span>
+                        <span class="stock-hero-code" id="watchHeroCode">300750</span>
+                      </div>
+                      <div class="stock-tags-group" id="watchHeroTags">
+                        <span class="stock-tag-pill">深股通</span>
+                        <span class="stock-tag-pill">融资融券</span>
+                        <span class="stock-tag-pill">MSCI</span>
+                      </div>
                     </div>
-                    <div class="stock-tags-group" id="watchHeroTags">
-                      <span class="stock-tag-pill">深股通</span>
-                      <span class="stock-tag-pill">融资融券</span>
-                      <span class="stock-tag-pill">MSCI</span>
+                    <div class="stock-action-btns">
+                      <button class="btn-hero-primary" onclick="showToast('已在自选股列表中')">＋ 加入自选</button>
+                      <button class="btn-hero-secondary" onclick="showToast('启动智能下单交易委托单')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m19 9-7 7-7-7"/></svg>
+                        交易
+                      </button>
                     </div>
                   </div>
-                  <div class="stock-action-btns">
-                    <button class="btn-hero-primary" onclick="showToast('已在自选股列表中')">＋ 加入自选</button>
-                    <button class="btn-hero-secondary" onclick="showToast('启动智能下单交易委托单')">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m19 9-7 7-7-7"/></svg>
-                      交易
-                    </button>
-                  </div>
-                </div>
 
-                <!-- 价格变动主行 -->
-                <div class="stock-hero-price-row">
-                  <div class="stock-price-indicator">
-                    <span class="price-icon-arrow text-up">▲</span>
-                    <span class="stock-hero-price text-up tabular-nums" id="watchHeroPrice">328.56</span>
-                  </div>
-                  <div class="stock-hero-delta text-up tabular-nums" id="watchHeroDelta">
-                    <span id="watchHeroDeltaVal">+8.39</span>
-                    <span id="watchHeroDeltaPct">+2.77%</span>
-                  </div>
-                </div>
-
-                <!-- 6项关键指标网格 -->
-                <div class="stock-hero-grid">
-                  <div class="stock-grid-item">
-                    <span class="stock-grid-lbl">今开</span>
-                    <span class="stock-grid-val text-up tabular-nums" id="watchHeroOpen">322.00</span>
-                  </div>
-                  <div class="stock-grid-item">
-                    <span class="stock-grid-lbl">最高</span>
-                    <span class="stock-grid-val text-up tabular-nums" id="watchHeroHigh">332.80</span>
-                  </div>
-                  <div class="stock-grid-item">
-                    <span class="stock-grid-lbl">最低</span>
-                    <span class="stock-grid-val text-down tabular-nums" id="watchHeroLow">318.45</span>
-                  </div>
-                  <div class="stock-grid-item">
-                    <span class="stock-grid-lbl">昨收</span>
-                    <span class="stock-grid-val tabular-nums" id="watchHeroPreClose">320.17</span>
-                  </div>
-                  <div class="stock-grid-item">
-                    <span class="stock-grid-lbl">成交量</span>
-                    <span class="stock-grid-val tabular-nums" id="watchHeroVol">42.36万手</span>
-                  </div>
-                  <div class="stock-grid-item">
-                    <span class="stock-grid-lbl">成交额</span>
-                    <span class="stock-grid-val tabular-nums" id="watchHeroAmount">138.66亿元</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Candlestick K-Line Chart Card -->
-              <div class="stock-chart-card">
-                <div class="chart-toolbar-row">
-                  <div class="chart-period-tabs" id="watchChartTabs">
-                    <div class="chart-tab" onclick="switchWatchPeriod('fenshi', this)">分时</div>
-                    <div class="chart-tab active" onclick="switchWatchPeriod('day', this)">日K</div>
-                    <div class="chart-tab" onclick="switchWatchPeriod('week', this)">周K</div>
-                    <div class="chart-tab" onclick="switchWatchPeriod('month', this)">月K</div>
-                    <div class="chart-tab" onclick="switchWatchPeriod('120m', this)">120分</div>
-                    <div class="chart-tab" onclick="switchWatchPeriod('60m', this)">60分</div>
-                    <div class="chart-tab" onclick="switchWatchPeriod('30m', this)">30分</div>
-                    <div class="chart-tab" onclick="switchWatchPeriod('15m', this)">15分</div>
-                  </div>
-                  <div class="chart-tools-right">
-                    <span class="chart-tool-link" onclick="showToast('已切换至前复权')">前复权 &gt;</span>
-                    <span class="chart-tool-link" onclick="showToast('指标设置')">指标 ▼</span>
-                  </div>
-                </div>
-
-                <!-- MA 指示栏 -->
-                <div class="chart-ma-legend" id="watchMaLegend">
-                  <span class="ma-item ma5">MA 5:<strong id="watchMa5">320.45</strong></span>
-                  <span class="ma-item ma10">MA10:<strong id="watchMa10">315.32</strong></span>
-                  <span class="ma-item ma20">MA20:<strong id="watchMa20">308.76</strong></span>
-                  <span class="ma-item ma60">MA60:<strong id="watchMa60">291.23</strong></span>
-                </div>
-
-                <!-- K线 Canvas 主图 -->
-                <div class="chart-canvas-wrapper">
-                  <canvas id="stockKlineCanvas" style="width: 100%; height: 260px;"></canvas>
-                </div>
-              </div>
-
-              <!-- Stock Overview & Events Timeline Card -->
-              <div class="stock-overview-card">
-                <div class="overview-tabs-header">
-                  <div class="overview-tab active" onclick="switchOverviewSubTab(0, this)">个股概况</div>
-                  <div class="overview-tab" onclick="switchOverviewSubTab(1, this)">财务分析</div>
-                  <div class="overview-tab" onclick="switchOverviewSubTab(2, this)">新闻公告</div>
-                  <div class="overview-tab" onclick="switchOverviewSubTab(3, this)">研报评级</div>
-                </div>
-
-                <div class="overview-content-grid">
-                  <!-- 左列：基本面关键指标 -->
-                  <div class="overview-meta-list">
-                    <div class="overview-meta-item"><span class="meta-label">所属行业：</span><strong class="meta-val" id="watchMetaIndustry">电池</strong></div>
-                    <div class="overview-meta-item"><span class="meta-label">所属概念：</span><span class="meta-val" id="watchMetaConcepts">新能源车、锂电池、固态电池、储能</span></div>
-                    <div class="overview-meta-item"><span class="meta-label">流通市值：</span><span class="meta-val tabular-nums" id="watchMetaFloatCap">7,654.32亿</span></div>
-                    <div class="overview-meta-item"><span class="meta-label">总市值：</span><span class="meta-val tabular-nums" id="watchMetaTotalCap">9,832.17亿</span></div>
-                    <div class="overview-meta-item"><span class="meta-label">市盈率(TTM)：</span><span class="meta-val tabular-nums" id="watchMetaPe">18.76</span></div>
-                    <div class="overview-meta-item"><span class="meta-label">市净率：</span><span class="meta-val tabular-nums" id="watchMetaPb">4.32</span></div>
-                    <div class="overview-meta-item"><span class="meta-label">52周最高：</span><span class="meta-val tabular-nums" id="watchMeta52High">332.80</span></div>
-                    <div class="overview-meta-item"><span class="meta-label">52周最低：</span><span class="meta-val tabular-nums" id="watchMeta52Low">169.80</span></div>
+                  <!-- 价格变动主行 -->
+                  <div class="stock-hero-price-row">
+                    <div class="stock-price-indicator">
+                      <span class="price-icon-arrow text-up">▲</span>
+                      <span class="stock-hero-price text-up tabular-nums" id="watchHeroPrice">328.56</span>
+                    </div>
+                    <div class="stock-hero-delta text-up tabular-nums" id="watchHeroDelta">
+                      <span id="watchHeroDeltaVal">+8.39</span>
+                      <span id="watchHeroDeltaPct">+2.77%</span>
+                    </div>
                   </div>
 
-                  <!-- 右列：近期重要事件时间轴 -->
-                  <div class="overview-events-col">
-                    <div class="events-title">近期重要事件</div>
-                    <div class="overview-timeline-list" id="watchEventsTimeline">
-                      <div class="timeline-entry red-dot">
-                        <div class="entry-date-badge">2025-08-26</div>
-                        <div class="entry-body">
-                          <strong class="entry-type">机构调研</strong>
-                          <div class="entry-desc">近30家机构调研，关注固态电池进展</div>
-                        </div>
-                      </div>
-                      <div class="timeline-entry blue-dot">
-                        <div class="entry-date-badge">2025-08-22</div>
-                        <div class="entry-body">
-                          <strong class="entry-type">分红送转</strong>
-                          <div class="entry-desc">10派5元（含税）</div>
-                        </div>
-                      </div>
-                      <div class="timeline-entry blue-dot">
-                        <div class="entry-date-badge">2025-08-15</div>
-                        <div class="entry-body">
-                          <strong class="entry-type">业绩预告</strong>
-                          <div class="entry-desc">预计上半年净利润同比增长20%-30%</div>
-                        </div>
-                      </div>
-                      <div class="timeline-entry blue-dot">
-                        <div class="entry-date-badge">2025-08-10</div>
-                        <div class="entry-body">
-                          <strong class="entry-type">限售解禁</strong>
-                          <div class="entry-desc">解禁股数1.25亿股，占总股本2.3%</div>
-                        </div>
-                      </div>
+                  <!-- 6项关键指标网格 -->
+                  <div class="stock-hero-grid">
+                    <div class="stock-grid-item">
+                      <span class="stock-grid-lbl">今开</span>
+                      <span class="stock-grid-val text-up tabular-nums" id="watchHeroOpen">322.00</span>
+                    </div>
+                    <div class="stock-grid-item">
+                      <span class="stock-grid-lbl">最高</span>
+                      <span class="stock-grid-val text-up tabular-nums" id="watchHeroHigh">332.80</span>
+                    </div>
+                    <div class="stock-grid-item">
+                      <span class="stock-grid-lbl">最低</span>
+                      <span class="stock-grid-val text-down tabular-nums" id="watchHeroLow">318.45</span>
+                    </div>
+                    <div class="stock-grid-item">
+                      <span class="stock-grid-lbl">昨收</span>
+                      <span class="stock-grid-val tabular-nums" id="watchHeroPreClose">320.17</span>
+                    </div>
+                    <div class="stock-grid-item">
+                      <span class="stock-grid-lbl">成交量</span>
+                      <span class="stock-grid-val tabular-nums" id="watchHeroVol">42.36万手</span>
+                    </div>
+                    <div class="stock-grid-item">
+                      <span class="stock-grid-lbl">成交额</span>
+                      <span class="stock-grid-val tabular-nums" id="watchHeroAmount">138.66亿元</span>
                     </div>
                   </div>
                 </div>
-              </div>
 
-            </div>
-
-            <!-- Column 3: 资金面分析 (资金流向 + 北向资金) -->
-            <div class="stock-capital-col">
-
-              <!-- 资金流向 Card -->
-              <div class="workbench-card">
-                <div class="workbench-card-header">
-                  <div class="workbench-card-title">资金流向 <span class="header-sub-date" id="watchFundDate">(2025-08-27)</span></div>
-                  <div class="more-link" onclick="showToast('资金流向明细')">更多 &gt;</div>
-                </div>
-                
-                <!-- 环形图 + 5档单明细 -->
-                <div class="fund-donut-section">
-                  <div class="donut-chart-container">
-                    <canvas id="fundFlowDonut" style="width: 120px; height: 120px;"></canvas>
+                <!-- Candlestick K-Line Chart Card (宽幅通栏) -->
+                <div class="stock-chart-card">
+                  <div class="chart-toolbar-row">
+                    <div class="chart-period-tabs" id="watchChartTabs">
+                      <div class="chart-tab" onclick="switchWatchPeriod('fenshi', this)">分时</div>
+                      <div class="chart-tab active" onclick="switchWatchPeriod('day', this)">日K</div>
+                      <div class="chart-tab" onclick="switchWatchPeriod('week', this)">周K</div>
+                      <div class="chart-tab" onclick="switchWatchPeriod('month', this)">月K</div>
+                      <div class="chart-tab" onclick="switchWatchPeriod('120m', this)">120分</div>
+                      <div class="chart-tab" onclick="switchWatchPeriod('60m', this)">60分</div>
+                      <div class="chart-tab" onclick="switchWatchPeriod('30m', this)">30分</div>
+                      <div class="chart-tab" onclick="switchWatchPeriod('15m', this)">15分</div>
+                    </div>
+                    <div class="chart-tools-right">
+                      <span class="chart-tool-link" onclick="showToast('已切换至前复权')">前复权 &gt;</span>
+                      <span class="chart-tool-link" onclick="showToast('指标设置')">指标 ▼</span>
+                    </div>
                   </div>
-                  <div class="fund-detail-list">
-                    <div class="fund-item"><span class="dot-label dot-red">● 主力净流入</span> <strong class="tabular-nums" id="watchFundMainInflow">12.36亿 (8.45%)</strong></div>
-                    <div class="fund-item"><span class="dot-label dot-darkred">● 超大单净流入</span> <span class="tabular-nums" id="watchFundSuperInflow">7.23亿 (4.96%)</span></div>
-                    <div class="fund-item"><span class="dot-label dot-orange">● 大单净流入</span> <span class="tabular-nums" id="watchFundLargeInflow">5.13亿 (3.49%)</span></div>
-                    <div class="fund-item"><span class="dot-label dot-green">● 中单净流出</span> <span class="tabular-nums" id="watchFundMidInflow">-4.21亿 (-2.87%)</span></div>
-                    <div class="fund-item"><span class="dot-label dot-darkgreen">● 小单净流出</span> <span class="tabular-nums" id="watchFundSmallInflow">-8.15亿 (-5.58%)</span></div>
-                  </div>
-                </div>
 
-                <!-- 近5日资金流向折线图 -->
-                <div class="trend-chart-section">
-                  <div class="trend-header-row">
-                    <span class="trend-sub-title">近5日资金流向</span>
-                    <span class="trend-legend">
-                      <span class="legend-dot dot-red">● 主力</span>
-                      <span class="legend-dot dot-green">● 散户</span>
-                    </span>
+                  <!-- MA 指示栏 -->
+                  <div class="chart-ma-legend" id="watchMaLegend">
+                    <span class="ma-item ma5">MA 5:<strong id="watchMa5">320.45</strong></span>
+                    <span class="ma-item ma10">MA10:<strong id="watchMa10">315.32</strong></span>
+                    <span class="ma-item ma20">MA20:<strong id="watchMa20">308.76</strong></span>
+                    <span class="ma-item ma60">MA60:<strong id="watchMa60">291.23</strong></span>
                   </div>
-                  <div class="trend-canvas-wrap">
-                    <canvas id="fundFlowTrendLine" style="width: 100%; height: 95px;"></canvas>
+
+                  <!-- K线 Canvas 主图 -->
+                  <div class="chart-canvas-wrapper">
+                    <canvas id="stockKlineCanvas" style="width: 100%; height: 280px;"></canvas>
                   </div>
                 </div>
               </div>
 
-              <!-- 北向资金 Card -->
-              <div class="workbench-card">
-                <div class="workbench-card-header">
-                  <div class="workbench-card-title">北向资金</div>
-                  <div class="more-link" onclick="showToast('北向资金明细')">更多 &gt;</div>
-                </div>
-                <div class="northbound-donut-section">
-                  <div class="northbound-donut-wrap">
-                    <canvas id="northboundDonut" style="width: 90px; height: 90px;"></canvas>
-                  </div>
-                  <div class="northbound-data-wrap">
-                    <div class="north-badge-rate text-up">▲ 0.68%</div>
-                    <div class="north-data-row"><span class="north-lbl">● 沪股通</span> <strong class="tabular-nums" id="watchNorthSH">3.12亿</strong></div>
-                    <div class="north-data-row"><span class="north-lbl">● 深股通</span> <strong class="tabular-nums" id="watchNorthSZ">2.11亿</strong></div>
-                  </div>
-                </div>
-                
-                <!-- 近5日北向资金净买入柱状图 -->
-                <div class="north-bar-section">
-                  <div class="trend-sub-title" style="margin-bottom: 4px;">近5日北向资金净买入</div>
-                  <div class="trend-canvas-wrap">
-                    <canvas id="northboundBar" style="width: 100%; height: 75px;"></canvas>
-                  </div>
-                </div>
-              </div>
+              <!-- Bottom 2-Column Masonry Stream: 下方6大分析卡片2列瀑布流 -->
+              <div class="watchlist-masonry-grid">
 
-            </div>
+                <!-- 瀑布流 Column A (左列): 个股概况 + 资金流向 + 相关新闻 -->
+                <div class="masonry-col">
+                  <!-- Stock Overview & Events Timeline Card -->
+                  <div class="stock-overview-card">
+                    <div class="overview-tabs-header">
+                      <div class="overview-tab active" onclick="switchOverviewSubTab(0, this)">个股概况</div>
+                      <div class="overview-tab" onclick="switchOverviewSubTab(1, this)">财务分析</div>
+                      <div class="overview-tab" onclick="switchOverviewSubTab(2, this)">新闻公告</div>
+                      <div class="overview-tab" onclick="switchOverviewSubTab(3, this)">研报评级</div>
+                    </div>
 
-            <!-- Column 4: 主力追踪 + 相关新闻 + AI分析结论 -->
-            <div class="stock-intel-col">
+                    <div class="overview-content-grid">
+                      <!-- 基本面关键指标 -->
+                      <div class="overview-meta-list">
+                        <div class="overview-meta-item"><span class="meta-label">所属行业：</span><strong class="meta-val" id="watchMetaIndustry">电池</strong></div>
+                        <div class="overview-meta-item"><span class="meta-label">所属概念：</span><span class="meta-val" id="watchMetaConcepts">新能源车、锂电池、固态电池、储能</span></div>
+                        <div class="overview-meta-item"><span class="meta-label">流通市值：</span><span class="meta-val tabular-nums" id="watchMetaFloatCap">7,654.32亿</span></div>
+                        <div class="overview-meta-item"><span class="meta-label">总市值：</span><span class="meta-val tabular-nums" id="watchMetaTotalCap">9,832.17亿</span></div>
+                        <div class="overview-meta-item"><span class="meta-label">市盈率(TTM)：</span><span class="meta-val tabular-nums" id="watchMetaPe">18.76</span></div>
+                        <div class="overview-meta-item"><span class="meta-label">市净率：</span><span class="meta-val tabular-nums" id="watchMetaPb">4.32</span></div>
+                        <div class="overview-meta-item"><span class="meta-label">52周最高：</span><span class="meta-val tabular-nums" id="watchMeta52High">332.80</span></div>
+                        <div class="overview-meta-item"><span class="meta-label">52周最低：</span><span class="meta-val tabular-nums" id="watchMeta52Low">169.80</span></div>
+                      </div>
 
-              <!-- 主力追踪 Card -->
-              <div class="workbench-card">
-                <div class="workbench-card-header">
-                  <div class="workbench-card-title">主力追踪</div>
-                  <div class="more-link" onclick="showToast('主力追踪详情')">更多 &gt;</div>
-                </div>
-                <div class="gauge-wrap">
-                  <canvas id="mainControlGauge" style="width: 100%; height: 85px;"></canvas>
-                </div>
-                <div class="main-metrics-row">
-                  <div class="main-metric-cell">
-                    <div class="metric-lbl">主力持仓</div>
-                    <strong class="metric-val tabular-nums" id="watchMainHoldings">12.36亿</strong>
+                      <!-- 近期重要事件时间轴 -->
+                      <div class="overview-events-col">
+                        <div class="events-title">近期重要事件</div>
+                        <div class="overview-timeline-list" id="watchEventsTimeline">
+                          <div class="timeline-entry red-dot">
+                            <div class="entry-date-badge">2025-08-26</div>
+                            <div class="entry-body">
+                              <strong class="entry-type">机构调研</strong>
+                              <div class="entry-desc">近30家机构调研，关注固态电池进展</div>
+                            </div>
+                          </div>
+                          <div class="timeline-entry blue-dot">
+                            <div class="entry-date-badge">2025-08-22</div>
+                            <div class="entry-body">
+                              <strong class="entry-type">分红送转</strong>
+                              <div class="entry-desc">10派5元（含税）</div>
+                            </div>
+                          </div>
+                          <div class="timeline-entry blue-dot">
+                            <div class="entry-date-badge">2025-08-15</div>
+                            <div class="entry-body">
+                              <strong class="entry-type">业绩预告</strong>
+                              <div class="entry-desc">预计上半年净利润同比增长20%-30%</div>
+                            </div>
+                          </div>
+                          <div class="timeline-entry blue-dot">
+                            <div class="entry-date-badge">2025-08-10</div>
+                            <div class="entry-body">
+                              <strong class="entry-type">限售解禁</strong>
+                              <div class="entry-desc">解禁股数1.25亿股，占总股本2.3%</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="main-metric-cell">
-                    <div class="metric-lbl">主力占比</div>
-                    <strong class="metric-val tabular-nums" id="watchMainRatio">8.46%</strong>
-                  </div>
-                  <div class="main-metric-cell">
-                    <div class="metric-lbl">筹码集中度</div>
-                    <strong class="metric-val tabular-nums" id="watchMainConcentration">71.26%</strong>
-                  </div>
-                </div>
-                
-                <!-- 主力持仓变化 (近5日) 柱状图 -->
-                <div class="holdings-bar-section">
-                  <div class="trend-header-row">
-                    <span class="trend-sub-title">主力持仓变化 (近5日)</span>
-                    <span class="more-link" style="font-size: 10.5px;">最新 &gt;</span>
-                  </div>
-                  <div class="trend-canvas-wrap">
-                    <canvas id="mainHoldingsBar" style="width: 100%; height: 70px;"></canvas>
-                  </div>
-                </div>
-              </div>
 
-              <!-- 相关新闻 Card -->
-              <div class="workbench-card">
-                <div class="workbench-card-header">
-                  <div class="workbench-card-title">相关新闻</div>
-                  <div class="more-link" onclick="showToast('更多个股新闻')">更多 &gt;</div>
-                </div>
-                <div class="news-simple-list" id="watchNewsList">
-                  <div class="news-item-row">
-                    <span class="news-date">08-27</span>
-                    <span class="news-headline" title="宁德时代：固态电池技术取得新进展，预计年内...">宁德时代：固态电池技术取得新进展，预计年内...</span>
-                  </div>
-                  <div class="news-item-row">
-                    <span class="news-date">08-26</span>
-                    <span class="news-headline" title="机构：看好宁德时代长期发展，维持“买入”评级">机构：看好宁德时代长期发展，维持“买入”评级</span>
-                  </div>
-                  <div class="news-item-row">
-                    <span class="news-date">08-25</span>
-                    <span class="news-headline" title="宁德时代与华为签署战略合作协议，共同推进...">宁德时代与华为签署战略合作协议，共同推进...</span>
-                  </div>
-                  <div class="news-item-row">
-                    <span class="news-date">08-22</span>
-                    <span class="news-headline" title="新能源车销量超预期，锂电池产业景气度持续...">新能源车销量超预期，锂电池产业景气度持续...</span>
-                  </div>
-                  <div class="news-item-row">
-                    <span class="news-date">08-20</span>
-                    <span class="news-headline" title="宁德时代拟在欧洲建设新工厂，扩大海外产能布局">宁德时代拟在欧洲建设新工厂，扩大海外产能布局</span>
-                  </div>
-                </div>
-              </div>
+                  <!-- 资金流向 Card -->
+                  <div class="workbench-card">
+                    <div class="workbench-card-header">
+                      <div class="workbench-card-title">资金流向 <span class="header-sub-date" id="watchFundDate">(2025-08-27)</span></div>
+                      <div class="more-link" onclick="showToast('资金流向明细')">更多 &gt;</div>
+                    </div>
+                    
+                    <!-- 环形图 + 5档单明细 -->
+                    <div class="fund-donut-section">
+                      <div class="donut-chart-container">
+                        <canvas id="fundFlowDonut" style="width: 120px; height: 120px;"></canvas>
+                      </div>
+                      <div class="fund-detail-list">
+                        <div class="fund-item"><span class="dot-label dot-red">● 主力净流入</span> <strong class="tabular-nums" id="watchFundMainInflow">12.36亿 (8.45%)</strong></div>
+                        <div class="fund-item"><span class="dot-label dot-darkred">● 超大单净流入</span> <span class="tabular-nums" id="watchFundSuperInflow">7.23亿 (4.96%)</span></div>
+                        <div class="fund-item"><span class="dot-label dot-orange">● 大单净流入</span> <span class="tabular-nums" id="watchFundLargeInflow">5.13亿 (3.49%)</span></div>
+                        <div class="fund-item"><span class="dot-label dot-green">● 中单净流出</span> <span class="tabular-nums" id="watchFundMidInflow">-4.21亿 (-2.87%)</span></div>
+                        <div class="fund-item"><span class="dot-label dot-darkgreen">● 小单净流出</span> <span class="tabular-nums" id="watchFundSmallInflow">-8.15亿 (-5.58%)</span></div>
+                      </div>
+                    </div>
 
-              <!-- AI分析结论 Card -->
-              <div class="workbench-card ai-conclusion-card">
-                <div class="workbench-card-header" style="margin-bottom: 6px;">
-                  <div class="workbench-card-title ai-title-gradient">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#1677FF"><path d="M12 2L14.4 7.6L20 8.4L15.8 12.5L17 18.2L12 15.2L7 18.2L8.2 12.5L4 8.4L9.6 7.6L12 2Z"/></svg>
-                    AI分析结论
+                    <!-- 近5日资金流向折线图 -->
+                    <div class="trend-chart-section">
+                      <div class="trend-header-row">
+                        <span class="trend-sub-title">近5日资金流向</span>
+                        <span class="trend-legend">
+                          <span class="legend-dot dot-red">● 主力</span>
+                          <span class="legend-dot dot-green">● 散户</span>
+                        </span>
+                      </div>
+                      <div class="trend-canvas-wrap">
+                        <canvas id="fundFlowTrendLine" style="width: 100%; height: 95px;"></canvas>
+                      </div>
+                    </div>
                   </div>
-                  <div class="more-link" style="color: #1677FF;" onclick="switchView('chat')">深度研报 &gt;</div>
+
+                  <!-- 相关新闻 Card -->
+                  <div class="workbench-card">
+                    <div class="workbench-card-header">
+                      <div class="workbench-card-title">相关新闻</div>
+                      <div class="more-link" onclick="showToast('更多个股新闻')">更多 &gt;</div>
+                    </div>
+                    <div class="news-simple-list" id="watchNewsList">
+                      <div class="news-item-row">
+                        <span class="news-date">08-27</span>
+                        <span class="news-headline" title="宁德时代：固态电池技术取得新进展，预计年内...">宁德时代：固态电池技术取得新进展，预计年内...</span>
+                      </div>
+                      <div class="news-item-row">
+                        <span class="news-date">08-26</span>
+                        <span class="news-headline" title="机构：看好宁德时代长期发展，维持“买入”评级">机构：看好宁德时代长期发展，维持“买入”评级</span>
+                      </div>
+                      <div class="news-item-row">
+                        <span class="news-date">08-25</span>
+                        <span class="news-headline" title="宁德时代与华为签署战略合作协议，共同推进...">宁德时代与华为签署战略合作协议，共同推进...</span>
+                      </div>
+                      <div class="news-item-row">
+                        <span class="news-date">08-22</span>
+                        <span class="news-headline" title="新能源车销量超预期，锂电池产业景气度持续...">新能源车销量超预期，锂电池产业景气度持续...</span>
+                      </div>
+                      <div class="news-item-row">
+                        <span class="news-date">08-20</span>
+                        <span class="news-headline" title="宁德时代拟在欧洲建设新工厂，扩大海外产能布局">宁德时代拟在欧洲建设新工厂，扩大海外产能布局</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <p class="ai-conclusion-text" id="watchAiConclusion">
-                  宁德时代当前处于上升趋势，量价配合良好，主力资金持续流入。短线有继续走强空间，关注 320 元支撑位，若放量突破 332 元，有望挑战 350 元压力位。
-                </p>
-                <div class="ai-tags-row" id="watchAiTags">
-                  <span class="ai-tag-chip">技术面强势</span>
-                  <span class="ai-tag-chip">资金流入明显</span>
-                  <span class="ai-tag-chip">机构看好</span>
+
+                <!-- 瀑布流 Column B (右列): 主力追踪 + 北向资金 + AI分析结论 -->
+                <div class="masonry-col">
+                  <!-- 主力追踪 Card -->
+                  <div class="workbench-card">
+                    <div class="workbench-card-header">
+                      <div class="workbench-card-title">主力追踪</div>
+                      <div class="more-link" onclick="showToast('主力追踪详情')">更多 &gt;</div>
+                    </div>
+                    <div class="gauge-wrap">
+                      <canvas id="mainControlGauge" style="width: 100%; height: 85px;"></canvas>
+                    </div>
+                    <div class="main-metrics-row">
+                      <div class="main-metric-cell">
+                        <div class="metric-lbl">主力持仓</div>
+                        <strong class="metric-val tabular-nums" id="watchMainHoldings">12.36亿</strong>
+                      </div>
+                      <div class="main-metric-cell">
+                        <div class="metric-lbl">主力占比</div>
+                        <strong class="metric-val tabular-nums" id="watchMainRatio">8.46%</strong>
+                      </div>
+                      <div class="main-metric-cell">
+                        <div class="metric-lbl">筹码集中度</div>
+                        <strong class="metric-val tabular-nums" id="watchMainConcentration">71.26%</strong>
+                      </div>
+                    </div>
+                    
+                    <!-- 主力持仓变化 (近5日) 柱状图 -->
+                    <div class="holdings-bar-section">
+                      <div class="trend-header-row">
+                        <span class="trend-sub-title">主力持仓变化 (近5日)</span>
+                        <span class="more-link" style="font-size: 10.5px;">最新 &gt;</span>
+                      </div>
+                      <div class="trend-canvas-wrap">
+                        <canvas id="mainHoldingsBar" style="width: 100%; height: 70px;"></canvas>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 北向资金 Card -->
+                  <div class="workbench-card">
+                    <div class="workbench-card-header">
+                      <div class="workbench-card-title">北向资金</div>
+                      <div class="more-link" onclick="showToast('北向资金明细')">更多 &gt;</div>
+                    </div>
+                    <div class="northbound-donut-section">
+                      <div class="northbound-donut-wrap">
+                        <canvas id="northboundDonut" style="width: 90px; height: 90px;"></canvas>
+                      </div>
+                      <div class="northbound-data-wrap">
+                        <div class="north-badge-rate text-down">● 0.68%</div>
+                        <div class="north-data-row"><span class="north-lbl">● 沪股通</span> <strong class="tabular-nums" id="watchNorthSH">3.12亿</strong></div>
+                        <div class="north-data-row"><span class="north-lbl">● 深股通</span> <strong class="tabular-nums" id="watchNorthSZ">2.11亿</strong></div>
+                      </div>
+                    </div>
+                    
+                    <!-- 近5日北向资金净买入柱状图 -->
+                    <div class="north-bar-section">
+                      <div class="trend-sub-title" style="margin-bottom: 4px;">近5日北向资金净买入</div>
+                      <div class="trend-canvas-wrap">
+                        <canvas id="northboundBar" style="width: 100%; height: 75px;"></canvas>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- AI分析结论 Card -->
+                  <div class="workbench-card ai-conclusion-card">
+                    <div class="workbench-card-header" style="margin-bottom: 6px;">
+                      <div class="workbench-card-title ai-title-gradient">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#1677FF"><path d="M12 2L14.4 7.6L20 8.4L15.8 12.5L17 18.2L12 15.2L7 18.2L8.2 12.5L4 8.4L9.6 7.6L12 2Z"/></svg>
+                        AI分析结论
+                      </div>
+                      <div class="more-link" style="color: #1677FF;" onclick="switchView('chat')">深度研报 &gt;</div>
+                    </div>
+                    <p class="ai-conclusion-text" id="watchAiConclusion">
+                      宁德时代当前处于上升趋势，量价配合良好，主力资金持续流入。短线有继续走强空间，关注 320 元支撑位，若放量突破 332 元，有望挑战 350 元压力位。
+                    </p>
+                    <div class="ai-tags-row" id="watchAiTags">
+                      <span class="ai-tag-chip">技术面强势</span>
+                      <span class="ai-tag-chip">资金流入明显</span>
+                      <span class="ai-tag-chip">机构看好</span>
+                    </div>
+                    <div class="ai-card-footer">
+                      <button class="btn-ai-detail" onclick="switchView('chat')">查看详细分析</button>
+                    </div>
+                  </div>
                 </div>
-                <div class="ai-card-footer">
-                  <button class="btn-ai-detail" onclick="switchView('chat')">查看详细分析</button>
-                </div>
+
               </div>
 
             </div>
 
           </div>
-        </div>
         </div>
 
         <!-- View Pane 4: 收益分析全景 (全新高阶量化看板) -->

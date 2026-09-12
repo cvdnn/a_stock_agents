@@ -3198,15 +3198,58 @@ input:checked + .slider:before {
 }
 
 /* ==========================================================================
-   VIEW 3: Watchlist & Stock Detail (自选个股工作台 4列自适应架构)
+   VIEW 3: Watchlist & Stock Detail (自选个股工作台：左自选栏 + 右主区2列瀑布流)
    ========================================================================== */
 .view-watchlist-layout {
   display: grid;
-  grid-template-columns: 270px minmax(450px, 1.45fr) minmax(280px, 0.95fr) minmax(280px, 0.95fr);
-  gap: 12px;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 14px;
   width: 100%;
   align-items: start;
   box-sizing: border-box;
+}
+
+.watchlist-main-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+}
+
+.watchlist-top-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.watchlist-masonry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+  width: 100%;
+}
+
+.masonry-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   AI 助手展开态适配：打开 AI 助手时，主工作区两列瀑布流平滑转换为单列瀑布流
+   ========================================================================== */
+.app-container.layout-workspace-main:not(.copilot-collapsed) .view-watchlist-layout {
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.app-container.layout-workspace-main:not(.copilot-collapsed) .watchlist-masonry-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
 /* 基础工作台通用卡片 */
@@ -4155,37 +4198,30 @@ input:checked + .slider:before {
 /* ==========================================================================
    VIEW 3: Watchlist Responsive Breakpoints 自适应媒体查询
    ========================================================================== */
-@media (max-width: 1479px) {
+@media (max-width: 1199px) {
   .view-watchlist-layout {
-    grid-template-columns: 260px minmax(400px, 1.4fr) minmax(280px, 1.1fr);
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 12px;
   }
-  .stock-intel-col {
-    grid-column: span 1;
+  .watchlist-masonry-grid {
+    gap: 12px;
   }
 }
 
-@media (max-width: 1199px) {
-  .view-watchlist-layout {
-    grid-template-columns: 250px 1fr;
-    gap: 10px;
-  }
-  .stock-capital-col,
-  .stock-intel-col {
-    grid-column: 2;
+@media (max-width: 980px) {
+  .watchlist-masonry-grid {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 767px) {
   .view-watchlist-layout {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
   .watchlist-sidebar-card {
     position: static;
     max-height: 280px;
-  }
-  .stock-capital-col,
-  .stock-intel-col {
-    grid-column: 1;
   }
 }
 
@@ -4289,9 +4325,6 @@ input:checked + .slider:before {
   }
   .market-indices-row {
     grid-template-columns: repeat(3, 1fr);
-  }
-  .view-watchlist-layout {
-    grid-template-columns: 260px 1.4fr 1fr;
   }
 }
 
