@@ -116,3 +116,50 @@ def test_test_model_endpoint_not_found_and_mocked_success(monkeypatch) -> None:
         assert "latency_ms" in data
         assert data["model_id"] == "mock-deepseek"
 
+
+def test_test_connection_and_fetch_remote_flow(monkeypatch) -> None:
+    import httpx
+
+    provider_id = f"prov_test_{uuid.uuid4().hex[:8]}"
+    try:
+        with TestClient(app) as client:
+            # 1. Newly created provider saved to backend
+            created = client.post("/api/models/providers", json={
+                "provider_id": provider_id,
+                "name": "New Test Provider",
+                "base_url": "https://api.example.com/v1",
+                "api_key": "sk-test-key",
+                "enabled": False,  # even when disabled, test & fetch should work
+                "models": [],
+            })
+            assert created.status_code == 200
+
+            # Mock upstream GET responses for /models
+            async def mock_get(self, url, *args, **kwargs):
+                return httpx.Response(200, json={
+                    "data": [
+                        {"id": "test-v3", "name": "Test V3 0324"},
+                        {"id": "test-r1", "name": "Test R1 0528"}
+                    ]
+                })
+
+            monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
+
+            # 2. Test connection
+            res_conn = client.post("/api/models/test-connection", json={"provider_id": provider_id})
+            assert res_conn.status_code == 200
+            assert res_conn.json()["status"] == "ok"
+
+            # 3. Fetch remote models
+            res_fetch = client.post("/api/models/fetch-remote", json={"provider_id": provider_id})
+            assert res_fetch.status_code == 200
+            fetch_data = res_fetch.json()
+            assert fetch_data["status"] == "ok"
+            assert fetch_data["count"] == 2
+            assert fetch_data["models"][0]["id"] == "test-v3"
+            assert fetch_data["models"][0]["name"] == "Test V3 0324"
+            assert fetch_data["models"][1]["id"] == "test-r1"
+    finally:
+        delete_provider(provider_id)
+
+

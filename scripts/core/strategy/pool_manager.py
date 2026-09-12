@@ -15,6 +15,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 # ── 路径与环境自适应 ──
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -68,12 +69,91 @@ def _migrate_csv(path, fields):
     print(f"  📋 CSV schema 升级: {path.name if hasattr(path, 'name') else os.path.basename(path)} → 新增 {missing}", file=sys.stderr)
 
 
+class PoolManager:
+    """股票池管理器，统一管理自选股池 (selected)、关注股池 (watch) 与持仓池 (positions/holding)。"""
 
+    def __init__(self, pools_dir: Optional[Union[str, Path]] = None) -> None:
+        self.pools_dir = Path(pools_dir) if pools_dir else Path(POOLS_BASE)
+        self.selected_path = self.pools_dir / "selected_pool.csv"
+        self.watch_path = self.pools_dir / "watch_pool.csv"
+        self.positions_path = self.pools_dir / "positions.csv"
 
+    def get_pool(self, pool_type: str = "holding") -> List[Dict[str, Any]]:
+        """获取指定类型的股票池标的列表。"""
+        pt = str(pool_type or "holding").lower().strip()
+        if pt in ("holding", "positions", "持仓", "持仓池"):
+            try:
+                from core.strategy.position_manager import get_open_positions
+                return get_open_positions(enrich_quote=False)
+            except Exception:
+                return _read_csv(self.positions_path)
+        elif pt in ("selected", "custom", "自选", "自选股", "自选池"):
+            return _read_csv(self.selected_path)
+        elif pt in ("watch", "focus", "关注", "关注股", "关注池"):
+            return _read_csv(self.watch_path)
+        else:
+            target = self.pools_dir / f"{pt}_pool.csv"
+            if target.exists():
+                return _read_csv(target)
+            return []
 
+    def get_all_pools(self) -> Dict[str, List[Dict[str, Any]]]:
+        """获取全量股票池概览。"""
+        return {
+            "selected": self.get_pool("selected"),
+            "watch": self.get_pool("watch"),
+            "holding": self.get_pool("holding"),
+        }
 
+    def add_stock(self, pool_type: str, stock_data: Dict[str, Any]) -> bool:
+        """添加股票到自选或关注池。"""
+        pt = str(pool_type).lower().strip()
+        if pt in ("selected", "custom"):
+            path = self.selected_path
+            fields = SELECTED_FIELDS
+        elif pt in ("watch", "focus"):
+            path = self.watch_path
+            fields = WATCH_FIELDS
+        else:
+            return False
+        _ensure_file(path, fields)
+        rows = _read_csv(path)
+        code = str(stock_data.get("code", "")).strip()
+        if any(r.get("code") == code for r in rows):
+            return False
+        rows.append(stock_data)
+        _write_csv(path, fields, rows)
+        return True
+
+    def remove_stock(self, pool_type: str, code: str) -> bool:
+        """从自选或关注池中移除标的。"""
+        pt = str(pool_type).lower().strip()
+        path = self.selected_path if pt in ("selected", "custom") else self.watch_path
+        if not path.exists():
+            return False
+        fields = SELECTED_FIELDS if pt in ("selected", "custom") else WATCH_FIELDS
+        rows = _read_csv(path)
+        code_str = str(code).strip()
+        new_rows = [r for r in rows if str(r.get("code", "")).strip() != code_str]
+        if len(new_rows) == len(rows):
+            return False
+        _write_csv(path, fields, new_rows)
+        return True
 def cmd_list(args):
     """列出自选股或关注股"""
+    if getattr(args, "json", False):
+        import json
+        pm = PoolManager()
+        pool_arg = getattr(args, "pool", None)
+        if pool_arg:
+            stocks = pm.get_pool(pool_arg)
+            res = {"status": "success", "pool": pool_arg, "count": len(stocks), "stocks": stocks}
+        else:
+            all_pools = pm.get_all_pools()
+            total = sum(len(v) for v in all_pools.values())
+            res = {"status": "success", "count": total, "pools": all_pools}
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return
     if args.pool in ["selected", None]:
         rows = _read_csv(SELECTED_PATH)
         print(f"\n📋 自选股池 ({len(rows)} 只)")

@@ -95,6 +95,14 @@ def _get_enabled_provider(provider_id: str) -> Dict[str, Any]:
     return provider
 
 
+def _get_provider_for_test(provider_id: str) -> Dict[str, Any]:
+    provider = get_provider_by_id(provider_id.strip())
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    return provider
+
+
+
 def _validated_models_url(base_url: str) -> str:
     """Allow saved HTTP(S) providers while rejecting common SSRF targets."""
     parsed = urlparse(base_url.strip().rstrip("/"))
@@ -191,7 +199,7 @@ async def test_connection(req: TestConnectionRequest):
     """
     Test connectivity for a saved provider without accepting browser credentials.
     """
-    provider = _get_enabled_provider(req.provider_id)
+    provider = _get_provider_for_test(req.provider_id)
     target = _validated_models_url(provider.get("base_url", ""))
     headers = _provider_headers(provider)
 
@@ -200,18 +208,18 @@ async def test_connection(req: TestConnectionRequest):
         async with httpx.AsyncClient(timeout=float(req.timeout_seconds), follow_redirects=False) as client:
             resp = await client.get(target, headers=headers)
     except httpx.ConnectError:
-        raise HTTPException(status_code=502, detail="Unable to connect to provider")
+        raise HTTPException(status_code=502, detail="无法连接到提供商服务器，请检查网络或 API 地址")
     except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Provider request timed out")
+        raise HTTPException(status_code=504, detail="请求上游提供商超时，请检查网络或增加超时时间")
     except httpx.HTTPError:
-        raise HTTPException(status_code=502, detail="Provider request failed")
+        raise HTTPException(status_code=502, detail="请求上游提供商服务失败")
 
     latency_ms = int((time.time() - start_t) * 1000)
     if resp.status_code in (200, 201):
         return {"status": "ok", "latency_ms": latency_ms, "message": "连接成功"}
     if resp.status_code in (401, 403):
-        raise HTTPException(status_code=502, detail="Provider authentication failed")
-    raise HTTPException(status_code=502, detail=f"Provider returned HTTP {resp.status_code}")
+        raise HTTPException(status_code=502, detail="鉴权失败，请检查 API 密钥是否有效")
+    raise HTTPException(status_code=502, detail=f"上游服务响应异常 (HTTP {resp.status_code})")
 
 
 @router.post("/test-model")
@@ -301,7 +309,7 @@ async def fetch_remote_models(req: FetchRemoteModelsRequest):
     Server-side proxy to fetch remote model list from {base_url}/models.
     Bypasses browser CORS policy and standardizes model metadata.
     """
-    provider = _get_enabled_provider(req.provider_id)
+    provider = _get_provider_for_test(req.provider_id)
     target_url = _validated_models_url(provider.get("base_url", ""))
     headers = _provider_headers(provider)
 
@@ -341,7 +349,7 @@ async def fetch_remote_models(req: FetchRemoteModelsRequest):
 
                 parsed_models.append({
                     "id": m_id,
-                    "name": m_id,
+                    "name": (item.get("name") if isinstance(item, dict) else None) or m_id,
                     "selected": True,
                     "capabilities": caps,
                     "owned_by": item.get("owned_by", "") if isinstance(item, dict) else "",

@@ -4418,10 +4418,54 @@ function toggleKeyVisibility() {
   keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
 }
 
+async function ensureCurrentProviderSaved() {
+  syncCurrentProviderFormToState();
+  if (!AppState.activeProviderId) {
+    throw new Error('请先选择或新增供应商');
+  }
+  const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
+  if (!p) {
+    throw new Error('未找到当前选中的供应商');
+  }
+  if (!p.base_url || !p.base_url.trim()) {
+    throw new Error('请先填写有效的 API 地址');
+  }
+
+  const payload = { ...p };
+  // If api_key was empty/blank in memory and provider already has_api_key on server,
+  // do not send empty api_key (backend will preserve the existing key).
+  // If user entered a key in the form, p.api_key will have been set by syncCurrentProviderFormToState.
+  if (!payload.api_key) {
+    delete payload.api_key;
+  }
+
+  const saveResp = await fetch('/api/models/providers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!saveResp.ok) {
+    const errData = await saveResp.json().catch(() => ({}));
+    throw new Error(errData.detail || `保存供应商失败 (HTTP ${saveResp.status})`);
+  }
+
+  const data = await saveResp.json();
+  if (data.provider) {
+    p.has_api_key = data.provider.has_api_key;
+    const keyInput = document.getElementById('currProviderKey');
+    if (keyInput && p.has_api_key && !keyInput.value) {
+      keyInput.placeholder = '已保存（留空表示保持不变）';
+    }
+  }
+  renderProvidersList(document.getElementById('providerSearchInput')?.value || '');
+  return p;
+}
+
 async function testCurrentProviderConn() {
   const btn = document.getElementById('btnTestConn');
   if (!AppState.activeProviderId) {
-    showToast('请先保存并选择供应商');
+    showToast('请先选择或新增供应商');
     return;
   }
 
@@ -4431,22 +4475,28 @@ async function testCurrentProviderConn() {
   }
 
   try {
+    await ensureCurrentProviderSaved();
+
     const resp = await fetch('/api/models/test-connection', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider_id: AppState.activeProviderId, timeout_seconds: 8 })
+      body: JSON.stringify({ provider_id: AppState.activeProviderId, timeout_seconds: 10 })
     });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP ${resp.status}`);
+    }
     const res = await resp.json();
     if (res.status === 'ok') {
-      showToast(`✅ ${res.message || '连接测试成功！'}`);
+      const latencyStr = res.latency_ms ? ` (${res.latency_ms}ms)` : '';
+      showToast(`✅ ${res.message || '连接测试成功！'}${latencyStr}`);
     } else if (res.status === 'warning') {
       showToast(`⚠️ ${res.message || '服务已响应，但状态非 200'}`);
     } else {
       showToast(`❌ ${res.message || '连接失败，请检查网络或密钥'}`);
     }
   } catch (err) {
-    showToast(`❌ 网络异常: ${err.message}`);
+    showToast(`❌ 连接检测失败: ${err.message}`);
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -4458,7 +4508,7 @@ async function testCurrentProviderConn() {
 async function fetchCurrentProviderModels() {
   const btn = document.getElementById('btnFetchModels');
   if (!AppState.activeProviderId) {
-    showToast('请先保存并选择供应商');
+    showToast('请先选择或新增供应商');
     return;
   }
 
@@ -4468,6 +4518,8 @@ async function fetchCurrentProviderModels() {
   }
 
   try {
+    const p = await ensureCurrentProviderSaved();
+
     const resp = await fetch('/api/models/fetch-remote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4487,7 +4539,6 @@ async function fetchCurrentProviderModels() {
       return;
     }
 
-    const p = AppState.providers.find(item => item.provider_id === AppState.activeProviderId);
     if (p) {
       // Merge with existing selections if any
       const existingMap = {};
@@ -4499,6 +4550,15 @@ async function fetchCurrentProviderModels() {
         selected: existingMap[m.id] !== undefined ? existingMap[m.id] : true,
         capabilities: m.capabilities || ['chat']
       }));
+
+      // Automatically sync newly fetched models to server
+      const updatePayload = { ...p };
+      if (!updatePayload.api_key) delete updatePayload.api_key;
+      await fetch('/api/models/providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatePayload)
+      }).catch(() => {});
 
       renderCurrentProviderModels();
       renderModelRolesDropdowns();

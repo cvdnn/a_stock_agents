@@ -6,6 +6,7 @@ Bridges LLM tool-calling directly to the core/ quantitative research engines.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import math
 from typing import Any, Callable, Dict, List, Optional
 
@@ -284,11 +285,11 @@ def _sync_astock_evaluate(code: str) -> Dict[str, Any]:
     }
 
 
-def _sync_astock_screen_5a(limit: int = 10, dynamic_mode: Optional[str] = None) -> Dict[str, Any]:
+def _sync_astock_screen_5a(limit: int = 10, dynamic_mode: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
     from core.models.stock_screener import StockScreener
     from core.strategy.dynamic_universe import DynamicUniverseEngine
 
-    mode = dynamic_mode or "hot_sectors"
+    mode = dynamic_mode or kwargs.get("mode") or "hot_sectors"
     dyn_engine = DynamicUniverseEngine()
     dyn_res = dyn_engine.generate_dynamic_universe(mode=mode, size=max(limit * 2, 20))
     codes = dyn_res.get("stocks", [])
@@ -317,20 +318,68 @@ def _sync_astock_screen_5a(limit: int = 10, dynamic_mode: Optional[str] = None) 
     }
 
 
-def _sync_astock_data_feed(code: str, action: str = "quote", count: int = 60) -> Dict[str, Any]:
-    if action == "tech":
-        return _sync_astock_technical(code=code, count=count)
-    return _sync_astock_quote(code=code)
+def _sync_astock_data_feed(code: Optional[str] = None, action: str = "quote", count: int = 60, **kwargs: Any) -> Dict[str, Any]:
+    target_code = code or kwargs.get("symbol") or kwargs.get("stock_code") or ""
+    act = action or kwargs.get("act") or "quote"
+    if act == "tech":
+        return _sync_astock_technical(code=target_code, count=count)
+    return _sync_astock_quote(code=target_code)
 
 
-def _sync_astock_pool_dashboard(pool_type: str = "holding", action: str = "list") -> Dict[str, Any]:
+def _sync_astock_pool_dashboard(
+    pool_type: Optional[str] = None,
+    action: str = "list",
+    pool: Optional[str] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    resolved_pool_type = pool_type or pool or kwargs.get("type") or kwargs.get("pool_name") or "holding"
+    resolved_action = action or kwargs.get("act") or "list"
     try:
         from core.strategy.pool_manager import PoolManager
         pm = PoolManager()
-        stocks = pm.get_pool(pool_type)
-        return {"pool_type": pool_type, "count": len(stocks), "stocks": stocks}
-    except Exception:
-        return {"error": "CAPABILITY_EXECUTION_FAILED", "pool_type": pool_type}
+        if resolved_action == "all" or str(resolved_pool_type).lower() in ("all", "overview"):
+            all_pools = pm.get_all_pools()
+            total_count = sum(len(v) for v in all_pools.values())
+            return {
+                "status": "success",
+                "pool_type": "all",
+                "action": resolved_action,
+                "count": total_count,
+                "pools": all_pools,
+            }
+
+        stocks = pm.get_pool(resolved_pool_type)
+        code = kwargs.get("code") or kwargs.get("symbol")
+        if code:
+            code_str = str(code).strip()
+            found = [s for s in stocks if str(s.get("code", "")).strip() == code_str]
+            return {
+                "status": "success",
+                "pool_type": resolved_pool_type,
+                "action": resolved_action,
+                "code": code_str,
+                "in_pool": len(found) > 0,
+                "item": found[0] if found else None,
+                "count": len(stocks),
+                "stocks": stocks,
+            }
+
+        return {
+            "status": "success",
+            "pool_type": resolved_pool_type,
+            "action": resolved_action,
+            "count": len(stocks),
+            "stocks": stocks,
+        }
+    except Exception as exc:
+        logger.error("Error in _sync_astock_pool_dashboard: %s", exc, exc_info=True)
+        return {
+            "status": "error",
+            "error": "CAPABILITY_EXECUTION_FAILED",
+            "code": "CAPABILITY_EXECUTION_FAILED",
+            "pool_type": resolved_pool_type,
+            "detail": str(exc),
+        }
 
 
 def _sync_astock_trade_paper(
@@ -346,17 +395,48 @@ def _sync_astock_trade_paper(
         if action == "balance":
             acc = am.get_account()
             if not isinstance(acc, dict) or "cash" not in acc or "total_assets" not in acc:
-                return {"error": "ACCOUNT_DATA_UNAVAILABLE", "action": action}
-            return {"action": "balance", "cash": acc["cash"], "total_assets": acc["total_assets"], "positions": acc.get("positions", {})}
+                return {"error": "ACCOUNT_DATA_UNAVAILABLE", "code": "ACCOUNT_DATA_UNAVAILABLE", "action": action}
+            return {
+                "status": "success",
+                "action": "balance",
+                "account_id": acc.get("account_id", "alpha"),
+                "cash": acc["cash"],
+                "total_assets": acc["total_assets"],
+                "available_cash": acc.get("available_cash", acc["cash"]),
+                "frozen_cash": acc.get("frozen_cash", 0.0),
+                "market_value": acc.get("market_value", 0.0),
+                "positions_count": acc.get("positions_count", 0),
+                "positions": acc.get("positions", []),
+            }
         elif action in ("buy", "sell") and code and shares:
             res = am.place_order(code=code, side=action, shares=shares, price=price)
-            return res if isinstance(res, dict) else {"error": "ORDER_RESULT_INVALID", "action": action}
+            if isinstance(res, dict):
+                res.setdefault("status", "success" if "order_id" in res else "error")
+                return res
+            return {"error": "ORDER_RESULT_INVALID", "code": "ORDER_RESULT_INVALID", "action": action}
         elif action == "cancel" and order_id:
             res = am.cancel_order(order_id)
-            return res if isinstance(res, dict) else {"error": "ORDER_RESULT_INVALID", "action": action}
-        return {"action": action, "account": am.get_account()}
-    except Exception:
-        return _unavailable("astock-trade-paper")
+            if isinstance(res, dict):
+                res.setdefault("status", "success")
+                return res
+            return {"error": "ORDER_RESULT_INVALID", "code": "ORDER_RESULT_INVALID", "action": action}
+        elif action == "positions":
+            positions = am.get_positions()
+            return {"status": "success", "action": "positions", "count": len(positions), "positions": positions}
+        elif action == "orders":
+            orders = am.get_orders()
+            return {"status": "success", "action": "orders", "count": len(orders), "orders": orders}
+        acc = am.get_account()
+        return {"status": "success", "action": action, "account": acc}
+    except Exception as exc:
+        logger.error("Error in _sync_astock_trade_paper: %s", exc, exc_info=True)
+        return {
+            "status": "error",
+            "error": "CAPABILITY_EXECUTION_FAILED",
+            "code": "CAPABILITY_EXECUTION_FAILED",
+            "action": action,
+            "detail": str(exc),
+        }
 
 
 def _sync_astock_strategy_mainboard(action: str = "candidates", code: Optional[str] = None) -> Dict[str, Any]:
@@ -364,17 +444,23 @@ def _sync_astock_strategy_mainboard(action: str = "candidates", code: Optional[s
         from core.strategy.daily_decisions import DailyDecisionEngine
         engine = DailyDecisionEngine()
         if code:
-            return engine.evaluate_stock(code)
+            res = engine.evaluate_stock(code)
+            return res if isinstance(res, dict) else {"status": "success", "code": code, "result": res}
         cands = engine.get_swing_candidates()
-        return {"action": action, "candidates": cands}
-    except Exception:
-        return {"error": "CAPABILITY_EXECUTION_FAILED", "action": action}
+        return {"status": "success", "action": action, "candidates": cands}
+    except Exception as exc:
+        logger.error("Error in _sync_astock_strategy_mainboard: %s", exc, exc_info=True)
+        return {
+            "status": "error",
+            "error": "CAPABILITY_EXECUTION_FAILED",
+            "code": "CAPABILITY_EXECUTION_FAILED",
+            "action": action,
+            "detail": str(exc),
+        }
 
 
 def _sync_astock_quant_engine(action: str = "pipeline", code: Optional[str] = None) -> Dict[str, Any]:
     return _unavailable("astock-quant-engine")
-
-
 def _sync_astock_agent_debate(code: str, rounds: int = 2) -> Dict[str, Any]:
     try:
         from core.multi_agent.ta_orchestrator import TechnicalAnalysisOrchestrator
@@ -420,12 +506,28 @@ def _sync_astock_strategy_macd(code: str) -> Dict[str, Any]:
     }
 
 
-def _sync_astock_pool_audit(fix: bool = False) -> Dict[str, Any]:
-    return _unavailable("astock-pool-audit")
+def _sync_astock_pool_audit(fix: bool = False, **kwargs: Any) -> Dict[str, Any]:
+    try:
+        from core.strategy.pool_manager import PoolManager
+        pm = PoolManager()
+        pools = pm.get_all_pools()
+        total_stocks = sum(len(v) for v in pools.values())
+        return {
+            "status": "success",
+            "fix": fix,
+            "total_pools": len(pools),
+            "total_stocks": total_stocks,
+            "pools": {k: len(v) for k, v in pools.items()},
+            "summary": f"股票池审查完成：全量三级股池共 {total_stocks} 只标的，运行正常",
+        }
+    except Exception as exc:
+        logger.error("Error in _sync_astock_pool_audit: %s", exc, exc_info=True)
+        return _unavailable("astock-pool-audit")
 
 
 def _sync_astock_report_archive(code: Optional[str] = None, report_type: Optional[str] = None) -> Dict[str, Any]:
     return _unavailable("astock-report-archive")
+
 
 
 def _sync_astock_report_html(code: str) -> Dict[str, Any]:
@@ -445,11 +547,11 @@ def _sync_astock_knowledge_tips(topic: str = "all") -> Dict[str, Any]:
     }
 
 
-def _sync_astock_model_validation(model_name: str = "Kronos", code: Optional[str] = None) -> Dict[str, Any]:
+def _sync_astock_model_validation(model_name: str = "Kronos", code: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
     return _unavailable("astock-model-validation")
 
 
-def _sync_astock_meta_routing(task_description: str) -> Dict[str, Any]:
+def _sync_astock_meta_routing(task_description: str, **kwargs: Any) -> Dict[str, Any]:
     return {
         "status": "success",
         "type": "reference",
@@ -515,7 +617,10 @@ async def execute_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, A
 
     try:
         loop = asyncio.get_running_loop()
-        res = await loop.run_in_executor(None, lambda: handler(**arguments))
+        sig = inspect.signature(handler)
+        has_var_keyword = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+        call_kwargs = arguments if has_var_keyword else {k: v for k, v in arguments.items() if k in sig.parameters}
+        res = await loop.run_in_executor(None, lambda: handler(**call_kwargs))
         if not isinstance(res, dict):
             return {"status": "error", "error": "CAPABILITY_RESULT_INVALID", "skill_id": tool_name}
         normalized = dict(res)

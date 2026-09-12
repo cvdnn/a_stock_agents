@@ -135,6 +135,7 @@ class OpenAIProvider(BaseLLMProvider):
                         completed_calls = None
                         if finish_reason == "tool_calls" or (finish_reason and tool_calls_accumulator):
                             completed_calls = list(tool_calls_accumulator.values())
+                            tool_calls_accumulator.clear()
 
                         yield LLMStreamChunk(
                             delta_text=text_content,

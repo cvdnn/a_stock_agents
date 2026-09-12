@@ -154,6 +154,18 @@ class AgentReActRunner:
                     if chunk.tool_calls:
                         accumulated_tool_calls.extend(chunk.tool_calls)
 
+                # Deduplicate tool calls if provider emitted multiple or duplicates
+                deduped_tool_calls: List[Dict[str, Any]] = []
+                seen_call_ids = set()
+                for tc in accumulated_tool_calls:
+                    cid = tc.get("id")
+                    if cid:
+                        if cid in seen_call_ids:
+                            continue
+                        seen_call_ids.add(cid)
+                    deduped_tool_calls.append(tc)
+                accumulated_tool_calls = deduped_tool_calls
+
                 # If assistant generated text, add to LLM context
                 if accumulated_text or accumulated_thought or accumulated_tool_calls:
                     asst_msg: Dict[str, Any] = {
@@ -231,6 +243,14 @@ class AgentReActRunner:
                         summary = f"量化总分 {tool_res['total_score']} 分"
                     elif status == "success" and "selected_count" in tool_res:
                         summary = f"初选入围 {tool_res['selected_count']} 只标的"
+                    elif status == "success" and "pool_type" in tool_res and "count" in tool_res:
+                        summary = f"股票池 [{tool_res['pool_type']}] 查询完成 (共 {tool_res['count']} 只标的)"
+                    elif status == "success" and tool_res.get("action") == "positions":
+                        summary = f"持仓标的查询完成 (共 {tool_res.get('count', len(tool_res.get('positions', [])))} 只标的)"
+                    elif status == "success" and "total_pools" in tool_res:
+                        summary = tool_res.get("summary") or f"股票池审查完成 (共 {tool_res.get('total_stocks', 0)} 只标的)"
+                    elif status == "success" and tool_res.get("action") == "balance" and "available_cash" in tool_res:
+                        summary = f"可用资金 ¥{tool_res['available_cash']:,.2f} | 总资产 ¥{tool_res.get('total_assets', 0.0):,.2f}"
 
                     # Emit ToolCallCompleteEvent
                     yield ToolCallCompleteEvent(

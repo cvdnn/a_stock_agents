@@ -204,9 +204,32 @@
       var suppliedCompleted = eventValue(payload, ['completed_at', 'completedAt', 'timestamp', 'received_at'], null); if (suppliedCompleted != null) match.completedAt = timestamp(suppliedCompleted); var rawElapsed = eventValue(payload, ['elapsed_ms', 'elapsedMs'], null), explicitElapsed = (Object.prototype.hasOwnProperty.call(payload, 'elapsed_ms') || Object.prototype.hasOwnProperty.call(payload, 'elapsedMs')) && duration(rawElapsed) != null; if (explicitElapsed) match.elapsedMs = duration(rawElapsed); else if (match.elapsedMs == null && match.startedAt != null && match.completedAt != null && match.completedAt >= match.startedAt) match.elapsedMs = match.completedAt - match.startedAt;
       var hasData = Object.prototype.hasOwnProperty.call(payload, 'data') || Object.prototype.hasOwnProperty.call(payload, 'result'), result = eventValue(payload, ['data', 'result'], null); if (hasData) { match.result = snapshot(result); if (match.callId != null) state.toolResultsByCallId[match.callId] = snapshot(result); }
       if (Object.prototype.hasOwnProperty.call(payload, 'summary')) match.summary = String(payload.summary || '');
-      var previousStatus = match.status, terminal = String(eventValue(payload, ['status', 'state', 'outcome', 'type'], '')).toLowerCase(), toolError = payload.error || (payload.data && typeof payload.data === 'object' && (payload.data.code || payload.data.error || payload.data.message) ? payload.data : null) || (terminal === 'error' || terminal === 'timeout' ? payload : null);
-      if (toolError || terminal === 'failed') { var wasFailed = match.status === 'failed', errorDetail = toolError && (toolError.detail || toolError.message || (typeof toolError === 'string' ? toolError : '')); match.status = 'failed'; if (!hasData && previousStatus !== 'failed') { match.result = null; if (match.callId != null) delete state.toolResultsByCallId[match.callId]; } match.error = presentError(toolError && toolError.code ? toolError : { code: terminal === 'timeout' ? 'LLM_TIMEOUT' : 'UNKNOWN', detail: errorDetail || payload.detail }); if (!wasFailed && !state._toolFailureSeen) { match.expanded = true; state.timelineExpanded = true; state._toolFailureSeen = true; } }
-      else { match.status = terminal === 'success' || terminal === 'succeeded' || terminal === 'ok' ? 'succeeded' : 'degraded'; match.error = null; }
+      var previousStatus = match.status, terminal = String(eventValue(payload, ['status', 'state', 'outcome', 'type'], '')).toLowerCase();
+      var isUnavailable = terminal === 'unavailable' || (payload.data && typeof payload.data === 'object' && payload.data.status === 'unavailable');
+      var isTimeout = terminal === 'timeout' || (payload.data && typeof payload.data === 'object' && payload.data.status === 'timeout');
+      var isFailed = terminal === 'failed' || terminal === 'error' || (payload.data && typeof payload.data === 'object' && payload.data.status === 'error');
+      var toolError = !isUnavailable && (payload.error || (payload.data && typeof payload.data === 'object' && (payload.data.code || (isFailed && payload.data.error) || payload.data.message) ? payload.data : null) || (isFailed || isTimeout ? payload : null));
+      if (isUnavailable) {
+        match.status = 'degraded';
+        match.error = null;
+      } else if (toolError || isFailed || isTimeout) {
+        var wasFailed = match.status === 'failed';
+        var errorDetail = toolError && (toolError.detail || toolError.message || (typeof toolError.error === 'string' ? toolError.error : '') || (typeof toolError === 'string' ? toolError : ''));
+        var rawCode = toolError && toolError.code;
+        if (!rawCode && toolError && typeof toolError.error === 'string' && errors[toolError.error]) {
+          rawCode = toolError.error;
+        }
+        match.status = 'failed';
+        if (!hasData && previousStatus !== 'failed') { match.result = null; if (match.callId != null) delete state.toolResultsByCallId[match.callId]; }
+        var errorObj = typeof toolError === 'object' && toolError !== null ? Object.assign({}, toolError) : {};
+        errorObj.code = rawCode || toolError.code || (isTimeout ? 'LLM_TIMEOUT' : 'UNKNOWN');
+        errorObj.detail = errorDetail || payload.detail;
+        match.error = presentError(errorObj);
+        if (!wasFailed && !state._toolFailureSeen) { match.expanded = true; state.timelineExpanded = true; state._toolFailureSeen = true; }
+      } else {
+        match.status = terminal === 'success' || terminal === 'succeeded' || terminal === 'ok' ? 'succeeded' : 'degraded';
+        match.error = null;
+      }
       if (!hasData && previousStatus !== match.status) { match.result = null; if (match.callId != null) delete state.toolResultsByCallId[match.callId]; }
       if (explicitElapsed) Object.defineProperty(match, '_elapsedExplicit', { value: true, writable: true, configurable: true, enumerable: false });
     } else if (type === 'content_delta') {
@@ -283,8 +306,21 @@
     }
     return output + input.slice(cursor);
   }
-  var errors = { LLM_NOT_CONFIGURED: ['模型尚未配置', '请先完成模型配置后重试'], LLM_AUTH_FAILED: ['模型认证失败', '请检查 API 密钥后重试'], LLM_MODEL_UNAVAILABLE: ['模型暂不可用', '请稍后重试或选择其他模型'], LLM_CAPABILITY_UNSUPPORTED: ['模型不支持此能力', '请更换支持该能力的模型'], LLM_TIMEOUT: ['请求超时', '请稍后重试'], SSE_HTTP_ERROR: ['服务连接失败', '请稍后重试'], SSE_INCOMPLETE: ['响应未完成', '请重试'] };
-  function presentError(error) { var code = error && error.code, item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试']; return { code: code || 'UNKNOWN', title: item[0], recovery: item[1], detail: redactSensitive(error && (error.detail || error.message || error.error || '')) }; }
+  var errors = {
+    LLM_NOT_CONFIGURED: ['模型尚未配置', '请先完成模型配置后重试'],
+    LLM_AUTH_FAILED: ['模型认证失败', '请检查 API 密钥后重试'],
+    LLM_MODEL_UNAVAILABLE: ['模型暂不可用', '请稍后重试或选择其他模型'],
+    LLM_CAPABILITY_UNSUPPORTED: ['模型不支持此能力', '请更换支持该能力的模型'],
+    LLM_TIMEOUT: ['请求超时', '请稍后重试'],
+    SSE_HTTP_ERROR: ['服务连接失败', '请稍后重试'],
+    SSE_INCOMPLETE: ['响应未完成', '请重试'],
+    CAPABILITY_EXECUTION_FAILED: ['能力执行失败', '后端计算或调用异常，请稍后重试'],
+    CAPABILITY_NOT_IMPLEMENTED: ['能力暂未接入', '该能力尚未接通生产执行引擎'],
+    ACCOUNT_DATA_UNAVAILABLE: ['账户数据不可用', '未找到模拟盘账户或资金数据'],
+    DATA_UNAVAILABLE: ['数据暂不可用', '未获取到目标股票的实时数据'],
+    ORDER_RESULT_INVALID: ['订单请求无效', '订单执行失败或参数不合规'],
+  };
+  function presentError(error) { var code = error && (error.code || error.error), item = Object.prototype.hasOwnProperty.call(errors, code) ? errors[code] : ['请求失败', '请稍后重试']; return { code: code || 'UNKNOWN', title: item[0], recovery: item[1], detail: redactSensitive(error && (error.detail || error.message || error.error || '')) }; }
 
   function decomposeTask(promptText, meta) {
     promptText = String(promptText || '').trim();
@@ -439,14 +475,15 @@
       var isNodeFailed = n.status === 'failed';
       var isNodeRunning = n.status === 'running';
       var isNodeDone = n.status === 'succeeded';
-      var itemClass = 'timeline-node-item' + (isNodeFailed ? ' node-failed' : (isNodeRunning ? ' node-running' : ' node-done'));
+      var isNodeDegraded = n.status === 'degraded';
+      var itemClass = 'timeline-node-item' + (isNodeFailed ? ' node-failed' : (isNodeRunning ? ' node-running' : (isNodeDegraded ? ' node-degraded' : ' node-done')));
 
       var nodeIcon = '•';
       if (n.type === 'intent') nodeIcon = '📝';
       else if (n.type === 'sop') nodeIcon = '⇥';
       else if (n.type === 'thought') nodeIcon = '💭';
       else if (n.type === 'confirmation') nodeIcon = '🎯';
-      else if (n.type === 'tool') nodeIcon = isNodeFailed ? '❌' : (isNodeRunning ? '⏳' : '🔧');
+      else if (n.type === 'tool') nodeIcon = isNodeFailed ? '❌' : (isNodeDegraded ? '⚠️' : (isNodeRunning ? '⏳' : '🔧'));
       else if (n.type === 'result' || n.type === 'done') nodeIcon = '📄';
       else if (n.type === 'error') nodeIcon = '⚠️';
 
@@ -455,6 +492,7 @@
         var skillLabel = n.skill_id || n.action || n.title || '技能调用';
         if (isNodeFailed) nodeTitle = '能力调用失败 ' + skillLabel;
         else if (isNodeRunning) nodeTitle = '能力调用中 ' + skillLabel;
+        else if (isNodeDegraded) nodeTitle = '能力暂未可用 ' + skillLabel;
         else nodeTitle = '能力调用完成 ' + skillLabel;
       }
 
@@ -467,7 +505,10 @@
       var subInfo = n.summary || '';
       if (!subInfo && n.action) subInfo = '第 ' + (i + 1) + ' 个动作 · ' + n.action;
       if (isNodeFailed && n.error) {
-        subInfo = (n.error.code ? (n.error.code + ' · ') : '') + (n.error.detail || n.error.title || '执行异常');
+        var errTitle = n.error.title || n.error.detail || '执行异常';
+        subInfo = (n.error.code ? (n.error.code + ' · ') : '') + errTitle;
+      } else if (isNodeDegraded && !subInfo) {
+        subInfo = '能力暂未接入生产引擎';
       }
       if (subInfo) {
         html += '      <div class="node-subtext' + (isNodeFailed ? ' text-failed-sub' : '') + '">' + escapeHtml(subInfo) + '</div>';

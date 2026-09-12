@@ -9,6 +9,7 @@ import json
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -125,6 +126,60 @@ def _scan_one(
         return code, df, out, None
     except Exception as exc:
         return code, None, None, str(exc)[:200]
+
+
+class DailyDecisionEngine:
+    """主板流动性池每日交易决策与回踩形态评估引擎。"""
+
+    def __init__(self, provider: Optional[MarketDataProvider] = None) -> None:
+        self.provider = provider or MarketDataProvider()
+
+    def evaluate_stock(self, code: str, history_count: int = 120) -> Dict[str, Any]:
+        """单股回踩形态诊断与买卖信号判断。"""
+        c, df, out, err = _scan_one(self.provider, str(code).strip(), history_count)
+        if err or out is None:
+            return {"code": code, "status": "error", "error": err or "NO_DATA"}
+        last = _row_snapshot(out, len(out) - 1)
+        prev = _row_snapshot(out, len(out) - 2) if len(out) >= 2 else None
+        return {
+            "status": "success",
+            "code": code,
+            "latest": last,
+            "previous": prev,
+            "is_entry": bool(last and last.get("entry")),
+            "is_exit": bool(last and last.get("exit")),
+        }
+
+    def get_swing_candidates(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """获取主板波段低吸候选标的列表。"""
+        try:
+            from core.strategy.dynamic_universe import DynamicUniverseEngine
+            engine = DynamicUniverseEngine()
+            univ = engine.generate_dynamic_universe(size=30)
+            codes = univ.get("stocks", [])
+        except Exception:
+            codes = []
+        if not codes:
+            codes = ["600519", "000001", "601398"]
+        candidates = []
+        for code in codes:
+            try:
+                c, df, out, err = _scan_one(self.provider, code, 120)
+                if out is not None and not err:
+                    last = _row_snapshot(out, len(out) - 1)
+                    if last and (last.get("entry") or last.get("score", 0) > 0):
+                        candidates.append({
+                            "code": code,
+                            "score": last.get("score"),
+                            "entry": last.get("entry"),
+                            "close": last.get("close"),
+                            "rsi": last.get("rsi"),
+                        })
+            except Exception:
+                continue
+            if len(candidates) >= limit:
+                break
+        return candidates
 
 
 def main() -> None:
