@@ -1559,111 +1559,380 @@
           </div>
         </div>
 
-        <!-- View Pane 4: 收益分析全景 (全新高阶量化看板) -->
+        <!-- View Pane 4: 收益分析工作台 (高保真还原设计图) -->
         <div class="right-pane" id="pane-returns">
-          
-            <div class="returns-overview-grid">
-              <!-- KPI Row -->
-              <div class="returns-kpi-row">
-                <div class="returns-kpi-card">
-                  <div class="kpi-label">累计总收益率</div>
-                  <div class="kpi-val text-up tabular-nums" id="retAccumReturnVal">--</div>
-                  <div class="kpi-sub">基准超额 <span class="text-up tabular-nums" id="retBenchmarkExcessVal">--</span></div>
+          <div class="returns-workbench-layout">
+
+            <!-- 1. Left Main Column (占比 ~78%) -->
+            <div class="returns-main-col">
+
+              <!-- 1.1 Banner Header -->
+              <div class="returns-banner-header">
+                <div class="returns-banner-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="12" width="4" height="8" rx="1"></rect>
+                    <rect x="10" y="7" width="4" height="13" rx="1"></rect>
+                    <rect x="17" y="3" width="4" height="17" rx="1"></rect>
+                  </svg>
                 </div>
-                <div class="returns-kpi-card">
-                  <div class="kpi-label">年化收益率</div>
-                  <div class="kpi-val text-up tabular-nums" id="retAnnualReturnVal">--</div>
-                  <div class="kpi-sub">近1年滚动测算</div>
-                </div>
-                <div class="returns-kpi-card">
-                  <div class="kpi-label">交易胜率</div>
-                  <div class="kpi-val text-up tabular-nums" id="retWinRateVal">--</div>
-                  <div class="kpi-sub" id="retWinLossCount">--</div>
-                </div>
-                <div class="returns-kpi-card">
-                  <div class="kpi-label">夏普比率 (Sharpe)</div>
-                  <div class="kpi-val tabular-nums" style="color:#1677FF;" id="retSharpeVal">--</div>
-                  <div class="kpi-sub">风险调整收益优秀</div>
-                </div>
-                <div class="returns-kpi-card">
-                  <div class="kpi-label">最大回撤 (MaxDD)</div>
-                  <div class="kpi-val text-down tabular-nums" id="retMaxDrawdownVal">--</div>
-                  <div class="kpi-sub">严守 -8% 绝杀线</div>
-                </div>
-                <div class="returns-kpi-card">
-                  <div class="kpi-label">盈亏比 (P/L Ratio)</div>
-                  <div class="kpi-val tabular-nums" style="color:#722ED1;" id="retPlRatioVal">--</div>
-                  <div class="kpi-sub">平均盈利 / 平均亏损</div>
+                <div class="returns-banner-text">
+                  <h2 class="returns-banner-title">收益分析</h2>
+                  <p class="returns-banner-subtitle">多维度分析投资收益，科学评估投资效果，优化策略配置</p>
                 </div>
               </div>
 
-              <!-- Charts Row: Equity Curve + Monthly PnL -->
-              <div class="returns-charts-row">
-                <!-- Left: Equity Curve -->
-                <div class="quant-card" style="flex: 1.4; margin-bottom: 0;">
-                  <div class="card-header">
-                    <div class="card-title">📈 资产净值走势图 (vs 沪深300基准)</div>
-                    <div class="card-tabs">
-                      <div class="card-tab" onclick="showToast('已切换至近1月')">近1月</div>
-                      <div class="card-tab" onclick="showToast('已切换至近3月')">近3月</div>
-                      <div class="card-tab active">近半年</div>
-                      <div class="card-tab" onclick="showToast('已切换至今年以来')">今年以来</div>
+              <!-- 1.2 4大 KPI 指标卡行 -->
+              <div class="returns-kpi-grid">
+                <!-- KPI 1: 总收益 -->
+                <div class="returns-kpi-card">
+                  <div class="ret-kpi-header">
+                    <div class="ret-kpi-title-box">
+                      <span class="ret-kpi-icon-pill blue">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                      </span>
+                      <span class="ret-kpi-label">总收益</span>
+                    </div>
+                    <div class="ret-select-pill" onclick="showToast('切换总收益统计周期')">
+                      <span>近1年</span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#86909C" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
                     </div>
                   </div>
-                  <canvas id="equityCurveCanvas" style="width: 100%; height: 260px;"></canvas>
+                  <div class="ret-kpi-content">
+                    <div class="ret-kpi-data-col">
+                      <div class="ret-kpi-val text-up tabular-nums" id="retKpiTotalReturn">+28.56%</div>
+                      <div class="ret-kpi-sub">较上证指数 <span class="text-up tabular-nums" id="retKpiExcessVal">+12.36%</span></div>
+                    </div>
+                    <div class="ret-kpi-spark-wrap">
+                      <canvas id="retSparkline1" class="ret-spark-canvas"></canvas>
+                    </div>
+                  </div>
                 </div>
 
-                <!-- Right: Monthly PnL -->
-                <div class="quant-card" style="flex: 1; margin-bottom: 0;">
-                  <div class="card-header">
-                    <div class="card-title">📊 月度盈亏分布图 (%)</div>
-                    <span style="font-size: 11px; color: var(--text-muted);">2026年至今</span>
+                <!-- KPI 2: 累计收益 -->
+                <div class="returns-kpi-card">
+                  <div class="ret-kpi-header">
+                    <div class="ret-kpi-title-box">
+                      <span class="ret-kpi-icon-pill blue">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                      </span>
+                      <span class="ret-kpi-label">累计收益</span>
+                    </div>
+                    <div class="ret-select-pill" onclick="showToast('切换累计收益统计周期')">
+                      <span>近1年</span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#86909C" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
                   </div>
-                  <canvas id="monthlyPnLCanvas" style="width: 100%; height: 260px;"></canvas>
+                  <div class="ret-kpi-content">
+                    <div class="ret-kpi-data-col">
+                      <div class="ret-kpi-val text-dark tabular-nums" id="retKpiCumReturn">+128,650.32</div>
+                      <div class="ret-kpi-sub">初始资金 <span class="tabular-nums" id="retKpiInitFund">100,000.00</span></div>
+                    </div>
+                    <div class="ret-kpi-spark-wrap">
+                      <canvas id="retSparkline2" class="ret-spark-canvas"></canvas>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KPI 3: 最大回撤 -->
+                <div class="returns-kpi-card">
+                  <div class="ret-kpi-header">
+                    <div class="ret-kpi-title-box">
+                      <span class="ret-kpi-icon-pill green">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00B42A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                      </span>
+                      <span class="ret-kpi-label">最大回撤</span>
+                    </div>
+                    <div class="ret-select-pill" onclick="showToast('切换最大回撤统计周期')">
+                      <span>近1年</span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#86909C" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
+                  <div class="ret-kpi-content">
+                    <div class="ret-kpi-data-col">
+                      <div class="ret-kpi-val text-down tabular-nums" id="retKpiMaxDd">-8.72%</div>
+                      <div class="ret-kpi-sub">发生时间 <span class="tabular-nums" id="retKpiMaxDdDate">2025-04-21</span></div>
+                    </div>
+                    <div class="ret-kpi-spark-wrap">
+                      <canvas id="retSparkline3" class="ret-spark-canvas"></canvas>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KPI 4: 夏普比率 -->
+                <div class="returns-kpi-card">
+                  <div class="ret-kpi-header">
+                    <div class="ret-kpi-title-box">
+                      <span class="ret-kpi-icon-pill blue">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                      </span>
+                      <span class="ret-kpi-label">夏普比率</span>
+                    </div>
+                    <div class="ret-select-pill" onclick="showToast('切换夏普比率统计周期')">
+                      <span>近1年</span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#86909C" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
+                  <div class="ret-kpi-content">
+                    <div class="ret-kpi-data-col">
+                      <div class="ret-kpi-val text-dark tabular-nums" id="retKpiSharpe">2.36</div>
+                      <div class="ret-kpi-sub">风险收益比 <span class="tabular-nums" id="retKpiRiskReward">1.82</span></div>
+                    </div>
+                    <div class="ret-kpi-spark-wrap">
+                      <canvas id="retSparkline4" class="ret-spark-canvas"></canvas>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <!-- Strategy Attribution & Exposure Row -->
-              <div class="quant-card" style="margin-top: 14px;">
-                <div class="card-header">
-                  <div class="card-title">🧠 策略收益贡献分布与因子暴露</div>
-                  <span class="more-link" onclick="askAboutRightContent()">💬 提问优化策略配置 &gt;</span>
+              <!-- 1.3 中部两列：收益走势 (左) + 收益构成与月度收益 (右) -->
+              <div class="returns-mid-row">
+                <!-- 1.3.1 收益走势大图 -->
+                <div class="ret-card ret-trend-card">
+                  <div class="ret-card-header">
+                    <div class="ret-trend-header-left">
+                      <span class="ret-card-title">收益走势</span>
+                      <div class="ret-time-pill-tabs" id="retTrendTimeTabs">
+                        <button class="ret-time-tab" onclick="switchTrendPeriod('1m')">近1月</button>
+                        <button class="ret-time-tab" onclick="switchTrendPeriod('3m')">近3月</button>
+                        <button class="ret-time-tab" onclick="switchTrendPeriod('6m')">近6月</button>
+                        <button class="ret-time-tab active" onclick="switchTrendPeriod('1y')">近1年</button>
+                        <button class="ret-time-tab" onclick="switchTrendPeriod('ytd')">今年以来</button>
+                      </div>
+                    </div>
+                    <div class="ret-trend-legends">
+                      <span class="ret-legend-item"><span class="legend-line-dot blue"></span>组合收益</span>
+                      <span class="ret-legend-item"><span class="legend-line orange"></span>上证指数</span>
+                      <span class="ret-legend-item"><span class="legend-bar-sample cyan"></span>成交额</span>
+                    </div>
+                  </div>
+                  <div class="ret-trend-canvas-wrap">
+                    <canvas id="retTrendMainCanvas" style="width: 100%; height: 285px;"></canvas>
+                    <!-- Pinned Highlight Tooltip Overlay (2025-08-27) -->
+                    <div class="ret-trend-tooltip" id="retTrendTooltip">
+                      <div class="tt-header" id="ttDate">2025-08-27</div>
+                      <div class="tt-row">
+                        <span class="tt-label"><span class="tt-dot blue"></span>组合收益</span>
+                        <span class="tt-val text-up tabular-nums" id="ttStrategyVal">+28.56%</span>
+                      </div>
+                      <div class="tt-row">
+                        <span class="tt-label"><span class="tt-dot orange"></span>上证指数</span>
+                        <span class="tt-val text-up tabular-nums" id="ttBenchmarkVal">+16.20%</span>
+                      </div>
+                      <div class="tt-row">
+                        <span class="tt-label"><span class="tt-dot cyan"></span>成交额</span>
+                        <span class="tt-val tabular-nums" id="ttVolumeVal">128.36亿</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="strategy-contrib-grid" id="retStrategyContribGrid">
-                  <!-- 策略收益贡献由后端接口渲染 -->
+
+                <!-- 1.3.2 收益构成与月度收益卡片堆叠 -->
+                <div class="ret-mid-right-stack">
+                  <!-- 卡片 1: 收益构成 -->
+                  <div class="ret-card ret-composition-card">
+                    <div class="ret-card-header">
+                      <span class="ret-card-title">收益构成</span>
+                      <div class="ret-soft-pill-tabs">
+                        <button class="ret-soft-tab active" onclick="switchCompositionPeriod('1y')">近1年</button>
+                        <button class="ret-soft-tab" onclick="switchCompositionPeriod('3m')">近3月</button>
+                      </div>
+                    </div>
+                    <div class="ret-donut-body">
+                      <div class="ret-donut-chart-box">
+                        <canvas id="retCompositionDonut" style="width: 120px; height: 120px;"></canvas>
+                      </div>
+                      <div class="ret-donut-legend-list">
+                        <div class="ret-donut-legend-row">
+                          <div class="ret-legend-name"><span class="donut-dot" style="background:#165DFF;"></span>股票策略</div>
+                          <div class="ret-legend-val tabular-nums">18.72%</div>
+                        </div>
+                        <div class="ret-donut-legend-row">
+                          <div class="ret-legend-name"><span class="donut-dot" style="background:#14C9C9;"></span>行业配置</div>
+                          <div class="ret-legend-val tabular-nums">6.34%</div>
+                        </div>
+                        <div class="ret-donut-legend-row">
+                          <div class="ret-legend-name"><span class="donut-dot" style="background:#FF7D00;"></span>择时操作</div>
+                          <div class="ret-legend-val tabular-nums">2.87%</div>
+                        </div>
+                        <div class="ret-donut-legend-row">
+                          <div class="ret-legend-name"><span class="donut-dot" style="background:#722ED1;"></span>现金管理</div>
+                          <div class="ret-legend-val tabular-nums">0.63%</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 卡片 2: 月度收益 -->
+                  <div class="ret-card ret-monthly-card">
+                    <div class="ret-card-header">
+                      <span class="ret-card-title">月度收益</span>
+                      <div class="ret-select-pill" onclick="showToast('切换月度收益统计周期')">
+                        <span>近1年</span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#86909C" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                      </div>
+                    </div>
+                    <div class="ret-monthly-canvas-box">
+                      <canvas id="retMonthlyBarCanvas" style="width: 100%; height: 115px;"></canvas>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <!-- Position Breakdown & Ceil Stop Loss Details -->
-              <div class="quant-card" style="margin-top: 14px;">
-                <div class="card-header">
-                  <div class="card-title">💼 实盘持仓盈亏与保本进位风控核算明细</div>
-                  <div style="display:flex; gap:8px;">
-                    <button class="context-act-btn primary" onclick="askAboutRightContent()">💬 针对持仓提问 AI</button>
-                    <button class="context-act-btn" onclick="openModifyRightParam()">✏️ 调参止损</button>
+              <!-- 1.4 底部两列：账户收益明细 (左) + 资产分布 (右) -->
+              <div class="returns-bottom-row">
+                <!-- 1.4.1 账户收益明细表格 -->
+                <div class="ret-card ret-table-card">
+                  <div class="ret-card-header">
+                    <div class="ret-table-header-left">
+                      <span class="ret-card-title">账户收益明细</span>
+                      <div class="ret-solid-pill-tabs">
+                        <button class="ret-solid-tab active" onclick="switchAccountDetailTab('overview')">账户总览</button>
+                        <button class="ret-solid-tab" onclick="switchAccountDetailTab('trades')">交易明细</button>
+                        <button class="ret-solid-tab" onclick="switchAccountDetailTab('positions')">持仓明细</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ret-table-wrap">
+                    <table class="ret-detail-table">
+                      <thead>
+                        <tr>
+                          <th>时间</th>
+                          <th>初始资金</th>
+                          <th>当前资产</th>
+                          <th>累计收益</th>
+                          <th>收益率</th>
+                          <th>年化收益率</th>
+                          <th>最大回撤</th>
+                          <th>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody id="retAccountTableBody">
+                        <!-- 由 JS 填充 5 个周期数据 -->
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-                <table class="stock-table" style="margin-top: 6px;">
-                  <thead>
-                    <tr>
-                      <th>标的代码 / 名称</th>
-                      <th>持仓股数</th>
-                      <th>买入成本</th>
-                      <th>现价</th>
-                      <th>浮动盈亏</th>
-                      <th>最低保本卖出价</th>
-                      <th>风控状态</th>
-                      <th>策略来源</th>
-                      <th>即时动作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="retPositionsTableBody">
-                    <!-- 实盘持仓明细由后端接口渲染 -->
-                  </tbody>
-                </table>
+
+                <!-- 1.4.2 资产分布 -->
+                <div class="ret-card ret-asset-dist-card">
+                  <div class="ret-card-header">
+                    <span class="ret-card-title">资产分布</span>
+                    <div class="ret-soft-pill-tabs">
+                      <button class="ret-soft-tab active" onclick="switchAssetDistTab('holding')">持仓分布</button>
+                      <button class="ret-soft-tab" onclick="switchAssetDistTab('industry')">行业分布</button>
+                      <button class="ret-soft-tab" onclick="switchAssetDistTab('stock')">个股分布</button>
+                    </div>
+                  </div>
+                  <div class="ret-donut-body">
+                    <div class="ret-donut-chart-box">
+                      <canvas id="retAssetDistDonut" style="width: 120px; height: 120px;"></canvas>
+                    </div>
+                    <div class="ret-donut-legend-list">
+                      <div class="ret-donut-legend-row">
+                        <div class="ret-legend-name"><span class="donut-dot" style="background:#165DFF;"></span>股票</div>
+                        <div class="ret-legend-val tabular-nums">68.32%</div>
+                      </div>
+                      <div class="ret-donut-legend-row">
+                        <div class="ret-legend-name"><span class="donut-dot" style="background:#00B42A;"></span>可转债</div>
+                        <div class="ret-legend-val tabular-nums">12.45%</div>
+                      </div>
+                      <div class="ret-donut-legend-row">
+                        <div class="ret-legend-name"><span class="donut-dot" style="background:#FF7D00;"></span>现金</div>
+                        <div class="ret-legend-val tabular-nums">8.76%</div>
+                      </div>
+                      <div class="ret-donut-legend-row">
+                        <div class="ret-legend-name"><span class="donut-dot" style="background:#722ED1;"></span>其他</div>
+                        <div class="ret-legend-val tabular-nums">10.47%</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- 2. Right Sidebar Column (占比 ~22%) -->
+            <div class="returns-sidebar-col">
+              <!-- 2.1 收益概览卡片 -->
+              <div class="ret-card ret-overview-card">
+                <div class="ret-card-header">
+                  <span class="ret-card-title">收益概览</span>
+                  <div class="ret-select-pill" onclick="showToast('切换收益概览统计周期')">
+                    <span>近1年</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#86909C" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                </div>
+                <div class="ret-overview-list">
+                  <div class="ret-overview-row">
+                    <div class="ret-overview-label"><span class="overview-dot" style="background:#165DFF;"></span>策略收益</div>
+                    <div class="ret-overview-val text-up tabular-nums" id="sideStrategyReturn">+28.56%</div>
+                  </div>
+                  <div class="ret-overview-row">
+                    <div class="ret-overview-label"><span class="overview-dot" style="background:#00B42A;"></span>跑赢上证指数</div>
+                    <div class="ret-overview-val text-up tabular-nums" id="sideExcessReturn">+12.36%</div>
+                  </div>
+                  <div class="ret-overview-row">
+                    <div class="ret-overview-label"><span class="overview-dot" style="background:#14C9C9;"></span>最大回撤</div>
+                    <div class="ret-overview-val text-down tabular-nums" id="sideMaxDd">-8.72%</div>
+                  </div>
+                  <div class="ret-overview-row">
+                    <div class="ret-overview-label"><span class="overview-dot" style="background:#F53F3F;"></span>年化收益率</div>
+                    <div class="ret-overview-val text-up tabular-nums" id="sideAnnualReturn">+24.68%</div>
+                  </div>
+                  <div class="ret-overview-row">
+                    <div class="ret-overview-label"><span class="overview-dot" style="background:#FF7D00;"></span>胜率</div>
+                    <div class="ret-overview-val text-dark tabular-nums" id="sideWinRate">68.23%</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2.2 收益分析报告卡片 -->
+              <div class="ret-card ret-reports-card">
+                <div class="ret-card-header">
+                  <span class="ret-card-title">收益分析报告</span>
+                  <a class="ret-more-link" onclick="showToast('正在打开更多 AI 收益归因深度研报')">更多 &gt;</a>
+                </div>
+                <div class="ret-report-list">
+                  <!-- Report 1 -->
+                  <div class="ret-report-item" onclick="askAboutReturnReport(1)" title="点击针对此建议向 AI 提问">
+                    <div class="ret-report-icon-box">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </div>
+                    <div class="ret-report-content">
+                      <div class="ret-report-title">您的组合在近1年收益率超越了92%的投资者</div>
+                      <div class="ret-report-desc">表现优秀，建议继续保持当前策略</div>
+                      <div class="ret-report-time">2025-08-27 14:32</div>
+                    </div>
+                  </div>
+
+                  <!-- Report 2 -->
+                  <div class="ret-report-item" onclick="askAboutReturnReport(2)" title="点击针对此建议向 AI 提问">
+                    <div class="ret-report-icon-box">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                    </div>
+                    <div class="ret-report-content">
+                      <div class="ret-report-title">当前持仓中，科技板块贡献了主要收益</div>
+                      <div class="ret-report-desc">建议关注消费、医药等防御板块的配置机会</div>
+                      <div class="ret-report-time">2025-08-26 11:20</div>
+                    </div>
+                  </div>
+
+                  <!-- Report 3 -->
+                  <div class="ret-report-item" onclick="askAboutReturnReport(3)" title="点击针对此建议向 AI 提问">
+                    <div class="ret-report-icon-box">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <div class="ret-report-content">
+                      <div class="ret-report-title">回撤控制良好</div>
+                      <div class="ret-report-desc">最大回撤8.72%，低于同类策略平均水平</div>
+                      <div class="ret-report-time">2025-08-25 16:45</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
+          </div>
         </div>
 
         <!-- View Pane 5: 动态投射放大视窗 (实战动作单/研报/5A雷达) -->

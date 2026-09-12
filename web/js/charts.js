@@ -312,17 +312,18 @@ class FinancialCharts {
     // Center Text 支持多行渲染
     if (Array.isArray(options.centerLines) && options.centerLines.length > 0) {
       const lines = options.centerLines;
-      const totalH = lines.length * 13;
-      let startY = cy - totalH / 2 + 6;
+      const lineGap = 4;
+      const totalH = lines.reduce((sum, l) => sum + (l.size || 11), 0) + (lines.length - 1) * lineGap;
+      let currY = cy - totalH / 2;
       lines.forEach(line => {
         ctx.fillStyle = line.color || '#86909C';
         const weight = line.bold ? 'bold ' : '';
-        const size = line.size || 10.5;
-        ctx.font = `${weight}${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`;
+        const size = line.size || 11;
+        ctx.font = `${weight}${size}px tabular-nums -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(line.text, cx, startY);
-        startY += (size + 3);
+        ctx.fillText(line.text, cx, currY + size / 2);
+        currY += (size + lineGap);
       });
     } else if (options.centerTitle || options.centerValue) {
       ctx.fillStyle = '#86909C';
@@ -657,6 +658,354 @@ class FinancialCharts {
       ctx.fillStyle = '#86909C';
       ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
       ctx.fillText(item.month, x + barW / 2, height - 6);
+    });
+  }
+
+  // 8. Specialized Sparkline for Returns KPI Cards
+  static drawReturnsSparkline(canvasId, dataPoints, type = 'up-red') {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const { ctx, width, height } = this.setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+
+    if (type === 'bars-amber') {
+      // 6-7 amber bars with increasing heights (夏普比率)
+      const bars = dataPoints && dataPoints.length ? dataPoints : [0.3, 0.45, 0.4, 0.6, 0.75, 0.65, 0.95];
+      const count = bars.length;
+      const barW = Math.max(3, Math.min(8, (width - 12) / count - 3));
+      const spacing = (width - 10 - count * barW) / (count - 1);
+      const padY = 4;
+      const usableH = height - padY * 2;
+
+      bars.forEach((val, i) => {
+        const x = 5 + i * (barW + spacing);
+        const bH = Math.max(4, val * usableH);
+        const y = height - padY - bH;
+        ctx.fillStyle = '#FF7D00';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x, y, barW, bH, [2, 2, 0, 0]);
+        } else {
+          ctx.rect(x, y, barW, bH);
+        }
+        ctx.fill();
+      });
+      return;
+    }
+
+    if (!dataPoints || dataPoints.length < 2) return;
+
+    let lineColor = '#F53F3F';
+    let gradTop = 'rgba(245, 63, 63, 0.22)';
+    let gradBottom = 'rgba(245, 63, 63, 0.0)';
+
+    if (type === 'up-blue') {
+      lineColor = '#165DFF';
+      gradTop = 'rgba(22, 93, 255, 0.22)';
+      gradBottom = 'rgba(22, 93, 255, 0.0)';
+    } else if (type === 'down-green') {
+      lineColor = '#00B42A';
+      gradTop = 'rgba(0, 180, 42, 0.22)';
+      gradBottom = 'rgba(0, 180, 42, 0.0)';
+    }
+
+    const min = Math.min(...dataPoints);
+    const max = Math.max(...dataPoints);
+    const range = max - min || 1;
+    const padding = 5;
+    const usableH = height - padding * 2;
+    const stepX = (width - padding * 2) / (dataPoints.length - 1);
+
+    const points = dataPoints.map((val, i) => ({
+      x: padding + i * stepX,
+      y: height - padding - ((val - min) / range) * usableH
+    }));
+
+    // Draw smooth bezier curve
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const cx = (p0.x + p1.x) / 2;
+      ctx.bezierCurveTo(cx, p0.y, cx, p1.y, p1.x, p1.y);
+    }
+
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Fill gradient area below
+    ctx.lineTo(points[points.length - 1].x, height);
+    ctx.lineTo(points[0].x, height);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, height);
+    grad.addColorStop(0, gradTop);
+    grad.addColorStop(1, gradBottom);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // 9. Returns Trend Dual Axis Chart (收益走势双轴大图)
+  static drawReturnsTrendDualAxis(canvasId, options = {}) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const { ctx, width, height } = this.setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+
+    const padding = { top: 20, right: 48, bottom: 28, left: 42 };
+    const usableW = width - padding.left - padding.right;
+    const usableH = height - padding.top - padding.bottom;
+
+    // Y Axis Range for Percentages (-20% to +60%)
+    const minPct = options.minPct != null ? options.minPct : -20;
+    const maxPct = options.maxPct != null ? options.maxPct : 60;
+    const pctRange = maxPct - minPct || 1;
+
+    // Right Axis Range for Volume (0 to 150亿)
+    const maxVol = options.maxVol || 150;
+
+    // X Dates
+    const xLabels = options.xLabels || ['2024-08', '2024-10', '2024-12', '2025-02', '2025-04', '2025-06', '2025-08'];
+
+    // Horizontal Grid Lines & Y Axis Labels (-20%, 0%, 20%, 40%, 60%)
+    const yTicks = [-20, 0, 20, 40, 60];
+    const rTicks = ['0亿', '50亿', '100亿', '150亿'];
+
+    ctx.font = '10.5px tabular-nums -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    yTicks.forEach(val => {
+      const y = padding.top + usableH * (1 - (val - minPct) / pctRange);
+
+      // Grid line
+      ctx.beginPath();
+      ctx.strokeStyle = val === 0 ? '#C9CDD4' : '#F0F2F5';
+      ctx.lineWidth = 1;
+      if (val !== 0) ctx.setLineDash([3, 3]);
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Left label
+      ctx.fillStyle = '#86909C';
+      ctx.fillText(`${val}%`, padding.left - 6, y);
+    });
+
+    // Right Axis volume labels (0亿, 50亿, 100亿, 150亿)
+    ctx.textAlign = 'left';
+    rTicks.forEach((lbl, idx) => {
+      const frac = idx / (rTicks.length - 1);
+      const y = padding.top + usableH * (1 - frac);
+      ctx.fillStyle = '#86909C';
+      ctx.fillText(lbl, width - padding.right + 6, y);
+    });
+
+    // Data Series
+    const strategyData = options.strategyData || [];
+    const benchmarkData = options.benchmarkData || [];
+    const volumeData = options.volumeData || [];
+    const dataLen = strategyData.length || 50;
+    const stepX = usableW / (dataLen - 1);
+
+    // 1. Draw Volume Bars in background
+    if (volumeData.length) {
+      const barW = Math.max(2, Math.min(8, (usableW / dataLen) * 0.6));
+      volumeData.forEach((vol, i) => {
+        const x = padding.left + i * stepX;
+        const bH = (vol / maxVol) * usableH;
+        const y = padding.top + usableH - bH;
+        ctx.fillStyle = 'rgba(22, 93, 255, 0.12)';
+        ctx.fillRect(x - barW / 2, y, barW, bH);
+      });
+    }
+
+    // Coordinate helpers
+    const getY = (val) => padding.top + usableH * (1 - (val - minPct) / pctRange);
+    const getX = (i) => padding.left + i * stepX;
+
+    // 2. Draw Benchmark Line (上证指数 - Orange #FF7D00)
+    if (benchmarkData.length) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#FF7D00';
+      ctx.lineWidth = 1.8;
+      benchmarkData.forEach((val, i) => {
+        const x = getX(i);
+        const y = getY(val);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    // 3. Draw Strategy Line (组合收益 - Blue #165DFF) with Area Fill
+    if (strategyData.length) {
+      ctx.beginPath();
+      strategyData.forEach((val, i) => {
+        const x = getX(i);
+        const y = getY(val);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      // Stroke Line
+      ctx.strokeStyle = '#165DFF';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // Fill Gradient Area
+      ctx.lineTo(getX(strategyData.length - 1), padding.top + usableH);
+      ctx.lineTo(getX(0), padding.top + usableH);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + usableH);
+      grad.addColorStop(0, 'rgba(22, 93, 255, 0.18)');
+      grad.addColorStop(1, 'rgba(22, 93, 255, 0.01)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // 4. Draw Highlight Marker / Guideline at highlightIndex
+    const hlIdx = options.highlightIndex != null ? options.highlightIndex : dataLen - 3;
+    if (hlIdx >= 0 && hlIdx < dataLen && strategyData[hlIdx] != null) {
+      const hlX = getX(hlIdx);
+      const hlY = getY(strategyData[hlIdx]);
+
+      // Vertical dashed line
+      ctx.beginPath();
+      ctx.strokeStyle = '#165DFF';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([3, 3]);
+      ctx.moveTo(hlX, padding.top);
+      ctx.lineTo(hlX, padding.top + usableH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Circle marker on blue line
+      ctx.beginPath();
+      ctx.arc(hlX, hlY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#165DFF';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(hlX, hlY, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+    }
+
+    // 5. X Axis Date Labels
+    ctx.fillStyle = '#86909C';
+    ctx.font = '10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    const xCount = xLabels.length;
+    xLabels.forEach((lbl, idx) => {
+      const frac = idx / (xCount - 1);
+      const x = padding.left + frac * usableW;
+      ctx.fillText(lbl, x, height - 18);
+    });
+  }
+
+  // 10. Specialized Returns Monthly Bars Chart (月度收益)
+  static drawReturnsMonthlyBars(canvasId, monthlyData) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const { ctx, width, height } = this.setupCanvas(canvas);
+    if (!monthlyData || monthlyData.length === 0) return;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const padding = { top: 24, right: 12, bottom: 20, left: 32 };
+    const usableW = width - padding.left - padding.right;
+    const usableH = height - padding.top - padding.bottom;
+
+    const minPct = -10;
+    const maxPct = 10;
+    const range = maxPct - minPct;
+
+    const zeroY = padding.top + usableH * (1 - (0 - minPct) / range);
+    const stepX = usableW / monthlyData.length;
+    const barW = Math.max(5, Math.min(14, stepX * 0.45));
+
+    // Y Axis labels & Grid lines (-10%, -5%, 0%, 5%, 10%)
+    const yVals = [-10, -5, 0, 5, 10];
+    ctx.font = '9px tabular-nums -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    yVals.forEach(val => {
+      const y = padding.top + usableH * (1 - (val - minPct) / range);
+      ctx.fillStyle = '#86909C';
+      ctx.fillText(`${val}%`, padding.left - 4, y);
+
+      ctx.beginPath();
+      ctx.strokeStyle = val === 0 ? '#C9CDD4' : '#F4F5F8';
+      ctx.lineWidth = 1;
+      if (val !== 0) ctx.setLineDash([2, 2]);
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // Zero Line
+    ctx.beginPath();
+    ctx.strokeStyle = '#C9CDD4';
+    ctx.lineWidth = 1;
+    ctx.moveTo(padding.left, zeroY);
+    ctx.lineTo(width - padding.right, zeroY);
+    ctx.stroke();
+
+    // Bars
+    monthlyData.forEach((item, i) => {
+      const x = padding.left + i * stepX + (stepX - barW) / 2;
+      const isPositive = item.pnl >= 0;
+      const y = padding.top + usableH * (1 - (item.pnl - minPct) / range);
+      const barH = Math.max(2, Math.abs(y - zeroY));
+      const topY = isPositive ? y : zeroY;
+
+      ctx.fillStyle = isPositive ? '#F53F3F' : '#00B42A';
+      ctx.fillRect(x, topY, barW, barH);
+
+      // Month label below
+      ctx.fillStyle = '#86909C';
+      ctx.font = '9.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(item.month, x + barW / 2, height - 16);
+
+      // Floating Badge +6.32% above the last bar
+      if (item.highlight) {
+        const badgeText = `+${item.pnl.toFixed(2)}%`;
+        ctx.font = 'bold 9px tabular-nums -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+        const textMetrics = ctx.measureText(badgeText);
+        const padX = 4;
+        const bW = textMetrics.width + padX * 2;
+        const bH = 15;
+        const bX = x + barW / 2 - bW / 2;
+        const bY = topY - bH - 3;
+
+        ctx.fillStyle = '#FFF2F0';
+        ctx.strokeStyle = '#FFA39E';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(bX, bY, bW, bH, 3);
+        } else {
+          ctx.rect(bX, bY, bW, bH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#F53F3F';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, x + barW / 2, bY + bH / 2);
+      }
     });
   }
 }
