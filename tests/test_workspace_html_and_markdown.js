@@ -42,7 +42,11 @@ assert(styleCss.includes('.doc-format-badge.format-html'), 'style.css 必须包�
 assert(styleCss.includes('.workspace-view-switcher'), 'style.css 必须包含 .workspace-view-switcher 样式');
 assert(styleCss.includes('.chat-html-chip'), 'style.css 必须包含 .chat-html-chip 样式');
 assert(styleCss.includes('.deliverable-html-item'), 'style.css 必须包含 .deliverable-html-item 样式');
-console.log('✅ PASS [需求 2]: web/css/style.css 具备完备的双格式呈现、沙箱视窗与胶囊交互样式');
+assert(!styleCss.includes('.dialogue-deliverable-item.deliverable-html-item {\n  border-color: #87E8DE;'), 'deliverable-html-item 不得包含有色的虚线下边框');
+assert(styleCss.includes('border-bottom: none !important;'), 'deliverable-html-item 与 dialogue-deliverable-item 必须显式禁用下边框虚线');
+assert(styleCss.includes('.deliverable-doc-name {\n  text-decoration: underline !important;'), '悬停时必须仅文件名带有下划线');
+assert(styleCss.includes('.deliverable-doc-icon') && styleCss.includes('text-decoration: none !important;'), '图标必须绝对杜绝下划线穿透');
+console.log('✅ PASS [需求 2]: web/css/style.css 具备完备的双格式呈现、沙箱视窗与胶囊交互样式，并彻底清除虚线与小图标下划线');
 
 // 3. 后端接口白名单断言：scripts/server/app.py
 console.log('\n--- 3. 后端 /api/docs/read 与 /api/docs/save 白名单断言 ---');

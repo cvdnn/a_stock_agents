@@ -666,8 +666,8 @@
         var isHtml = /\.html?$/i.test(filename);
         var icon = isHtml ? '🌐' : '📄';
         var chipCls = isHtml ? 'dialogue-deliverable-item deliverable-html-item' : 'dialogue-deliverable-item';
-        return '<a href="javascript:void(0)" class="' + chipCls + '" data-path="' + escapeHtml(filename) + '" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(filename) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(filename) + '\'))" title="' + (isHtml ? '在工作区打开 HTML 页面报告' : '在工作区打开文档') + '">' +
-          '<span class="deliverable-doc-icon">' + icon + '</span><span class="deliverable-doc-name">' + escapeHtml(filename) + '</span>' +
+        return '<a href="javascript:void(0)" class="' + chipCls + '" style="border: none !important; border-bottom: none !important; text-decoration: none !important;" data-path="' + escapeHtml(filename) + '" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(filename) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(filename) + '\'))" title="' + (isHtml ? '在工作区打开 HTML 页面报告' : '在工作区打开文档') + '">' +
+          '<span class="deliverable-doc-icon" style="display: inline-block; text-decoration: none !important;">' + icon + '</span><span class="deliverable-doc-name">' + escapeHtml(filename) + '</span>' +
           '</a>';
       }).join('');
 

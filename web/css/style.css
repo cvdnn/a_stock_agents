@@ -10502,14 +10502,17 @@ input:checked + .switch-slider:before {
 }
 
 .dialogue-deliverable-item.deliverable-html-item {
-  border-color: #87E8DE;
+  border: none !important;
+  border-bottom: none !important;
   background: #F6FFED;
   color: #08979C;
 }
 
 .dialogue-deliverable-item.deliverable-html-item:hover {
   background: #E6FFFB;
-  border-color: #13C2C2;
+  border: none !important;
+  border-bottom: none !important;
+  border-bottom-color: transparent !important;
   color: #006D75;
 }
 
@@ -10563,12 +10566,16 @@ input:checked + .switch-slider:before {
   width: 100%;
 }
 
-.dialogue-deliverable-item {
+.dialogue-deliverable-item,
+.markdown-body a.dialogue-deliverable-item,
+.markdown-body .dialogue-deliverable-banner a,
+.dialogue-deliverable-banner .dialogue-deliverable-item {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   background: transparent;
-  border: none;
+  border: none !important;
+  border-bottom: none !important;
   border-radius: 0;
   padding: 1px 0;
   color: #0958D9;
@@ -10576,22 +10583,38 @@ input:checked + .switch-slider:before {
   font-size: 12.5px;
   line-height: 20px;
   cursor: pointer;
-  text-decoration: none;
+  text-decoration: none !important;
   transition: color 0.15s ease;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-.dialogue-deliverable-item:hover {
+.dialogue-deliverable-item:hover,
+.markdown-body a.dialogue-deliverable-item:hover,
+.markdown-body .dialogue-deliverable-banner a:hover,
+.dialogue-deliverable-banner .dialogue-deliverable-item:hover {
   color: #1677FF;
-  text-decoration: underline;
+  border: none !important;
+  border-bottom: none !important;
+  border-bottom-color: transparent !important;
+  text-decoration: none !important;
+}
+
+.dialogue-deliverable-item:hover .deliverable-doc-name,
+.markdown-body a.dialogue-deliverable-item:hover .deliverable-doc-name,
+.markdown-body .dialogue-deliverable-banner a:hover .deliverable-doc-name,
+.dialogue-deliverable-banner .dialogue-deliverable-item:hover .deliverable-doc-name {
+  text-decoration: underline !important;
   text-underline-offset: 3px;
 }
 
-.dialogue-deliverable-item .deliverable-doc-icon {
+.dialogue-deliverable-item .deliverable-doc-icon,
+.markdown-body a.dialogue-deliverable-item .deliverable-doc-icon {
   font-size: 13px;
   line-height: 1;
   flex-shrink: 0;
+  display: inline-block;
+  text-decoration: none !important;
 }
 
 .dialogue-deliverable-item .deliverable-doc-name {
@@ -10630,12 +10653,45 @@ body.dark-mode .dialogue-deliverable-banner .dialogue-deliverable-label {
   color: #E2E8F0;
 }
 
-body.dark-mode .dialogue-deliverable-item {
+body.dark-mode .dialogue-deliverable-item,
+body.dark-mode .markdown-body a.dialogue-deliverable-item,
+body.dark-mode .markdown-body .dialogue-deliverable-banner a {
   color: #60A5FA;
+  border: none !important;
+  border-bottom: none !important;
+  text-decoration: none !important;
 }
 
-body.dark-mode .dialogue-deliverable-item:hover {
+body.dark-mode .dialogue-deliverable-item:hover,
+body.dark-mode .markdown-body a.dialogue-deliverable-item:hover,
+body.dark-mode .markdown-body .dialogue-deliverable-banner a:hover {
   color: #93C5FD;
+  border: none !important;
+  border-bottom: none !important;
+  border-bottom-color: transparent !important;
+  text-decoration: none !important;
+}
+
+body.dark-mode .dialogue-deliverable-item:hover .deliverable-doc-name,
+body.dark-mode .markdown-body a.dialogue-deliverable-item:hover .deliverable-doc-name,
+body.dark-mode .markdown-body .dialogue-deliverable-banner a:hover .deliverable-doc-name {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
+body.dark-mode .dialogue-deliverable-item.deliverable-html-item {
+  background: rgba(19, 194, 194, 0.12);
+  color: #5CDBD3;
+  border: none !important;
+  border-bottom: none !important;
+}
+
+body.dark-mode .dialogue-deliverable-item.deliverable-html-item:hover {
+  background: rgba(19, 194, 194, 0.22);
+  color: #87E8DE;
+  border: none !important;
+  border-bottom: none !important;
+  border-bottom-color: transparent !important;
 }
 
 body.dark-mode .chat-md-chip {
