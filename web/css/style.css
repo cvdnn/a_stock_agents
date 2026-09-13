@@ -9638,3 +9638,352 @@ input:checked + .switch-slider:before {
   line-height: 1.65;
   color: #2D3748;
 }
+
+/* ==========================================================================
+   MARKDOWN BODY & CHAT RICH TEXT STYLING SYSTEM (金融级 Markdown 视觉体系)
+   ========================================================================== */
+
+.markdown-body {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #1F2328;
+  word-wrap: break-word;
+}
+
+.markdown-body > *:first-child {
+  margin-top: 0 !important;
+}
+
+.markdown-body > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* 1. 标题层次规范 (Headings) */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  color: #1D2129;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+
+.markdown-body h1 {
+  font-size: 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #E5E6EB;
+}
+
+.markdown-body h2 {
+  font-size: 15px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #E5E6EB;
+}
+
+.markdown-body h3 {
+  font-size: 14px;
+}
+
+.markdown-body h4 {
+  font-size: 13px;
+}
+
+.markdown-body h5,
+.markdown-body h6 {
+  font-size: 12px;
+  color: #4E5969;
+}
+
+/* 2. 段落与强调 (Paragraphs & Emphasis) */
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: 8px;
+  line-height: 1.65;
+  color: #272E3B;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+  color: #1D2129;
+}
+
+.markdown-body em {
+  font-style: italic;
+  color: #4E5969;
+}
+
+.markdown-body del {
+  color: #86909C;
+  text-decoration: line-through;
+}
+
+.markdown-body hr {
+  height: 0;
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px dashed #E5E6EB;
+}
+
+.markdown-body a {
+  color: #1677FF;
+  text-decoration: none;
+  border-bottom: 1px dashed transparent;
+  transition: all 0.2s ease;
+}
+
+.markdown-body a:hover {
+  color: #0958D9;
+  border-bottom-color: #0958D9;
+}
+
+/* 3. 列表体系 (Lists & Task Lists) */
+.markdown-body ul,
+.markdown-body ol {
+  margin-top: 0;
+  margin-bottom: 8px;
+  padding-left: 20px;
+}
+
+.markdown-body li {
+  margin-bottom: 3px;
+  line-height: 1.6;
+  color: #272E3B;
+}
+
+.markdown-body li > p {
+  margin-bottom: 3px;
+}
+
+.markdown-body ul li::marker {
+  color: #86909C;
+}
+
+.markdown-body ol li::marker {
+  color: #4E5969;
+  font-weight: 500;
+}
+
+.markdown-body input[type="checkbox"] {
+  margin-right: 6px;
+  vertical-align: middle;
+  accent-color: #1677FF;
+}
+
+/* 4. 行内代码 (Inline Code) */
+.markdown-body code:not([class*="language-"]):not(.hljs) {
+  padding: 2px 6px;
+  margin: 0 2px;
+  font-size: 11.5px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  background-color: #F2F3F5;
+  color: #B42318;
+  border: 1px solid #E5E6EB;
+  border-radius: 4px;
+}
+
+/* 5. 增强代码块容器与高亮 (Code Blocks & Toolbars) */
+.markdown-body .code-block-wrapper {
+  margin: 10px 0;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #F8FAFC;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.markdown-body .code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 12px;
+  background: #EDF2F7;
+  border-bottom: 1px solid #E2E8F0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4A5568;
+}
+
+.markdown-body .code-block-lang {
+  letter-spacing: 0.6px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  color: #4A5568;
+}
+
+.markdown-body .code-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #475569;
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.markdown-body .code-copy-btn:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #0F172A;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.markdown-body .code-copy-btn.copied {
+  background: #F0FDF4;
+  border-color: #86EFAC;
+  color: #16A34A;
+  font-weight: 600;
+}
+
+.markdown-body pre {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  background: #FFFFFF;
+}
+
+.markdown-body pre code.hljs {
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+/* 6. 金融数据表格系统 (Financial Responsive Tables) */
+.markdown-body .table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 10px 0;
+  border: 1px solid #E5E6EB;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #FFFFFF;
+  margin: 0;
+}
+
+.markdown-body table th {
+  background: #F7F9FC;
+  color: #1D2129;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid #E5E6EB;
+  border-right: 1px solid #F2F3F5;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.markdown-body table th:last-child {
+  border-right: none;
+}
+
+.markdown-body table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #F2F3F5;
+  border-right: 1px solid #F8FAFC;
+  color: #4E5969;
+  vertical-align: middle;
+}
+
+.markdown-body table td:last-child {
+  border-right: none;
+}
+
+.markdown-body table tbody tr:nth-child(even) {
+  background-color: #FAFCFE;
+}
+
+.markdown-body table tbody tr:hover {
+  background-color: #F2F7FF;
+}
+
+.markdown-body table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 7. 引用块与 GFM 提示卡片 (Blockquotes & Callout Alerts) */
+.markdown-body blockquote {
+  margin: 10px 0;
+  padding: 8px 14px;
+  border-left: 3.5px solid #1677FF;
+  background: #F0F7FF;
+  border-radius: 0 6px 6px 0;
+  color: #334155;
+  font-size: 12.5px;
+}
+
+.markdown-body blockquote p {
+  margin: 0;
+  color: inherit;
+}
+
+.markdown-body .gfm-alert {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border-left: 4px solid;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.markdown-body .gfm-alert-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.markdown-body .gfm-alert-content {
+  color: #334155;
+}
+
+.markdown-body .gfm-alert-note {
+  border-color: #1677FF;
+  background: #F0F7FF;
+  color: #003EB3;
+}
+
+.markdown-body .gfm-alert-tip {
+  border-color: #52C41A;
+  background: #F6FFED;
+  color: #237804;
+}
+
+.markdown-body .gfm-alert-important {
+  border-color: #FA8C16;
+  background: #FFF7E6;
+  color: #D46B08;
+}
+
+.markdown-body .gfm-alert-warning {
+  border-color: #FF4D4F;
+  background: #FFF1F0;
+  color: #CF1322;
+}
+
+.markdown-body .gfm-alert-caution {
+  border-color: #F5222D;
+  background: #FFF2F0;
+  color: #A8071A;
+}
+

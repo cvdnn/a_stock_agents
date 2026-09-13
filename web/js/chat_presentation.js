@@ -125,15 +125,143 @@
   function cleanMarkdownContent(markdown) {
     if (!markdown) return '';
     var text = String(markdown).replace(/\r\n?/g, '\n');
-    // 1. Strip <think>...</think> tags
+    // 1. Strip closed <think>...</think> tags
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
-    // 2. Strip leading thought preambles before markdown headers
+    // 2. In streaming mode, strip unclosed <think>... at the tail
+    text = text.replace(/<think>[\s\S]*$/gi, '');
+    // 3. Strip leading thought preambles before markdown headers
     text = text.replace(/^\s*(?:我将(?:先|再次|按|通过|调度|立即)?|收到，(?:我将|现在)?|正在为您?|现在开始)[^\n]+(?=\n+#{1,6}\s)/, '');
     return text.trim();
   }
 
-  function renderMarkdown(markdown) {
-    var cleaned = cleanMarkdownContent(markdown);
+  var markedInitialized = false;
+
+  function initMarkedEngine() {
+    if (markedInitialized) return;
+    var markedLib = (typeof root !== 'undefined' && root.marked) || (typeof window !== 'undefined' && window.marked) || (typeof marked !== 'undefined' ? marked : null);
+    if (!markedLib) return;
+
+    var m = markedLib.marked || markedLib;
+    var renderer = {
+      code: function (token) {
+        var text = (typeof token === 'object' && token !== null ? token.text : token) || '';
+        var lang = ((typeof token === 'object' && token !== null ? token.lang : arguments[1]) || '').trim();
+        var cleanLang = (lang.match(/^([a-zA-Z0-9_\-#+]+)/) || ['', ''])[1].toLowerCase();
+
+        var hljsLib = (typeof root !== 'undefined' && root.hljs) || (typeof window !== 'undefined' && window.hljs) || (typeof hljs !== 'undefined' ? hljs : null);
+        var highlighted = '';
+
+        if (hljsLib) {
+          try {
+            if (cleanLang && hljsLib.getLanguage(cleanLang)) {
+              highlighted = hljsLib.highlight(text, { language: cleanLang, ignoreIllegals: true }).value;
+            } else if (cleanLang === 'shell' || cleanLang === 'sh' || cleanLang === 'zsh') {
+              highlighted = hljsLib.highlight(text, { language: 'bash', ignoreIllegals: true }).value;
+            } else {
+              var auto = hljsLib.highlightAuto(text);
+              highlighted = auto.value;
+            }
+          } catch (e) {
+            highlighted = escapeHtml(text);
+          }
+        } else {
+          highlighted = escapeHtml(text);
+        }
+
+        var displayLang = cleanLang ? cleanLang.toUpperCase() : 'CODE';
+
+        return '<div class="code-block-wrapper">' +
+          '<div class="code-block-header">' +
+            '<span class="code-block-lang">' + escapeHtml(displayLang) + '</span>' +
+            '<button type="button" class="code-copy-btn" onclick="ChatPresentation.copyCodeBlock(this)" title="复制代码">' +
+              '<span class="copy-icon">📋</span> <span class="copy-text">复制</span>' +
+            '</button>' +
+          '</div>' +
+          '<pre><code class="hljs' + (cleanLang ? ' language-' + escapeHtml(cleanLang) : '') + '">' + highlighted + '</code></pre>' +
+        '</div>';
+      },
+      link: function (token) {
+        var href = (typeof token === 'object' && token !== null ? token.href : token) || '';
+        var title = (typeof token === 'object' && token !== null ? token.title : arguments[1]) || '';
+        var text = (typeof token === 'object' && token !== null ? token.text : arguments[2]) || href;
+        var safe = safeUrl(href);
+        if (!safe) return escapeHtml(text);
+        return '<a href="' + escapeHtml(safe) + '"' + (title ? ' title="' + escapeHtml(title) + '"' : '') + ' target="_blank" rel="noopener noreferrer">' + text + '</a>';
+      }
+    };
+
+    m.use({
+      gfm: true,
+      breaks: true,
+      renderer: renderer,
+      hooks: {
+        postprocess: function (html) {
+          // 1. Wrap tables in responsive container
+          html = html.replace(/<table>/g, '<div class="table-responsive"><table>').replace(/<\/table>/g, '</table></div>');
+          // 2. Render GFM Callouts / Alerts (> [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING], > [!CAUTION])
+          html = html.replace(/<blockquote>\s*<p>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\s*<br\s*\/?>|\s*\n)?([\s\S]*?)<\/p>\s*<\/blockquote>/gi, function (match, type, content) {
+            var lower = type.toLowerCase();
+            var titles = { note: '说明', tip: '提示', important: '重要提示', warning: '风控警告', caution: '操作注意' };
+            var icons = { note: 'ℹ️', tip: '💡', important: '📌', warning: '⚠️', caution: '🚨' };
+            return '<div class="gfm-alert gfm-alert-' + lower + '">' +
+              '<div class="gfm-alert-title"><span class="gfm-alert-icon">' + (icons[lower] || 'ℹ️') + '</span> ' + (titles[lower] || type) + '</div>' +
+              '<div class="gfm-alert-content">' + content + '</div>' +
+              '</div>';
+          });
+          return html;
+        }
+      }
+    });
+
+    markedInitialized = true;
+  }
+
+  function copyCodeBlock(btn) {
+    if (!btn) return;
+    var wrapper = btn.closest ? btn.closest('.code-block-wrapper') : btn.parentElement.parentElement;
+    if (!wrapper) return;
+    var codeEl = wrapper.querySelector('pre code');
+    var codeText = codeEl ? (codeEl.innerText || codeEl.textContent || '') : '';
+    if (!codeText) return;
+
+    function showSuccess() {
+      var copyText = btn.querySelector('.copy-text');
+      var original = copyText ? copyText.innerText : '复制';
+      if (copyText) copyText.innerText = '已复制 ✔';
+      btn.classList.add('copied');
+      setTimeout(function () {
+        if (copyText) copyText.innerText = original;
+        btn.classList.remove('copied');
+      }, 1500);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(codeText).then(showSuccess).catch(function () {
+        fallbackCopyText(codeText, showSuccess);
+      });
+    } else {
+      fallbackCopyText(codeText, showSuccess);
+    }
+  }
+
+  function fallbackCopyText(text, callback) {
+    var textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      if (callback) callback();
+    } catch (e) {}
+    document.body.removeChild(textArea);
+  }
+
+  function fallbackRenderMarkdown(cleaned) {
     var lines = cleaned.split('\n');
     var html = [], i = 0;
     while (i < lines.length) {
@@ -148,7 +276,7 @@
         function cells(s) { return s.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (x) { return x.trim(); }); }
         var heads = cells(line), rows = []; i += 2;
         while (i < lines.length && isTableRow(lines[i]) && lines[i].trim() !== '') { rows.push(cells(lines[i++])); }
-        html.push('<table><thead><tr>' + heads.map(function (x) { return '<th>' + inline(x) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (x) { return '<td>' + inline(x) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>'); continue;
+        html.push('<div class="table-responsive"><table><thead><tr>' + heads.map(function (x) { return '<th>' + inline(x) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (x) { return '<td>' + inline(x) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>'); continue;
       }
       var heading = line.match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/);
       if (heading) { html.push('<h' + heading[1].length + '>' + inline(heading[2]) + '</h' + heading[1].length + '>'); i++; continue; }
@@ -159,6 +287,47 @@
       var para = [line]; i++; while (i < lines.length && lines[i].trim() && !/^\s*(#{1,6})\s+|^\s*[-*+]\s+|^\s*\d+[.)]\s+|^\s*>|^\s*```/.test(lines[i]) && !isTableStart(lines, i)) para.push(lines[i++]); html.push('<p>' + inline(para.join('\n')).replace(/\n/g, '<br>') + '</p>');
     }
     return html.join('\n');
+  }
+
+  function sanitizeHtmlOutput(rawHtml) {
+    if (!rawHtml) return '';
+    var purifyLib = (typeof root !== 'undefined' && root.DOMPurify) || (typeof window !== 'undefined' && window.DOMPurify) || (typeof DOMPurify !== 'undefined' ? DOMPurify : null);
+    if (purifyLib) {
+      if (typeof purifyLib === 'function' && typeof purifyLib.sanitize !== 'function' && typeof window !== 'undefined') {
+        try { purifyLib = purifyLib(window); } catch (e) {}
+      }
+      if (purifyLib && typeof purifyLib.sanitize === 'function') {
+        return purifyLib.sanitize(rawHtml, {
+          ADD_TAGS: ['button'],
+          ADD_ATTR: ['target', 'onclick', 'title', 'type', 'class']
+        });
+      }
+    }
+    // Fallback security sanitizer if DOMPurify instance is unavailable
+    return String(rawHtml)
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/\s*onerror\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
+      .replace(/\s*onload\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
+      .replace(/href\s*=\s*["']?\s*javascript:[^"'>]*/gi, 'href="#"');
+  }
+
+  function renderMarkdown(markdown) {
+    var cleaned = cleanMarkdownContent(markdown);
+    if (!cleaned) return '';
+
+    var markedLib = (typeof root !== 'undefined' && root.marked) || (typeof window !== 'undefined' && window.marked) || (typeof marked !== 'undefined' ? marked : null);
+    if (markedLib) {
+      try {
+        initMarkedEngine();
+        var m = markedLib.marked || markedLib;
+        var rawHtml = m.parse(cleaned);
+        return sanitizeHtmlOutput(rawHtml);
+      } catch (err) {
+        console.warn('Marked parse error, fallback to legacy renderer:', err);
+      }
+    }
+
+    return sanitizeHtmlOutput(fallbackRenderMarkdown(cleaned));
   }
 
   function stripMarkdown(line) {
@@ -903,6 +1072,8 @@
     applyEvent: applyEvent,
     decomposeTask: decomposeTask,
     detectDeliverables: detectDeliverables,
-    renderExecutionTimelineHtml: renderExecutionTimelineHtml
+    renderExecutionTimelineHtml: renderExecutionTimelineHtml,
+    copyCodeBlock: copyCodeBlock,
+    initMarkedEngine: initMarkedEngine
   };
 }(typeof window !== 'undefined' ? window : this));
