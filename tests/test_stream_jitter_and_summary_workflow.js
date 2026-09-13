@@ -40,10 +40,11 @@ console.log('✅ PASS [防抖断言]: 执行过程静默累加，移除 scrollIn
 // --- 3. 结果摘要与工作区完整研报联动断言 ---
 console.log('\n--- 3. 结果摘要与工作区完整研报联动断言 ---');
 assert(chatPresJs.includes('function formatChatDialogueSummary'), 'chat_presentation.js 必须实现 formatChatDialogueSummary 函数');
-assert(chatPresJs.includes('dialogue-deliverable-banner'), 'formatChatDialogueSummary 必须输出完整研报工作区直达卡片');
-assert(chatPresJs.includes('btn-workbench-direct'), 'formatChatDialogueSummary 必须包含在工作区查看完整详报按钮');
+assert(chatPresJs.includes('dialogue-deliverable-banner'), 'formatChatDialogueSummary 必须输出完整研报直达横幅');
+assert(chatPresJs.includes('dialogue-deliverable-item'), 'formatChatDialogueSummary 必须包含独立的附件项');
+assert(chatPresJs.includes('dialogue-deliverable-list'), 'formatChatDialogueSummary 必须包含附件列表容器');
 assert(chatPresJs.includes('formatStepTextWithMdLinks'), 'chat_presentation.js 必须具备步骤文本中 .md 链接自动转换功能');
-console.log('✅ PASS [摘要与工作区联动]: 实质性摘要保留核心段落，生成直达工作区的完整研报卡片');
+console.log('✅ PASS [摘要与工作区联动]: 实质性摘要保留核心段落，生成分行独立展示、直达工作区的研报交付物');
 
 // --- 4. 模拟运行 ChatPresentation 与 DOM 沙箱 ---
 console.log('\n--- 4. DOM 沙箱运行时执行模拟断言 ---');
@@ -67,7 +68,7 @@ evalChatPres(sandbox.window, sandbox.document, sandbox.window);
 const CP = sandbox.window.ChatPresentation;
 assert(CP, 'ChatPresentation 必须成功挂载在 window 上');
 
-// 测试 formatChatDialogueSummary
+// 测试 formatChatDialogueSummary 单附件
 const sampleLongReport = `# 贵州茅台 (600519) 深度量化诊断报告
 
 ## 一、标的画像与核心定性
@@ -102,8 +103,24 @@ assert(formattedHtml.includes('实战交易三原则'), '实质性摘要必须�
 assert(formattedHtml.includes('最低保本卖出价精算'), '实质性摘要必须包含保本价');
 assert(formattedHtml.includes('三级风控止损阶梯'), '实质性摘要必须包含三级止损阶梯');
 assert(formattedHtml.includes('report_600519_20260913.md'), '摘要末尾必须渲染完整交付物文件名链接');
-assert(formattedHtml.includes('在工作区查看完整详报'), '摘要末尾必须包含直达工作区的引导按钮');
-console.log('✅ PASS [沙箱 1]: formatChatDialogueSummary 成功生成丰富实战摘要并附带工作区链接');
+assert(!formattedHtml.includes('btn-workbench-direct'), '摘要末尾不得包含冗余的大按钮【在工作区查看完整详报】');
+assert(!formattedHtml.includes('<span style="font-size: 16px;">📄</span>'), '摘要末尾不得包含多余的外层单独小图标');
+assert(!formattedHtml.includes('chat-md-chip'), '附件文件名不得用圆角矩形(chat-md-chip)圈起来');
+assert(!formattedHtml.includes('↗'), '附件文件名末尾不得包含跳转小图标');
+assert(formattedHtml.includes('dialogue-deliverable-list'), '附件必须另起一行独立列表容器展示');
+console.log('✅ PASS [沙箱 1]: formatChatDialogueSummary 成功生成丰富实战摘要并附带干净分行的工作区附件');
+
+// 测试多附件支持：多文档一份一行
+const multiFileSummaryHtml = CP.formatChatDialogueSummary('# 多股联合诊断报告\n已生成相关交付物', {
+  deliverableFiles: ['report_300750_190557.md', 'risk_plan_300750.md']
+});
+assert(multiFileSummaryHtml.includes('report_300750_190557.md'), '多附件必须包含第一个文档');
+assert(multiFileSummaryHtml.includes('risk_plan_300750.md'), '多附件必须包含第二个文档');
+const itemMatches = multiFileSummaryHtml.match(/class="dialogue-deliverable-item"/g);
+assert(itemMatches && itemMatches.length === 2, '多附件必须包含两个独立项，一份文档一行');
+assert(!multiFileSummaryHtml.includes('↗'), '多附件文档均不得包含跳转小图标');
+assert(!multiFileSummaryHtml.includes('chat-md-chip'), '多附件文档均不得用圆角矩形圈起来');
+console.log('✅ PASS [沙箱 1.1]: formatChatDialogueSummary 成功支持多附件文档按行独立呈现，无圆角矩形且无跳转图标');
 
 // 测试时间线节点中 .md 链接转换与呈现
 const timelineState = CP.createResponseState('test_resp_1');

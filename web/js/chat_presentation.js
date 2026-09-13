@@ -410,14 +410,68 @@
 
     var renderedHtml = renderMarkdown(summaryMarkdown);
 
-    // 在对话框摘要底部附带完整报告工作区直达卡片
-    if (deliverableFilename) {
-      var bannerHtml = '<div class="dialogue-deliverable-banner" style="margin-top: 14px; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">' +
-        '<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1E293B;">' +
-        '  <span style="font-size: 16px;">📄</span>' +
-        '  <span><strong>完整详尽研报：</strong><a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(deliverableFilename) + '\')" title="在右侧工作区打开完整报告"><span class="chip-icon">📄</span> <span class="chip-title">' + escapeHtml(deliverableFilename) + '</span> <span class="chip-arrow">↗</span></a></span>' +
+    // 收集所有交付物附件列表（支持单附件与多附件，去重并保持顺序）
+    var fileList = [];
+    var seenFiles = new Set();
+    function appendFile(fn) {
+      if (!fn || typeof fn !== 'string') return;
+      var clean = fn.trim();
+      if (clean && !seenFiles.has(clean)) {
+        seenFiles.add(clean);
+        fileList.push(clean);
+      }
+    }
+
+    if (Array.isArray(options.deliverableFiles)) {
+      options.deliverableFiles.forEach(appendFile);
+    }
+    if (Array.isArray(options.deliverables)) {
+      options.deliverables.forEach(function (d) {
+        if (typeof d === 'string') appendFile(d);
+        else if (d && d.filename) appendFile(d.filename);
+        else if (d && d.name) appendFile(d.name);
+      });
+    }
+    if (options.deliverableFilename) {
+      appendFile(options.deliverableFilename);
+    }
+
+    // 若未显式传入或从外部提供，智能扫描正文中提及的 .md 交付物文件
+    if (fileList.length === 0 && typeof detectDeliverables === 'function') {
+      var autoDetected = detectDeliverables(rawText);
+      if (Array.isArray(autoDetected)) {
+        autoDetected.forEach(function (d) {
+          if (d && d.filename && d.filename.endsWith('.md')) {
+            appendFile(d.filename);
+          }
+        });
+      }
+    }
+
+    // 自动将交付物文件与全文同步至全局文档存储中
+    if (fileList.length > 0 && typeof window !== 'undefined' && typeof window.saveDeliverableDoc === 'function') {
+      fileList.forEach(function (fn) {
+        window.saveDeliverableDoc(fn, rawText, options.deliverableTitle);
+      });
+    }
+
+    // 在对话框摘要底部附带交付物文档列表：
+    // 1. 另起一行显示；
+    // 2. 文件名无需圆角矩形圈起来（纯净文本超链）；
+    // 3. 只显示【📄文件名】，删除跳转小图标 ↗；
+    // 4. 支持多附件文档，一份文档一行。
+    if (fileList.length > 0) {
+      var itemsHtml = fileList.map(function (filename) {
+        return '<a href="javascript:void(0)" class="dialogue-deliverable-item" data-path="' + escapeHtml(filename) + '" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(filename) + '\')" title="在工作区打开文档">' +
+          '<span class="deliverable-doc-icon">📄</span><span class="deliverable-doc-name">' + escapeHtml(filename) + '</span>' +
+          '</a>';
+      }).join('');
+
+      var bannerHtml = '<div class="dialogue-deliverable-banner">' +
+        '<div class="dialogue-deliverable-label">完整详尽研报：</div>' +
+        '<div class="dialogue-deliverable-list">' +
+        itemsHtml +
         '</div>' +
-        '<button type="button" class="btn-workbench-direct" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(deliverableFilename) + '\')" style="padding: 4px 10px; font-size: 12px; background: #1677FF; color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">在工作区查看完整详报 ↗</button>' +
         '</div>';
       renderedHtml += bannerHtml;
     }
@@ -878,8 +932,9 @@
             action: n.action,
             status: status,
             items: run,
-            expanded: n.expanded !== false,
-            expandedDrawer: false
+            expanded: n.groupExpanded !== undefined ? n.groupExpanded : (n.branchExpanded !== undefined ? n.branchExpanded : (n._branchCollapsed ? false : true)),
+            branchExpanded: n.groupExpanded !== undefined ? n.groupExpanded : (n.branchExpanded !== undefined ? n.branchExpanded : (n._branchCollapsed ? false : true)),
+            expandedDrawer: Boolean(n.expandedDrawer)
           };
           grouped.push(groupNode);
           i = j;
@@ -1013,7 +1068,7 @@
         continue;
       }
 
-      var nodeIcon = '•';
+      var nodeIcon = '●';
       if (n.type === 'intent') nodeIcon = '📝';
       else if (n.type === 'sop') nodeIcon = '⇥';
       else if (n.type === 'thought') nodeIcon = '🧠';
@@ -1063,7 +1118,24 @@
       }
 
       var isBranchNode = n.type === 'tool' || isGroup || n.type === 'stage' || (n.children && n.children.length > 0);
-      var isBranchExpanded = n.expanded !== false;
+      var isBranchExpanded = false;
+      if (isBranchNode) {
+        if (n.branchExpanded !== undefined) {
+          isBranchExpanded = n.branchExpanded === true;
+        } else if (n._branchCollapsed === true) {
+          isBranchExpanded = false;
+        } else if (isGroup) {
+          isBranchExpanded = n.expanded !== false;
+        } else if (n.children && n.children.length > 0) {
+          isBranchExpanded = n.expanded !== false;
+        } else if (isNodeRunning) {
+          isBranchExpanded = true;
+        } else if (n.nodeId === 'step-exec') {
+          isBranchExpanded = n.expanded !== false;
+        } else if (n.type === 'tool') {
+          isBranchExpanded = n.expanded === true || isNodeDone || isNodeFailed || isNodeDegraded;
+        }
+      }
 
       html += '<div class="' + itemClass + (isBranchNode ? ' tree-parent-node' : '') + '" id="' + escapeHtml(n.nodeId) + '">';
       html += '  <div class="node-main-row">';
@@ -1109,7 +1181,7 @@
           for (var itemIdx = 0; itemIdx < n.items.length; itemIdx++) {
             var itemObj = n.items[itemIdx];
             var subCallId = escapeHtml(itemObj.nodeId || (n.nodeId + '_sub_' + itemIdx));
-            var itemIcon = itemObj.status === 'failed' ? '❌' : (itemObj.status === 'running' ? '⏳' : (itemObj.status === 'degraded' ? '⚠️' : '•'));
+            var itemIcon = itemObj.status === 'failed' ? '❌' : (itemObj.status === 'running' ? '⏳' : (itemObj.status === 'degraded' ? '⚠️' : '●'));
             var itemSummary = itemObj.summary || (itemObj.action ? (itemObj.action + ' 完成') : '调用成功');
             var itemSkill = itemObj.skill_id || skillLabel;
             var itemTitle = '子任务 ' + (itemIdx + 1) + ': ' + itemSkill + ' · ' + itemSummary;
@@ -1122,7 +1194,7 @@
             if (itemObj.args && typeof itemObj.args === 'object' && Object.keys(itemObj.args).length > 0) {
               var argsStr = '';
               try { argsStr = JSON.stringify(itemObj.args); } catch(e) { argsStr = String(itemObj.args); }
-              html += '        <div class="step-detail-text" style="display:block; margin-top:1px; margin-left:14px; font-size:11px; color:#64748B;">';
+              html += '        <div class="step-detail-text" style="display:block; margin-top:1px; margin-left:14px; font-size:9px; color:#64748B;">';
               html += '          参数: ' + escapeHtml(argsStr);
               html += '        </div>';
             }
@@ -1137,7 +1209,7 @@
 
             html += '      <div class="step-leaf-item">';
             html += '        <div class="step-summary-bar" onclick="window.toggleStepDetail && window.toggleStepDetail(\'' + escapeHtml(state.responseId) + '\', \'' + subId + '\')">';
-            html += '          <span class="step-bullet">•</span>';
+            html += '          <span class="step-bullet">●</span>';
             html += '          <span class="step-title">' + formatStepTextWithMdLinks(subTitle) + '</span>';
             if (hasSubDetail) {
               html += '          <span class="step-chevron" id="arrow_' + subId + '">></span>';
@@ -1154,7 +1226,7 @@
           // 动态单工具调用降级/默认步骤展示
           html += '      <div class="step-leaf-item">';
           html += '        <div class="step-summary-bar">';
-          html += '          <span class="step-bullet">•</span>';
+          html += '          <span class="step-bullet">●</span>';
           html += '          <span class="step-title">' + formatStepTextWithMdLinks(subInfo || '执行底层量化引擎计算') + '</span>';
           html += '        </div>';
           html += '      </div>';

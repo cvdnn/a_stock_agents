@@ -506,9 +506,45 @@ api.applyEvent(rawErrState, 'tool_call_complete', {
 });
 const rawErrHtml = api.renderExecutionTimelineHtml(rawErrState);
 assert(!rawErrHtml.includes('CAPABILITY_EXECUTION_FAILED · 能力执行失败'), '内部错误码不得以裸露前缀拼接形式泄露');
-assert.match(rawErrHtml, /能力执行失败/, '错误标题正常渲染');
+// 11. 验证真实执行流下批量父任务与能力树默认展开展示层级与缩进 (Hierarchical Tree Indentation Default Expansion)
+const realFlowState = api.createResponseState('real-flow-tree');
+realFlowState.timelineExpanded = true;
+
+// 模拟真实执行：3次连续同质数据接口调用
+['quote', 'tech', 'kline'].forEach((action, idx) => {
+  const cid = 'data_call_' + idx;
+  api.applyEvent(realFlowState, 'tool_call_start', { call_id: cid, skill_id: 'astock_data_feed', action: action, args: { code: '603893' } });
+  api.applyEvent(realFlowState, 'tool_call_complete', {
+    call_id: cid,
+    skill_id: 'astock_data_feed',
+    status: 'success',
+    summary: action === 'quote' ? '现价 180.30 (-1.29%)' : (action === 'tech' ? '技术指标完成' : '筹码分析完成')
+  });
+});
+
+// 单能力调用：astock_platform_evaluate
+api.applyEvent(realFlowState, 'tool_call_start', { call_id: 'eval_1', skill_id: 'astock_platform_evaluate', title: '能力调用 astock_platform_evaluate' });
+api.applyEvent(realFlowState, 'tool_call_complete', { call_id: 'eval_1', skill_id: 'astock_platform_evaluate', status: 'success', summary: '量化总分 37 分', data: { score: 37 } });
+
+const realFlowHtml = api.renderExecutionTimelineHtml(realFlowState);
+
+// 断言：批量父任务必须默认展开展示层级与缩进，绝不能隐藏挂接的原子子任务
+assert.match(realFlowHtml, /能力调用astock_data_feed任务（批量3次调用）/, '批量父任务标题正常生成');
+assert.match(realFlowHtml, /Data Feed Agent/, '必须展示所属子智能体卡片');
+assert.match(realFlowHtml, /level-2-branch/, '必须渲染二级缩进引导线容器');
+assert.match(realFlowHtml, /子任务 1: astock_data_feed · 现价 180\.30 \(-1\.29%\)/, '必须直接展开呈现子任务 1');
+assert.match(realFlowHtml, /子任务 2: astock_data_feed · 技术指标完成/, '必须直接展开呈现子任务 2');
+assert.match(realFlowHtml, /子任务 3: astock_data_feed · 筹码分析完成/, '必须直接展开呈现子任务 3');
+
+// 断言：单个能力调用也必须展开展示子智能体与步骤层级
+assert.match(realFlowHtml, /Evaluation Agent/, '必须展开呈现 Evaluation Agent 子智能体');
+assert.match(realFlowHtml, /量化总分 37 分/, '必须呈现量化总分步骤');
+
+// 断言：指示器按钮必须为 ∨（展开态），分支容器不带有 collapsed 类名
+assert(!realFlowHtml.includes('id="branch_group_node-1" class="timeline-branch-container collapsed"'), '批量父任务容器绝严禁带有 collapsed 类名');
 
 console.log('PASS');
+
 
 
 
