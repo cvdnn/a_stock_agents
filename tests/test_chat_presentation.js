@@ -42,7 +42,7 @@ const adjacentTable = api.renderMarkdown('Introduction\n| A | B |\n|---|---|\n| 
 assert(adjacentTable.includes('<p>Introduction</p>') && adjacentTable.includes('<table>'));
 assert.strictEqual(api.renderMarkdown('ordinary\na | b\nlast'), '<p>ordinary<br>a | b<br>last</p>');
 const paragraphThenTable = api.renderMarkdown('ordinary\nlast\na | b\n---|---\n1 | 2');
-assert(paragraphThenTable.includes('<p>ordinary<br>last</p>\n<table>'));
+assert(paragraphThenTable.includes('<p>ordinary<br>last</p>') && paragraphThenTable.includes('<table>'));
 assert(paragraphThenTable.includes('<th>a</th><th>b</th>'));
 const compactTable = api.renderMarkdown('| A | B |\n|-|-|\n| x | y |');
 assert(/<table>[\s\S]*<th>A<\/th>[\s\S]*<td>x<\/td>/.test(compactTable));

@@ -4529,6 +4529,47 @@ function appendChatMessage(role, content, meta = {}) {
   return item;
 }
 
+let _scrollRafId = null;
+function scrollToLatestExecution(msgId, options) {
+  options = options || {};
+  if (typeof cancelAnimationFrame === 'function' && _scrollRafId) {
+    cancelAnimationFrame(_scrollRafId);
+  }
+  const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : function(cb) { setTimeout(cb, 16); };
+  _scrollRafId = raf(function () {
+    _scrollRafId = null;
+    const scrollBox = document.getElementById('chatMessages');
+    if (!scrollBox) return;
+
+    if (msgId) {
+      const execContainer = document.getElementById(`execContainer_${msgId}`);
+      if (execContainer) {
+        const latestIndicator = execContainer.querySelector('.timeline-working-indicator');
+        const latestRunning = execContainer.querySelector('.timeline-node-item.node-running');
+        const allNodes = execContainer.querySelectorAll('.timeline-node-item');
+        const latestNode = latestRunning || (allNodes.length ? allNodes[allNodes.length - 1] : null);
+        const targetEl = latestIndicator || latestNode;
+        if (targetEl && typeof targetEl.scrollIntoView === 'function') {
+          try {
+            targetEl.scrollIntoView({ behavior: options.smooth === false ? 'auto' : 'smooth', block: 'nearest' });
+          } catch (e) {}
+        }
+      }
+    }
+
+    if (options.smooth === false) {
+      scrollBox.scrollTop = scrollBox.scrollHeight;
+    } else {
+      try {
+        scrollBox.scrollTo({ top: scrollBox.scrollHeight, behavior: 'smooth' });
+      } catch (e) {
+        scrollBox.scrollTop = scrollBox.scrollHeight;
+      }
+    }
+  });
+}
+window.scrollToLatestExecution = scrollToLatestExecution;
+
 // --------------------------------------------------------------------------
 // 7.0 Task Execution UI & State Controllers (Requirements 1 - 8)
 // --------------------------------------------------------------------------
@@ -4659,6 +4700,9 @@ function toggleTimelineRecord(msgId) {
   const container = document.getElementById(`execContainer_${msgId}`);
   if (container && typeof ChatPresentation !== 'undefined') {
     container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(execObj.state);
+    if (execObj.state.timelineExpanded && typeof scrollToLatestExecution === 'function') {
+      scrollToLatestExecution(msgId, { smooth: true });
+    }
   }
 }
 
@@ -4682,6 +4726,9 @@ function toggleNodeDrawer(msgId, nodeId) {
     const container = document.getElementById(`execContainer_${msgId}`);
     if (container && typeof ChatPresentation !== 'undefined') {
       container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(execObj.state);
+      if (node.expandedDrawer && typeof scrollToLatestExecution === 'function') {
+        scrollToLatestExecution(msgId, { smooth: true });
+      }
     }
   } else {
     const drawer = document.getElementById(`drawer_${nodeId}`);
@@ -4715,6 +4762,9 @@ function toggleBranchCollapse(msgId, nodeId) {
     const container = document.getElementById(`execContainer_${msgId}`);
     if (container && typeof ChatPresentation !== 'undefined') {
       container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(execObj.state);
+      if (node.expanded && typeof scrollToLatestExecution === 'function') {
+        scrollToLatestExecution(msgId, { smooth: true });
+      }
     }
   } else {
     const branch = document.getElementById(`branch_${nodeId}`);
@@ -5037,26 +5087,31 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
     : null;
 
   if (state && plan) {
+    state.plan = plan;
     state.timelineExpanded = true;
-    plan.steps.forEach((s, idx) => {
-      state.timelineNodes.push({
-        nodeId: `node_${msgId}_${idx}`,
-        type: s.type,
-        level: s.level || 0,
-        title: s.title,
-        status: s.status,
-        skill_id: s.skill_id,
-        agentName: s.agentName || null,
-        agentRole: s.agentRole || null,
-        agentIcon: s.agentIcon || null,
-        action: s.action,
-        summary: s.summary,
-        deliverable: s.deliverable,
-        children: s.children || null,
-        result: null,
-        error: null,
-        expanded: s.expanded !== false
-      });
+    // 优化：无需一开始就罗列所有任务，执行哪一步显示哪一步。初始展示正在执行的初始步骤
+    const firstStep = (plan.steps && plan.steps[0]) || {
+      title: '判断意图与规划执行路径',
+      summary: '正在分析意图并制定量化决策策略...',
+      type: 'intent'
+    };
+    state.timelineNodes.push({
+      nodeId: `node_${msgId}_0`,
+      type: firstStep.type || 'intent',
+      level: firstStep.level || 0,
+      title: firstStep.title,
+      status: 'running',
+      skill_id: firstStep.skill_id,
+      agentName: firstStep.agentName || null,
+      agentRole: firstStep.agentRole || null,
+      agentIcon: firstStep.agentIcon || null,
+      action: firstStep.action,
+      summary: firstStep.summary || '正在分析意图并规划执行路径...',
+      deliverable: null,
+      children: null,
+      result: null,
+      error: null,
+      expanded: false
     });
   }
 
@@ -5114,14 +5169,26 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
         },
         onThought: (thought) => {
           if (state) {
+            if (state.timelineNodes[0] && state.timelineNodes[0].status === 'running') {
+              state.timelineNodes[0].status = 'succeeded';
+            }
             ChatPresentation.applyEvent(state, 'thought', { content: thought });
-            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+            if (execContainer) {
+              execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+              if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
+            }
           }
         },
         onToolStart: (tool) => {
           if (state) {
+            if (state.timelineNodes[0] && state.timelineNodes[0].status === 'running') {
+              state.timelineNodes[0].status = 'succeeded';
+            }
             ChatPresentation.applyEvent(state, 'tool_call_start', tool);
-            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+            if (execContainer) {
+              execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+              if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
+            }
           }
           // 防御性清除：工具开始调用时，前置任何思考垫话绝不作为正文展示
           if (accumulatedText) {
@@ -5139,7 +5206,10 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
                 desc: tool.summary || '即将下达实战交易风控单，请确认是否继续。'
               });
             }
-            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+            if (execContainer) {
+              execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+              if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
+            }
           }
         },
         onDelta: (delta) => {
@@ -5152,12 +5222,19 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
             contentBody.innerHTML = (typeof ChatPresentation !== 'undefined'
               ? ChatPresentation.renderMarkdown(accumulatedText)
               : accumulatedText) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
-            const scrollBox = document.getElementById('chatMessages');
-            if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
+            if (typeof scrollToLatestExecution === 'function') {
+              scrollToLatestExecution(msgId, { smooth: false });
+            } else {
+              const scrollBox = document.getElementById('chatMessages');
+              if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
+            }
           }
         },
         onDone: (data) => {
           if (state) {
+            if (state.timelineNodes[0] && state.timelineNodes[0].status === 'running') {
+              state.timelineNodes[0].status = 'succeeded';
+            }
             ChatPresentation.applyEvent(state, 'done', data);
             // 检测交付物 (Requirement 6)
             const deliverables = ChatPresentation.detectDeliverables(accumulatedText, state.toolResultsByCallId);
@@ -5169,7 +5246,10 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
             }
             // 任务执行完成，自动收起全部过程 (Requirement 5)
             state.timelineExpanded = false;
-            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+            if (execContainer) {
+              execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+              if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
+            }
           }
           if (contentBody) {
             contentBody.innerHTML = accumulatedText
@@ -5187,7 +5267,10 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
             ChatPresentation.applyEvent(state, 'error', err);
             state.status = 'failed';
             state.timelineExpanded = false;
-            if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+            if (execContainer) {
+              execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+              if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
+            }
           }
           if (contentBody) {
             contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
@@ -5201,7 +5284,10 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
         ChatPresentation.applyEvent(state, 'error', err);
         state.status = 'failed';
         state.timelineExpanded = false;
-        if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+        if (execContainer) {
+          execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+          if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
+        }
       }
       if (contentBody) contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
       setExecutionStreamingState(false);
@@ -5214,28 +5300,40 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
 
     setTimeout(() => {
       if (!AppState.isChatStreaming) return;
-      if (state && state.timelineNodes[2]) {
-        state.timelineNodes[2].status = 'succeeded';
-        state.timelineNodes[2].summary = '已就地完成算法运算与参数校验';
-        state.timelineNodes[2].result = {
-          tool_name: plan ? plan.targetSkill : 'astock-platform-evaluate',
-          success: true,
-          data: {
-            deliverables: plan ? [plan.deliverableName] : ['report.md'],
-            count: 1,
-            notice: '量化模型与风控铁律运算完毕，已产出结构化研报交付物。'
-          },
-          error: null
-        };
-      }
-      if (state && state.timelineNodes[3]) {
-        state.timelineNodes[3].status = 'succeeded';
+      if (state && state.timelineNodes[0]) {
+        state.timelineNodes[0].status = 'succeeded';
       }
       if (state) {
+        state.timelineNodes.push({
+          nodeId: `node_${msgId}_exec`,
+          type: 'tool',
+          title: '能力调用 ' + (plan ? plan.targetSkill : 'astock-platform-evaluate'),
+          status: 'succeeded',
+          summary: '已就地完成算法运算与参数校验',
+          result: {
+            tool_name: plan ? plan.targetSkill : 'astock-platform-evaluate',
+            success: true,
+            data: {
+              deliverables: plan ? [plan.deliverableName] : ['report.md'],
+              count: 1,
+              notice: '量化模型与风控铁律运算完毕，已产出结构化研报交付物。'
+            }
+          }
+        });
+        state.timelineNodes.push({
+          nodeId: `node_${msgId}_result`,
+          type: 'result',
+          title: '整理任务结果',
+          status: 'succeeded',
+          summary: '汇总结构化数据与生成交付物 ' + (plan ? plan.deliverableName : 'report.md')
+        });
         state.status = 'succeeded';
         // Auto-collapse overall process when done (Requirement 5)
         state.timelineExpanded = false;
-        if (execContainer) execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+        if (execContainer) {
+          execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
+          if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
+        }
       }
       if (contentBody) {
         contentBody.innerHTML = typeof ChatPresentation !== 'undefined'

@@ -306,8 +306,8 @@
     // Fallback security sanitizer if DOMPurify instance is unavailable
     return String(rawHtml)
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/\s*onerror\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
-      .replace(/\s*onload\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
+      .replace(/<([^>]+)\s+onerror\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '<$1')
+      .replace(/<([^>]+)\s+onload\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '<$1')
       .replace(/href\s*=\s*["']?\s*javascript:[^"'>]*/gi, 'href="#"');
   }
 
@@ -805,6 +805,42 @@
     return grouped;
   }
 
+  function calculateExecutionProgress(state) {
+    if (!state) return 0;
+    if (state.status === 'succeeded') return 100;
+    if (state.status === 'failed') return 100;
+    if (typeof state.progress === 'number' && Number.isFinite(state.progress)) {
+      return Math.max(5, Math.min(100, Math.round(state.progress)));
+    }
+    var rawNodes = state.timelineNodes || [];
+    var totalSteps = Math.max(rawNodes.length, 1);
+    var completedCount = 0;
+    var runningCount = 0;
+
+    for (var i = 0; i < rawNodes.length; i++) {
+      var st = rawNodes[i].status;
+      if (st === 'succeeded' || st === 'failed' || st === 'degraded') {
+        completedCount++;
+      } else if (st === 'running') {
+        runningCount++;
+      }
+    }
+
+    var progress = 18;
+    if (state.fullMarkdown && state.fullMarkdown.length > 0) {
+      var textFactor = Math.min(15, Math.floor(state.fullMarkdown.length / 20));
+      progress = 80 + textFactor;
+    } else if (totalSteps > 0) {
+      var stepRatio = (completedCount + runningCount * 0.5) / Math.max(totalSteps, 2);
+      progress = Math.round(20 + stepRatio * 60);
+    }
+
+    progress = Math.max(15, Math.min(96, progress));
+    if (state._maxProgress == null) state._maxProgress = progress;
+    else state._maxProgress = Math.max(state._maxProgress, progress);
+    return state._maxProgress;
+  }
+
   function renderExecutionTimelineHtml(state, options) {
     if (!state) return '';
     options = options || {};
@@ -833,6 +869,15 @@
     html += '<div class="timeline-nodes-list' + (expanded ? '' : ' hidden') + '" id="nodesList_' + escapeHtml(state.responseId) + '">';
 
     var rawNodes = state.timelineNodes || [];
+    // 执行哪一步显示哪一步任务：当已有正在执行或已完成步骤时，执行过程中不罗列未来未开始(pending)的预置任务
+    var hasActiveOrDone = rawNodes.some(function (n) {
+      return n.status === 'running' || n.status === 'succeeded' || n.status === 'failed' || n.status === 'degraded';
+    });
+    if (isStreaming && hasActiveOrDone) {
+      rawNodes = rawNodes.filter(function (n) {
+        return n.status !== 'pending';
+      });
+    }
     var nodes = groupContinuousHomogeneousTools(rawNodes);
 
     for (var i = 0; i < nodes.length; i++) {
@@ -1030,7 +1075,7 @@
           html += '      </div>';
         }
 
-        // Deliverable clickable link (Requirement 6)
+        // Deliverable clickable link (Requirement 6) for branch nodes
         if (n.deliverable && n.deliverable.filename) {
           var fn = n.deliverable.filename;
           html += '      <div class="node-deliverable-wrap" style="margin-left: 2px;">';
@@ -1044,14 +1089,32 @@
         html += '  </div>'; // end timeline-branch-container
       }
 
+      // Deliverable clickable link (Requirement 6) for non-branch nodes
+      if (n.deliverable && n.deliverable.filename && !isBranchNode) {
+        var nonBranchFn = n.deliverable.filename;
+        html += '  <div class="node-deliverable-wrap" style="margin-top: 4px; margin-left: 19px;">';
+        html += '    <span class="deliverable-link-chip" onclick="window.openDeliverableInWorkbench && window.openDeliverableInWorkbench(\'' + escapeHtml(nonBranchFn) + '\')" title="在右侧工作台打开文件">';
+        html += '      📄 ' + escapeHtml(nonBranchFn) + ' <span class="open-arrow">↗</span>';
+        html += '    </span>';
+        html += '  </div>';
+      }
+
       html += '</div>'; // end timeline-node-item
     }
 
-    // Working animation at bottom while active (Requirement 2)
+    // Working animation at bottom while active (Requirement 1 & 2)
     if (isStreaming) {
-      html += '<div class="timeline-working-indicator">';
-      html += '  <span class="working-spinner-ring"></span>';
-      html += '  <span class="working-text">working...</span>';
+      var progressPercent = calculateExecutionProgress(state);
+      var perimeter = 37.7;
+      var dashoffset = (perimeter * (1 - progressPercent / 100)).toFixed(1);
+      html += '<div class="timeline-working-indicator" data-progress="' + progressPercent + '">';
+      html += '  <div class="working-progress-circle working-spinner-ring" title="执行进度: ' + progressPercent + '%" style="--progress:' + progressPercent + ';">';
+      html += '    <svg class="working-progress-svg" viewBox="0 0 16 16" width="13" height="13">';
+      html += '      <circle class="working-ring-track" cx="8" cy="8" r="6" fill="none" stroke="rgba(22, 119, 255, 0.18)" stroke-width="2.2" />';
+      html += '      <circle class="working-ring-fill" cx="8" cy="8" r="6" fill="none" stroke="#1677FF" stroke-width="2.2" stroke-dasharray="37.7" stroke-dashoffset="' + dashoffset + '" stroke-linecap="round" transform="rotate(-90 8 8)" />';
+      html += '    </svg>';
+      html += '  </div>';
+      html += '  <span class="working-text" data-text="working...">working<span class="working-dots"><span class="working-dot dot-1">.</span><span class="working-dot dot-2">.</span><span class="working-dot dot-3">.</span></span></span>';
       html += '</div>';
     }
 
@@ -1072,6 +1135,7 @@
     applyEvent: applyEvent,
     decomposeTask: decomposeTask,
     detectDeliverables: detectDeliverables,
+    calculateExecutionProgress: calculateExecutionProgress,
     renderExecutionTimelineHtml: renderExecutionTimelineHtml,
     copyCodeBlock: copyCodeBlock,
     initMarkedEngine: initMarkedEngine

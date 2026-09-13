@@ -62,6 +62,28 @@ assert.match(htmlRunning, /timeline-working-indicator/, '正在执行时必须�
 assert.match(htmlRunning, /working\.\.\./, '必须包含 working... 文字动效');
 assert.match(htmlRunning, /能力调用中 astock-data-feed/, '运行中的能力调用状态应正确渲染');
 
+// 优化验证 1: working 进度圆圈与深色进度环、三个点动画
+assert.match(htmlRunning, /working-progress-circle/, '必须包含圆形进度指示器');
+assert.match(htmlRunning, /working-ring-track/, '必须包含浅色环形背景轨道');
+assert.match(htmlRunning, /working-ring-fill/, '必须包含深色进度圆弧填充');
+assert.match(htmlRunning, /stroke-dashoffset="[\d.]+"/, '必须根据执行进度动态计算 stroke-dashoffset 深色圆弧');
+assert.match(htmlRunning, /working-dots[\s\S]*working-dot dot-1[\s\S]*dot-2[\s\S]*dot-3/, '【...】三个点必须具备独立结构与动效');
+assert.ok(cssSource.includes('workingDotBounce'), 'CSS 必须包含省略号三点弹跳动画 workingDotBounce');
+assert.ok(cssSource.includes('.working-ring-fill'), 'CSS 必须定义深色圆圈进度环样式');
+
+// 优化验证 2: 执行哪一步显示哪一步任务，绝不提前罗列未执行(pending)任务
+stateRunning.timelineNodes.push({
+  nodeId: 'future-node-pending',
+  type: 'result',
+  title: '整理任务结果与生成交付物',
+  status: 'pending',
+  summary: '未执行的未来占位任务'
+});
+const htmlStepByStep = P.renderExecutionTimelineHtml(stateRunning);
+assert.ok(!htmlStepByStep.includes('整理任务结果与生成交付物'), '执行过程中严禁提前罗列未来未开始(pending)的任务');
+assert.ok(!htmlStepByStep.includes('未执行的未来占位任务'), '执行过程中不显示未到达步骤摘要');
+assert.match(htmlStepByStep, /能力调用中 astock-data-feed/, '必须仅显示最新正在执行的任务与已完成任务');
+
 // 异常测试
 const stateError = P.createResponseState('test-err-1');
 stateError.status = 'failed';
@@ -78,7 +100,7 @@ assert.match(htmlError, /has-error|error-mode/, '执行异常时整体卡片必�
 assert.match(htmlError, /执行遇到问题/, '异常时顶部折叠头必须显示【执行遇到问题】');
 assert.match(htmlError, /能力调用失败 exec_command/, '步骤标题必须显示红色调用失败');
 assert.match(htmlError, /COMMAND_DENIED/, '必须呈现具体错误原因');
-console.log('✅ PASS [Req 2]: 展开步骤、working... 动效与错误红色高亮警示均符合规范');
+console.log('✅ PASS [Req 2]: 展开步骤、圆圈深色进度、working... 三点动效与按步执行显示均符合规范');
 
 // Req 3: 步骤执行完成收起，支持手动展开能力结果抽屉，异常折叠重点标记
 const stateWithResult = P.createResponseState('test-res-1');
@@ -165,11 +187,17 @@ for (const fnName of [
   'openDeliverableInWorkbench',
   'closeDeliverablePane',
   'copyDeliverableContent',
-  'focusActiveSession'
+  'focusActiveSession',
+  'scrollToLatestExecution'
 ]) {
   assert.ok(appSource.includes(`function ${fnName}`), `app.js 必须包含 ${fnName} 方法`);
   assert.ok(appSource.includes(`window.${fnName} = ${fnName}`), `app.js 必须将 ${fnName} 挂载至 window`);
 }
+
+// 自动滚动到最新位置断言 (Auto-scroll to latest execution position)
+assert.ok(cssSource.includes('scroll-behavior: smooth;'), '聊天主容器 CSS 需支持平滑滚动');
+assert.ok(appSource.includes("scrollToLatestExecution(msgId, { smooth: true })"), '执行事件推进时需调用平滑自动滚动到最新位置');
+assert.ok(appSource.includes("scrollIntoView"), '最新任务执行项需通过 scrollIntoView 保证可见性');
 
 // Req 7: 按钮状态联动断言
 assert.ok(appSource.includes("btnSend.classList.add('btn-cancelling')"), '执行中提交按钮需切换为取消样式');
@@ -179,6 +207,6 @@ assert.ok(appSource.includes("btn.classList.add('btn-disabled')"), '执行中工
 // Req 8: 后台运行断言
 assert.ok(appSource.includes("bgInd.style.display = 'inline-flex'"), '切换菜单时需点亮后台执行提示');
 
-console.log('✅ PASS [app.js Contract]: 8 项业务控制器与生命周期调度均正常就绪');
+console.log('✅ PASS [app.js Contract]: 8 项业务控制器、自动滚动到最新位置与生命周期调度均正常就绪');
 
 console.log('\n🎉 所有 8 项【会话任务执行过程 UI 与交互设计】自动化断言 100% 全部通过！');

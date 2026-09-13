@@ -627,6 +627,7 @@ h1, h2, h3, h4 {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+  scroll-behavior: smooth;
   overscroll-behavior: contain;
   overscroll-behavior-y: contain;
   display: flex;
@@ -9192,36 +9193,115 @@ input:checked + .switch-slider:before {
   font-size: 9px;
 }
 
-/* 5. Working Animation Indicator (Requirement 2) */
+/* 5. Working Animation Indicator with Progress Ring & Ellipsis Animation (Requirement 1 & 2) */
 .timeline-working-indicator {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 4px 2px 19px;
+  gap: 6px;
+  padding: 4px 4px 3px 19px;
   color: #1677FF;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.2;
+  user-select: none;
 }
 
+.working-progress-circle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.working-progress-svg {
+  display: block;
+  width: 13px;
+  height: 13px;
+  transform: rotate(0deg);
+}
+
+.working-ring-track {
+  stroke: rgba(22, 119, 255, 0.18);
+  transition: stroke 0.3s ease;
+}
+
+.working-ring-fill {
+  stroke: #1677FF;
+  transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+}
+
+/* 兼容 .working-spinner-ring 样式类名 */
 .working-spinner-ring {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border: 1.5px solid rgba(22, 119, 255, 0.25);
-  border-top-color: #1677FF;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  width: 13px;
+  height: 13px;
 }
 
 .working-text {
-  letter-spacing: 0.3px;
-  animation: pulseText 1.6s ease-in-out infinite;
+  display: inline-flex;
+  align-items: baseline;
+  letter-spacing: 0.2px;
+  color: #1677FF;
+  font-size: 11px;
+  font-weight: 500;
 }
 
-@keyframes pulseText {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+.working-dots {
+  display: inline-flex;
+  align-items: baseline;
+  margin-left: 0.5px;
+}
+
+.working-dot {
+  display: inline-block;
+  opacity: 0.2;
+  transform: translateY(0);
+  animation: workingDotBounce 1.2s infinite ease-in-out both;
+}
+
+.working-dot.dot-1 {
+  animation-delay: 0s;
+}
+
+.working-dot.dot-2 {
+  animation-delay: 0.2s;
+}
+
+.working-dot.dot-3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes workingDotBounce {
+  0%, 80%, 100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+[data-theme="dark"] .timeline-working-indicator {
+  color: #38BDF8;
+}
+
+[data-theme="dark"] .working-ring-track {
+  stroke: rgba(56, 189, 248, 0.2);
+}
+
+[data-theme="dark"] .working-ring-fill {
+  stroke: #38BDF8;
+}
+
+[data-theme="dark"] .working-text {
+  color: #38BDF8;
 }
 
 /* ==========================================================================
