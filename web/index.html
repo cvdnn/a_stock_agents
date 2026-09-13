@@ -348,19 +348,44 @@
           <span class="workbench-header-tag" id="workbenchHeaderTag">系统算法与功能导引</span>
         </div>
         <div class="workbench-header-actions" id="workbenchHeaderActions">
-          <button class="btn-workbench-action" id="btnWorkbenchGuide" onclick="loadUserGuideToWorkbench()" title="切回【用户操作指南】">
-            <span class="action-icon">📖</span>
-            <span class="action-text">操作指南</span>
+          <!-- 1. 预览/源码 切换器 -->
+          <div class="workspace-view-switcher" id="workspaceViewSwitcher">
+            <button type="button" class="btn-doc-meta-action active" id="btnWorkspaceViewPreview" onclick="switchWorkspaceViewMode('preview')" title="切换到渲染视图">
+              <span class="meta-action-icon">👁️</span>
+              <span class="meta-action-text">预览</span>
+            </button>
+            <button type="button" class="btn-doc-meta-action" id="btnWorkspaceViewSource" onclick="switchWorkspaceViewMode('source')" title="切换到源码视图">
+              <span class="meta-action-icon">📄</span>
+              <span class="meta-action-text">源码</span>
+            </button>
+          </div>
+
+          <!-- 2. 目录导航 -->
+          <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnWorkspaceToggleToc" onclick="toggleWorkspaceToc()" title="展开/收起目录导航">
+            <span class="meta-action-icon">📑</span>
+            <span class="meta-action-text">目录导航</span>
           </button>
-          <button class="btn-workbench-action" id="btnWorkbenchCopy" onclick="copyCurrentWorkbenchMarkdown()" title="复制当前 Markdown 内容">
-            <span class="action-icon">📋</span>
-            <span class="action-text">复制内容</span>
+
+          <!-- 3. 复制代码 -->
+          <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnDocMetaCopy" onclick="copyCurrentWorkbenchMarkdown()" title="复制当前文档内容">
+            <span class="meta-action-icon">📋</span>
+            <span class="meta-action-text">复制代码</span>
           </button>
-          <button class="btn-collapse-workbench" id="btnCollapseWorkbench" onclick="toggleWorkbenchCollapse()" title="收起工作台">
+
+          <!-- 4. 独立窗口 (HTML展示，Markdown隐藏) -->
+          <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnWorkspaceOpenExternal" onclick="openWorkspaceDocInNewWindow()" title="在新窗口独立打开" style="display: none;">
+            <span class="meta-action-icon">↗</span>
+            <span class="meta-action-text">独立窗口</span>
+          </button>
+
+          <!-- 5. 收起 -->
+          <button type="button" class="btn-collapse-workbench" id="btnCollapseWorkbench" onclick="toggleWorkbenchCollapse()" title="收起工作台">
             <span class="collapse-text">收起</span>
             <span class="collapse-icon">▶</span>
           </button>
-          <button class="btn-copilot-launcher" id="btnCopilotLauncher" onclick="toggleCopilot()" title="展开AI助手">
+
+          <!-- 隐藏保留AI助手launcher（非居中模式切换备用） -->
+          <button type="button" class="btn-copilot-launcher" id="btnCopilotLauncher" onclick="toggleCopilot()" title="展开AI助手" style="display: none;">
             <span class="copilot-btn-icon">🤖</span>
             <span class="copilot-btn-label">AI助手</span>
             <span class="copilot-btn-arrow">◀</span>
@@ -394,38 +419,13 @@
         <!-- View Pane 1: 投研助手综合工作区 (沉浸式 Markdown & HTML 综合视窗) -->
         <div class="right-pane active" id="pane-dashboard">
           <div class="workspace-markdown-wrapper workspace-doc-wrapper" id="workspaceMarkdownWrapper">
-            <!-- 顶部文档元信息栏 -->
+            <!-- 顶部文档元信息栏：纯净单行，【HTML】与【任务交付物】对换，已移除下方操作按钮行 -->
             <div class="workspace-doc-meta-bar" id="workspaceDocMetaBar">
               <div class="doc-meta-left">
-                <span class="doc-status-badge" id="docStatusBadge">📌 系统内置</span>
-                <span class="doc-filename-text" id="docFilenameText">USER_GUIDE.md</span>
                 <span class="doc-format-badge format-md" id="docFormatBadge">MARKDOWN</span>
+                <span class="doc-filename-text" id="docFilenameText">USER_GUIDE.md</span>
+                <span class="doc-status-badge" id="docStatusBadge">📌 系统内置</span>
                 <span class="doc-updated-time" id="docUpdatedTime">2026-09-13 实战就绪</span>
-              </div>
-              <div class="doc-meta-right">
-                <div class="workspace-view-switcher" id="workspaceViewSwitcher">
-                  <button type="button" class="btn-doc-meta-action active" id="btnWorkspaceViewPreview" onclick="switchWorkspaceViewMode('preview')" title="切换到渲染视图">
-                    <span class="meta-action-icon">👁️</span>
-                    <span class="meta-action-text">预览</span>
-                  </button>
-                  <button type="button" class="btn-doc-meta-action" id="btnWorkspaceViewSource" onclick="switchWorkspaceViewMode('source')" title="切换到源码视图">
-                    <span class="meta-action-icon">📄</span>
-                    <span class="meta-action-text">源码</span>
-                  </button>
-                </div>
-                <button type="button" class="btn-doc-meta-action" id="btnWorkspaceOpenExternal" onclick="openWorkspaceDocInNewWindow()" title="在新窗口独立打开" style="display: none;">
-                  <span class="meta-action-icon">↗</span>
-                  <span class="meta-action-text">独立窗口</span>
-                </button>
-                <button type="button" class="btn-doc-meta-action" id="btnWorkspaceToggleToc" onclick="toggleWorkspaceToc()" title="展开/收起目录导航">
-                  <span class="meta-action-icon">📑</span>
-                  <span class="meta-action-text">目录导航</span>
-                </button>
-                <button type="button" class="btn-doc-meta-action" id="btnDocMetaCopy" onclick="copyCurrentWorkbenchMarkdown()" title="复制当前文档内容">
-                  <span class="meta-action-icon">📋</span>
-                  <span class="meta-action-text">复制代码</span>
-                </button>
-                <span class="doc-badge-pill" id="docTypeBadge">操作指南</span>
               </div>
             </div>
 

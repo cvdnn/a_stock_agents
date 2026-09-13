@@ -23,11 +23,26 @@ assert(indexHtml.includes('id="docFormatBadge"'), 'index.html 必须包含格式
 assert(indexHtml.includes('id="workspaceViewSwitcher"'), 'index.html 必须包含视图模式切换器 (workspaceViewSwitcher)');
 assert(indexHtml.includes('id="btnWorkspaceViewPreview"'), 'index.html 必须包含预览视图切换按钮');
 assert(indexHtml.includes('id="btnWorkspaceViewSource"'), 'index.html 必须包含源码视图切换按钮');
+assert(indexHtml.includes('id="btnWorkspaceToggleToc"'), 'index.html 必须包含目录导航按钮 (btnWorkspaceToggleToc)');
+assert(indexHtml.includes('id="btnDocMetaCopy"'), 'index.html 必须包含复制代码按钮 (btnDocMetaCopy)');
 assert(indexHtml.includes('id="btnWorkspaceOpenExternal"'), 'index.html 必须包含独立窗口打开按钮');
+assert(indexHtml.includes('id="btnCollapseWorkbench"'), 'index.html 必须包含收起工作台按钮');
+assert(!indexHtml.includes('id="btnWorkbenchGuide"'), 'index.html 必须删除操作指南按钮以保持 title 栏精简');
+
+// 验证 title 栏按钮排序：预览/源码、目录导航、复制代码、独立窗口、收起
+const pSwitcher = indexHtml.indexOf('id="workspaceViewSwitcher"');
+const pToc = indexHtml.indexOf('id="btnWorkspaceToggleToc"');
+const pCopy = indexHtml.indexOf('id="btnDocMetaCopy"');
+const pExt = indexHtml.indexOf('id="btnWorkspaceOpenExternal"');
+const pCollapse = indexHtml.indexOf('id="btnCollapseWorkbench"');
+assert(pSwitcher < pToc && pToc < pCopy && pCopy < pExt && pExt < pCollapse, 'title栏按钮排序必须严格为：预览/源码、目录导航、复制代码、独立窗口、收起');
+
+// 验证【任务交付物】与【HTML】按钮对换（HTML在前，任务交付物在后）
+const pFormat = indexHtml.indexOf('id="docFormatBadge"');
+const pStatus = indexHtml.indexOf('id="docStatusBadge"');
+assert(pFormat < pStatus, 'workspaceDocMetaBar 中【HTML】徽章必须置于【任务交付物】徽章之前');
 assert(indexHtml.includes('id="workspaceDocToc"'), 'index.html 必须包含目录导航侧栏');
-assert(indexHtml.includes('id="btnWorkbenchGuide"'), 'index.html 必须包含切回操作指南按钮');
-assert(indexHtml.includes('id="btnWorkbenchCopy"'), 'index.html 必须包含复制内容按钮');
-console.log('✅ PASS [需求 1]: web/index.html 包含完整的 Markdown、HTML iframe 沙箱、源码容器及工具组件');
+console.log('✅ PASS [需求 1]: web/index.html title栏按钮规范排序、删除多余按钮并完成格式徽章对换');
 
 // 2. 静态样式断言：web/css/style.css
 console.log('\n--- 2. 工作区双格式与沙箱 iframe 样式断言 ---');

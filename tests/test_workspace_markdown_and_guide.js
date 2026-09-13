@@ -33,8 +33,11 @@ assert(indexHtml.includes('id="workspaceMarkdownWrapper"'), 'index.html 中必�
 assert(indexHtml.includes('id="workspaceDocMetaBar"'), 'index.html 中必须包含文档元信息栏');
 assert(indexHtml.includes('id="workspaceMarkdownBody"'), 'index.html 中必须包含 Markdown 渲染容器');
 assert(indexHtml.includes('id="workspaceDocToc"'), 'index.html 中必须包含目录导航侧栏');
-assert(indexHtml.includes('id="btnWorkbenchGuide"'), 'index.html 中必须包含切回操作指南按钮');
-assert(indexHtml.includes('id="btnWorkbenchCopy"'), 'index.html 中必须包含复制 Markdown 内容按钮');
+assert(indexHtml.includes('id="workspaceViewSwitcher"'), 'index.html 中必须包含视图模式切换器');
+assert(indexHtml.includes('id="btnWorkspaceToggleToc"'), 'index.html 中必须包含目录导航按钮');
+assert(indexHtml.includes('id="btnDocMetaCopy"'), 'index.html 中必须包含复制代码按钮');
+assert(indexHtml.includes('id="btnWorkspaceOpenExternal"'), 'index.html 中必须包含独立窗口打开按钮');
+assert(indexHtml.includes('id="btnCollapseWorkbench"'), 'index.html 中必须包含收起工作台按钮');
 
 assert(styleCss.includes('.workspace-markdown-wrapper'), 'style.css 中必须包含 .workspace-markdown-wrapper 样式');
 assert(styleCss.includes('.workspace-doc-meta-bar'), 'style.css 中必须包含 .workspace-doc-meta-bar 样式');
