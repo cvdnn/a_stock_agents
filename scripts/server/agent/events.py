@@ -22,6 +22,7 @@ class ConversationStartEvent(AgentEvent):
     event_type: Literal["conversation_start"] = "conversation_start"
     session_id: str
     model: str
+    title: Optional[str] = None
 
 
 class ThoughtEvent(AgentEvent):

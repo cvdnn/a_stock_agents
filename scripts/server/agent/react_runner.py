@@ -30,8 +30,9 @@ from server.agent.tools import (
     execute_tool,
     extract_risk_card,
 )
+from server.agent.memory import SessionMemoryManager
 from server.config import server_settings
-from server.db import add_message, create_session, get_messages, get_session, update_session_model
+from server.db import add_message, create_session, get_messages, get_session, update_session_model, update_session_title
 from server.llm.factory import LLMProviderFactory
 from server.llm.errors import LLMReadinessError
 from server.llm.readiness import classify_provider_error
@@ -215,27 +216,46 @@ class AgentReActRunner:
 
         selected_model = provider.model_name
 
-        # 1. Resolve or create session
+        # 1. Resolve or create session and dynamically refine title
         sid = session_id
+        session_title = None
         if sid:
             sess = get_session(sid)
             if not sess:
-                sess = create_session(session_id=sid, title=message[:20], model=selected_model)
-            elif sess.get("model") != selected_model and selected_model:
-                try:
-                    update_session_model(session_id=sid, model=selected_model)
-                except Exception:
-                    pass
+                extracted_title = SessionMemoryManager.extract_session_title(message)
+                sess = create_session(session_id=sid, title=extracted_title, model=selected_model)
+                session_title = extracted_title
+            else:
+                curr_title = sess.get("title", "")
+                if (
+                    not curr_title
+                    or curr_title.startswith("新建投研对话")
+                    or curr_title.startswith("新投研对话")
+                    or curr_title.startswith("会话 sess_")
+                    or curr_title.startswith("会话 ")
+                ):
+                    refined_title = SessionMemoryManager.extract_session_title(message)
+                    update_session_title(sid, refined_title)
+                    session_title = refined_title
+                else:
+                    session_title = curr_title
+
+                if sess.get("model") != selected_model and selected_model:
+                    try:
+                        update_session_model(session_id=sid, model=selected_model)
+                    except Exception:
+                        pass
         else:
-            title = message[:25] + ("..." if len(message) > 25 else "")
-            sess = create_session(title=title, model=selected_model)
+            extracted_title = SessionMemoryManager.extract_session_title(message)
+            sess = create_session(title=extracted_title, model=selected_model)
             sid = sess["session_id"]
+            session_title = extracted_title
 
         # 2. Record User message in database
         add_message(session_id=sid, role="user", content=message)
 
-        # 3. Emit conversation_start event
-        yield ConversationStartEvent(session_id=sid, model=selected_model)
+        # 3. Emit conversation_start event with session title
+        yield ConversationStartEvent(session_id=sid, model=selected_model, title=session_title)
 
         try:
             # 4. Prepare message history for LLM with state machine sanitization
@@ -245,8 +265,14 @@ class AgentReActRunner:
             if not clean_history or clean_history[-1].get("role") != "user" or clean_history[-1].get("content") != message:
                 clean_history.append({"role": "user", "content": message})
 
+            # Retrieve structured session memories to inject into system prompt
+            memory_block = SessionMemoryManager.get_memory_context_for_llm(sid)
+            system_content = AGENT_SYSTEM_PROMPT
+            if memory_block:
+                system_content = f"{system_content}\n\n{memory_block}"
+
             llm_messages: List[Dict[str, Any]] = [
-                {"role": "system", "content": AGENT_SYSTEM_PROMPT}
+                {"role": "system", "content": system_content}
             ] + clean_history
 
             total_tokens = 0
@@ -435,7 +461,9 @@ class AgentReActRunner:
                     )
 
                     # Execute tool via executor
+                    tool_start_time = time.time()
                     tool_res = await execute_tool(fn_name, args if isinstance(args, dict) else {})
+                    tool_elapsed_ms = int((time.time() - tool_start_time) * 1000)
 
                     status = tool_res.get("status", "error") if isinstance(tool_res, dict) else "error"
                     if status != "success":
@@ -491,6 +519,17 @@ class AgentReActRunner:
                         status=status,
                         summary=summary,
                         data=tool_res if isinstance(tool_res, dict) else None,
+                    )
+
+                    # Record completed task execution result into Session Memory
+                    SessionMemoryManager.record_task_result(
+                        session_id=sid,
+                        tool_name=fn_name,
+                        args=args if isinstance(args, dict) else {},
+                        status=status,
+                        summary=summary,
+                        data=tool_res if isinstance(tool_res, dict) else None,
+                        elapsed_ms=tool_elapsed_ms,
                     )
 
                     # Store tool execution in DB

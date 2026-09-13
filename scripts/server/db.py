@@ -70,6 +70,21 @@ def _init_schemas(conn: sqlite3.Connection) -> None:
             CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, id);
         """)
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS session_memories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                memory_type TEXT NOT NULL,
+                key TEXT,
+                content TEXT NOT NULL,
+                meta_json TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+            );
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_memories_session ON session_memories(session_id, memory_type, id);
+        """)
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS skill_audit_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 skill_id TEXT NOT NULL,
@@ -134,6 +149,81 @@ def _init_schemas(conn: sqlite3.Connection) -> None:
                 updated_at TEXT NOT NULL
             );
         """)
+        _seed_initial_sessions(conn)
+
+
+def _seed_initial_sessions(conn: sqlite3.Connection) -> None:
+    """Pre-seed classic high-quality research sessions if database is empty."""
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM sessions;")
+        row = cur.fetchone()
+        if row and row[0] > 0:
+            return
+
+        now = _get_utc_now_iso()
+        seeds = [
+            {
+                "id": "s1",
+                "title": "A股大盘反弹持续性与放量研判",
+                "user_prompt": "结合今日两市放量动能与板块轮动，深度研判上证指数与创业板反弹持续性。",
+                "assistant_response": "### 📈 A股大盘行情与反弹持续性综合研判\n\n- **两市量能**：今日全市场放量成交明显，主力资金在核心成长与金融防守板块呈现净回流态势；\n- **均线与形态**：上证指数站稳 20 日均线生命线，MACD 出现零轴上方金叉共振；\n- **主线轮动**：半导体算力链与高股息红利板块形成防守反击双主线；\n- **风控纪律**：按工作区实战铁律严格执行 T0(-3%)/T1(-5%)/T2(-8%) 三级止损，避免盲目追高连板高标。",
+                "memory": "大盘放量突破20日均线，多空辩论决议看多，主线聚焦半导体算力与红利防守。",
+                "key": "astock-data-feed",
+            },
+            {
+                "id": "s2",
+                "title": "宁德时代300750资金面与底背离诊断",
+                "user_prompt": "帮我诊断宁德时代 300750 的资金面、主力控盘度及日K线水下二次金叉或底背离形态。",
+                "assistant_response": "### 🔋 宁德时代 (300750) 深度量化研报\n\n- **技术形态**：日K级别在零轴下方形成标准的 **MACD 底背离 + 二次金叉** 经典双底结构，空头动能衰竭；\n- **资金与筹码**：主力控盘集中度提升至 72.4%，下方 180~185 元支撑平台构筑坚实密集成交区；\n- **量化评分**：综合 5A 量价与基本面评分 **86.5 分**，具备波段试错条件；\n- **实战动作**：建议在回踩 5 日均线附近分批挂单试错，跌破支撑位即刻启动防守对冲。",
+                "memory": "宁德时代(300750): 现价 192.50, 量化总分 86.5分, 确认日K底背离金叉共振。",
+                "key": "astock-strategy-macd",
+            },
+            {
+                "id": "s3",
+                "title": "5A多因子量化选股与主线轮动模型",
+                "user_prompt": "运行 5A 五维共振多因子选股流水线，筛选全市场高夏普比率、低波动且主线动量靠前的标的。",
+                "assistant_response": "### 🎯 5A 多因子全市场选股初选结果\n\n经过量价、基本面、估值、资金与主线 5 维正交因子计算与 MAD 去极值：\n1. **比亚迪 (002594)**：总分 91.2 分（主线新能源龙头，出海动量强劲）\n2. **海光信息 (688041)**：总分 88.6 分（国产算力主力深度介入）\n3. **长江电力 (600900)**：总分 87.8 分（高股息红利防御基石）\n4. **中芯国际 (688981)**：总分 86.0 分（半导体晶圆制造自主可控）\n\n已完成样本外滚动回测与目标波动率仓位分配测算。",
+                "memory": "5A多因子选股完成，初选入围 4 只核心标的(比亚迪/海光信息/长江电力/中芯国际)。",
+                "key": "astock-screener-5a",
+            },
+            {
+                "id": "s4",
+                "title": "半导体与CPO算力链短线买点筛查",
+                "user_prompt": "梳理今日半导体与 CPO 光模块板块的短线异动，寻找符合退哥短线规则的回踩买点。",
+                "assistant_response": "### ⚡ 半导体与算力链短线战法筛查\n\n- **中际旭创 (300308)**：放量突破前高平台后缩量回踩 5 日线，符合龙头首阴与趋势回踩战法；\n- **寒武纪 (688256)**：日内分时承接有力，主力大单净流入显著；\n- **交易纪律**：短线接力仓位控制在 20% 以内，若盘中跌破开盘价立即按 T0 警戒线观望。",
+                "memory": "算力CPO板块筛查完成，中际旭创(300308)符合趋势回踩买点。",
+                "key": "astock-strategy-tuige",
+            },
+            {
+                "id": "s5",
+                "title": "水下二次金叉战法验证与保本价精算",
+                "user_prompt": "精算贵州茅台 600519 买入成本 1500 元、100 股的最低税费保本卖出价与三级风控阶梯。",
+                "assistant_response": "### 🛡️ 贵州茅台 (600519) 精确保本价与三级止损动作单\n\n严格执行工作区 `AGENTS.md` 铁律，印花税 0.05%、佣金万2.5（最低5元）、过户费，全部向上进位至分位（`math.ceil`）：\n- **买入成本**：¥1,500.00 (共 100 股，本金 ¥150,000.00)\n- **最低保本卖出价**：**¥1,501.16**\n- **三级风控止损阶梯**：\n  - **T0 警戒线 (-3%)**：¥1,455.00（准备对冲防守）\n  - **T1 减仓线 (-5%)**：¥1,425.00（无条件减仓 50%）\n  - **T2 绝杀线 (-8%)**：¥1,380.00（坚决清仓止损出局）",
+                "memory": "贵州茅台(600519): 买入成本 1500.00, 最低保本卖出价 1501.16, 止损T0 1455.00。",
+                "key": "astock-action-execution",
+            },
+        ]
+
+        for s in seeds:
+            conn.execute(
+                "INSERT OR IGNORE INTO sessions (session_id, title, model, created_at, updated_at, meta_json) VALUES (?, ?, ?, ?, ?, ?)",
+                (s["id"], s["title"], "deepseek-chat", now, now, json.dumps({"tab": "dashboard"})),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+                (s["id"], "user", s["user_prompt"], now),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+                (s["id"], "assistant", s["assistant_response"], now),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO session_memories (session_id, memory_type, key, content, meta_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (s["id"], "task_result", s["key"], s["memory"], json.dumps({"status": "success"}), now),
+            )
+    except Exception:
+        pass
 
 
 
@@ -395,6 +485,115 @@ def get_messages(
                 "created_at": r["created_at"],
             })
         return msgs
+    finally:
+        conn.close()
+
+
+# ── Session Memory Persistence ───────────────────────────────────────────────
+
+def add_session_memory(
+    session_id: str,
+    memory_type: str,
+    content: str,
+    key: Optional[str] = None,
+    meta: Optional[Dict[str, Any]] = None,
+    db_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Store an atomic session memory record (task result, entity preference, conversation fact)."""
+    now = _get_utc_now_iso()
+    meta_dict = meta or {}
+    meta_json = json.dumps(meta_dict, ensure_ascii=False)
+
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.execute(
+                """
+                INSERT INTO session_memories (session_id, memory_type, key, content, meta_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (session_id, memory_type, key, content, meta_json, now),
+            )
+            memory_id = cur.lastrowid
+            # Also touch the session's updated_at timestamp
+            conn.execute(
+                "UPDATE sessions SET updated_at = ? WHERE session_id = ?",
+                (now, session_id),
+            )
+    finally:
+        conn.close()
+
+    return {
+        "id": memory_id,
+        "session_id": session_id,
+        "memory_type": memory_type,
+        "key": key,
+        "content": content,
+        "meta": meta_dict,
+        "created_at": now,
+    }
+
+
+def get_session_memories(
+    session_id: str,
+    memory_type: Optional[str] = None,
+    limit: int = 100,
+    db_path: Optional[Path] = None,
+) -> List[Dict[str, Any]]:
+    """Retrieve structured memory records for a session, ordered chronologically."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        if memory_type:
+            cur.execute(
+                """
+                SELECT * FROM session_memories
+                WHERE session_id = ? AND memory_type = ?
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (session_id, memory_type, limit),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT * FROM session_memories
+                WHERE session_id = ?
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (session_id, limit),
+            )
+        rows = cur.fetchall()
+        memories = []
+        for r in rows:
+            meta = {}
+            if r["meta_json"]:
+                try:
+                    meta = json.loads(r["meta_json"])
+                except Exception:
+                    meta = {}
+            memories.append({
+                "id": r["id"],
+                "session_id": r["session_id"],
+                "memory_type": r["memory_type"],
+                "key": r["key"],
+                "content": r["content"],
+                "meta": meta,
+                "created_at": r["created_at"],
+            })
+        return memories
+    finally:
+        conn.close()
+
+
+def delete_session_memories(session_id: str, db_path: Optional[Path] = None) -> int:
+    """Delete all memories associated with a session."""
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.execute("DELETE FROM session_memories WHERE session_id = ?", (session_id,))
+            return cur.rowcount
     finally:
         conn.close()
 

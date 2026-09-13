@@ -2,7 +2,9 @@
 /** Strict browser transport. Production data comes only from backend responses. */
 
 const AStockAPI = {
-  baseUrl: '',
+  baseUrl: (typeof window !== 'undefined' && window.location && window.location.port && window.location.port !== '6300' && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'))
+    ? 'http://127.0.0.1:6300'
+    : '',
 
   async _fetchJSON(endpoint, options = {}) {
     const resp = await fetch(this.baseUrl + endpoint, {
@@ -55,6 +57,17 @@ const AStockAPI = {
     const payload = { title, meta };
     if (model) payload.model = model;
     return this._fetchJSON('/api/chat/sessions', { method: 'POST', body: JSON.stringify(payload) });
+  },
+
+  getSession(sessionId) {
+    return this._fetchJSON(`/api/chat/sessions/${encodeURIComponent(sessionId)}`);
+  },
+
+  updateSessionTitle(sessionId, title) {
+    return this._fetchJSON(`/api/chat/sessions/${encodeURIComponent(sessionId)}/title`, {
+      method: 'PUT',
+      body: JSON.stringify({ title })
+    });
   },
 
   deleteSession(sessionId) {

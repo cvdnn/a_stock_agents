@@ -41,9 +41,24 @@ class MessageItem(BaseModel):
     created_at: str = ""
 
 
+class SessionTitleUpdateRequest(BaseModel):
+    title: str = Field(..., description="New title for the session")
+
+
+class SessionMemoryItem(BaseModel):
+    id: int
+    session_id: str
+    memory_type: str
+    key: Optional[str] = None
+    content: str
+    meta: Dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+
+
 class SessionDetailResponse(BaseModel):
     session: SessionResponse
     messages: List[MessageItem]
+    memories: List[SessionMemoryItem] = Field(default_factory=list)
 
 
 class ChatMessageRequest(BaseModel):
