@@ -12,6 +12,14 @@
     return /^(https?:|mailto:)/i.test(value) ? value : null;
   }
 
+  function isMarkdownFileLink(url) {
+    var val = String(url || '').trim().toLowerCase();
+    if (!val) return false;
+    if (val.indexOf('file://') === 0) val = val.slice(7);
+    val = val.split('?')[0].split('#')[0];
+    return /\.md$/i.test(val) || /\.markdown$/i.test(val);
+  }
+
   function isMarkdownPunctuation(value) {
     var code = String(value || '').charCodeAt(0);
     return (code >= 33 && code <= 47) || (code >= 58 && code <= 64) || (code >= 91 && code <= 96) || (code >= 123 && code <= 126);
@@ -98,8 +106,14 @@
             var label = inline(text.slice(labelStart, labelEnd), depth + 1);
             if (image) out += label;
             else {
-              var safe = safeUrl(target.url);
-              out += safe ? '<a href="' + escapeHtml(safe) + '"' + (target.title == null ? '' : ' title="' + escapeHtml(target.title) + '"') + ' target="_blank" rel="noopener noreferrer">' + label + '</a>' : label;
+              var rawLabel = text.slice(labelStart, labelEnd);
+              if (isMarkdownFileLink(target.url) || isMarkdownFileLink(rawLabel)) {
+                var targetPath = isMarkdownFileLink(target.url) ? target.url : rawLabel;
+                out += '<a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\')" title="在工作区打开 Markdown 文档"><span class="chip-icon">📄</span> <span class="chip-title">' + label + '</span> <span class="chip-arrow">↗</span></a>';
+              } else {
+                var safe = safeUrl(target.url);
+                out += safe ? '<a href="' + escapeHtml(safe) + '"' + (target.title == null ? '' : ' title="' + escapeHtml(target.title) + '"') + ' target="_blank" rel="noopener noreferrer">' + label + '</a>' : label;
+              }
             }
             i = target.end; continue;
           }
@@ -184,6 +198,12 @@
         var href = (typeof token === 'object' && token !== null ? token.href : token) || '';
         var title = (typeof token === 'object' && token !== null ? token.title : arguments[1]) || '';
         var text = (typeof token === 'object' && token !== null ? token.text : arguments[2]) || href;
+        if (isMarkdownFileLink(href) || isMarkdownFileLink(text)) {
+          var targetPath = isMarkdownFileLink(href) ? href : text;
+          return '<a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\')" title="在工作区打开 Markdown 文档">' +
+            '<span class="chip-icon">📄</span> <span class="chip-title">' + text + '</span> <span class="chip-arrow">↗</span>' +
+          '</a>';
+        }
         var safe = safeUrl(href);
         if (!safe) return escapeHtml(text);
         return '<a href="' + escapeHtml(safe) + '"' + (title ? ' title="' + escapeHtml(title) + '"' : '') + ' target="_blank" rel="noopener noreferrer">' + text + '</a>';
@@ -338,6 +358,73 @@
     lines.forEach(function (line) { if (/^\s*```/.test(line)) { inFence = !inFence; return; } if (inFence) return; var h = line.match(/^\s*#{1,6}\s+(.+)/), clean = stripMarkdown(line); if (h) { active = wanted.test(stripMarkdown(h[1])); return; } if (clean) { if (active) candidates.push(clean); else fallback.push(clean); } });
     var valid = function (x) { return x && !/^[-| ]+$/.test(x); }, preferred = candidates.filter(valid), result = [], seen = new Set(); (preferred.length ? preferred : fallback.filter(valid)).forEach(function (x) { x = x.slice(0, 120); if (!seen.has(x) && result.length < limit) { seen.add(x); result.push(x); } }); return result.slice(0, Math.min(limit, 5));
   }
+
+  // 格式化对话框任务结果摘要：实质性保留核心结论、指标打分与实战三原则，杜绝过度缩减，末尾附完整研报工作区直达卡片
+  function formatChatDialogueSummary(markdown, options) {
+    options = options || {};
+    var rawText = cleanMarkdownContent(markdown || '');
+    if (!rawText) return '<span style="color:#86909C;">任务已执行完毕。</span>';
+
+    var deliverableFilename = options.deliverableFilename || '';
+    var summaryMarkdown = rawText;
+
+    // 当报告内容较长时，提取包含所有核心结论、量化指标打分、实战交易三原则及重点风控建议的实质性段落
+    if (rawText.length > 2000) {
+      var lines = rawText.split(/\r?\n/);
+      var selectedLines = [];
+      var currentSectionWanted = true;
+      var inFence = false;
+      var hasKeySectionFound = false;
+
+      var keySectionRegex = /(核心结论|结论|诊断|定性|多因子|量化评分|评分|关键指标|指标|实战|原则|保本|止损|动作|风控|建议|策略|复盘|研判|操作)/;
+      var verboseSectionRegex = /(原始数据|计算日志|接口抓取明细|完整时序特征表|回溯测试全量清单)/;
+
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (/^\s*```/.test(line)) {
+          inFence = !inFence;
+        }
+
+        var headerMatch = line.match(/^(\s*#{1,4}\s+)(.+)/);
+        if (headerMatch && !inFence) {
+          var headerText = headerMatch[2].trim();
+          if (verboseSectionRegex.test(headerText)) {
+            currentSectionWanted = false;
+          } else if (keySectionRegex.test(headerText)) {
+            currentSectionWanted = true;
+            hasKeySectionFound = true;
+          } else {
+            currentSectionWanted = true;
+          }
+        }
+
+        if (currentSectionWanted) {
+          selectedLines.push(line);
+        }
+      }
+
+      if (hasKeySectionFound && selectedLines.length >= 10) {
+        summaryMarkdown = selectedLines.join('\n').trim();
+      }
+    }
+
+    var renderedHtml = renderMarkdown(summaryMarkdown);
+
+    // 在对话框摘要底部附带完整报告工作区直达卡片
+    if (deliverableFilename) {
+      var bannerHtml = '<div class="dialogue-deliverable-banner" style="margin-top: 14px; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">' +
+        '<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1E293B;">' +
+        '  <span style="font-size: 16px;">📄</span>' +
+        '  <span><strong>完整详尽研报：</strong><a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(deliverableFilename) + '\')" title="在右侧工作区打开完整报告"><span class="chip-icon">📄</span> <span class="chip-title">' + escapeHtml(deliverableFilename) + '</span> <span class="chip-arrow">↗</span></a></span>' +
+        '</div>' +
+        '<button type="button" class="btn-workbench-direct" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(deliverableFilename) + '\')" style="padding: 4px 10px; font-size: 12px; background: #1677FF; color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">在工作区查看完整详报 ↗</button>' +
+        '</div>';
+      renderedHtml += bannerHtml;
+    }
+
+    return renderedHtml;
+  }
+
   function createResponseState(responseId) {
     var state = {
       responseId: String(responseId == null ? '' : responseId), status: 'streaming', fullMarkdown: '', summaryItems: [], timelineNodes: [],
@@ -841,6 +928,19 @@
     return state._maxProgress;
   }
 
+  function formatStepTextWithMdLinks(rawText) {
+    if (!rawText) return '';
+    var textStr = String(rawText);
+    if (textStr.indexOf('<a ') !== -1 || textStr.indexOf('class="chat-md-chip"') !== -1) {
+      return textStr;
+    }
+    var escaped = escapeHtml(textStr);
+    return escaped.replace(/(`?)([a-zA-Z0-9_\-/\\]+\.(?:md|markdown))\1/gi, function (match, quote, fn) {
+      var cleanFn = fn.split('/').pop().split('\\').pop();
+      return '<a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(fn) + '\')" title="在工作区打开文档"><span class="chip-icon">📄</span> <span class="chip-title">' + escapeHtml(cleanFn) + '</span> <span class="chip-arrow">↗</span></a>';
+    });
+  }
+
   function renderExecutionTimelineHtml(state, options) {
     if (!state) return '';
     options = options || {};
@@ -969,9 +1069,9 @@
       html += '  <div class="node-main-row">';
       html += '    <span class="node-icon">' + nodeIcon + '</span>';
       html += '    <div class="node-text-col">';
-      html += '      <div class="node-title' + (isNodeFailed ? ' text-failed' : '') + '">' + escapeHtml(nodeTitle) + '</div>';
+      html += '      <div class="node-title' + (isNodeFailed ? ' text-failed' : '') + '">' + formatStepTextWithMdLinks(nodeTitle) + '</div>';
       if (subInfo) {
-        html += '      <div class="node-subtext' + (isNodeFailed ? ' text-failed-sub' : '') + '">' + escapeHtml(subInfo) + '</div>';
+        html += '      <div class="node-subtext' + (isNodeFailed ? ' text-failed-sub' : '') + '">' + formatStepTextWithMdLinks(subInfo) + '</div>';
       }
       html += '    </div>';
 
@@ -1017,7 +1117,7 @@
             html += '      <div class="step-leaf-item" id="' + subCallId + '">';
             html += '        <div class="step-summary-bar">';
             html += '          <span class="step-bullet">' + itemIcon + '</span>';
-            html += '          <span class="step-title">' + escapeHtml(itemTitle) + '</span>';
+            html += '          <span class="step-title">' + formatStepTextWithMdLinks(itemTitle) + '</span>';
             html += '        </div>';
             if (itemObj.args && typeof itemObj.args === 'object' && Object.keys(itemObj.args).length > 0) {
               var argsStr = '';
@@ -1038,14 +1138,14 @@
             html += '      <div class="step-leaf-item">';
             html += '        <div class="step-summary-bar" onclick="window.toggleStepDetail && window.toggleStepDetail(\'' + escapeHtml(state.responseId) + '\', \'' + subId + '\')">';
             html += '          <span class="step-bullet">•</span>';
-            html += '          <span class="step-title">' + escapeHtml(subTitle) + '</span>';
+            html += '          <span class="step-title">' + formatStepTextWithMdLinks(subTitle) + '</span>';
             if (hasSubDetail) {
               html += '          <span class="step-chevron" id="arrow_' + subId + '">></span>';
             }
             html += '        </div>';
             if (hasSubDetail) {
               html += '        <div class="step-detail-text hidden" id="detail_' + subId + '">';
-              html += escapeHtml(sub.detail);
+              html += formatStepTextWithMdLinks(sub.detail);
               html += '        </div>';
             }
             html += '      </div>';
@@ -1055,7 +1155,7 @@
           html += '      <div class="step-leaf-item">';
           html += '        <div class="step-summary-bar">';
           html += '          <span class="step-bullet">•</span>';
-          html += '          <span class="step-title">' + escapeHtml(subInfo || '执行底层量化引擎计算') + '</span>';
+          html += '          <span class="step-title">' + formatStepTextWithMdLinks(subInfo || '执行底层量化引擎计算') + '</span>';
           html += '        </div>';
           html += '      </div>';
         }
@@ -1075,10 +1175,19 @@
           html += '      </div>';
         }
 
-        // Deliverable clickable link (Requirement 6) for branch nodes
-        if (n.deliverable && n.deliverable.filename) {
-          var fn = n.deliverable.filename;
-          html += '      <div class="node-deliverable-wrap" style="margin-left: 2px;">';
+        // Deliverable clickable link (Requirement 4 & 6) for branch nodes
+        var branchDeliverable = (n.deliverable && n.deliverable.filename) ? n.deliverable.filename : (
+          n.result && n.result.data && Array.isArray(n.result.data.deliverables) && n.result.data.deliverables[0] ? n.result.data.deliverables[0] : (
+            n.result && Array.isArray(n.result.deliverables) && n.result.deliverables[0] ? n.result.deliverables[0] : (
+              n.result && n.result.deliverable_file ? n.result.deliverable_file : (
+                n.result && n.result.report_file ? n.result.report_file : null
+              )
+            )
+          )
+        );
+        if (branchDeliverable) {
+          var fn = typeof branchDeliverable === 'string' ? branchDeliverable : (branchDeliverable.filename || branchDeliverable.name);
+          html += '      <div class="node-deliverable-wrap" style="margin-left: 2px; margin-top: 4px;">';
           html += '        <span class="deliverable-link-chip" onclick="window.openDeliverableInWorkbench && window.openDeliverableInWorkbench(\'' + escapeHtml(fn) + '\')" title="在右侧工作台打开文件">';
           html += '          📄 ' + escapeHtml(fn) + ' <span class="open-arrow">↗</span>';
           html += '        </span>';
@@ -1089,9 +1198,18 @@
         html += '  </div>'; // end timeline-branch-container
       }
 
-      // Deliverable clickable link (Requirement 6) for non-branch nodes
-      if (n.deliverable && n.deliverable.filename && !isBranchNode) {
-        var nonBranchFn = n.deliverable.filename;
+      // Deliverable clickable link (Requirement 4 & 6) for non-branch nodes
+      var nonBranchDeliverable = (n.deliverable && n.deliverable.filename) ? n.deliverable.filename : (
+        n.result && n.result.data && Array.isArray(n.result.data.deliverables) && n.result.data.deliverables[0] ? n.result.data.deliverables[0] : (
+          n.result && Array.isArray(n.result.deliverables) && n.result.deliverables[0] ? n.result.deliverables[0] : (
+            n.result && n.result.deliverable_file ? n.result.deliverable_file : (
+              n.result && n.result.report_file ? n.result.report_file : null
+            )
+          )
+        )
+      );
+      if (nonBranchDeliverable && !isBranchNode) {
+        var nonBranchFn = typeof nonBranchDeliverable === 'string' ? nonBranchDeliverable : (nonBranchDeliverable.filename || nonBranchDeliverable.name);
         html += '  <div class="node-deliverable-wrap" style="margin-top: 4px; margin-left: 19px;">';
         html += '    <span class="deliverable-link-chip" onclick="window.openDeliverableInWorkbench && window.openDeliverableInWorkbench(\'' + escapeHtml(nonBranchFn) + '\')" title="在右侧工作台打开文件">';
         html += '      📄 ' + escapeHtml(nonBranchFn) + ' <span class="open-arrow">↗</span>';
@@ -1129,6 +1247,8 @@
     cleanMarkdownContent: cleanMarkdownContent,
     renderMarkdown: renderMarkdown,
     summarizeMarkdown: summarizeMarkdown,
+    formatChatDialogueSummary: formatChatDialogueSummary,
+    formatStepTextWithMdLinks: formatStepTextWithMdLinks,
     redactSensitive: redactSensitive,
     presentError: presentError,
     createResponseState: createResponseState,

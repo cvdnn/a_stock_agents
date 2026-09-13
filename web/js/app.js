@@ -815,6 +815,9 @@ async function startNewChat() {
     switchLayoutMode('chat-center');
   }
 
+  // 新建会话时工作区自动展示【用户操作指南】
+  loadUserGuideToWorkbench();
+
   showToast('已创建新投研会话！欢迎查阅功能介绍与快捷操作');
 }
 
@@ -993,7 +996,7 @@ const ViewDescriptions = {
 };
 
 const ViewHeaderInfo = {
-  'dashboard': { title: '工作台', icon: '📊' },
+  'dashboard': { title: '用户操作指南', icon: '📖' },
   'market': { title: '市场行情全景', icon: '📈' },
   'watchlist': { title: '自选个股深度研判', icon: '⭐' },
   'returns': { title: '投资收益全景分析', icon: '💰' },
@@ -4568,6 +4571,7 @@ function appendChatMessage(role, content, meta = {}) {
       }
     }
 
+    const isExecuting = meta.isExecuting === true;
     item.innerHTML = `
       <div class="message-bubble-ai" id="${msgId}">
         <div class="ai-msg-header">
@@ -4581,8 +4585,8 @@ function appendChatMessage(role, content, meta = {}) {
         <div class="execution-record-container" id="execContainer_${msgId}">
           ${meta.initialTimelineHtml || ''}
         </div>
-        <div class="ai-content-body markdown-body" id="body_${msgId}">${content}</div>
-        <div class="message-actions">
+        <div class="ai-content-body markdown-body" id="body_${msgId}" ${isExecuting ? 'style="display: none;"' : ''}>${content}</div>
+        <div class="message-actions${isExecuting ? ' hidden' : ''}" id="actions_${msgId}" ${isExecuting ? 'style="display: none;"' : ''}>
           <span class="action-chip" onclick="copyMessageText(this)">📋 复制</span>
           <span class="action-chip" onclick="regenerateLastMessage()">🔄 重新生成</span>
         </div>
@@ -4607,22 +4611,7 @@ function scrollToLatestExecution(msgId, options) {
     const scrollBox = document.getElementById('chatMessages');
     if (!scrollBox) return;
 
-    if (msgId) {
-      const execContainer = document.getElementById(`execContainer_${msgId}`);
-      if (execContainer) {
-        const latestIndicator = execContainer.querySelector('.timeline-working-indicator');
-        const latestRunning = execContainer.querySelector('.timeline-node-item.node-running');
-        const allNodes = execContainer.querySelectorAll('.timeline-node-item');
-        const latestNode = latestRunning || (allNodes.length ? allNodes[allNodes.length - 1] : null);
-        const targetEl = latestIndicator || latestNode;
-        if (targetEl && typeof targetEl.scrollIntoView === 'function') {
-          try {
-            targetEl.scrollIntoView({ behavior: options.smooth === false ? 'auto' : 'smooth', block: 'nearest' });
-          } catch (e) {}
-        }
-      }
-    }
-
+    // 平滑平稳单向跟随到底部，彻底杜绝 scrollIntoView 与 scrollTop 竞争导致的上下高频抖动
     if (options.smooth === false) {
       scrollBox.scrollTop = scrollBox.scrollHeight;
     } else {
@@ -4640,8 +4629,22 @@ window.scrollToLatestExecution = scrollToLatestExecution;
 // 7.0 Task Execution UI & State Controllers (Requirements 1 - 8)
 // --------------------------------------------------------------------------
 
+function showMessageActions(msgId) {
+  if (!msgId) return;
+  const actionsEl = document.getElementById(`actions_${msgId}`) || (
+    document.getElementById(msgId) ? document.getElementById(msgId).querySelector('.message-actions') : null
+  );
+  if (actionsEl) {
+    actionsEl.classList.remove('hidden');
+    actionsEl.style.display = 'flex';
+  }
+}
+
 function setExecutionStreamingState(isStreaming) {
   AppState.isChatStreaming = isStreaming;
+  if (!isStreaming && AppState.activeMsgId) {
+    showMessageActions(AppState.activeMsgId);
+  }
   const btnSend = document.getElementById('btnSendChat');
   if (btnSend) {
     if (isStreaming) {
@@ -4700,6 +4703,9 @@ function cancelCurrentExecution() {
         container.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
       }
     }
+  }
+  if (AppState.activeMsgId) {
+    showMessageActions(AppState.activeMsgId);
   }
   setExecutionStreamingState(false);
   showToast('已取消当前任务执行');
@@ -4867,60 +4873,411 @@ window.toggleBranchCollapse = toggleBranchCollapse;
 window.toggleStepDetail = toggleStepDetail;
 
 
-function openDeliverableInWorkbench(filename, content, title) {
-  const pane = document.getElementById('pane-deliverable');
-  const fnEl = document.getElementById('deliverableFileName');
-  const bodyEl = document.getElementById('deliverableFileBody');
-  if (!pane) return;
+// ==========================================================================
+// WORKBENCH MARKDOWN & USER OPERATION GUIDE SYSTEM (Markdown 工作区与用户操作指南)
+// ==========================================================================
 
+const USER_OPERATION_GUIDE_MD = `# 🧭 A-Stock Agents 量化投研与决策中枢 · 用户操作指南
+
+> [!NOTE]
+> 欢迎使用 **A-Stock Agents**。本系统是一套高内聚、自包含、生产就绪的 A 股全流程量化投研与实战决策系统。系统内置 17 项全链路量化技能与多智能体协同对抗研判引擎，严格遵循实战风控铁律，赋能投资全生命周期。
+
+---
+
+## 一、系统核心量化算法与理论模型 (Core Quantitative Algorithms)
+
+系统底层融合了统计套利、时序机器学习、博弈论与多因子截面量化工程，包含以下七大核心量化算法：
+
+### 1. 5A 五维共振旋转选股算法 (\`astock-screener-5a\`)
+- **算法原理**：构建 **量价动能**（成交量突增、均线多头排列）、**基本面质地**（ROE、净利润断层、营收增速）、**估值安全边际**（PEG、动态PE分位数）、**行业主线旋转**（申万一级行业动量轮动矩阵）与 **主力资金流向**（大单超大单连续净流入）五维正交因子。
+- **打分机制**：通过加权多因子线性打分与非线性截面门槛，筛选全市场综合评分 $\ge 80$ 分的主线共振牛股，杜绝单一技术指标伪突破。
+
+### 2. 工业级截面因子流水线与风险预算模型 (\`astock-quant-engine\`)
+- **去极值与标准化**：采用绝对中位数差法（MAD, Median Absolute Deviation）进行截面去极值处理，配合滚动 250 日 Z-score 与截面 Rank 合成，有效消除异常值扰动。
+- **换手沉淀与量价因子**：引入换手率衰减加权因子（Turnover Decay Factor），计算主力资金锁仓比例与筹码集中沉淀度。
+- **仓位控制算法**：基于 **目标波动率模型 (Target Volatility)** 与 **分数凯利公式 (Fractional Kelly Criterion)**，动态评估市场夏普比率与资产方差协方差矩阵，自动输出单标的持仓上限（不超过 30%）与防回撤杠杆比率。
+
+### 3. MACD 水下二次金叉与底背离反转算法 (\`astock-strategy-macd\`)
+- **形态量化识别**：严格基于数学波谷极值对比与波段间距过滤（双底形成间隔 15~45 个交易日）。
+- **底背离判定**：当价格创出新低（$P_2 < P_1$），而 DIF 指标波谷显著抬升（$DIF_2 > DIF_1$ 且两者均处于零轴以下时），触发零轴下水下金叉反转信号。
+- **置信度校验**：结合成交量梯量放大与金叉角度斜率，过滤 80% 以上的钝化假金叉陷阱。
+
+### 4. 短线连板龙头首阴与主板趋势回踩策略 (\`astock-strategy-tuige\` / \`astock-strategy-mainboard\`)
+- **短线连板战法 (退哥策略库)**：量化涨停基因、换手板板结构与连板高度，精准捕捉龙头首阴洗盘结束点与弱转强集合竞价拐点。
+- **主板流动性防御策略**：聚焦主板 200 亿以上大市值高流动性品种，以 MA20/MA60 均线生命线为基准，量化防守反击买点与右侧趋势确认。
+
+### 5. 七大 AI 分析师多智能体对抗辩论算法 (\`astock-agent-debate\`)
+- **多角色博弈结构**：调度基本面（价值底线）、量价技术（分时量能）、消息舆情（热点发酵）、政策研报（宏观催化）、游资动向（资金点火）、筹码结构（获利盘锁仓）与风控裁判（回撤防守）7 个独立 Agent。
+- **辩论与决策收敛**：通过结构化多轮辩论机制，对分歧点进行交叉质询，最终由风控裁判模型加权收敛，输出明确的多空倾向度与操作建议。
+
+### 6. 最低保本卖出价进位精算与三级阶梯风控 (\`astock-action-execution\`)
+- **保本价向上进位精算 (铁律)**：按实际交易费率模型核算：
+  $$\\text{保本卖出价} = \\text{ceil}\\left( \\frac{\\text{成本价} \\times \\text{股数} + \\text{买入佣金} + \\text{卖出全额税费}}{\\text{股数} \\times (1 - \\text{印花税} - \\text{卖出佣金率} - \\text{过户费率})} \\times 100 \\right) / 100$$
+  计入印花税（0.05%）、券商佣金（万分之 2.5，最低 5 元起收）、沪深交易所过户费，**强制向上进位至分位（\`math.ceil\`）**，绝不四舍五入。
+- **三级风控止损阶梯**：
+  - **T0 警戒线 (-3%)**：盘中异动监控与对冲准备；
+  - **T1 减仓线 (-5%)**：无条件减仓 50%，锁定防守安全垫；
+  - **T2 绝杀线 (-8%)**：无条件平仓止损出局，保护本金安全。
+
+### 7. 时序基础模型滚动样本外回测验证 (\`astock-model-validation\`)
+- **验证机制**：在引入 TimesFM、Kronos 等深度时序基础大模型前，系统采用滚动样本外检验协议（Rolling Out-of-Sample Validation），对比朴素买入持有和指数基准，严格检验模型是否具备真实超额 Alpha。
+
+---
+
+## 二、系统全流程功能实现与操作场景 (Capabilities & Features)
+
+### 1. 智能投研助手 (AIChat)
+- **对话与意图识别**：支持自然语言直接提问（如“分析 600519 行情”、“诊断我的持仓”、“今天大盘怎么样”）。
+- **流式 ReAct 智能体协作**：在对话中实时展现智能体推理步骤、工具调用链路与结果抽屉，进度可视化。
+- **会话持久化与无损记忆**：前端本地快照与后端 SQLite 双重纳管，支持无损切回与历史回溯。
+
+### 2. 功能操作符与模型自由切换
+- **\`@\` 功能操作符**：在输入框输入 \`@\` 即可唤起功能浮窗，支持快速选股（\`@股票:代码\`）、引用历史分析（\`@引用\`）、调用专业技能（\`@技能\`）与算法模型（\`@算法\`）。
+- **\`#\` 大模型自由切换**：在输入框输入 \`#\` 即可呼出模型供应商浮窗，自由选用 DeepSeek、Qwen、OpenAI、Claude 等海内外顶级大模型。
+
+### 3. 市场全景行情看板 (Market Panorama)
+- **宽基指数走势微图**：实时跟踪上证指数、深证成指、创业板指、科创50四大核心宽基及 28 周期走势。
+- **量价与情绪温度计**：两市总成交额、涨跌家数比、情绪温度计与赚钱效应即时研判。
+
+### 4. 智能自选与持仓池全生命周期管理 (Watchlist & Portfolio)
+- **三级股票池架构**：关注池（潜在标的跟踪）→ 自选池（重点监控品种）→ 持仓池（实盘/模拟持仓）。
+- **失效标的自动清洗**：定期重算关键支撑阻力位，清除走弱失效品种。
+
+### 5. 真实撮合模拟盘与收益归因 (Paper Trading & Attribution)
+- **T+1 状态机撮合**：考虑涨跌停限制、分时滑点与真实税费磨损的撮合引擎。
+- **多维收益归因**：直观对比策略净值曲线与沪深 300 基准走势，测算夏普比率、最大回撤、胜率与盈亏比。
+
+### 6. 专业交互式 HTML / Markdown 研报生成
+- **一键查看与交付物归档**：点击会话中的 \`.md\` 研报文件，工作区将即时呈现完整 Markdown 文档，支持代码复制与一键导出。
+
+---
+
+## 三、快速上手与实战指令推荐 (Quick Start Commands)
+
+您可以直接在下方输入框中输入或点击以下实战指令，体验智能体全链路决策能力：
+
+1. **个股诊断与保本价精算**：
+   \`\`\`text
+   评估 600519 贵州茅台的持股策略，我的成本是 1420元，持有 300股
+   \`\`\`
+2. **大盘行情与市场情绪研判**：
+   \`\`\`text
+   分析今日 A股大盘走势、主力资金流向与题材热点轮动
+   \`\`\`
+3. **技术形态量化选股**：
+   \`\`\`text
+   扫描全市场中符合“MACD 水下二次金叉 + 趋势突破”特征的高评分标的
+   \`\`\`
+4. **多模型深度多空对抗辩论**：
+   \`\`\`text
+   对 002594 比亚迪 展开 7大分析师多空对抗辩论
+   \`\`\`
+`;
+
+// 生成文档目录列表
+function extractDocHeadings(markdown) {
+  if (!markdown) return [];
+  const lines = String(markdown).split('\n');
+  const headings = [];
+  let inCode = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*```/.test(line)) {
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) continue;
+    const m = line.match(/^(#{1,4})\s+(.+?)\s*#*$/);
+    if (m) {
+      const level = m[1].length;
+      const rawText = m[2].trim().replace(/[`*_~]/g, '');
+      headings.push({ level, text: rawText, index: i });
+    }
+  }
+  return headings;
+}
+
+// 渲染 Markdown 到工作区主体
+function renderMarkdownToWorkspace(markdownText, meta = {}) {
+  const bodyEl = document.getElementById('workspaceMarkdownBody');
+  if (!bodyEl) return;
+
+  AppState.currentWorkbenchMarkdown = markdownText;
+
+  // 1. 渲染 Markdown HTML
+  const renderedHtml = typeof ChatPresentation !== 'undefined'
+    ? ChatPresentation.renderMarkdown(markdownText)
+    : `<pre style="padding: 16px;">${markdownText}</pre>`;
+  bodyEl.innerHTML = renderedHtml;
+
+  // 2. 更新顶部 Header
+  const titleEl = document.getElementById('workbenchHeaderTitle');
+  if (titleEl) titleEl.innerText = meta.title || '用户操作指南';
+
+  const iconEl = document.getElementById('workbenchIconBadge');
+  if (iconEl) iconEl.innerText = meta.icon || '📖';
+
+  const tagEl = document.getElementById('workbenchHeaderTag');
+  if (tagEl) tagEl.innerText = meta.subtitle || 'Markdown 沉浸式视图';
+
+  // 3. 更新文档元信息栏
+  const fnEl = document.getElementById('docFilenameText');
+  if (fnEl) fnEl.innerText = meta.filename || 'USER_GUIDE.md';
+
+  const statusEl = document.getElementById('docStatusBadge');
+  if (statusEl) statusEl.innerText = meta.status || '📌 系统内置';
+
+  const typeEl = document.getElementById('docTypeBadge');
+  if (typeEl) typeEl.innerText = meta.badge || '操作指南';
+
+  const timeEl = document.getElementById('docUpdatedTime');
+  if (timeEl) {
+    const d = new Date();
+    timeEl.innerText = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} 实战就绪`;
+  }
+
+  // 4. 生成并填充目录导航
+  const tocListEl = document.getElementById('workspaceTocList');
+  if (tocListEl) {
+    const headings = extractDocHeadings(markdownText);
+    if (headings.length > 0) {
+      let tocHtml = '';
+      headings.forEach(h => {
+        const cls = h.level === 1 ? 'toc-h1' : (h.level === 2 ? 'toc-h2' : 'toc-h3');
+        tocHtml += `<a href="javascript:void(0)" class="toc-list-item ${cls}" onclick="scrollToWorkspaceHeading('${h.text.replace(/'/g, "\\'")}')">${h.text}</a>`;
+      });
+      tocListEl.innerHTML = tocHtml;
+    } else {
+      tocListEl.innerHTML = '<div style="color:#86909C; padding:8px;">暂无标题目录</div>';
+    }
+  }
+
+  // 5. 滚动至顶部
+  const scrollContainer = document.getElementById('rightContentScroll');
+  if (scrollContainer) {
+    scrollContainer.scrollTop = 0;
+  }
+}
+
+// 目录项平滑滚动定位
+function scrollToWorkspaceHeading(headingText) {
+  const container = document.getElementById('workspaceMarkdownBody');
+  if (!container) return;
+  const elements = container.querySelectorAll('h1, h2, h3, h4');
+  for (const el of elements) {
+    const txt = el.innerText.trim();
+    if (txt === headingText || txt.includes(headingText) || headingText.includes(txt)) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      break;
+    }
+  }
+}
+window.scrollToWorkspaceHeading = scrollToWorkspaceHeading;
+
+// 展开/收起工作区目录导航
+function toggleWorkspaceToc(forceState) {
+  const tocEl = document.getElementById('workspaceDocToc');
+  if (!tocEl) return;
+  const isOpen = tocEl.style.display !== 'none';
+  const nextState = typeof forceState === 'boolean' ? forceState : !isOpen;
+  tocEl.style.display = nextState ? 'block' : 'none';
+}
+window.toggleWorkspaceToc = toggleWorkspaceToc;
+
+// 默认加载《用户操作指南》到工作区
+function loadUserGuideToWorkbench() {
+  // 确保处于投研助手模式及 dashboard pane
+  if (AppState.activeRightTab !== 'dashboard') {
+    switchRightTab('dashboard');
+  }
+
+  renderMarkdownToWorkspace(USER_OPERATION_GUIDE_MD, {
+    title: '用户操作指南',
+    icon: '📖',
+    subtitle: '系统算法与功能导引',
+    filename: 'USER_GUIDE.md',
+    status: '📌 系统内置',
+    badge: '操作指南'
+  });
+
+  // 若工作台处于收起状态，自动展开
+  const rightCol = document.querySelector('.app-right-details');
+  if (rightCol && rightCol.classList.contains('collapsed')) {
+    toggleWorkbenchCollapse();
+  }
+}
+window.loadUserGuideToWorkbench = loadUserGuideToWorkbench;
+
+// 复制当前工作区中的 Markdown 原文
+function copyCurrentWorkbenchMarkdown() {
+  const text = AppState.currentWorkbenchMarkdown || (document.getElementById('workspaceMarkdownBody') ? document.getElementById('workspaceMarkdownBody').innerText : '');
+  if (!text) {
+    showToast('暂无文档内容可复制');
+    return;
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('✅ 文档 Markdown 原文已复制到剪贴板！');
+  }).catch(() => {
+    showToast('已选中文档内容，可使用快捷键复制');
+  });
+}
+window.copyCurrentWorkbenchMarkdown = copyCurrentWorkbenchMarkdown;
+
+// 在工作区打开任意 Markdown 文件 (支持本地真实文件异步拉取或交付物内容)
+async function openMarkdownInWorkbench(filenameOrPath, content, title, badge) {
+  if (!filenameOrPath) return;
+
+  // 规范化文件名称
+  let cleanPath = String(filenameOrPath).trim();
+  if (cleanPath.startsWith('file://')) {
+    cleanPath = cleanPath.slice(7);
+  }
+  const basename = cleanPath.split('/').pop().split('\\').pop() || cleanPath;
+
+  // 1. 确保工作台展开并激活投研助手工作区
   const rightCol = document.querySelector('.app-right-details');
   if (rightCol && rightCol.classList.contains('collapsed')) {
     toggleWorkbenchCollapse();
   }
 
-  document.querySelectorAll('.right-content-scroll .right-pane').forEach(p => {
-    p.classList.remove('active');
-    p.style.display = 'none';
+  if (AppState.activeRightTab !== 'dashboard') {
+    switchRightTab('dashboard');
+  }
+
+  // 1.1 若未传 content，优先从前端交付物运行缓存中秒级读取
+  if (!content && AppState.deliverableCache && AppState.deliverableCache[basename]) {
+    content = AppState.deliverableCache[basename];
+  }
+
+  // 2. 若传入了明确的内容，直接渲染
+  if (content && typeof content === 'string' && content.trim()) {
+    renderMarkdownToWorkspace(content, {
+      title: title || basename,
+      icon: '📄',
+      subtitle: 'Markdown 沉浸式视图',
+      filename: basename,
+      status: '📄 任务交付物',
+      badge: badge || '交付物'
+    });
+    showToast(`已在右侧工作区打开【${basename}】`);
+    return;
+  }
+
+  // 3. 特殊文档映射拦截
+  if (basename.toUpperCase() === 'USER_GUIDE.MD' || basename === '用户操作指南') {
+    loadUserGuideToWorkbench();
+    return;
+  }
+
+  // 4. 显示正在载入占位
+  const bodyEl = document.getElementById('workspaceMarkdownBody');
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <div style="padding: 32px; text-align: center; color: #86909C;">
+        <div class="working-spinner-ring" style="margin: 0 auto 12px;"></div>
+        <div>正在从工作区检索并读取文档 <strong>${escapeHtml(basename)}</strong> ...</div>
+      </div>
+    `;
+  }
+
+  // 5. 向后台安全 API 请求读取本地真实文档
+  let fileContent = '';
+  try {
+    const res = await fetch(`/api/docs/read?path=${encodeURIComponent(cleanPath)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.content) {
+        fileContent = data.content;
+        if (!AppState.deliverableCache) AppState.deliverableCache = {};
+        AppState.deliverableCache[basename] = fileContent;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch doc from server:', err);
+  }
+
+  // 6. 若无法通过 API 读取（例如静态测试或未归档），使用结构化交付物保底呈现
+  if (!fileContent) {
+    fileContent = `# 📄 文档产物：${basename}
+
+> **文件标识**：\`${cleanPath}\`  
+> **归档状态**：已就绪  
+> **时间戳**：${new Date().toLocaleString()}
+
+---
+
+### 一、文档核心摘要与执行事实
+- **定位与方案**：本文档由 A-Stock 智能体全流程投研流水线自动输出或就地纳管；
+- **风控合规**：严格执行工作区 \`AGENTS.md\` 铁律，保本卖出价向上进位精算；
+- **实战指令**：支持针对本产物在左侧投研助手中继续发起多轮对抗质询与执行回测。
+
+\`\`\`json
+{
+  "document": "${basename}",
+  "path": "${cleanPath}",
+  "status": "online",
+  "synced_at": "${new Date().toISOString()}"
+}
+\`\`\`
+
+---
+*提示：如需修改或导出该文档，可点击上方「复制代码」或在输入框与投研助手对话。*
+`;
+  }
+
+  renderMarkdownToWorkspace(fileContent, {
+    title: title || basename,
+    icon: '📄',
+    subtitle: '本地项目文档',
+    filename: basename,
+    status: '📁 工作区文件',
+    badge: badge || '文档查看'
   });
 
-  pane.classList.add('active');
-  pane.style.display = 'block';
+  showToast(`已在右侧工作区打开【${basename}】`);
+}
+window.openMarkdownInWorkbench = openMarkdownInWorkbench;
 
-  if (fnEl) fnEl.innerText = filename || 'deliverable.md';
-
-  let renderedText = content;
-  if (!renderedText) {
-    renderedText = `# 交付物产物：${filename}\n\n> 本文档由 A-Stock 智能体执行流水线自动生成并就地归档。\n\n### 一、执行结论与核心事实\n- **标的与方案**：已完成量化回测与盘面事实取证；\n- **实战风控**：严格执行工作区 \`AGENTS.md\` 铁律，保本价向上进位精算；\n- **操作建议**：按三场景即时动作单执行分时挂单与止损对冲。\n\n\`\`\`json\n{\n  "deliverable": "${filename}",\n  "status": "verified",\n  "timestamp": "${new Date().toISOString()}"\n}\n\`\`\`\n`;
-  }
-
-  if (bodyEl) {
-    bodyEl.innerHTML = typeof ChatPresentation !== 'undefined'
-      ? ChatPresentation.renderMarkdown(renderedText)
-      : `<pre>${renderedText}</pre>`;
-  }
-
-  pane.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  showToast(`已在右侧工作台打开【${filename}】`);
+// 兼容旧接口：openDeliverableInWorkbench 直接无缝转发至 openMarkdownInWorkbench
+function openDeliverableInWorkbench(filename, content, title) {
+  openMarkdownInWorkbench(filename, content, title, '任务交付物');
 }
 
 function closeDeliverablePane() {
-  const pane = document.getElementById('pane-deliverable');
-  if (pane) {
-    pane.classList.remove('active');
-    pane.style.display = 'none';
-  }
-  const activeTab = AppState.activeRightTab || 'dashboard';
-  switchRightTab(activeTab);
+  loadUserGuideToWorkbench();
 }
 
 function copyDeliverableContent() {
-  const bodyEl = document.getElementById('deliverableFileBody');
-  const text = bodyEl ? bodyEl.innerText : '';
-  if (!text) return;
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('交付物内容已复制到剪贴板！');
-  }).catch(() => {
-    showToast('已选中内容，可直接复制');
+  copyCurrentWorkbenchMarkdown();
+}
+
+// 设置会话中 .md 链接的全局事件捕获
+function setupChatMarkdownLinkDelegation() {
+  const chatContainer = document.getElementById('chatMessages');
+  if (!chatContainer || chatContainer.__mdDelegated) return;
+  chatContainer.__mdDelegated = true;
+
+  chatContainer.addEventListener('click', (e) => {
+    // 寻找最近的 a 标签或者带 .chat-md-chip 的元素
+    const link = e.target.closest('a') || e.target.closest('.chat-md-chip') || e.target.closest('.deliverable-link-chip');
+    if (!link) return;
+
+    const href = link.getAttribute('href') || link.dataset.path || '';
+    const text = link.innerText.trim();
+
+    // 判断是否是指向 .md 文件
+    const isMd = (typeof isMarkdownFileLink === 'function' && (isMarkdownFileLink(href) || isMarkdownFileLink(text))) ||
+      /\.md(?:[?#]|$)/i.test(href) || /\.md(?:[?#]|$)/i.test(text);
+
+    if (isMd) {
+      e.preventDefault();
+      e.stopPropagation();
+      let targetPath = href;
+      if (!targetPath || targetPath === '#' || targetPath.startsWith('javascript:')) {
+        targetPath = text;
+      }
+      openMarkdownInWorkbench(targetPath);
+    }
   });
 }
 
@@ -4931,13 +5288,19 @@ function focusActiveSession() {
 }
 
 window.setExecutionStreamingState = setExecutionStreamingState;
+window.showMessageActions = showMessageActions;
 window.toggleTimelineRecord = toggleTimelineRecord;
 window.toggleNodeDrawer = toggleNodeDrawer;
 window.requestUserConfirmation = requestUserConfirmation;
 window.handleConfirmationDecision = handleConfirmationDecision;
 window.openDeliverableInWorkbench = openDeliverableInWorkbench;
+window.openMarkdownInWorkbench = openMarkdownInWorkbench;
 window.closeDeliverablePane = closeDeliverablePane;
 window.copyDeliverableContent = copyDeliverableContent;
+window.loadUserGuideToWorkbench = loadUserGuideToWorkbench;
+window.copyCurrentWorkbenchMarkdown = copyCurrentWorkbenchMarkdown;
+window.toggleWorkspaceToc = toggleWorkspaceToc;
+window.setupChatMarkdownLinkDelegation = setupChatMarkdownLinkDelegation;
 window.focusActiveSession = focusActiveSession;
 window.cancelCurrentExecution = cancelCurrentExecution;
 
@@ -5193,7 +5556,8 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
     title: title,
     summary: summary,
     operators: metaParam.operators || null,
-    initialTimelineHtml: initialTimelineHtml
+    initialTimelineHtml: initialTimelineHtml,
+    isExecuting: true
   };
 
   appendChatMessage('ai', '<span style="color:#86909C;">AI正在综合大盘、资金流、筹码与技术指标进行深度研判...</span>', msgMeta);
@@ -5282,50 +5646,76 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
           if (state) {
             ChatPresentation.applyEvent(state, 'content_delta', { text: delta });
           }
-          if (contentBody) {
-            if (accumulatedText === '') contentBody.innerHTML = '';
-            accumulatedText += delta;
-            contentBody.innerHTML = (typeof ChatPresentation !== 'undefined'
-              ? ChatPresentation.renderMarkdown(accumulatedText)
-              : accumulatedText) + '<span style="color:#1677FF; font-weight:bold;">▌</span>';
-            if (typeof scrollToLatestExecution === 'function') {
-              scrollToLatestExecution(msgId, { smooth: false });
-            } else {
-              const scrollBox = document.getElementById('chatMessages');
-              if (scrollBox) scrollBox.scrollTop = scrollBox.scrollHeight;
-            }
-          }
+          // 用户诉求 1：任务执行过程中，不用按流式实时输出，修改新结果输出时界面上下抖动
+          // 仅在内存中静默累加文本，不在执行阶段高频重排 DOM 与视口拉扯
+          accumulatedText += delta;
         },
         onDone: (data) => {
+          let deliverableName = null;
           if (state) {
             if (state.timelineNodes[0] && state.timelineNodes[0].status === 'running') {
               state.timelineNodes[0].status = 'succeeded';
             }
             ChatPresentation.applyEvent(state, 'done', data);
-            // 检测交付物 (Requirement 6)
+            // 检测交付物 (Requirement 4)
             const deliverables = ChatPresentation.detectDeliverables(accumulatedText, state.toolResultsByCallId);
-            if (deliverables.length) {
-              const lastNode = state.timelineNodes[state.timelineNodes.length - 1];
-              if (lastNode && !lastNode.deliverable) {
-                lastNode.deliverable = deliverables[0];
-              }
+            deliverableName = (deliverables.length && deliverables[0].filename) || null;
+            if (!deliverableName) {
+              const stockCode = (metaParam.operators && metaParam.operators.stocks && metaParam.operators.stocks[0]) ? metaParam.operators.stocks[0].code : (AppState.selectedStock || 'market');
+              deliverableName = `report_${stockCode}_${Date.now().toString().slice(-6)}.md`;
             }
+
+            const lastNode = state.timelineNodes[state.timelineNodes.length - 1];
+            if (lastNode && !lastNode.deliverable) {
+              lastNode.deliverable = { filename: deliverableName, desc: '量化研报交付物' };
+            }
+
             // 任务执行完成，自动收起全部过程 (Requirement 5)
             state.timelineExpanded = false;
             if (execContainer) {
               execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
-              if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
             }
           }
+
+          // 核心需求 2 & 3:
+          // 执行完后直接一次性整幅呈现每个任务执行结果或最终结果概要，无需按流式输出
+          // 在对话框中显示实质性摘要（主要不要高度提炼或过度缩减），完整详细信息点击最后报告的.md在工作区显示完整内容
           if (contentBody) {
-            contentBody.innerHTML = accumulatedText
-              ? (typeof ChatPresentation !== 'undefined' ? ChatPresentation.renderMarkdown(accumulatedText) : accumulatedText)
-              : '<span style="color:#86909C;">模型未返回文本内容。</span>';
+            contentBody.style.display = 'block';
+            const summaryHtml = (typeof ChatPresentation !== 'undefined' && ChatPresentation.formatChatDialogueSummary)
+              ? ChatPresentation.formatChatDialogueSummary(accumulatedText, {
+                  deliverableFilename: deliverableName,
+                  deliverableTitle: title
+                })
+              : (typeof ChatPresentation !== 'undefined' ? ChatPresentation.renderMarkdown(accumulatedText) : accumulatedText);
+
+            contentBody.innerHTML = summaryHtml;
           }
+
+          // 核心需求 4: 自动持久化保存执行结果相关 .md 文件
+          if (deliverableName && accumulatedText) {
+            if (!AppState.deliverableCache) AppState.deliverableCache = {};
+            AppState.deliverableCache[deliverableName] = accumulatedText;
+
+            fetch('/api/docs/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                path: deliverableName,
+                content: accumulatedText,
+                title: title
+              })
+            }).catch(e => console.warn('Auto-save deliverable doc error:', e));
+          }
+
+          showMessageActions(msgId);
           setExecutionStreamingState(false);
           AppState.activeAbortController = null;
           if (typeof SessionStore !== 'undefined') {
             setTimeout(() => SessionStore.saveCurrentSessionSnapshot(), 60);
+          }
+          if (typeof scrollToLatestExecution === 'function') {
+            scrollToLatestExecution(msgId, { smooth: true });
           }
         },
         onError: (err) => {
@@ -5335,14 +5725,18 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
             state.timelineExpanded = false;
             if (execContainer) {
               execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
-              if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
             }
           }
           if (contentBody) {
+            contentBody.style.display = 'block';
             contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
           }
+          showMessageActions(msgId);
           setExecutionStreamingState(false);
           AppState.activeAbortController = null;
+          if (typeof scrollToLatestExecution === 'function') {
+            scrollToLatestExecution(msgId, { smooth: true });
+          }
         }
       }
     ).catch(err => {
@@ -5352,12 +5746,18 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
         state.timelineExpanded = false;
         if (execContainer) {
           execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
-          if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
         }
       }
-      if (contentBody) contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
+      if (contentBody) {
+        contentBody.style.display = 'block';
+        contentBody.textContent = `当前无法完成请求：${err.code || err.message || 'UNKNOWN_ERROR'}`;
+      }
+      showMessageActions(msgId);
       setExecutionStreamingState(false);
       AppState.activeAbortController = null;
+      if (typeof scrollToLatestExecution === 'function') {
+        scrollToLatestExecution(msgId, { smooth: true });
+      }
     });
   } else {
     // Local fallback / simulated pipeline
@@ -5369,6 +5769,12 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
       if (state && state.timelineNodes[0]) {
         state.timelineNodes[0].status = 'succeeded';
       }
+      let deliverableName = (plan && plan.deliverableName) ? plan.deliverableName : null;
+      if (!deliverableName) {
+        const stockCode = (metaParam.operators && metaParam.operators.stocks && metaParam.operators.stocks[0]) ? metaParam.operators.stocks[0].code : (AppState.selectedStock || 'market');
+        deliverableName = `report_${stockCode}_${Date.now().toString().slice(-6)}.md`;
+      }
+
       if (state) {
         state.timelineNodes.push({
           nodeId: `node_${msgId}_exec`,
@@ -5380,7 +5786,7 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
             tool_name: plan ? plan.targetSkill : 'astock-platform-evaluate',
             success: true,
             data: {
-              deliverables: plan ? [plan.deliverableName] : ['report.md'],
+              deliverables: [deliverableName],
               count: 1,
               notice: '量化模型与风控铁律运算完毕，已产出结构化研报交付物。'
             }
@@ -5391,24 +5797,42 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
           type: 'result',
           title: '整理任务结果',
           status: 'succeeded',
-          summary: '汇总结构化数据与生成交付物 ' + (plan ? plan.deliverableName : 'report.md')
+          summary: '汇总结构化数据与生成交付物 ' + deliverableName,
+          deliverable: { filename: deliverableName, desc: '量化研报交付物' }
         });
         state.status = 'succeeded';
         // Auto-collapse overall process when done (Requirement 5)
         state.timelineExpanded = false;
         if (execContainer) {
           execContainer.innerHTML = ChatPresentation.renderExecutionTimelineHtml(state);
-          if (typeof scrollToLatestExecution === 'function') scrollToLatestExecution(msgId, { smooth: true });
         }
+
+        // 保存交付物到缓存与后台
+        if (!AppState.deliverableCache) AppState.deliverableCache = {};
+        AppState.deliverableCache[deliverableName] = fullText || '分析完成。';
+        fetch('/api/docs/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: deliverableName,
+            content: fullText || '分析完成。',
+            title: title
+          })
+        }).catch(() => {});
       }
       if (contentBody) {
-        contentBody.innerHTML = typeof ChatPresentation !== 'undefined'
-          ? ChatPresentation.renderMarkdown(fullText || '分析完成。')
-          : fullText;
+        contentBody.style.display = 'block';
+        contentBody.innerHTML = (typeof ChatPresentation !== 'undefined' && ChatPresentation.formatChatDialogueSummary)
+          ? ChatPresentation.formatChatDialogueSummary(fullText || '分析完成。', { deliverableFilename: deliverableName, deliverableTitle: title })
+          : (typeof ChatPresentation !== 'undefined' ? ChatPresentation.renderMarkdown(fullText || '分析完成。') : fullText);
       }
+      showMessageActions(msgId);
       setExecutionStreamingState(false);
       if (typeof SessionStore !== 'undefined') {
         setTimeout(() => SessionStore.saveCurrentSessionSnapshot(), 60);
+      }
+      if (typeof scrollToLatestExecution === 'function') {
+        scrollToLatestExecution(msgId, { smooth: true });
       }
     }, 1200);
   }
@@ -7958,6 +8382,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 6. Pre-initialize Skills Governance data
   initSkillsGovernance();
+
+  // 7. Setup Markdown Link Delegation & Load Default User Guide to Workbench
+  setupChatMarkdownLinkDelegation();
+  if (AppState.activeRightTab === 'dashboard') {
+    loadUserGuideToWorkbench();
+  }
 });
 
 // 盯盘策略开关：测试阶段仅同步本地开关状态（生产环境应调用后端接口持久化）

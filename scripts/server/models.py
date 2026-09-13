@@ -97,3 +97,10 @@ class ServerConfigResponse(BaseModel):
     supported_models: List[str]
     cors_origins: List[str]
     data_sources: Dict[str, Any]
+
+
+class SaveDocRequest(BaseModel):
+    path: str = Field(..., description="Target relative file path or filename")
+    content: str = Field(..., description="Markdown or text content")
+    title: Optional[str] = Field(default=None, description="Optional document title")
+
