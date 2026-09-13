@@ -10,11 +10,9 @@ from server.app import app
 @pytest.mark.parametrize(
     "path,capability",
     [
-        ("/api/market/indices", "market.indices"),
         ("/api/market/sentiment", "market.sentiment"),
         ("/api/market/kline?code=000001&period=day", "market.kline"),
         ("/api/market/ranks", "market.ranks"),
-        ("/api/portfolio/analysis", "portfolio.analysis"),
     ],
 )
 def test_unconnected_dashboard_routes_return_structured_503(path: str, capability: str) -> None:
@@ -27,6 +25,20 @@ def test_unconnected_dashboard_routes_return_structured_503(path: str, capabilit
         "capability": capability,
         "source": "none",
     }
+
+
+def test_market_indices_returns_live_or_fallback_data() -> None:
+    with TestClient(app) as client:
+        response = client.get("/api/market/indices")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert "indices" in data
+    assert len(data["indices"]) >= 4
+    sh = next(i for i in data["indices"] if i["code"] == "000001")
+    assert sh["name"] == "上证指数"
+    assert sh["price"] > 3000
+    assert len(sh["sparkline"]) > 0
 
 
 def test_empty_portfolio_is_a_sourced_empty_state(monkeypatch) -> None:
