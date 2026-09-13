@@ -271,6 +271,11 @@ def create_session(
                 """
                 INSERT INTO sessions (session_id, title, model, created_at, updated_at, meta_json)
                 VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    title = excluded.title,
+                    model = excluded.model,
+                    updated_at = excluded.updated_at,
+                    meta_json = excluded.meta_json
                 """,
                 (sid, session_title, selected_model, now, now, meta_json),
             )

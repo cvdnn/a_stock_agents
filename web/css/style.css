@@ -4599,6 +4599,12 @@ input:checked + .slider:before {
   box-sizing: border-box;
   user-select: none;
   margin-bottom: 2px;
+  outline: none;
+}
+
+.session-item:focus,
+.session-item:focus-visible {
+  outline: none;
 }
 
 .session-item:hover,
@@ -4693,6 +4699,11 @@ body.dark-mode .session-item.active .session-item-title {
 
 .session-more-btn:active {
   transform: scale(0.96);
+}
+
+.session-more-btn:focus,
+.session-more-btn:focus-visible {
+  outline: none;
 }
 
 body.dark-mode .session-more-btn {

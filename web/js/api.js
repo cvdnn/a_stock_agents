@@ -56,8 +56,10 @@ const AStockAPI = {
   createSession(title = '新投研对话', model = null, meta = {}) {
     const payload = { title, meta };
     if (model) payload.model = model;
+    if (meta && meta.session_id) payload.session_id = meta.session_id;
     return this._fetchJSON('/api/chat/sessions', { method: 'POST', body: JSON.stringify(payload) });
   },
+
 
   getSession(sessionId) {
     return this._fetchJSON(`/api/chat/sessions/${encodeURIComponent(sessionId)}`);

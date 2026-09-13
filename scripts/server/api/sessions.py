@@ -31,8 +31,10 @@ router = APIRouter(prefix="/api/chat/sessions", tags=["Sessions"])
 @router.post("", response_model=SessionResponse)
 async def api_create_session(req: SessionCreateRequest) -> SessionResponse:
     """Create a new chat session."""
-    sess = create_session(title=req.title, model=req.model, meta=req.meta)
+    sid = req.session_id or (req.meta.get("session_id") if req.meta else None)
+    sess = create_session(title=req.title, model=req.model, meta=req.meta, session_id=sid)
     return SessionResponse(**sess)
+
 
 
 @router.get("", response_model=SessionListResponse)

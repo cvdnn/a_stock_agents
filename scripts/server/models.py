@@ -12,6 +12,8 @@ class SessionCreateRequest(BaseModel):
     title: Optional[str] = Field(default=None, description="Optional conversation title")
     model: Optional[str] = Field(default=None, description="Model identifier to use")
     meta: Optional[Dict[str, Any]] = Field(default=None, description="Extra metadata")
+    session_id: Optional[str] = Field(default=None, description="Optional explicit session id to persist")
+
 
 
 class SessionResponse(BaseModel):

@@ -6,6 +6,7 @@
 const AppState = {
   activeRightTab: 'dashboard', // 'dashboard' | 'market' | 'watchlist' | 'returns' | 'projected-action' etc.
   layoutMode: 'chat-center',   // 'chat-center' (投研助手居中) | 'workspace-main' (业务主工作区居中，AI助手在右)
+  currentSessionId: null,      // 打开系统界面时无任何选中会话，保持会话记录无选中或焦点状态
   isCopilotCollapsed: false,
   isWorkbenchCollapsed: false,
   selectedStock: '300750',
@@ -98,8 +99,8 @@ function renderSessionList() {
   const currentCount = AppState.loadedSessionCount;
   const sessionsToRender = HistoricalSessions.slice(0, currentCount);
 
-  container.innerHTML = sessionsToRender.map((s, idx) => {
-    const isActive = AppState.currentSessionId ? s.id === AppState.currentSessionId : idx === 0;
+  container.innerHTML = sessionsToRender.map((s) => {
+    const isActive = Boolean(AppState.currentSessionId && s.id === AppState.currentSessionId);
     const safeTitle = escapeSessionHtml(s.title);
     const safeId = escapeSessionHtml(s.id);
     return `
@@ -252,7 +253,7 @@ function startSessionRename(sessionId) {
         const sess = HistoricalSessions.find(s => s.id === sessionId);
         if (sess) sess.title = newTitle;
 
-        if (window.AStockAPI && typeof window.AStockAPI.updateSessionTitle === 'function') {
+        if ((!sess || !sess.isDraft) && window.AStockAPI && typeof window.AStockAPI.updateSessionTitle === 'function') {
           try {
             await window.AStockAPI.updateSessionTitle(sessionId, newTitle);
           } catch (err) {
@@ -333,8 +334,11 @@ async function executeSessionDelete(targetSessionId) {
   closeSessionDeleteModal();
   if (!sessionId) return;
 
-  // 1. 调用后端 API 持久化删除
-  if (window.AStockAPI && typeof window.AStockAPI.deleteSession === 'function') {
+  const targetSess = HistoricalSessions.find(s => s.id === sessionId);
+  const isDraft = Boolean(targetSess && targetSess.isDraft);
+
+  // 1. 若非未提交草稿，调用后端 API 持久化删除
+  if (!isDraft && window.AStockAPI && typeof window.AStockAPI.deleteSession === 'function') {
     try {
       await window.AStockAPI.deleteSession(sessionId);
     } catch (err) {
@@ -532,6 +536,13 @@ async function selectSession(id) {
       chatContainer.scrollTop = chatContainer.scrollHeight;
       return;
     }
+  }
+
+  // 若选中的是尚未提交后台的草稿会话，直接展示欢迎界面，避免向后端发起 getSession 导致 404
+  const activeSessInfo = HistoricalSessions.find(s => s.id === id);
+  if (activeSessInfo && activeSessInfo.isDraft) {
+    chatContainer.innerHTML = getWelcomeMessageHtml();
+    return;
   }
 
   // 3. 本地无快照时，展示载入状态骨架屏
@@ -775,26 +786,21 @@ async function startNewChat() {
   }
   const ts = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
   const randHex = Math.random().toString(36).substring(2, 8);
-  let newId = `sess_${ts}_${randHex}`;
+  const newId = `sess_${ts}_${randHex}`;
   const title = '新建投研对话 ' + new Date().toLocaleTimeString().slice(0, 5);
-  if (window.AStockAPI) {
-    try {
-      const res = await window.AStockAPI.createSession(title);
-      if (res && res.session_id) newId = res.session_id;
-    } catch (e) {
-      console.warn('createSession fallback:', e);
-    }
-  }
+
+  // 优化修改：新建会话时仅在前端【会话记录】中插入一条数据，当点击【提交】时才提交后台保存数据
   AppState.currentSessionId = newId;
 
   const newSession = {
     id: newId,
     title: title,
     time: '刚刚',
-    tab: 'dashboard'
+    tab: 'dashboard',
+    isDraft: true // 纯前端会话草稿态，尚未持久化至后台
   };
   HistoricalSessions.unshift(newSession);
-  AppState.loadedSessionCount++;
+  AppState.loadedSessionCount = Math.max(AppState.loadedSessionCount + 1, HistoricalSessions.length);
   renderSessionList();
 
   const chatMessages = document.getElementById('chatMessages');
@@ -1358,9 +1364,8 @@ async function initSessionsFromBackend() {
         });
       });
       AppState.loadedSessionCount = Math.min(10, HistoricalSessions.length);
-      AppState.currentSessionId = HistoricalSessions[0].id;
+      // 打开系统界面时，焦点在【投研助手】，会话记录中无任何选中或焦点状态
       renderSessionList();
-      selectSession(HistoricalSessions[0].id);
     }
   } catch (err) {
     console.warn('initSessionsFromBackend error:', err);
@@ -2761,7 +2766,7 @@ function askAboutReturnReport(idx) {
   const input = document.getElementById('chatInput');
   if (input) {
     input.value = prompt;
-    sendMessage();
+    handleSendChat();
   } else {
     showToast(`已选择问答：${prompt.slice(0, 20)}...`);
   }
@@ -5539,7 +5544,7 @@ function extractWorkbenchSectionData(refName) {
   streamAIResponse(tpl.body, title, summary, { operators, userText: text, overriddenModel });
 }
 
-function handleSendChat() {
+async function handleSendChat() {
   if (AppState.isChatStreaming) {
     cancelCurrentExecution();
     return;
@@ -5620,25 +5625,77 @@ function handleSendChat() {
   if (text.includes('移动止损') || text.includes('阶梯')) operators.algos.push('阶梯移动止损算法');
   if (text.includes('IC/IR') || text.includes('衰减')) operators.algos.push('因子IC/IR时序滚动回测');
 
-  // 5. Bug 1 修复：每次提交提示词时，在会话记录中必须新增一条会话记录
+  // 5. 动态提炼标题与摘要
   const refinedInfo = refineTitleAndSummaryFromInput(text, operators);
   let initialTitle = refinedInfo.title || (text.slice(0, 18) + (text.length > 18 ? '...' : ''));
 
-  const ts = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
-  const randHex = Math.random().toString(36).substring(2, 8);
-  const newSessionId = `sess_${ts}_${randHex}`;
+  // 6. 确定当前会话：新建会话时仅在前端【会话记录】中插入草稿，点击【提交】时才提交后台保存数据！
+  let activeSess = HistoricalSessions.find(s => s.id === AppState.currentSessionId);
+  const targetTab = (operators.stocks && operators.stocks.length) ? 'watchlist' : 'dashboard';
 
-  // 在左侧会话记录列表中新增一条会话记录
-  const newSession = {
-    id: newSessionId,
-    title: initialTitle,
-    time: '刚刚',
-    tab: (operators.stocks && operators.stocks.length) ? 'watchlist' : 'dashboard'
-  };
-  HistoricalSessions.unshift(newSession);
-  AppState.loadedSessionCount = Math.max(AppState.loadedSessionCount + 1, HistoricalSessions.length);
-  AppState.currentSessionId = newSessionId;
-  renderSessionList();
+  if (activeSess && activeSess.isDraft) {
+    // 复用新建会话时在前端插入的草稿数据，将其动态更新为提炼后的标题
+    activeSess.title = initialTitle;
+    activeSess.isDraft = false;
+    activeSess.time = '刚刚';
+    activeSess.tab = targetTab;
+    updateSessionItemTitle(activeSess.id, activeSess.title);
+    renderSessionList();
+
+    // 点击【提交】时才提交后台保存数据
+    if (window.AStockAPI && typeof window.AStockAPI.createSession === 'function') {
+      try {
+        await window.AStockAPI.createSession(activeSess.title, userOverriddenModel, {
+          session_id: activeSess.id,
+          tab: targetTab
+        });
+      } catch (e) {
+        console.warn('createSession on submit fallback:', e);
+      }
+    }
+  } else if (!activeSess) {
+    // 若当前无激活会话（例如初次打开系统未点击新建直接提问），则在前端会话列表中新增一条并提交后台保存
+    const ts = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+    const randHex = Math.random().toString(36).substring(2, 8);
+    const newSessionId = `sess_${ts}_${randHex}`;
+
+    const newSession = {
+      id: newSessionId,
+      title: initialTitle,
+      time: '刚刚',
+      tab: targetTab,
+      isDraft: false
+    };
+    HistoricalSessions.unshift(newSession);
+    AppState.loadedSessionCount = Math.max(AppState.loadedSessionCount + 1, HistoricalSessions.length);
+    AppState.currentSessionId = newSessionId;
+    renderSessionList();
+
+    // 点击【提交】时才提交后台保存数据
+    if (window.AStockAPI && typeof window.AStockAPI.createSession === 'function') {
+      try {
+        await window.AStockAPI.createSession(initialTitle, userOverriddenModel, {
+          session_id: newSessionId,
+          tab: targetTab
+        });
+      } catch (e) {
+        console.warn('createSession on submit fallback:', e);
+      }
+    }
+  } else {
+    // 若当前为已有历史会话且标题仍为默认前缀，根据当前提问动态更新标题
+    if (activeSess.title.startsWith('新建投研对话') || activeSess.title.startsWith('新投研对话')) {
+      activeSess.title = initialTitle;
+      updateSessionItemTitle(activeSess.id, activeSess.title);
+      if (window.AStockAPI && typeof window.AStockAPI.updateSessionTitle === 'function') {
+        try {
+          await window.AStockAPI.updateSessionTitle(activeSess.id, initialTitle);
+        } catch (e) {
+          console.warn('updateSessionTitle fallback:', e);
+        }
+      }
+    }
+  }
 
   // 若当前界面有欢迎卡片，移除欢迎卡片
   const welcomeCard = document.querySelector('.welcome-intro-card');
@@ -7719,10 +7776,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Initial Tab & View Activation and Backend Data Loading
   const initialHashTab = (window.location.hash || '').replace(/^#/, '');
-  if (['dashboard', 'market', 'watchlist', 'returns', 'skills'].includes(initialHashTab)) {
+  if (['market', 'watchlist', 'returns', 'skills'].includes(initialHashTab)) {
     handleMenuClick(initialHashTab);
   } else {
+    // 默认或 dashboard 均切入投研助手，不自动选中历史会话
     switchRightTab('dashboard');
+    const dashboardNav = document.querySelector('.sidebar-nav-section .nav-item[data-tab="dashboard"]');
+    if (dashboardNav) {
+      dashboardNav.classList.add('active');
+    }
   }
   updateProjectedCalculator();
   loadAllBackendData();
@@ -7765,4 +7827,17 @@ window.filterWatchlist = filterWatchlist;
 window.toggleWatchlistSort = toggleWatchlistSort;
 window.switchWatchPeriod = switchWatchPeriod;
 window.switchOverviewSubTab = switchOverviewSubTab;
+window.AppState = AppState;
+window.HistoricalSessions = HistoricalSessions;
+window.renderSessionList = renderSessionList;
+window.initSessionsFromBackend = initSessionsFromBackend;
+window.startNewChat = startNewChat;
+window.handleSendChat = handleSendChat;
+window.sendMessage = handleSendChat;
+window.deleteSession = executeSessionDelete;
+window.executeSessionDelete = executeSessionDelete;
+window.selectSession = selectSession;
+
+
+
 
