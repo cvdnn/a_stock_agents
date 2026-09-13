@@ -6364,17 +6364,12 @@ body.dark-mode .session-menu-item.session-menu-item-danger:hover {
    Agent2UI (A2UI) Engine - Skeleton Screen & Progressive Hydration Styles
    ========================================================================== */
 
-/* 1. Shimmer Pulse Animation */
-@keyframes skeletonShimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
+/* 1. Skeleton Screen (Clean Static Placeholder, No Gray Shimmer Animation) */
 .skeleton-shimmer {
-  background: linear-gradient(90deg, #F0F2F5 25%, #E4E7ED 37%, #F0F2F5 63%);
-  background-size: 400% 100%;
-  animation: skeletonShimmer 1.4s ease infinite;
-  border-radius: 6px;
+  background: transparent !important;
+  background-image: none !important;
+  animation: none !important;
+  border-radius: 4px;
 }
 
 .a2ui-skeleton-slot {
@@ -6409,6 +6404,55 @@ body.dark-mode .session-menu-item.session-menu-item-danger:hover {
 
 .risk-skeleton.expanded {
   height: 140px;
+}
+
+/* 1.1 Universal Skeleton Atom Utilities & Progressive Transitions (CLS = 0) */
+.skeleton-box {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 4px;
+}
+.skeleton-text {
+  display: inline-block;
+  height: 13px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.skeleton-title {
+  display: inline-block;
+  height: 20px;
+  border-radius: 4px;
+}
+.skeleton-badge {
+  display: inline-block;
+  width: 44px;
+  height: 18px;
+  border-radius: 4px;
+}
+.skeleton-number-lg {
+  display: inline-block;
+  height: 28px;
+  width: 110px;
+  border-radius: 4px;
+}
+.skeleton-number-md {
+  display: inline-block;
+  height: 20px;
+  width: 80px;
+  border-radius: 4px;
+}
+.skeleton-chart-box {
+  width: 100%;
+  border-radius: 6px;
+}
+
+/* Progressive Hydration transition */
+.hydrated-fade-in {
+  animation: a2uiHydrateFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes a2uiHydrateFadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* 2. A2UI Card in AIChat Message Stream */
@@ -6895,49 +6939,66 @@ body.dark-mode .session-menu-item.session-menu-item-danger:hover {
 /* 3. 板块 1: 投资概要微组件 */
 .overview-strip-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
   background: #F9FBFE;
   border: 1px solid #EBF1F8;
   border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  padding: 10px 16px;
   margin-bottom: 12px;
+  align-items: center;
 }
 
 .overview-strip-item {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .overview-strip-lbl {
   font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .overview-strip-val {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-title);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .overview-content-row {
   display: grid;
-  grid-template-columns: 140px 1fr 1.2fr;
+  grid-template-columns: 130px 1.15fr 1fr;
   gap: 14px;
-  align-items: center;
+  align-items: stretch;
 }
 
 .overview-donut-box {
   width: 130px;
   height: 130px;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .overview-holdings-list {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 6px;
+  min-width: 0;
+  height: 100%;
 }
 
 .overview-holding-pill {
@@ -6950,14 +7011,32 @@ body.dark-mode .session-menu-item.session-menu-item-danger:hover {
   font-size: 11.5px;
 }
 
+.empty-pool-hint-card {
+  height: 100%;
+  box-sizing: border-box;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .overview-risk-box {
   background: #FAFCFF;
   border: 1px dashed #ADC6FF;
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 6px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
 }
 
 .overview-risk-title {
@@ -6967,6 +7046,9 @@ body.dark-mode .session-menu-item.session-menu-item-danger:hover {
   display: flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .overview-risk-desc {
