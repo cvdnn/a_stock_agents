@@ -112,8 +112,8 @@ def create_app() -> FastAPI:
         if not target_file.is_file():
             filename = Path(clean_path).name
             candidates = [
-                workspace_root / "reports" / filename,
                 workspace_root / "output" / "reports" / filename,
+                workspace_root / "reports" / filename,
                 workspace_root / "output" / filename,
                 workspace_root / "docs" / filename,
                 workspace_root / ".agents" / "skills" / "astock-data-feed" / "templates" / filename,
@@ -122,6 +122,18 @@ def create_app() -> FastAPI:
                 if cand.is_file():
                     target_file = cand
                     break
+        elif target_file.suffix.lower() in {".html", ".htm"}:
+            # 若命中的文件不是真实 HTML（例如被 Markdown 覆写），但 output/reports 下存在同名真实 HTML，优先采用真实 HTML
+            filename = target_file.name
+            out_cand = workspace_root / "output" / "reports" / filename
+            if out_cand.is_file() and out_cand != target_file:
+                try:
+                    cur_text = target_file.read_text(encoding="utf-8")
+                    out_text = out_cand.read_text(encoding="utf-8")
+                    if ("<!DOCTYPE html" in out_text or "<html" in out_text) and not ("<!DOCTYPE html" in cur_text or "<html" in cur_text):
+                        target_file = out_cand
+                except Exception:
+                    pass
 
         # 扩展名限制 (支持 Markdown 与 HTML 研报及文本交付物)
         allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".py", ".html", ".htm"}
@@ -133,8 +145,14 @@ def create_app() -> FastAPI:
 
         try:
             content = target_file.read_text(encoding="utf-8")
-            rel_path = target_file.relative_to(workspace_root).as_posix()
             doc_format = "html" if target_file.suffix.lower() in {".html", ".htm"} else "markdown"
+
+            # 强韧性保护：若文件名为 .html，但文件内容为纯 Markdown，自动转为自包含标准 HTML，杜绝 iframe 乱码
+            if doc_format == "html" and not ("<!DOCTYPE html" in content or "<html" in content):
+                from core.reporting.report_generator import wrap_markdown_as_html_report
+                content = wrap_markdown_as_html_report(content, title=target_file.stem, filename=target_file.name)
+
+            rel_path = target_file.relative_to(workspace_root).as_posix()
             return {
                 "status": "ok",
                 "path": rel_path,
@@ -154,10 +172,13 @@ def create_app() -> FastAPI:
         if clean_path.startswith("file://"):
             clean_path = clean_path[7:]
 
-        # 若仅传入了文件名（如 report_600519.md 或 aStocks_600519.html），默认归档至 reports/
+        # 若仅传入了文件名（如 report_600519.md 或 aStocks_600519.html），根据类型归档
         clean_p = Path(clean_path)
         if not clean_p.is_absolute() and len(clean_p.parts) == 1:
-            target_file = (workspace_root / "reports" / clean_p.name).resolve()
+            if clean_p.suffix.lower() in {".html", ".htm"} or clean_p.name.startswith("aStocks_") or (workspace_root / "output" / "reports" / clean_p.name).is_file():
+                target_file = (workspace_root / "output" / "reports" / clean_p.name).resolve()
+            else:
+                target_file = (workspace_root / "reports" / clean_p.name).resolve()
         elif not clean_p.is_absolute():
             target_file = (workspace_root / clean_p).resolve()
         else:
@@ -173,16 +194,46 @@ def create_app() -> FastAPI:
         if target_file.suffix.lower() not in allowed_exts:
             raise HTTPException(status_code=400, detail="Unsupported file format for saving document")
 
+        content_to_save = req.content
+        if target_file.suffix.lower() in {".html", ".htm"}:
+            trimmed = content_to_save.strip() if isinstance(content_to_save, str) else ""
+            is_valid_html = "<!DOCTYPE html" in trimmed or "<html" in trimmed
+
+            # 1. 如果磁盘上已存在合法的真实 HTML 报告，且传入的不是合法 HTML（比如传入的是 Markdown 摘要），严禁覆写！
+            if target_file.is_file():
+                try:
+                    existing_text = target_file.read_text(encoding="utf-8")
+                    if ("<!DOCTYPE html" in existing_text or "<html" in existing_text) and not is_valid_html:
+                        return {
+                            "status": "ok",
+                            "path": target_file.relative_to(workspace_root).as_posix(),
+                            "filename": target_file.name,
+                            "size_bytes": len(existing_text.encode("utf-8")),
+                            "notice": "Retained existing genuine HTML report without overwriting with Markdown"
+                        }
+                except Exception:
+                    pass
+
+            # 2. 如果保存的文件是 .html，但传入内容是 Markdown 格式，必须转换为标准自包含 HTML
+            if not is_valid_html:
+                from core.reporting.report_generator import wrap_markdown_as_html_report
+                content_to_save = wrap_markdown_as_html_report(
+                    content_to_save,
+                    title=req.title or target_file.stem,
+                    filename=target_file.name
+                )
+
         try:
             target_file.parent.mkdir(parents=True, exist_ok=True)
-            target_file.write_text(req.content, encoding="utf-8")
+            target_file.write_text(content_to_save, encoding="utf-8")
             rel_path = target_file.relative_to(workspace_root).as_posix()
             return {
                 "status": "ok",
                 "path": rel_path,
                 "filename": target_file.name,
-                "size_bytes": len(req.content.encode("utf-8")),
+                "size_bytes": len(content_to_save.encode("utf-8")),
             }
+
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Failed to save document: {str(exc)}")
 

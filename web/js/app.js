@@ -5403,10 +5403,118 @@ function detectDocFormat(filenameOrPath, content) {
 }
 window.detectDocFormat = detectDocFormat;
 
+if (typeof escapeHtml !== 'function') {
+  var escapeHtml = function (value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  };
+  window.escapeHtml = escapeHtml;
+}
+
+
+// 将 Markdown 结构化转换为符合 astock-report-html 视觉规范的自包含标准 HTML 页面
+
+function convertMarkdownToHtmlDocument(markdownText, title, filename) {
+  if (!markdownText) return '';
+  const safeTitle = escapeHtml(title || filename || 'A-Stock 量化分析报告');
+  let bodyHtml = '';
+  if (typeof ChatPresentation !== 'undefined' && typeof ChatPresentation.renderMarkdown === 'function') {
+    bodyHtml = ChatPresentation.renderMarkdown(markdownText);
+  } else if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+    bodyHtml = marked.parse(markdownText);
+  } else {
+    bodyHtml = `<pre style="white-space: pre-wrap; font-family: monospace;">${escapeHtml(markdownText)}</pre>`;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${safeTitle}</title>
+<style>
+  :root {
+    --bg-page: #f4f5f7;
+    --bg-card: #ffffff;
+    --border: #d8dce3;
+    --border-accent: #b8bcc8;
+    --text-primary: #1a1d24;
+    --text-secondary: #5a6070;
+    --text-muted: #8a909e;
+    --up: #d0312d;
+    --down: #219653;
+    --accent-blue: #2563eb;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'SF Mono', Consolas, 'JetBrains Mono', monospace;
+    --radius: 8px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg-page); color:var(--text-primary); font-family:var(--font); line-height:1.6; min-height:100vh; padding:0 0 40px; }
+  .report-header { background:linear-gradient(135deg,#eef0f4 0%,#e2e6ed 100%); border-bottom:1px solid var(--border); padding:24px 32px 20px; margin-bottom:24px; }
+  .report-header-inner { max-width:1344px; margin:0 auto; }
+  .report-header h1 { font-size:22px; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
+  .report-header .sub { font-size:13px; color:var(--text-secondary); }
+  .report-container { max-width:1344px; margin:0 auto; padding:0 24px; }
+  .report-container h1, .report-container h2, .report-container h3, .report-container h4 { margin-top:24px; margin-bottom:12px; color:var(--text-primary); font-weight:700; }
+  .report-container h2 { font-size:18px; border-bottom:1px solid var(--border); padding-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .report-container h3 { font-size:15px; }
+  .report-container p { margin-bottom:12px; font-size:13.5px; color:var(--text-primary); }
+  .report-container ul, .report-container ol { margin:8px 0 16px 24px; font-size:13.5px; }
+  .report-container li { margin-bottom:6px; }
+  .report-container hr { border:none; border-top:1px solid var(--border); margin:20px 0; }
+  .report-container table { width:100%; border-collapse:collapse; font-size:13px; margin:16px 0; background:var(--bg-card); border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); }
+  .report-container table th { text-align:left; padding:10px 14px; font-size:12px; font-weight:600; color:var(--text-muted); background:#fafbfc; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .report-container table td { padding:9px 14px; border-bottom:1px solid rgba(216,227,227,.5); font-family:var(--font-mono); font-size:12.5px; }
+  .report-container table tr:last-child td { border-bottom:none; }
+  .report-container table tr:hover td { background:#fafbfc; }
+  .report-container blockquote { border-left:4px solid var(--accent-blue); background:rgba(37,99,235,0.04); padding:10px 16px; margin:14px 0; border-radius:0 var(--radius) var(--radius) 0; font-size:13px; color:var(--text-secondary); }
+  .report-container strong { font-weight:700; }
+  .report-container code { background:rgba(0,0,0,0.05); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px; }
+  .report-container pre { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:var(--radius); overflow-x:auto; margin:16px 0; font-family:var(--font-mono); font-size:12px; }
+  .report-container pre code { background:none; padding:0; color:inherit; }
+  .footer { text-align:center; padding:20px; color:var(--text-muted); font-size:11px; margin-top:30px; border-top:1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="report-header">
+  <div class="report-header-inner">
+    <h1>${safeTitle}</h1>
+    <div class="sub">A-Stock Agents 智能体量化投研平台 · 单文件自包含报告</div>
+  </div>
+</div>
+<div class="report-container">
+  ${bodyHtml}
+  <div class="footer">aStocks 量化投研中枢 · 数据来源: 4级降级实时行情管线 · 市场有风险，入市需谨慎</div>
+</div>
+</body>
+</html>`;
+}
+window.convertMarkdownToHtmlDocument = convertMarkdownToHtmlDocument;
+
 function saveDeliverableDoc(filename, content, title) {
   if (!filename || !content) return;
   const cleanPath = String(filename).trim().replace(/^file:\/\//, '');
   const basename = cleanPath.split('/').pop().split('\\').pop() || cleanPath;
+
+  const isHtml = /\.html?$/i.test(basename);
+  let finalContent = content;
+
+  // 严正防御：若保存为 .html 交付物，内容必须是纯正 HTML 格式，绝对杜绝 Markdown 伪装 .html
+  if (isHtml) {
+    const trimmed = typeof finalContent === 'string' ? finalContent.trim() : '';
+    const isAlreadyHtml = /^<!DOCTYPE\s+html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed);
+    if (!isAlreadyHtml) {
+      const codeBlockMatch = trimmed.match(/```(?:html|htm)?\s*([\s\S]*?(?:<!DOCTYPE\s+html|<html)[\s\S]*?<\/html>[\s\S]*?)```/i) || trimmed.match(/(<!DOCTYPE\s+html[\s\S]*?<\/html>)/i);
+      if (codeBlockMatch) {
+        finalContent = codeBlockMatch[1].trim();
+      } else {
+        finalContent = convertMarkdownToHtmlDocument(finalContent, title || basename, basename);
+      }
+    }
+  }
+
+  content = finalContent;
 
   if (!AppState.deliverableCache) AppState.deliverableCache = {};
   AppState.deliverableCache[cleanPath] = content;
@@ -5427,6 +5535,7 @@ function saveDeliverableDoc(filename, content, title) {
       })
     }).catch(e => console.warn('Auto-save deliverable doc error:', e));
   }
+
 }
 window.saveDeliverableDoc = saveDeliverableDoc;
 
@@ -5715,25 +5824,30 @@ async function openDocumentInWorkbench(filenameOrPath, content, title, badge) {
       if (codeBlockMatch) {
         renderContent = codeBlockMatch[1].trim();
         isDocHtml = true;
+      } else if (!/^<!DOCTYPE\s+html/i.test(renderContent.trim()) && !/^<html[\s>]/i.test(renderContent.trim())) {
+        // 缓存中的内容为 Markdown，暂不直接作为 HTML 注入，清空后尝试向后端拉取真实 HTML 交付物
+        fileContent = null;
       }
     }
 
-    const meta = {
-      title: title || basename,
-      icon: isDocHtml ? '🌐' : '📄',
-      subtitle: isDocHtml ? 'HTML 交互式视图' : 'Markdown 沉浸式视图',
-      filename: basename,
-      status: '📄 任务交付物',
-      badge: badge || (isDocHtml ? '可视化研报' : '研报交付物'),
-      format: isDocHtml ? 'html' : 'markdown'
-    };
-    if (isDocHtml && typeof renderHtmlToWorkspace === 'function') {
-      renderHtmlToWorkspace(renderContent, meta);
-    } else {
-      renderMarkdownToWorkspace(fileContent, meta);
+    if (fileContent && typeof fileContent === 'string' && fileContent.trim()) {
+      const meta = {
+        title: title || basename,
+        icon: isDocHtml ? '🌐' : '📄',
+        subtitle: isDocHtml ? 'HTML 交互式视图' : 'Markdown 沉浸式视图',
+        filename: basename,
+        status: '📄 任务交付物',
+        badge: badge || (isDocHtml ? '可视化研报' : '研报交付物'),
+        format: isDocHtml ? 'html' : 'markdown'
+      };
+      if (isDocHtml && typeof renderHtmlToWorkspace === 'function') {
+        renderHtmlToWorkspace(renderContent, meta);
+      } else {
+        renderMarkdownToWorkspace(fileContent, meta);
+      }
+      showToast(`已在右侧工作区打开【${basename}】`);
+      return;
     }
-    showToast(`已在右侧工作区打开【${basename}】`);
-    return;
   }
 
   // 5. 显示正在载入占位
@@ -5774,6 +5888,8 @@ async function openDocumentInWorkbench(filenameOrPath, content, title, badge) {
       const codeBlockMatch = fileContent.match(/```(?:html|htm)?\s*([\s\S]*?(?:<!DOCTYPE\s+html|<html)[\s\S]*?<\/html>[\s\S]*?)```/i) || fileContent.match(/(<!DOCTYPE\s+html[\s\S]*?<\/html>)/i);
       if (codeBlockMatch) {
         renderContent = codeBlockMatch[1].trim();
+      } else if (!/^<!DOCTYPE\s+html/i.test(renderContent.trim()) && !/^<html[\s>]/i.test(renderContent.trim())) {
+        renderContent = convertMarkdownToHtmlDocument(renderContent, title || basename, basename);
       }
     }
     const meta = {
@@ -5783,6 +5899,7 @@ async function openDocumentInWorkbench(filenameOrPath, content, title, badge) {
       filename: basename,
       status: '📁 工作区文件',
       badge: badge || (docFmt === 'html' ? 'HTML报告' : '文档查看'),
+
       format: docFmt
     };
     if (docFmt === 'html' && typeof renderHtmlToWorkspace === 'function') {
@@ -6337,9 +6454,34 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
             // 提取纯净 HTML 文档内容，避免将外部 markdown 混入 HTML 文件
             let pureHtmlContent = null;
             if (isTargetHtml) {
-              const htmlCodeBlockMatch = finalReportText.match(/```(?:html|htm)?\s*([\s\S]*?(?:<!DOCTYPE\s+html|<html)[\s\S]*?<\/html>[\s\S]*?)```/i) || finalReportText.match(/(<!DOCTYPE\s+html[\s\S]*?<\/html>)/i);
-              if (htmlCodeBlockMatch) {
-                pureHtmlContent = htmlCodeBlockMatch[1].trim();
+              // 1. 优先从工具调用完成结果中提取真实生成的 html_content
+              if (state && state.toolResultsByCallId) {
+                for (const r of Object.values(state.toolResultsByCallId)) {
+                  if (r && r.html_content && typeof r.html_content === 'string' && r.html_content.trim()) {
+                    pureHtmlContent = r.html_content.trim();
+                    break;
+                  }
+                }
+              }
+              if (!pureHtmlContent && state && state.timelineNodes) {
+                for (const node of state.timelineNodes) {
+                  const res = (node && node.result) || (node && node.result && node.result.data);
+                  if (res && res.html_content && typeof res.html_content === 'string' && res.html_content.trim()) {
+                    pureHtmlContent = res.html_content.trim();
+                    break;
+                  }
+                }
+              }
+              // 2. 从正文中匹配 ```html 代码块或 <!DOCTYPE html>
+              if (!pureHtmlContent) {
+                const htmlCodeBlockMatch = finalReportText.match(/```(?:html|htm)?\s*([\s\S]*?(?:<!DOCTYPE\s+html|<html)[\s\S]*?<\/html>[\s\S]*?)```/i) || finalReportText.match(/(<!DOCTYPE\s+html[\s\S]*?<\/html>)/i);
+                if (htmlCodeBlockMatch) {
+                  pureHtmlContent = htmlCodeBlockMatch[1].trim();
+                }
+              }
+              // 3. 若仍无纯 HTML，将 Markdown 说明结构化转为高颜值自包含 HTML，杜绝 .html 内为纯 Markdown
+              if (!pureHtmlContent) {
+                pureHtmlContent = convertMarkdownToHtmlDocument(finalReportText, title || deliverableName, deliverableName);
               }
             }
 
@@ -6376,12 +6518,14 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
                     deliverables: deliverables,
                     deliverableFiles: deliverableFileList,
                     deliverableTitle: title,
-                    isHtmlTarget: isTargetHtml
+                    isHtmlTarget: isTargetHtml,
+                    htmlContent: pureHtmlContent
                   })
                 : (typeof ChatPresentation !== 'undefined' ? ChatPresentation.renderMarkdown(finalReportText) : finalReportText);
 
               contentBody.innerHTML = summaryHtml;
             }
+
           } catch (e) {
             console.error('Error in onDone callback:', e);
             if (contentBody) {
@@ -6491,25 +6635,36 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
 
         // 保存交付物到缓存与后台
         const finalReportText = fullText || '分析完成。';
-        saveDeliverableDoc(deliverableName, finalReportText, title);
+        const isSimulatedHtml = /\.html?$/i.test(deliverableName);
+        let simulatedHtmlContent = null;
+        if (isSimulatedHtml) {
+          simulatedHtmlContent = convertMarkdownToHtmlDocument(finalReportText, title || deliverableName, deliverableName);
+        }
+        const docToSave = (isSimulatedHtml && simulatedHtmlContent) ? simulatedHtmlContent : finalReportText;
+        saveDeliverableDoc(deliverableName, docToSave, title);
 
         const msgBubble = document.getElementById(msgId);
         if (msgBubble) {
-          msgBubble.dataset.fullDoc = finalReportText;
+          msgBubble.dataset.fullDoc = docToSave;
           msgBubble.dataset.docFile = deliverableName || '';
         }
       }
       if (contentBody) {
         contentBody.style.display = 'block';
         const finalReportText = fullText || '分析完成。';
+        const isSimulatedHtml = /\.html?$/i.test(deliverableName);
+        let simulatedHtmlContent = isSimulatedHtml ? convertMarkdownToHtmlDocument(finalReportText, title || deliverableName, deliverableName) : null;
         contentBody.innerHTML = (typeof ChatPresentation !== 'undefined' && ChatPresentation.formatChatDialogueSummary)
           ? ChatPresentation.formatChatDialogueSummary(finalReportText, {
               deliverableFilename: deliverableName,
               deliverableFiles: [deliverableName],
-              deliverableTitle: title
+              deliverableTitle: title,
+              isHtmlTarget: isSimulatedHtml,
+              htmlContent: simulatedHtmlContent
             })
           : (typeof ChatPresentation !== 'undefined' ? ChatPresentation.renderMarkdown(finalReportText) : finalReportText);
       }
+
       showMessageActions(msgId);
       setExecutionStreamingState(false);
       if (typeof SessionStore !== 'undefined') {

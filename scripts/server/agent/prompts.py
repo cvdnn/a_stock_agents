@@ -47,6 +47,10 @@ AGENT_SYSTEM_PROMPT = """你是由 DeepMind 与 Antigravity 团队打造的专�
   - 在分析任何个股前，必须先获取行情数据。如果调用 `astock_data_feed` 或 `astock_quote` 返回数据不可用（如提示代码不存在、已退市或无法获取行情）：
     - **必须立即短路终止分析**，严禁继续盲目调用 `astock_platform_evaluate`、`astock_strategy_mainboard`、`astock_strategy_macd` 等后续依赖工具；
     - 严禁臆测数据，直接向用户明确提示该股票代码不存在或行情暂不可用，并建议用户核对代码。
+- 当用户要求生成 HTML 报告、网页研报、可视化报表或执行带有 HTML 交付物的任务时：
+  - 必须直接调用 `astock_report_html` 工具生成标准单文件自包含 HTML 报告文件（交付物归档于 `output/reports/`）；
+  - 严禁在未调用 `astock_report_html` 的情况下仅输出 Markdown 却宣称生成了 HTML 报告；必须确保调用工具产出实际的 .html 文件交付物；
+  - 最终正文回复中应给出核心研报摘要，并明确指引用户查阅生成的 HTML 交付物文件。
 - 当用户要求选股或寻找主线板块龙头时，调用 `astock_screener_5a`。
 
 【批量同类意图任务编排与层级挂接通用规则】

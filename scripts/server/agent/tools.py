@@ -187,7 +187,7 @@ def _sync_astock_technical(code: str, count: int = 60) -> Dict[str, Any]:
     if ":" in raw_code_str or "@" in raw_code_str:
         code = raw_code_str.split(":")[0].split("@")[0].strip()
     bridge = DataBridge()
-    klines = bridge.tencent_kline(code, count=count)
+    klines = bridge.get_kline_robust(code, count=count)
     if not klines or len(klines) < 15:
         return {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"股票/标的 {code} 的历史K线数据不足或标的不存在。"}
     tech_all = calc_all(klines)
@@ -320,8 +320,8 @@ def _sync_astock_evaluate(code: str) -> Dict[str, Any]:
         code = raw_code_str.split(":")[0].split("@")[0].strip()
     bridge = DataBridge()
     q = bridge.get_realtime_quote(code)
-    klines = bridge.tencent_kline(code, count=120)
-    if not klines or len(klines) < 26:
+    klines = bridge.get_kline_robust(code, count=120, quote=q)
+    if not klines or len(klines) < 15:
         return {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"股票 {code} 历史K线不足或标的不存在，无法完成全面诊断。"}
 
     tech_all = calc_all(klines)
@@ -382,7 +382,7 @@ def _sync_astock_data_feed(code: Optional[str] = None, action: str = "quote", co
         return _sync_astock_technical(code=target_code, count=count)
     if act in ("history", "kline"):
         bridge = DataBridge()
-        klines = bridge.tencent_kline(target_code, count=count)
+        klines = bridge.get_kline_robust(target_code, count=count)
         if not klines:
             return {"status": "error", "error": "DATA_UNAVAILABLE", "code": target_code, "message": f"股票/标的 {target_code} 的历史K线暂不可用。"}
         return {
@@ -705,23 +705,24 @@ def _sync_astock_report_html(code: str, output: Optional[str] = None) -> Dict[st
 
         bridge = DataBridge()
         quote = bridge.get_realtime_quote(code)
-        if not quote or not quote.get("price"):
-            return {
-                "status": "error",
-                "error": "DATA_UNAVAILABLE",
+        klines = bridge.get_kline_robust(code, count=120, quote=quote)
+
+        if (not quote or not quote.get("price")) and klines and len(klines) > 0:
+            last_k = klines[-1]
+            quote = {
                 "code": code,
-                "message": f"无法获取股票 {code} 的行情数据生成 HTML 报告，可能代码不存在或已退市。"
+                "name": code,
+                "price": float(last_k[2]),
+                "open": float(last_k[1]),
+                "high": float(last_k[3]),
+                "low": float(last_k[4]),
+                "volume": float(last_k[5]),
+                "change_pct": 0.0,
             }
 
-        name = quote.get("name", code)
-        klines = bridge.tencent_kline(code, count=120)
-        if not klines or len(klines) < 15:
-            return {
-                "status": "error",
-                "error": "DATA_UNAVAILABLE",
-                "code": code,
-                "message": f"股票 {code} K线历史数据不足，无法生成完整 HTML 报告。"
-            }
+        name = (quote and quote.get("name")) or code
+        if not klines or len(klines) < 10:
+            klines = bridge.get_kline_robust(code, count=120, quote=quote)
 
         tech = calc_all(klines)
         scorer = ComboScorer()

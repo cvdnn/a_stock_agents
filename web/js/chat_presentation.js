@@ -503,6 +503,10 @@
         extractedHtmlContent = directMatch[1].trim();
       }
     }
+    if (!extractedHtmlContent && options.htmlContent && typeof options.htmlContent === 'string' && options.htmlContent.trim()) {
+      extractedHtmlContent = options.htmlContent.trim();
+    }
+
 
     var deliverableFilename = options.deliverableFilename || '';
     var summaryMarkdown = rawText;
@@ -646,10 +650,11 @@
     if (fileList.length > 0 && typeof window !== 'undefined' && typeof window.saveDeliverableDoc === 'function') {
       fileList.forEach(function (fn) {
         var isHtmlDoc = /\.html?$/i.test(fn);
-        var contentToSave = (isHtmlDoc && extractedHtmlContent) ? extractedHtmlContent : rawText;
+        var contentToSave = (isHtmlDoc && extractedHtmlContent) ? extractedHtmlContent : (isHtmlDoc && typeof window.convertMarkdownToHtmlDocument === 'function' ? window.convertMarkdownToHtmlDocument(rawText, options.deliverableTitle || fn, fn) : rawText);
         window.saveDeliverableDoc(fn, contentToSave, options.deliverableTitle);
       });
     }
+
 
     // 在对话框摘要底部附带交付物文档列表：
     // 1. 另起一行显示；
@@ -1102,16 +1107,29 @@
       }
     }
 
-    if (toolData) {
-      if (Array.isArray(toolData.deliverables)) {
-        toolData.deliverables.forEach(function (d) {
-          if (typeof d === 'string') addFile(d);
-          else if (d && d.name) addFile(d.name, d.desc);
-        });
+    if (toolData && typeof toolData === 'object') {
+      var itemsToCheck = [toolData];
+      if (!toolData.deliverable_file && !toolData.report_file && !toolData.deliverables && !toolData.filename) {
+        itemsToCheck = Object.values(toolData);
       }
-      if (toolData.deliverable_file) addFile(toolData.deliverable_file);
-      if (toolData.report_file) addFile(toolData.report_file);
-      if (toolData.report_path) addFile(toolData.report_path);
+      itemsToCheck.forEach(function (td) {
+        if (!td || typeof td !== 'object') return;
+        if (Array.isArray(td.deliverables)) {
+          td.deliverables.forEach(function (d) {
+            if (typeof d === 'string') addFile(d);
+            else if (d && d.name) addFile(d.name, d.desc);
+          });
+        }
+        var isHtml = td.format === 'html' || (td.skill_id === 'astock-report-html') || (td.filename && td.filename.endsWith('.html'));
+        var fileDesc = isHtml ? 'HTML可视化研报' : '研报交付物文档';
+        if (td.deliverable_file) addFile(td.deliverable_file, fileDesc);
+        if (td.filename) addFile(td.filename, fileDesc);
+        if (td.report_file) addFile(td.report_file, fileDesc);
+        if (td.report_path) {
+          var base = String(td.report_path).split('/').pop().split('\\').pop();
+          if (base) addFile(base, fileDesc);
+        }
+      });
     }
     return files;
   }
@@ -1530,6 +1548,7 @@
     return html;
   }
 
+  root.escapeHtml = escapeHtml;
   root.ChatPresentation = {
     escapeHtml: escapeHtml,
     cleanMarkdownContent: cleanMarkdownContent,
