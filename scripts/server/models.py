@@ -101,6 +101,6 @@ class ServerConfigResponse(BaseModel):
 
 class SaveDocRequest(BaseModel):
     path: str = Field(..., description="Target relative file path or filename")
-    content: str = Field(..., description="Markdown or text content")
+    content: str = Field(..., description="Markdown, HTML, or text content")
     title: Optional[str] = Field(default=None, description="Optional document title")
 

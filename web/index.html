@@ -391,22 +391,37 @@
           </div>
         </div>
 
-        <!-- View Pane 1: 投研助手综合工作区 (沉浸式 Markdown 显示视窗) -->
+        <!-- View Pane 1: 投研助手综合工作区 (沉浸式 Markdown & HTML 综合视窗) -->
         <div class="right-pane active" id="pane-dashboard">
-          <div class="workspace-markdown-wrapper" id="workspaceMarkdownWrapper">
+          <div class="workspace-markdown-wrapper workspace-doc-wrapper" id="workspaceMarkdownWrapper">
             <!-- 顶部文档元信息栏 -->
             <div class="workspace-doc-meta-bar" id="workspaceDocMetaBar">
               <div class="doc-meta-left">
                 <span class="doc-status-badge" id="docStatusBadge">📌 系统内置</span>
                 <span class="doc-filename-text" id="docFilenameText">USER_GUIDE.md</span>
+                <span class="doc-format-badge format-md" id="docFormatBadge">MARKDOWN</span>
                 <span class="doc-updated-time" id="docUpdatedTime">2026-09-13 实战就绪</span>
               </div>
               <div class="doc-meta-right">
+                <div class="workspace-view-switcher" id="workspaceViewSwitcher">
+                  <button type="button" class="btn-doc-meta-action active" id="btnWorkspaceViewPreview" onclick="switchWorkspaceViewMode('preview')" title="切换到渲染视图">
+                    <span class="meta-action-icon">👁️</span>
+                    <span class="meta-action-text">预览</span>
+                  </button>
+                  <button type="button" class="btn-doc-meta-action" id="btnWorkspaceViewSource" onclick="switchWorkspaceViewMode('source')" title="切换到源码视图">
+                    <span class="meta-action-icon">📄</span>
+                    <span class="meta-action-text">源码</span>
+                  </button>
+                </div>
+                <button type="button" class="btn-doc-meta-action" id="btnWorkspaceOpenExternal" onclick="openWorkspaceDocInNewWindow()" title="在新窗口独立打开" style="display: none;">
+                  <span class="meta-action-icon">↗</span>
+                  <span class="meta-action-text">独立窗口</span>
+                </button>
                 <button type="button" class="btn-doc-meta-action" id="btnWorkspaceToggleToc" onclick="toggleWorkspaceToc()" title="展开/收起目录导航">
                   <span class="meta-action-icon">📑</span>
                   <span class="meta-action-text">目录导航</span>
                 </button>
-                <button type="button" class="btn-doc-meta-action" onclick="copyCurrentWorkbenchMarkdown()" title="复制 Markdown 原文">
+                <button type="button" class="btn-doc-meta-action" id="btnDocMetaCopy" onclick="copyCurrentWorkbenchMarkdown()" title="复制当前文档内容">
                   <span class="meta-action-icon">📋</span>
                   <span class="meta-action-text">复制代码</span>
                 </button>
@@ -414,8 +429,8 @@
               </div>
             </div>
 
-            <!-- 主内容区：含侧边目录 + 主 Markdown 渲染容器 -->
-            <div class="workspace-doc-layout">
+            <!-- 主内容区：含侧边目录 + 主 Markdown 渲染容器 + 主 HTML 渲染容器 + 源码查看容器 -->
+            <div class="workspace-doc-layout" id="workspaceDocLayout">
               <aside class="workspace-doc-toc" id="workspaceDocToc" style="display: none;">
                 <div class="toc-header">
                   <span class="toc-title">📑 本篇目录</span>
@@ -423,8 +438,17 @@
                 </div>
                 <div class="toc-content" id="workspaceTocList"></div>
               </aside>
+              <!-- Markdown 渲染视窗 -->
               <div class="workspace-markdown-container markdown-body" id="workspaceMarkdownBody">
                 <!-- 动态呈现 Markdown 渲染结果 -->
+              </div>
+              <!-- HTML 渲染视窗 (安全沙箱隔离，100%保真且零全局样式污染) -->
+              <div class="workspace-html-container" id="workspaceHtmlContainer" style="display: none;">
+                <iframe class="workspace-html-frame" id="workspaceHtmlFrame" sandbox="allow-scripts allow-same-origin allow-popups" title="HTML 可视化研报"></iframe>
+              </div>
+              <!-- 源码模式容器 (供查看 Markdown 或 HTML 原始代码) -->
+              <div class="workspace-source-container" id="workspaceSourceContainer" style="display: none;">
+                <pre class="workspace-source-pre"><code id="workspaceSourceCode" class="workspace-source-code"></code></pre>
               </div>
             </div>
           </div>

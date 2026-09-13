@@ -127,8 +127,25 @@ cd a_stock_agents
 python verify.py
 ```
 
+### 3. Docker 容器化部署 (推荐，环境完全隔离)
+
+如果您希望在无 Python 环境的宿主机、服务器或 NAS 上运行，可直接使用 Docker 一键启动：
+
+```bash
+# 复制环境变量模版
+cp .env.example .env
+
+# 一键拉起容器 (Web 界面: http://localhost:6300)
+docker compose up -d --build
+
+# 查看运行状态与健康检查
+docker compose ps
+```
+> 详细运维、日志排查与容器内 CLI 调用见 [Docker 容器化部署指南](docs/DOCKER_DEPLOY.md)。
+
 > [!TIP]
 > **自动就地挂载保障**：安装脚本会自动调用 `core/workspace.py`，根据当前操作系统自适应建立 `.agents/skills` 链接（POSIX 相对软链接 / Windows 目录联接），确保任何 AI Agent 打开即可原地工作，绝不污染全局系统。
+
 
 
 ---

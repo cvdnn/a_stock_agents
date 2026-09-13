@@ -10298,6 +10298,57 @@ input:checked + .switch-slider:before {
   border-radius: 4px;
 }
 
+.doc-format-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.doc-format-badge.format-md {
+  color: #722ED1;
+  background: #F9F0FF;
+  border: 1px solid #D3ADF7;
+}
+
+.doc-format-badge.format-html {
+  color: #08979C;
+  background: #E6FFFB;
+  border: 1px solid #87E8DE;
+}
+
+.workspace-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  background: #E5E6EB;
+  padding: 2px;
+  border-radius: 4px;
+  gap: 2px;
+}
+
+.workspace-view-switcher .btn-doc-meta-action {
+  border: none;
+  background: transparent;
+  padding: 2px 7px;
+  font-size: 11px;
+  border-radius: 3px;
+  color: #4E5969;
+}
+
+.workspace-view-switcher .btn-doc-meta-action:hover {
+  color: #1677FF;
+}
+
+.workspace-view-switcher .btn-doc-meta-action.active {
+  background: #FFFFFF;
+  color: #1677FF;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
 .workspace-doc-layout {
   display: flex;
   flex: 1;
@@ -10368,7 +10419,47 @@ input:checked + .switch-slider:before {
   background: #FFFFFF;
 }
 
-/* 会话中可点击的 Markdown 文件药丸或链接 */
+.workspace-html-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  height: 100%;
+  background: #FFFFFF;
+  position: relative;
+  overflow: hidden;
+}
+
+.workspace-html-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 650px;
+  border: none;
+  background: #FFFFFF;
+  display: block;
+  flex: 1;
+}
+
+.workspace-source-container {
+  flex: 1;
+  padding: 16px;
+  background: #1E1E1E;
+  overflow: auto;
+  min-height: 500px;
+}
+
+.workspace-source-pre {
+  margin: 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #D4D4D4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 会话中可点击的 Markdown 与 HTML 文件药丸或链接 */
 .chat-md-chip {
   display: inline-flex;
   align-items: center;
@@ -10395,6 +10486,31 @@ input:checked + .switch-slider:before {
   border-color: #1677FF;
   color: #FFFFFF !important;
   box-shadow: 0 2px 5px rgba(22, 119, 255, 0.25);
+}
+
+.chat-html-chip {
+  background: #E6FFFB;
+  border-color: #87E8DE;
+  color: #08979C;
+}
+
+.chat-html-chip:hover {
+  background: #13C2C2;
+  border-color: #13C2C2;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 5px rgba(19, 194, 194, 0.25);
+}
+
+.dialogue-deliverable-item.deliverable-html-item {
+  border-color: #87E8DE;
+  background: #F6FFED;
+  color: #08979C;
+}
+
+.dialogue-deliverable-item.deliverable-html-item:hover {
+  background: #E6FFFB;
+  border-color: #13C2C2;
+  color: #006D75;
 }
 
 .chat-md-chip .chip-icon {

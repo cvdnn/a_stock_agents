@@ -489,6 +489,7 @@ flowchart TD
 | 分类 | 文档路径 | 核心内容与定位 |
 |---|---|---|
 | **快速入门** | [`quickstart.md`](quickstart.md) | 环境安装、依赖配置、一键自检与 CLI / Web 快速演示向导 |
+| **容器部署** | [`DOCKER_DEPLOY.md`](DOCKER_DEPLOY.md) | Docker 与 Docker Compose 生产容器化快速部署与运维指南 |
 | **实施总览** | [`specs/README.md`](specs/README.md) | 6 大领域规范实施落地进度追踪总看板 (SPEC-INDEX) |
 | **实战手册** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律手册 (操作指引) |
 | **保本速查** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 (快速速查) |

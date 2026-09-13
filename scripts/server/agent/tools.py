@@ -134,6 +134,23 @@ TOOLS_DEFINITIONS: List[Dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "astock_report_html",
+            "description": "生成 A 股标准自包含交互式 HTML 量化投研报告（符合亚光白背景、红涨绿跌、自包含单文件规范），返回报告文件路径、交付物文件名及自包含 HTML 内容。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "6位A股股票代码，如 600519、300750、000001",
+                    },
+                },
+                "required": ["code"],
+            },
+        },
+    },
 ]
 
 
@@ -563,11 +580,14 @@ def _sync_astock_quant_engine(action: str = "pipeline", code: Optional[str] = No
             tech = calc_all(klines)
             atr = float(tech.get("latest", {}).get("atr", 0.0) or (float(q.get("price", 10.0)) * 0.03))
             price = float(q.get("price", 0.0))
+            from core.paper_trading.account_manager import AccountManager
+            account_data = AccountManager().get_account()
+            effective_equity = float(account_data.get("total_assets") or account_data.get("cash") or 200000.0)
             alloc = PositionSizer.calculate_stock_allocation(
                 symbol=code,
                 price=price,
                 atr=atr,
-                total_equity=1000000.0,
+                total_equity=effective_equity,
                 portfolio_target_weight=target_weight,
             )
             return {
@@ -669,8 +689,81 @@ def _sync_astock_report_archive(code: Optional[str] = None, report_type: Optiona
 
 
 
-def _sync_astock_report_html(code: str) -> Dict[str, Any]:
-    return _unavailable("astock-report-html")
+def _sync_astock_report_html(code: str, output: Optional[str] = None) -> Dict[str, Any]:
+    try:
+        raw_code_str = str(code).strip()
+        if ":" in raw_code_str or "@" in raw_code_str:
+            raw_code_str = raw_code_str.split(":")[0].split("@")[0].strip()
+        code = raw_code_str
+
+        from core.data.data_bridge import DataBridge
+        from core.indicators.technical_indicators import calc_all, gap_analysis
+        from core.models.combo_scorer import ComboScorer, entry_assessment
+        from core.reporting.report_generator import generate_simple_report
+        from datetime import datetime
+        import os
+
+        bridge = DataBridge()
+        quote = bridge.get_realtime_quote(code)
+        if not quote or not quote.get("price"):
+            return {
+                "status": "error",
+                "error": "DATA_UNAVAILABLE",
+                "code": code,
+                "message": f"无法获取股票 {code} 的行情数据生成 HTML 报告，可能代码不存在或已退市。"
+            }
+
+        name = quote.get("name", code)
+        klines = bridge.tencent_kline(code, count=120)
+        if not klines or len(klines) < 15:
+            return {
+                "status": "error",
+                "error": "DATA_UNAVAILABLE",
+                "code": code,
+                "message": f"股票 {code} K线历史数据不足，无法生成完整 HTML 报告。"
+            }
+
+        tech = calc_all(klines)
+        scorer = ComboScorer()
+        scores = scorer.score_full(klines, tech.get("latest", {}))
+        entry = entry_assessment(klines, tech.get("latest", {}))
+        gaps = gap_analysis(klines)
+
+        data = {
+            "code": code,
+            "name": name,
+            "quote": quote,
+            "scores": scores,
+            "technical_latest": tech.get("latest", {}),
+            "entry": entry,
+            "gaps": gaps,
+        }
+
+        from core.config import OUTPUT_REPORTS_DIR
+        out_dir = OUTPUT_REPORTS_DIR
+        out_dir.mkdir(parents=True, exist_ok=True)
+        today_str = datetime.now().strftime("%Y%m%d")
+        timestamp_str = datetime.now().strftime("%H%M%S")
+        out_filename = f"aStocks_{code}_{today_str}_{timestamp_str}.html"
+        out_path = output or str(out_dir / out_filename)
+
+        html_content = generate_simple_report(data, out_path)
+
+        return {
+            "status": "success",
+            "skill_id": "astock-report-html",
+            "code": code,
+            "name": name,
+            "report_path": out_path,
+            "filename": os.path.basename(out_path),
+            "deliverable_file": os.path.basename(out_path),
+            "format": "html",
+            "html_content": html_content,
+            "summary": f"已成功为 {name}({code}) 生成自包含量化投研 HTML 报告: {os.path.basename(out_path)}",
+        }
+    except Exception as exc:
+        logger.error("Error in _sync_astock_report_html: %s", exc, exc_info=True)
+        return {"status": "error", "error": "CAPABILITY_EXECUTION_FAILED", "code": code, "message": str(exc)}
 
 
 def _sync_astock_knowledge_tips(topic: str = "all") -> Dict[str, Any]:

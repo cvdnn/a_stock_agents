@@ -1,0 +1,49 @@
+# Git & VCS
+.git/
+.gitignore
+
+# Python runtime & caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Local virtual environment
+.venv/
+env/
+venv/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor & OS files
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local runtime data & caches (persist via volume mount instead)
+output/
+user_data/
+cache/
+.data_cache/
+**/.data_cache/
+reports/
+backups/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.pid
+.server.port
+
+# Sensitive env files
+.env
+.env.*
+!.env.example

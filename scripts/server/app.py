@@ -116,16 +116,17 @@ def create_app() -> FastAPI:
                 workspace_root / "output" / "reports" / filename,
                 workspace_root / "output" / filename,
                 workspace_root / "docs" / filename,
+                workspace_root / ".agents" / "skills" / "astock-data-feed" / "templates" / filename,
             ]
             for cand in candidates:
                 if cand.is_file():
                     target_file = cand
                     break
 
-        # 扩展名限制
-        allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".py"}
+        # 扩展名限制 (支持 Markdown 与 HTML 研报及文本交付物)
+        allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".py", ".html", ".htm"}
         if target_file.suffix.lower() not in allowed_exts:
-            raise HTTPException(status_code=400, detail="Unsupported file format for markdown viewer")
+            raise HTTPException(status_code=400, detail="Unsupported file format for workspace viewer")
 
         if not target_file.is_file():
             raise HTTPException(status_code=404, detail=f"File not found: {target_file.name}")
@@ -133,10 +134,12 @@ def create_app() -> FastAPI:
         try:
             content = target_file.read_text(encoding="utf-8")
             rel_path = target_file.relative_to(workspace_root).as_posix()
+            doc_format = "html" if target_file.suffix.lower() in {".html", ".htm"} else "markdown"
             return {
                 "status": "ok",
                 "path": rel_path,
                 "filename": target_file.name,
+                "format": doc_format,
                 "size_bytes": len(content.encode("utf-8")),
                 "content": content,
             }
@@ -151,7 +154,7 @@ def create_app() -> FastAPI:
         if clean_path.startswith("file://"):
             clean_path = clean_path[7:]
 
-        # 若仅传入了文件名（如 report_600519.md），默认归档至 reports/
+        # 若仅传入了文件名（如 report_600519.md 或 aStocks_600519.html），默认归档至 reports/
         clean_p = Path(clean_path)
         if not clean_p.is_absolute() and len(clean_p.parts) == 1:
             target_file = (workspace_root / "reports" / clean_p.name).resolve()
@@ -166,7 +169,7 @@ def create_app() -> FastAPI:
         except ValueError:
             raise HTTPException(status_code=403, detail="Access denied: outside workspace boundary")
 
-        allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv"}
+        allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".html", ".htm"}
         if target_file.suffix.lower() not in allowed_exts:
             raise HTTPException(status_code=400, detail="Unsupported file format for saving document")
 

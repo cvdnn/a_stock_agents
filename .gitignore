@@ -49,6 +49,7 @@ backups/
 # Environment variables & secrets
 .env
 .env.*
+!.env.example
 
 # Distribution archives
 *.zip

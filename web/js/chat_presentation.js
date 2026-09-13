@@ -20,6 +20,18 @@
     return /\.md$/i.test(val) || /\.markdown$/i.test(val);
   }
 
+  function isHtmlFileLink(url) {
+    var val = String(url || '').trim().toLowerCase();
+    if (!val) return false;
+    if (val.indexOf('file://') === 0) val = val.slice(7);
+    val = val.split('?')[0].split('#')[0];
+    return /\.html$/i.test(val) || /\.htm$/i.test(val);
+  }
+
+  function isDocumentFileLink(url) {
+    return isMarkdownFileLink(url) || isHtmlFileLink(url);
+  }
+
   function isMarkdownPunctuation(value) {
     var code = String(value || '').charCodeAt(0);
     return (code >= 33 && code <= 47) || (code >= 58 && code <= 64) || (code >= 91 && code <= 96) || (code >= 123 && code <= 126);
@@ -107,7 +119,10 @@
             if (image) out += label;
             else {
               var rawLabel = text.slice(labelStart, labelEnd);
-              if (isMarkdownFileLink(target.url) || isMarkdownFileLink(rawLabel)) {
+              if (isHtmlFileLink(target.url) || isHtmlFileLink(rawLabel)) {
+                var targetPath = isHtmlFileLink(target.url) ? target.url : rawLabel;
+                out += '<a href="javascript:void(0)" class="chat-md-chip chat-html-chip" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(targetPath) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\'))" title="在工作区打开 HTML 报告"><span class="chip-icon">🌐</span> <span class="chip-title">' + label + '</span> <span class="chip-arrow">↗</span></a>';
+              } else if (isMarkdownFileLink(target.url) || isMarkdownFileLink(rawLabel)) {
                 var targetPath = isMarkdownFileLink(target.url) ? target.url : rawLabel;
                 out += '<a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\')" title="在工作区打开 Markdown 文档"><span class="chip-icon">📄</span> <span class="chip-title">' + label + '</span> <span class="chip-arrow">↗</span></a>';
               } else {
@@ -198,6 +213,12 @@
         var href = (typeof token === 'object' && token !== null ? token.href : token) || '';
         var title = (typeof token === 'object' && token !== null ? token.title : arguments[1]) || '';
         var text = (typeof token === 'object' && token !== null ? token.text : arguments[2]) || href;
+        if (isHtmlFileLink(href) || isHtmlFileLink(text)) {
+          var targetPath = isHtmlFileLink(href) ? href : text;
+          return '<a href="javascript:void(0)" class="chat-md-chip chat-html-chip" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(targetPath) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\'))" title="在工作区打开 HTML 报告">' +
+            '<span class="chip-icon">🌐</span> <span class="chip-title">' + text + '</span> <span class="chip-arrow">↗</span>' +
+          '</a>';
+        }
         if (isMarkdownFileLink(href) || isMarkdownFileLink(text)) {
           var targetPath = isMarkdownFileLink(href) ? href : text;
           return '<a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\')" title="在工作区打开 Markdown 文档">' +
@@ -359,17 +380,170 @@
     var valid = function (x) { return x && !/^[-| ]+$/.test(x); }, preferred = candidates.filter(valid), result = [], seen = new Set(); (preferred.length ? preferred : fallback.filter(valid)).forEach(function (x) { x = x.slice(0, 120); if (!seen.has(x) && result.length < limit) { seen.add(x); result.push(x); } }); return result.slice(0, Math.min(limit, 5));
   }
 
-  // 格式化对话框任务结果摘要：实质性保留核心结论、指标打分与实战三原则，杜绝过度缩减，末尾附完整研报工作区直达卡片
+  // 从自包含 HTML 研报中智能提取关键投研要素并构建结构化 Markdown 说明
+  function extractMarkdownSummaryFromHtml(htmlContent) {
+    if (!htmlContent || typeof htmlContent !== 'string') return '';
+    try {
+      var code = '';
+      var name = '';
+      var price = '';
+      var chgPct = '';
+      var rating = '';
+      var ratingText = '';
+      var totalScore = '';
+
+      // 提取标题与股票代码/名称
+      var titleMatch = htmlContent.match(/<title>([^<]+)<\/title>/i) || htmlContent.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+      if (titleMatch) {
+        var rawT = titleMatch[1].replace(/—.*$/, '').replace(/分析报告.*$/, '').replace(/投研报告.*$/, '').trim();
+        var codeMatch = rawT.match(/([^\(（\s]+)[\(（]([0-9a-zA-Z]+)[\)）]/);
+        if (codeMatch) {
+          name = codeMatch[1].trim();
+          code = codeMatch[2].trim();
+        } else {
+          name = rawT;
+        }
+      }
+      if (!code) {
+        var cM = htmlContent.match(/([0-9]{6})/);
+        if (cM) code = cM[1];
+      }
+
+      // 提取现价 (包含正负号)
+      var priceMatch = htmlContent.match(/class=["']v["'][^>]*>([^<]+)<\/div>\s*<div class=["']l["']>现价/i);
+      if (priceMatch) price = priceMatch[1].trim();
+
+      // 提取评级
+      var ratingMatch = htmlContent.match(/class=["']v["'][^>]*>([A-D][+-]?)<\/div>\s*<div class=["']l["']>综合评级/i);
+      if (ratingMatch) rating = ratingMatch[1].trim();
+
+      // 提取评分
+      var scoreMatch = htmlContent.match(/class=["']v["'][^>]*>(\d+(?:\.\d+)?)\/(\d+)<\/div>\s*<div class=["']l["']>策略评分/i);
+      if (scoreMatch) totalScore = scoreMatch[1] + '/' + scoreMatch[2];
+
+      // 提取评级文字与建议仓位
+      var tagMatch = htmlContent.match(/class=["']tag[^"']*["']>([^<]+)<\/span>/i);
+      if (tagMatch) ratingText = tagMatch[1].trim();
+
+      // 提取评分明细表格行
+      var scoreRows = [];
+      var tbodyMatch = htmlContent.match(/<tbody>([\s\S]*?)<\/tbody>/i);
+      if (tbodyMatch) {
+        var rowMatches = tbodyMatch[1].matchAll(/<tr>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]*)<\/td>\s*<\/tr>/gi);
+        for (var rm of rowMatches) {
+          scoreRows.push('- **' + rm[1].trim() + '**：' + rm[2].trim() + ' · ' + rm[3].trim());
+        }
+      }
+
+      // 提取止损位与关键价位
+      var stopLoss = '';
+      var stopLossPct = '';
+      var ma20 = '';
+      var slMatch = htmlContent.match(/<div class=["']ll["']>止损位<\/div>\s*<div class=["']lp["']>([^<]+)<\/div>\s*<div class=["']ls["']>([^<]+)<\/div>/i);
+      if (slMatch) {
+        stopLoss = slMatch[1].trim();
+        stopLossPct = slMatch[2].trim();
+      }
+      var maMatch = htmlContent.match(/<div class=["']ll["']>MA20<\/div>\s*<div class=["']lp["']>([^<]+)<\/div>/i);
+      if (maMatch) ma20 = maMatch[1].trim();
+
+      // 构建优雅标准的 Markdown 说明文本
+      var mdLines = [];
+      var dispTitle = (name ? name : '标的') + (code ? ' (' + code + ')' : '') + ' 投研量化综合诊断说明';
+      mdLines.push('### 📊 ' + dispTitle);
+      mdLines.push('');
+      if (price || rating || totalScore) {
+        var statParts = [];
+        if (price) statParts.push('**最新价**：`' + price + '`');
+        if (rating) statParts.push('**综合评级**：`' + rating + '`' + (ratingText ? ' (' + ratingText + ')' : ''));
+        if (totalScore) statParts.push('**策略量化得分**：`' + totalScore + '`');
+        mdLines.push(statParts.join(' ｜ '));
+        mdLines.push('');
+      }
+
+      if (scoreRows.length > 0) {
+        mdLines.push('#### 📈 策略评分明细');
+        mdLines.push(scoreRows.join('\n'));
+        mdLines.push('');
+      }
+
+      mdLines.push('#### 🛡️ 实战交易三原则与风控执行');
+      if (stopLoss) {
+        mdLines.push('- **技术关键防守位**：`' + stopLoss + '` (' + (stopLossPct || '破位止损') + ')' + (ma20 ? '，生命线 MA20：`' + ma20 + '`' : ''));
+      }
+      mdLines.push('- **三级风控止损阶梯**：\n  - T0 警戒线：`-3%`（准备减仓或对冲，警惕破位）\n  - T1 减仓线：`-5%`（减仓 50% 保本防守）\n  - T2 绝杀线：`-8%`（无条件清仓止损出局）');
+      mdLines.push('- **三场景即时动作单**：\n  - 冲高：逼近上方阻力位不盲目追涨，分批高抛\n  - 震荡：依托均线支撑位低吸，严格控制总仓位\n  - 急跌：跌破关键支撑与止损线果断执行纪律');
+      mdLines.push('');
+      mdLines.push('> 💡 **完整研报说明**：已按照用户意图成功生成自包含 HTML 交互式可视化研报，完整图表与明细请点击下方交付物链接在右侧工作台沉浸式查看。');
+
+      return mdLines.join('\n');
+    } catch (e) {
+      console.warn('Error extracting markdown from html:', e);
+      return '';
+    }
+  }
+
+  // 格式化对话框任务结果摘要：会话摘要始终采用Markdown格式说明，杜绝整屏HTML源码与复制按钮，末尾附完整研报工作区直达卡片
   function formatChatDialogueSummary(markdown, options) {
     options = options || {};
     var rawText = cleanMarkdownContent(markdown || '');
     if (!rawText) return '<span style="color:#86909C;">任务已执行完毕。</span>';
 
+    // 1. 深度检测正文是否嵌入或直接输出了自包含 HTML 文档代码块
+    var extractedHtmlContent = null;
+    var htmlCodeBlockRegex = /```(?:html|htm)?\s*([\s\S]*?(?:<!DOCTYPE\s+html|<html)[\s\S]*?<\/html>[\s\S]*?)```/i;
+    var docTypeRegex = /(<!DOCTYPE\s+html[\s\S]*?<\/html>)/i;
+    var codeBlockMatch = rawText.match(htmlCodeBlockRegex);
+
+    if (codeBlockMatch) {
+      extractedHtmlContent = codeBlockMatch[1].trim();
+    } else {
+      var directMatch = rawText.match(docTypeRegex);
+      if (directMatch) {
+        extractedHtmlContent = directMatch[1].trim();
+      }
+    }
+
     var deliverableFilename = options.deliverableFilename || '';
     var summaryMarkdown = rawText;
 
-    // 当报告内容较长时，提取包含所有核心结论、量化指标打分、实战交易三原则及重点风控建议的实质性段落
-    if (rawText.length > 2000) {
+    // 2. 核心要求 1：会话摘要始终采用Markdown格式说明
+    // 若检测到嵌入 HTML，剥离庞大的 HTML 代码块，绝不将 HTML 源码或代码块直接渲染在对话框摘要中
+    if (extractedHtmlContent) {
+      // 剥离代码块后的剩余 Markdown 文本
+      var strippedMarkdown = rawText.replace(htmlCodeBlockRegex, '').replace(docTypeRegex, '').trim();
+      // 清除可能遗留的 "下面直接以自包含 HTML...输出" 等过渡垫话
+      strippedMarkdown = strippedMarkdown.replace(/(?:下面|现已|在此|以下)?直接以自包含\s*HTML\s*(?:单文件)?形式输出[^\n]*\n?/gi, '').trim();
+
+      // 判定剥离后的正文是否包含实质性业务分析（行数充足或包含核心分析关键词）
+      var keySectionRegex = /(核心结论|结论|诊断|定性|多因子|量化评分|评分|关键指标|指标|实战|原则|保本|止损|动作|风控|建议|策略|复盘|研判|操作)/;
+      var hasSubstantialContent = strippedMarkdown.length >= 80 && keySectionRegex.test(strippedMarkdown);
+
+      if (hasSubstantialContent) {
+        // 如果外部原本已有丰富详尽的 Markdown 研报文字，保留并确保末尾附带 HTML 研报指引
+        summaryMarkdown = strippedMarkdown;
+        if (!summaryMarkdown.includes('完整研报') && !summaryMarkdown.includes('可视化研报')) {
+          summaryMarkdown += '\n\n> 💡 **完整研报提示**：自包含交互式 HTML 可视化研报已生成就绪，点击下方交付物链接即可在右侧工作台沉浸式浏览。';
+        }
+      } else {
+        // 如果外部缺乏实质性 Markdown 总结（例如大模型直接将全部内容塞在 HTML 代码块中）：
+        // 智能从提取出的 HTML 中提炼完整的结构化数据并重构成 100% 纯正的 Markdown 格式说明！
+        var synthesizedMarkdown = extractMarkdownSummaryFromHtml(extractedHtmlContent);
+        if (synthesizedMarkdown) {
+          summaryMarkdown = synthesizedMarkdown;
+        } else if (strippedMarkdown) {
+          summaryMarkdown = strippedMarkdown + '\n\n> 💡 **完整研报提示**：自包含交互式 HTML 可视化研报已生成就绪，请点击下方交付物链接在右侧工作区沉浸式浏览。';
+        }
+      }
+
+      // 核心要求 2：修正交付物格式为 .html
+      var stockCodeMatch = rawText.match(/([0-9]{6})/);
+      var derivedCode = stockCodeMatch ? stockCodeMatch[1] : 'report';
+      if (!deliverableFilename || deliverableFilename.endsWith('.md')) {
+        deliverableFilename = 'report_' + derivedCode + '_' + Date.now().toString().slice(-6) + '.html';
+      }
+    } else if (rawText.length > 2000) {
+      // 当普通文本过长时，提取实质性核心段落
       var lines = rawText.split(/\r?\n/);
       var selectedLines = [];
       var currentSectionWanted = true;
@@ -416,12 +590,19 @@
     function appendFile(fn) {
       if (!fn || typeof fn !== 'string') return;
       var clean = fn.trim();
+      // 纠正格式：如果提取到了 HTML 内容，将错误的 .md 规范替换为 .html
+      if (extractedHtmlContent && clean.endsWith('.md')) {
+        clean = clean.replace(/\.md$/i, '.html');
+      }
       if (clean && !seenFiles.has(clean)) {
         seenFiles.add(clean);
         fileList.push(clean);
       }
     }
 
+    if (deliverableFilename) {
+      appendFile(deliverableFilename);
+    }
     if (Array.isArray(options.deliverableFiles)) {
       options.deliverableFiles.forEach(appendFile);
     }
@@ -432,38 +613,56 @@
         else if (d && d.name) appendFile(d.name);
       });
     }
-    if (options.deliverableFilename) {
-      appendFile(options.deliverableFilename);
-    }
 
-    // 若未显式传入或从外部提供，智能扫描正文中提及的 .md 交付物文件
-    if (fileList.length === 0 && typeof detectDeliverables === 'function') {
+    // 智能扫描正文中提及的交付物文件（兼容 .md 与 .html）
+    if (typeof detectDeliverables === 'function') {
       var autoDetected = detectDeliverables(rawText);
       if (Array.isArray(autoDetected)) {
         autoDetected.forEach(function (d) {
-          if (d && d.filename && d.filename.endsWith('.md')) {
+          if (d && d.filename) {
             appendFile(d.filename);
           }
         });
       }
     }
 
-    // 自动将交付物文件与全文同步至全局文档存储中
+    // 如果检测到 HTML 内容，确保列表中包含至少一个 .html 交付物并置顶
+    if (extractedHtmlContent) {
+      var hasHtmlInList = fileList.some(function(fn) { return /\.html?$/i.test(fn); });
+      if (!hasHtmlInList) {
+        var defaultHtmlName = 'report_' + (rawText.match(/([0-9]{6})/) ? rawText.match(/([0-9]{6})/)[1] : 'stock') + '_' + Date.now().toString().slice(-6) + '.html';
+        fileList.unshift(defaultHtmlName);
+      } else {
+        // 将 HTML 文件排序至最前
+        fileList.sort(function(a, b) {
+          var aHtml = /\.html?$/i.test(a);
+          var bHtml = /\.html?$/i.test(b);
+          return (aHtml === bHtml) ? 0 : (aHtml ? -1 : 1);
+        });
+      }
+    }
+
+    // 自动将交付物文件与纯净内容同步至全局文档存储中
     if (fileList.length > 0 && typeof window !== 'undefined' && typeof window.saveDeliverableDoc === 'function') {
       fileList.forEach(function (fn) {
-        window.saveDeliverableDoc(fn, rawText, options.deliverableTitle);
+        var isHtmlDoc = /\.html?$/i.test(fn);
+        var contentToSave = (isHtmlDoc && extractedHtmlContent) ? extractedHtmlContent : rawText;
+        window.saveDeliverableDoc(fn, contentToSave, options.deliverableTitle);
       });
     }
 
     // 在对话框摘要底部附带交付物文档列表：
     // 1. 另起一行显示；
-    // 2. 文件名无需圆角矩形圈起来（纯净文本超链）；
-    // 3. 只显示【📄文件名】，删除跳转小图标 ↗；
+    // 2. 文件名纯净文本超链；
+    // 3. HTML显示 🌐，Markdown显示 📄；
     // 4. 支持多附件文档，一份文档一行。
     if (fileList.length > 0) {
       var itemsHtml = fileList.map(function (filename) {
-        return '<a href="javascript:void(0)" class="dialogue-deliverable-item" data-path="' + escapeHtml(filename) + '" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(filename) + '\')" title="在工作区打开文档">' +
-          '<span class="deliverable-doc-icon">📄</span><span class="deliverable-doc-name">' + escapeHtml(filename) + '</span>' +
+        var isHtml = /\.html?$/i.test(filename);
+        var icon = isHtml ? '🌐' : '📄';
+        var chipCls = isHtml ? 'dialogue-deliverable-item deliverable-html-item' : 'dialogue-deliverable-item';
+        return '<a href="javascript:void(0)" class="' + chipCls + '" data-path="' + escapeHtml(filename) + '" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(filename) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(filename) + '\'))" title="' + (isHtml ? '在工作区打开 HTML 页面报告' : '在工作区打开文档') + '">' +
+          '<span class="deliverable-doc-icon">' + icon + '</span><span class="deliverable-doc-name">' + escapeHtml(filename) + '</span>' +
           '</a>';
       }).join('');
 
@@ -883,11 +1082,22 @@
     };
 
     if (markdown) {
-      var matches = String(markdown).matchAll(/`?([a-zA-Z0-9_\-]+\.(?:md|json|csv|html))`?/g);
+      var matches = String(markdown).matchAll(/`?([a-zA-Z0-9_\-\.]+\.(?:md|markdown|json|csv|html|htm))`?/g);
       for (var m of matches) {
         var fn = m[1];
-        if (fn.endsWith('.md') || fn.endsWith('.json')) {
-          addFile(fn, '研报交付物文档');
+        if (fn.endsWith('.md') || fn.endsWith('.markdown') || fn.endsWith('.json') || fn.endsWith('.html') || fn.endsWith('.htm')) {
+          var desc = (fn.endsWith('.html') || fn.endsWith('.htm')) ? 'HTML可视化研报' : '研报交付物文档';
+          addFile(fn, desc);
+        }
+      }
+
+      // 智能识别嵌入在 Markdown 中的自包含 HTML 研报文档
+      if (/(?:<!DOCTYPE\s+html|<html[\s>])/i.test(markdown) || /```(?:html|htm)?\s*<!DOCTYPE/i.test(markdown)) {
+        var hasHtmlAlready = files.some(function(f) { return f.filename.endsWith('.html') || f.filename.endsWith('.htm'); });
+        if (!hasHtmlAlready) {
+          var codeMatch = String(markdown).match(/([0-9]{6})/);
+          var sc = codeMatch ? codeMatch[1] : 'report';
+          addFile('report_' + sc + '_' + Date.now().toString().slice(-6) + '.html', 'HTML可视化研报');
         }
       }
     }
@@ -901,6 +1111,7 @@
       }
       if (toolData.deliverable_file) addFile(toolData.deliverable_file);
       if (toolData.report_file) addFile(toolData.report_file);
+      if (toolData.report_path) addFile(toolData.report_path);
     }
     return files;
   }
@@ -990,9 +1201,12 @@
       return textStr;
     }
     var escaped = escapeHtml(textStr);
-    return escaped.replace(/(`?)([a-zA-Z0-9_\-/\\]+\.(?:md|markdown))\1/gi, function (match, quote, fn) {
+    return escaped.replace(/(`?)([a-zA-Z0-9_\-/\\]+\.(?:md|markdown|html|htm))\1/gi, function (match, quote, fn) {
       var cleanFn = fn.split('/').pop().split('\\').pop();
-      return '<a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(fn) + '\')" title="在工作区打开文档"><span class="chip-icon">📄</span> <span class="chip-title">' + escapeHtml(cleanFn) + '</span> <span class="chip-arrow">↗</span></a>';
+      var isHtml = /\.html?$/i.test(fn);
+      var icon = isHtml ? '🌐' : '📄';
+      var chipClass = isHtml ? 'chat-md-chip chat-html-chip' : 'chat-md-chip';
+      return '<a href="javascript:void(0)" class="' + chipClass + '" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(fn) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(fn) + '\'))" title="在工作区打开文档"><span class="chip-icon">' + icon + '</span> <span class="chip-title">' + escapeHtml(cleanFn) + '</span> <span class="chip-arrow">↗</span></a>';
     });
   }
 
@@ -1259,9 +1473,10 @@
         );
         if (branchDeliverable) {
           var fn = typeof branchDeliverable === 'string' ? branchDeliverable : (branchDeliverable.filename || branchDeliverable.name);
+          var bIcon = /\.html?$/i.test(fn) ? '🌐 ' : '📄 ';
           html += '      <div class="node-deliverable-wrap" style="margin-left: 2px; margin-top: 4px;">';
           html += '        <span class="deliverable-link-chip" onclick="window.openDeliverableInWorkbench && window.openDeliverableInWorkbench(\'' + escapeHtml(fn) + '\')" title="在右侧工作台打开文件">';
-          html += '          📄 ' + escapeHtml(fn) + ' <span class="open-arrow">↗</span>';
+          html += '          ' + bIcon + escapeHtml(fn) + ' <span class="open-arrow">↗</span>';
           html += '        </span>';
           html += '      </div>';
         }
@@ -1282,9 +1497,10 @@
       );
       if (nonBranchDeliverable && !isBranchNode) {
         var nonBranchFn = typeof nonBranchDeliverable === 'string' ? nonBranchDeliverable : (nonBranchDeliverable.filename || nonBranchDeliverable.name);
+        var nbIcon = /\.html?$/i.test(nonBranchFn) ? '🌐 ' : '📄 ';
         html += '  <div class="node-deliverable-wrap" style="margin-top: 4px; margin-left: 19px;">';
         html += '    <span class="deliverable-link-chip" onclick="window.openDeliverableInWorkbench && window.openDeliverableInWorkbench(\'' + escapeHtml(nonBranchFn) + '\')" title="在右侧工作台打开文件">';
-        html += '      📄 ' + escapeHtml(nonBranchFn) + ' <span class="open-arrow">↗</span>';
+        html += '      ' + nbIcon + escapeHtml(nonBranchFn) + ' <span class="open-arrow">↗</span>';
         html += '    </span>';
         html += '  </div>';
       }
@@ -1330,6 +1546,10 @@
     calculateExecutionProgress: calculateExecutionProgress,
     renderExecutionTimelineHtml: renderExecutionTimelineHtml,
     copyCodeBlock: copyCodeBlock,
-    initMarkedEngine: initMarkedEngine
+    initMarkedEngine: initMarkedEngine,
+    isMarkdownFileLink: isMarkdownFileLink,
+    isHtmlFileLink: isHtmlFileLink,
+    isDocumentFileLink: isDocumentFileLink,
+    extractMarkdownSummaryFromHtml: extractMarkdownSummaryFromHtml
   };
 }(typeof window !== 'undefined' ? window : this));
