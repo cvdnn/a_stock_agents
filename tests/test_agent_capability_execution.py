@@ -93,7 +93,7 @@ async def test_execute_tool_astock_pool_dashboard_empty_guidance():
     assert res["status"] == "success"
     assert res["count"] == 0
     assert res.get("is_empty") is True
-    assert "000222:1000@25.1234" in res.get("message", "")
+    assert "000001:1000@12.50" in res.get("message", "")
     assert "股票:股数@成本价" in res.get("message", "")
 
 
@@ -112,7 +112,7 @@ async def test_execute_tool_composite_stock_code_parsing():
 
 def test_agent_system_prompt_empty_pool_guidance():
     from server.agent.prompts import AGENT_SYSTEM_PROMPT
-    assert "000222:1000@25.1234" in AGENT_SYSTEM_PROMPT
+    assert "000001:1000@12.50" in AGENT_SYSTEM_PROMPT
     assert "股票:股数@成本价" in AGENT_SYSTEM_PROMPT
     assert "还未登记相关股池" in AGENT_SYSTEM_PROMPT
 

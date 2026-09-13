@@ -145,9 +145,11 @@ def _sync_astock_quote(code: str) -> Dict[str, Any]:
         code = raw_code_str.split(":")[0].split("@")[0].strip()
     bridge = DataBridge()
     q = bridge.get_realtime_quote(code)
-    if not q:
-        return {"error": "DATA_UNAVAILABLE", "message": f"无法获取股票 {code} 的实时行情。"}
+    if not q or not isinstance(q, dict) or "error" in q or not q.get("price"):
+        err_msg = q.get("error") if (isinstance(q, dict) and q.get("error")) else f"无法获取股票 {code} 的实时行情，可能代码不存在或已退市。"
+        return {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": err_msg}
     return {
+        "status": "success",
         "code": q.get("code", code),
         "name": q.get("name", code),
         "price": float(q.get("price", 0.0)),
@@ -170,7 +172,7 @@ def _sync_astock_technical(code: str, count: int = 60) -> Dict[str, Any]:
     bridge = DataBridge()
     klines = bridge.tencent_kline(code, count=count)
     if not klines or len(klines) < 15:
-        return {"error": f"股票/标的 {code} 的历史K线数据不足。"}
+        return {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"股票/标的 {code} 的历史K线数据不足或标的不存在。"}
     tech_all = calc_all(klines)
     latest = tech_all.get("latest", {})
     return {
@@ -303,16 +305,17 @@ def _sync_astock_evaluate(code: str) -> Dict[str, Any]:
     q = bridge.get_realtime_quote(code)
     klines = bridge.tencent_kline(code, count=120)
     if not klines or len(klines) < 26:
-        return {"error": f"股票 {code} 历史K线不足以完成全面诊断。"}
+        return {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"股票 {code} 历史K线不足或标的不存在，无法完成全面诊断。"}
 
     tech_all = calc_all(klines)
     tech = tech_all.get("latest", {})
     scorer = ComboScorer()
     scores = scorer.score_full(klines, tech)
     if not isinstance(scores.get("total"), (int, float)):
-        return {"error": "ANALYSIS_INCOMPLETE", "message": "量化评分后端未返回总分。"}
+        return {"status": "error", "error": "ANALYSIS_INCOMPLETE", "code": code, "message": "量化评分后端未返回总分。"}
 
     return {
+        "status": "success",
         "code": code,
         "name": q.get("name", code) if q else code,
         "current_price": float(q.get("price", klines[-1][2])) if q else float(klines[-1][2]),
@@ -364,8 +367,9 @@ def _sync_astock_data_feed(code: Optional[str] = None, action: str = "quote", co
         bridge = DataBridge()
         klines = bridge.tencent_kline(target_code, count=count)
         if not klines:
-            return {"error": "DATA_UNAVAILABLE", "message": f"股票/标的 {target_code} 的历史K线暂不可用。"}
+            return {"status": "error", "error": "DATA_UNAVAILABLE", "code": target_code, "message": f"股票/标的 {target_code} 的历史K线暂不可用。"}
         return {
+            "status": "success",
             "code": target_code,
             "count": len(klines),
             "klines": klines[-count:],
@@ -416,7 +420,7 @@ def _sync_astock_pool_dashboard(
                 res["message"] = (
                     f"当前【{resolved_pool_type}】股池为空，尚未登记任何标的。"
                     "不用继续分析，请直接提示用户还未登记相关股池，并提示用户登记："
-                    "例如持仓股：000222:1000@25.1234。格式：股票:股数@成本价。"
+                    "例如持仓股：000001:1000@12.50。格式：股票:股数@成本价。"
                 )
             return res
 
@@ -432,7 +436,7 @@ def _sync_astock_pool_dashboard(
             res["message"] = (
                 f"当前【{resolved_pool_type}】股池为空，尚未登记任何标的。"
                 "不用继续分析，请直接提示用户还未登记相关股池，并提示用户登记："
-                "例如持仓股：000222:1000@25.1234。格式：股票:股数@成本价。"
+                "例如持仓股：000001:1000@12.50。格式：股票:股数@成本价。"
             )
         return res
     except Exception as exc:
@@ -492,7 +496,7 @@ def _sync_astock_trade_paper(
                 res["message"] = (
                     "当前持仓为空，尚未登记任何持仓标的。"
                     "不用继续分析，请直接提示用户还未登记相关股池，并提示用户登记："
-                    "例如持仓股：000222:1000@25.1234。格式：股票:股数@成本价。"
+                    "例如持仓股：000001:1000@12.50。格式：股票:股数@成本价。"
                 )
             return res
         elif action == "orders":
@@ -517,35 +521,97 @@ def _sync_astock_strategy_mainboard(action: str = "candidates", code: Optional[s
         engine = DailyDecisionEngine()
         if code:
             res = engine.evaluate_stock(code)
+            if isinstance(res, dict) and (res.get("status") == "error" or "error" in res):
+                return res
             return res if isinstance(res, dict) else {"status": "success", "code": code, "result": res}
         cands = engine.get_swing_candidates()
         return {"status": "success", "action": action, "candidates": cands}
     except Exception as exc:
         logger.error("Error in _sync_astock_strategy_mainboard: %s", exc, exc_info=True)
+        err_type = "DATA_UNAVAILABLE" if any(k in str(exc).lower() for k in ["k线", "quote", "行情", "not found"]) else "CAPABILITY_EXECUTION_FAILED"
         return {
             "status": "error",
-            "error": "CAPABILITY_EXECUTION_FAILED",
-            "code": "CAPABILITY_EXECUTION_FAILED",
+            "error": err_type,
+            "code": err_type,
             "action": action,
             "detail": str(exc),
         }
 
 
 def _sync_astock_quant_engine(action: str = "pipeline", code: Optional[str] = None) -> Dict[str, Any]:
-    return _unavailable("astock-quant-engine")
-def _sync_astock_agent_debate(code: str, rounds: int = 2) -> Dict[str, Any]:
     try:
-        from core.multi_agent.ta_orchestrator import TechnicalAnalysisOrchestrator
-        orch = TechnicalAnalysisOrchestrator()
-        report = orch.run_debate(code=code, rounds=rounds)
+        from core.strategy.risk_position_manager import PositionSizer
+        from core.data.data_bridge import DataBridge
+        from core.indicators.technical_indicators import calc_all
+
+        target_weight = PositionSizer.calculate_portfolio_target_weight(market_volatility_annual=18.5)
+
+        if code:
+            raw_code_str = str(code).strip()
+            if ":" in raw_code_str or "@" in raw_code_str:
+                code = raw_code_str.split(":")[0].split("@")[0].strip()
+            bridge = DataBridge()
+            q = bridge.get_realtime_quote(code)
+            klines = bridge.tencent_kline(code, count=60)
+            if not q or not isinstance(q, dict) or "error" in q or not klines or len(klines) < 15:
+                return {
+                    "status": "error",
+                    "error": "DATA_UNAVAILABLE",
+                    "code": code,
+                    "message": f"无法获取股票 {code} 行情数据，量化工程计算中止。"
+                }
+            tech = calc_all(klines)
+            atr = float(tech.get("latest", {}).get("atr", 0.0) or (float(q.get("price", 10.0)) * 0.03))
+            price = float(q.get("price", 0.0))
+            alloc = PositionSizer.calculate_stock_allocation(
+                symbol=code,
+                price=price,
+                atr=atr,
+                total_equity=1000000.0,
+                portfolio_target_weight=target_weight,
+            )
+            return {
+                "status": "success",
+                "action": action,
+                "code": code,
+                "name": q.get("name", code),
+                "price": price,
+                "atr": round(atr, 3),
+                "portfolio_target_weight": target_weight,
+                "allocation": alloc,
+                "summary": f"量化工程计算完成：目标总仓位 {target_weight*100:.1f}%，单标的建议分配 {alloc['shares']} 股 (¥{alloc['actual_amount']:,.2f})"
+            }
+
         return {
-            "code": code,
-            "rounds": rounds,
-            "debate_summary": report["summary"],
-            "bull_bear_ratio": report["ratio"],
+            "status": "success",
+            "action": action,
+            "portfolio_target_weight": target_weight,
+            "standard_board_cap": {"mainboard": 0.15, "gem_star": 0.08},
+            "atr_vol_scalar_base": 0.03,
+            "summary": f"工业级量化流水线就绪：基准总仓位 {target_weight*100:.1f}%，主板上限 15%，双创板上限 8%"
         }
-    except Exception:
-        return _unavailable("astock-agent-debate")
+    except Exception as exc:
+        logger.error("Error in _sync_astock_quant_engine: %s", exc, exc_info=True)
+        return {
+            "status": "error",
+            "error": "CAPABILITY_EXECUTION_FAILED",
+            "action": action,
+            "detail": str(exc),
+        }
+
+
+def _sync_astock_agent_debate(code: str = "600519", rounds: int = 2) -> Dict[str, Any]:
+    try:
+        from core.commands.model_cmds import generate_stock_debate
+        return generate_stock_debate(code=code, rounds=rounds)
+    except Exception as exc:
+        logger.error("Error in _sync_astock_agent_debate: %s", exc, exc_info=True)
+        return {
+            "status": "error",
+            "error": "CAPABILITY_EXECUTION_FAILED",
+            "code": code,
+            "detail": str(exc),
+        }
 
 
 def _sync_astock_strategy_tuige(code: str, scenario: str = "limit_up_pullback") -> Dict[str, Any]:
@@ -562,7 +628,7 @@ def _sync_astock_strategy_macd(code: str) -> Dict[str, Any]:
     bridge = DataBridge()
     klines = bridge.tencent_kline(code, count=60)
     if not klines or len(klines) < 26:
-        return {"error": "DATA_UNAVAILABLE", "message": f"股票 {code} 的K线不足，无法判断 MACD 形态。"}
+        return {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"股票 {code} 的K线不足或标的不存在，无法判断 MACD 形态。"}
     tech = calc_all(klines).get("latest", {})
     macd = tech.get("macd", {})
     dif = macd.get("dif", 0.0)
@@ -570,6 +636,7 @@ def _sync_astock_strategy_macd(code: str) -> Dict[str, Any]:
     hist = macd.get("hist", 0.0)
     status = "零轴下二次金叉蓄势" if (dif < 0 and dea < 0 and dif >= dea) else ("零轴上方多头加速" if dif > 0 and dea > 0 else "中性震荡")
     return {
+        "status": "success",
         "code": code,
         "dif": dif,
         "dea": dea,

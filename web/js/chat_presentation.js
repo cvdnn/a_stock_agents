@@ -395,7 +395,9 @@
     CAPABILITY_EXECUTION_FAILED: ['能力执行失败', '后端计算或调用异常，请稍后重试'],
     CAPABILITY_NOT_IMPLEMENTED: ['能力暂未接入', '该能力尚未接通生产执行引擎'],
     ACCOUNT_DATA_UNAVAILABLE: ['账户数据不可用', '未找到模拟盘账户或资金数据'],
-    DATA_UNAVAILABLE: ['数据暂不可用', '未获取到目标股票的实时数据'],
+    DATA_UNAVAILABLE: ['数据暂不可用', '未获取到目标股票的实时数据或该标的不存在'],
+    INVALID_STOCK_CODE: ['股票代码无效', '股票代码不存在或已退市，请核对后重试'],
+    ANALYSIS_INCOMPLETE: ['分析未完成', '基础数据不足以完成全面诊断'],
     ORDER_RESULT_INVALID: ['订单请求无效', '订单执行失败或参数不合规'],
   };
   function presentError(error) {
@@ -721,14 +723,27 @@
 
       var subInfo = n.summary || '';
       if (isGroup) {
-        subInfo = isNodeRunning ? ('正在执行 ' + n.items.length + ' 次批量调用...') : ('已聚合挂接 ' + n.items.length + ' 次子任务调用并汇总数据');
+        var groupItems = n.items || [];
+        var failedItems = groupItems.filter(function (x) { return x.status === 'failed'; });
+        var succeededItems = groupItems.filter(function (x) { return x.status === 'succeeded' || x.status === 'success'; });
+        if (isNodeRunning) {
+          subInfo = '正在执行 ' + groupItems.length + ' 次批量调用...';
+        } else if (failedItems.length === groupItems.length && groupItems.length > 0) {
+          subInfo = '已挂接 ' + groupItems.length + ' 次子任务调用，全部执行失败';
+        } else if (failedItems.length > 0) {
+          subInfo = '已聚合挂接 ' + groupItems.length + ' 次子任务调用（' + succeededItems.length + ' 项成功，' + failedItems.length + ' 项失败）';
+        } else {
+          subInfo = '已聚合挂接 ' + groupItems.length + ' 次子任务调用并汇总数据';
+        }
       } else if (!subInfo && n.action) {
         subInfo = '第 ' + (i + 1) + ' 个动作 · ' + n.action;
       }
       if (isNodeFailed && n.error) {
         var errTitle = n.error.title || n.error.detail || '执行异常';
-        var codePrefix = n.error.code && n.error.code !== 'UNKNOWN' && !/^\d{6}$/.test(String(n.error.code)) ? (n.error.code + ' · ') : '';
-        subInfo = codePrefix + errTitle;
+        var rawCode = String(n.error.code || '');
+        var hidePrefix = ['CAPABILITY_EXECUTION_FAILED', 'UNKNOWN', 'ERROR', 'FAILED', 'DATA_UNAVAILABLE'];
+        var codePrefix = (rawCode && hidePrefix.indexOf(rawCode) === -1 && !/^\d{6}$/.test(rawCode)) ? (rawCode + ' · ') : '';
+        subInfo = codePrefix ? (codePrefix + errTitle) : errTitle;
       } else if (isNodeDegraded && !subInfo) {
         subInfo = '能力暂未接入生产引擎';
       }

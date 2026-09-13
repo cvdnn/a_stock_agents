@@ -463,7 +463,11 @@ class AgentReActRunner:
                         "error": "调用失败",
                         "confirmation_required": "等待用户确认",
                     }.get(status, "调用成功")
-                    if status == "success" and "price" in tool_res and "change_pct" in tool_res:
+                    if status == "success" and "consensus" in tool_res:
+                        summary = f"辩论决议: {tool_res['consensus']}"
+                    elif status == "success" and "portfolio_target_weight" in tool_res:
+                        summary = tool_res.get("summary") or f"量化计算完成 (基准仓位 {tool_res['portfolio_target_weight']*100:.1f}%)"
+                    elif status == "success" and "price" in tool_res and "change_pct" in tool_res:
                         summary = f"现价 {tool_res['price']} ({tool_res['change_pct']:+.2f}%)"
                     elif status == "success" and "breakeven_price" in tool_res:
                         summary = f"保本价 {tool_res['breakeven_price']} (止损T0: {tool_res.get('stop_t0')})"

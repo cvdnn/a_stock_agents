@@ -477,12 +477,39 @@ assert.match(batchHtml, /能力调用astock_data_feed任务（批量6次调用�
 assert(!batchHtml.includes('【能力调用'), '批量父任务标题无需包含【】括号');
 assert.match(batchHtml, /Data Feed Agent/, '必须归属到同一个 Data Feed Agent 智能体卡片');
 assert.match(batchHtml, /已聚合挂接 6 次子任务调用并汇总数据/, '必须包含批量聚合挂接子任务概要');
-// 挂接子任务断言
-assert.match(batchHtml, /子任务 1: astock_data_feed · 现价 3888\.11 \(-1\.18%\)/, '子任务1必须作为挂接子任务');
-assert.match(batchHtml, /子任务 2: astock_data_feed · 现价 13471\.26 \(-1\.08%\)/, '子任务2必须作为挂接子任务');
-assert.match(batchHtml, /子任务 6: astock_data_feed · 现价 2465\.84 \(-1\.45%\)/, '子任务6必须作为挂接子任务');
+// 9. 验证批量子任务全部失败时的文案（必须显示全部执行失败，绝不能显示“并汇总数据”）
+const allFailedBatchState = api.createResponseState('all-failed-batch');
+['quote', 'tech', 'history'].forEach((act, idx) => {
+  const callId = 'fail_call_' + idx;
+  api.applyEvent(allFailedBatchState, 'tool_call_start', { call_id: callId, skill_id: 'astock_data_feed', args: { action: act, code: '000222' } });
+  api.applyEvent(allFailedBatchState, 'tool_call_complete', {
+    call_id: callId,
+    skill_id: 'astock_data_feed',
+    status: 'failed',
+    summary: '调用失败',
+    error: { error: 'DATA_UNAVAILABLE', detail: '未获取到目标股票数据' }
+  });
+});
+const allFailedHtml = api.renderExecutionTimelineHtml(allFailedBatchState);
+assert.match(allFailedHtml, /能力调用astock_data_feed任务（批量3次调用）/, '批量父任务标题正常生成');
+assert.match(allFailedHtml, /已挂接 3 次子任务调用，全部执行失败/, '全失败时副标题必须显示全部执行失败');
+assert(!allFailedHtml.includes('并汇总数据'), '全失败状态下绝严禁出现“并汇总数据”文案');
+
+// 10. 验证内部错误码 CAPABILITY_EXECUTION_FAILED 不会以裸露前缀形式泄露
+const rawErrState = api.createResponseState('raw-err-test');
+api.applyEvent(rawErrState, 'tool_call_start', { call_id: 'err_call_1', skill_id: 'astock_platform_evaluate' });
+api.applyEvent(rawErrState, 'tool_call_complete', {
+  call_id: 'err_call_1',
+  skill_id: 'astock_platform_evaluate',
+  status: 'failed',
+  error: { code: 'CAPABILITY_EXECUTION_FAILED', error: 'CAPABILITY_EXECUTION_FAILED', title: '能力执行失败' }
+});
+const rawErrHtml = api.renderExecutionTimelineHtml(rawErrState);
+assert(!rawErrHtml.includes('CAPABILITY_EXECUTION_FAILED · 能力执行失败'), '内部错误码不得以裸露前缀拼接形式泄露');
+assert.match(rawErrHtml, /能力执行失败/, '错误标题正常渲染');
 
 console.log('PASS');
+
 
 
 

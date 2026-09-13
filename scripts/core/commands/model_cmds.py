@@ -323,10 +323,11 @@ def cmd_evaluate(args):
             print(f"评级: {res.get('rating', 'N/A')} - {res.get('rating_text', 'N/A')} | 建议仓位: {res.get('suggested_position', 'N/A')}")
 
 
-def cmd_debate(args):
-    """7 大 AI 分析师多角色多空辩论与决策裁决 (自包含原生实现)"""
-    code = getattr(args, "code", "600519")
-    as_json = getattr(args, "json", False) or getattr(args, "output", "") == "json"
+def generate_stock_debate(code: str = "600519", rounds: int = 2) -> Dict[str, Any]:
+    """生成 7 大 AI 分析师多角色多空辩论与决策裁决数据结构"""
+    raw_code_str = str(code).strip()
+    if ":" in raw_code_str or "@" in raw_code_str:
+        code = raw_code_str.split(":")[0].split("@")[0].strip()
 
     from core.data.data_bridge import DataBridge
     from core.indicators.technical_indicators import calc_all
@@ -338,17 +339,17 @@ def cmd_debate(args):
     q = bridge.get_realtime_quote(code)
     klines = bridge.tencent_kline(code, count=120)
 
-    if not q or not klines or len(klines) < 20:
-        err = {"error": True, "message": f"无法获取 {code} 行情数据或K线不足"}
-        if as_json:
-            print(json.dumps(err, ensure_ascii=False))
-        else:
-            print(f"❌ 错误: {err['message']}")
-        return
+    if not q or not isinstance(q, dict) or "error" in q or not klines or len(klines) < 20:
+        return {
+            "status": "error",
+            "error": "DATA_UNAVAILABLE",
+            "code": code,
+            "message": f"无法获取股票 {code} 实时行情或K线数据不足，可能代码无效或已退市。"
+        }
 
     name = q.get("name", code)
-    price = q.get("price", 0.0)
-    change_pct = q.get("change_pct", 0.0)
+    price = float(q.get("price", 0.0) or 0.0)
+    change_pct = float(q.get("change_pct", 0.0) or 0.0)
 
     # 1. 计算核心指标与打分
     tech = calc_all(klines)
@@ -358,9 +359,8 @@ def cmd_debate(args):
     market = assessor.assess_all()
 
     # 2. 7 大角色独立研判
-    # 角色1: 基本面分析师
-    pe = q.get("pe", 0.0) or 0.0
-    pb = q.get("pb", 0.0) or 0.0
+    pe = float(q.get("pe", 0.0) or 0.0)
+    pb = float(q.get("pb", 0.0) or 0.0)
     f_stance = "中性"
     if pe > 0 and pe < 30:
         f_stance = "看多 (估值合理)"
@@ -372,11 +372,10 @@ def cmd_debate(args):
         "detail": f"现价 {price:.2f}, PE(静): {pe:.1f}, PB: {pb:.2f}。行业龙头地位稳固，现金流与ROE表现良好。"
     }
 
-    # 角色2: 技术量价分析师
     l = tech.get("latest", {})
-    dif = l.get("dif", 0.0)
-    dea = l.get("dea", 0.0)
-    ma20 = l.get("ma20", 0.0)
+    dif = float(l.get("dif", 0.0) or 0.0)
+    dea = float(l.get("dea", 0.0) or 0.0)
+    ma20 = float(l.get("ma20", 0.0) or 0.0)
     t_stance = "多头" if price >= ma20 and dif >= dea else "空头/震荡"
     technical_view = {
         "role": "技术量价分析师",
@@ -384,24 +383,21 @@ def cmd_debate(args):
         "detail": f"MA20: {ma20:.2f} (现价{'站上' if price >= ma20 else '跌破'}均线); MACD DIF: {dif:.2f}, DEA: {dea:.2f}, RSI: {l.get('rsi', 50):.1f}。"
     }
 
-    # 角色3: 消息与事件分析师
     news_view = {
         "role": "消息舆情分析师",
         "stance": "中性偏多",
         "detail": f"近期行业利好政策驱动，基本面无重大违法违规停牌风险，市场主流研报保持增持/买入评级。"
     }
 
-    # 角色4: 筹码分布分析师
     cyq = bridge.tencent_cyq(code) if hasattr(bridge, "tencent_cyq") else {}
-    profit_ratio = cyq.get("profit_ratio", 50.0) if cyq else 50.0
+    profit_ratio = float(cyq.get("profit_ratio", 50.0) if cyq else 50.0)
     chip_view = {
         "role": "筹码分布分析师",
         "stance": "多头优势" if profit_ratio > 60 else "分歧震荡",
         "detail": f"当前获利盘比例约 {profit_ratio:.1f}%，筹码集中度中等，上方套牢抛压可控。"
     }
 
-    # 角色5: 游资情绪分析师
-    turnover = q.get("turnover_rate", 1.5) or 1.5
+    turnover = float(q.get("turnover_pct", q.get("turnover_rate", 1.5)) or 1.5)
     sentiment_stance = "活跃" if turnover > 3.0 else "平稳"
     sentiment_view = {
         "role": "游资情绪分析师",
@@ -409,14 +405,12 @@ def cmd_debate(args):
         "detail": f"换手率 {turnover:.2f}%，日内交投{'积极活跃，游资参与度高' if turnover > 3.0 else '温和，机构博弈为主'}。"
     }
 
-    # 角色6: 宏观政策分析师
     macro_view = {
         "role": "宏观政策分析师",
         "stance": f"大盘机制: {market.get('mode', '震荡')}",
         "detail": f"宏观指数整体处于 {market.get('mode', '震荡')} 状态，综合得分 {market.get('total_score', 50)}/100，建议组合总仓位上限 {market.get('max_position', '50%')}。"
     }
 
-    # 角色7: 首席风控官
     breakeven = ExecutionActionEngine.calc_min_breakeven_price(cost=price, shares=100)
     stop_t0 = round(price * 0.97, 2)
     stop_t1 = round(price * 0.95, 2)
@@ -437,7 +431,10 @@ def cmd_debate(args):
     else:
         consensus = "空头占据主导 (建议回避防守)"
 
-    debate_result = {
+    summary = f"【7大AI分析师多空辩论决议】: {consensus}。综合评分: {total_score}/100 ({score_res.get('rating')})。风控保本价: {breakeven:.2f}元。"
+
+    return {
+        "status": "success",
         "code": code,
         "name": name,
         "price": price,
@@ -445,6 +442,8 @@ def cmd_debate(args):
         "composite_score": total_score,
         "rating": score_res.get("rating", "B"),
         "consensus": consensus,
+        "debate_summary": summary,
+        "summary": summary,
         "analysts": analysts,
         "risk_action": {
             "breakeven_price": breakeven,
@@ -455,17 +454,43 @@ def cmd_debate(args):
         }
     }
 
+
+def cmd_debate(args):
+    """7 大 AI 分析师多角色多空辩论与决策裁决 (自包含原生实现)"""
+    code = getattr(args, "code", "600519")
+    as_json = getattr(args, "json", False) or getattr(args, "output", "") == "json"
+
+    debate_result = generate_stock_debate(code)
+
+    if debate_result.get("status") == "error":
+        if as_json:
+            print(json.dumps(debate_result, ensure_ascii=False))
+        else:
+            print(f"❌ 错误: {debate_result.get('message', '执行失败')}")
+        return
+
     if as_json:
         print(json.dumps(debate_result, ensure_ascii=False, indent=2))
     else:
+        name = debate_result["name"]
+        price = debate_result["price"]
+        change_pct = debate_result["change_pct"]
+        total_score = debate_result["composite_score"]
+        rating = debate_result["rating"]
+        consensus = debate_result["consensus"]
+        analysts = debate_result["analysts"]
+        breakeven = debate_result["risk_action"]["breakeven_price"]
+        stop_t1 = debate_result["risk_action"]["stop_loss_t1"]
+        max_pos = debate_result["risk_action"]["max_position"]
+
         print("=" * 65)
         print(f" 🏛️  7大 AI 分析师多空辩论研判决议: {name} ({code})")
-        print(f" 现价: {price:.2f} ({change_pct:+.2f}%) | 综合量化评分: {total_score}/100 ({score_res.get('rating')})")
+        print(f" 现价: {price:.2f} ({change_pct:+.2f}%) | 综合量化评分: {total_score}/100 ({rating})")
         print("=" * 65)
         for a in analysts:
             print(f"▶ [{a['role']}] 立场: {a['stance']}")
             print(f"   {a['detail']}")
         print("-" * 65)
         print(f"🎯 【最终辩论决议】: {consensus}")
-        print(f"🛡️ 【首席风控指令】: 最低保本价 {breakeven:.2f} | 止损参考: {stop_t1:.2f}(-5%) | 建议仓位: {score_res.get('suggested_position', '30%')}")
+        print(f"🛡️ 【首席风控指令】: 最低保本价 {breakeven:.2f} | 止损参考: {stop_t1:.2f}(-5%) | 建议仓位: {max_pos}")
         print("=" * 65)
