@@ -5332,6 +5332,16 @@ body.dark-mode .session-menu-item.session-menu-item-danger:hover {
   gap: 8px;
 }
 
+.workbench-header-actions .header-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workbench-header-actions .header-action-group[style*="display: none"] {
+  display: none !important;
+}
+
 .workbench-header-actions .workspace-view-switcher {
   display: inline-flex;
   align-items: center;

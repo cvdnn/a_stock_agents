@@ -996,13 +996,48 @@ const ViewDescriptions = {
 };
 
 const ViewHeaderInfo = {
-  'dashboard': { title: '用户操作指南', icon: '📖' },
-  'market': { title: '市场行情全景', icon: '📈' },
-  'watchlist': { title: '自选个股深度研判', icon: '⭐' },
-  'returns': { title: '投资收益全景分析', icon: '💰' },
-  'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️' },
-  'skills': { title: '技能治理中心', icon: '🧩' }
+  'dashboard': { title: '用户操作指南', icon: '📖', tag: '系统算法与功能导引' },
+  'market': { title: '市场行情全景', icon: '📈', tag: '实时行情与主力资金流向' },
+  'watchlist': { title: '自选个股深度研判', icon: '⭐', tag: '重点自选多周期量化追踪' },
+  'returns': { title: '投资收益全景分析', icon: '💰', tag: '资产净值曲线与多因子归因' },
+  'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️', tag: '保本价精算与三级风控指令' },
+  'skills': { title: '技能治理中心', icon: '🧩', tag: '17项量化投研技能生命周期管理' }
 };
+
+// 切换不同菜单模块 title 栏专属功能按钮：
+// 【预览/源码、目录导航、复制代码、独立窗口】仅在【投研助手】显示，其他模块显示各自专属功能按钮
+function updateWorkbenchHeaderActions(tabId) {
+  const allGroups = document.querySelectorAll('.header-action-group');
+  allGroups.forEach(grp => {
+    grp.style.display = 'none';
+  });
+
+  const targetMap = {
+    'dashboard': 'actionsDashboard',
+    'market': 'actionsMarket',
+    'watchlist': 'actionsWatchlist',
+    'returns': 'actionsReturns',
+    'skills': 'actionsSkills',
+    'projected-action': 'actionsProjectedAction'
+  };
+
+  const targetId = targetMap[tabId] || (tabId === 'dashboard' ? 'actionsDashboard' : null);
+  if (targetId) {
+    const targetGroup = document.getElementById(targetId);
+    if (targetGroup) {
+      targetGroup.style.display = 'inline-flex';
+    }
+  }
+
+  // 若切回 dashboard，需根据当前文档类型决定独立窗口按钮状态
+  if (tabId === 'dashboard') {
+    const extBtn = document.getElementById('btnWorkspaceOpenExternal');
+    if (extBtn) {
+      extBtn.style.display = (AppState.currentDocFormat === 'html') ? 'inline-flex' : 'none';
+    }
+  }
+}
+window.updateWorkbenchHeaderActions = updateWorkbenchHeaderActions;
 
 function switchRightTab(tabId) {
   AppState.activeRightTab = tabId;
@@ -1034,12 +1069,17 @@ function switchRightTab(tabId) {
     initSkillsGovernance();
   }
 
-  // 4. Update Header Title and Icon
-  const info = ViewHeaderInfo[tabId] || { title: `工作台 [${tabId}]`, icon: '📊' };
+  // 4. Update Header Title, Icon and Tag
+  const info = ViewHeaderInfo[tabId] || { title: `工作台 [${tabId}]`, icon: '📊', tag: '业务功能工作区' };
   const headerTitleElem = document.getElementById('workbenchHeaderTitle');
   if (headerTitleElem) headerTitleElem.innerText = info.title;
   const headerIconElem = document.getElementById('workbenchIconBadge');
   if (headerIconElem) headerIconElem.innerText = info.icon;
+  const headerTagElem = document.getElementById('workbenchHeaderTag');
+  if (headerTagElem && info.tag) headerTagElem.innerText = info.tag;
+
+  // 4.1 Update Header Action Buttons: 仅在【投研助手】展示【预览/源码、目录导航、复制代码、独立窗口】，其他模块展示各自专属功能按钮
+  updateWorkbenchHeaderActions(tabId);
 
   // 5. Re-render Canvas Charts and fetch dynamic data for this tab
   setTimeout(() => {
@@ -5107,6 +5147,9 @@ function renderMarkdownToWorkspace(markdownText, meta = {}) {
   }
 
   // 5. 视图切换按钮重置
+  if (typeof updateWorkbenchHeaderActions === 'function') {
+    updateWorkbenchHeaderActions('dashboard');
+  }
   const previewBtn = document.getElementById('btnWorkspaceViewPreview');
   const sourceBtn = document.getElementById('btnWorkspaceViewSource');
   if (previewBtn) previewBtn.classList.add('active');
@@ -5192,6 +5235,9 @@ function renderHtmlToWorkspace(htmlText, meta = {}) {
   }
 
   // 5. 激活视图切换与独立窗口按钮
+  if (typeof updateWorkbenchHeaderActions === 'function') {
+    updateWorkbenchHeaderActions('dashboard');
+  }
   const previewBtn = document.getElementById('btnWorkspaceViewPreview');
   const sourceBtn = document.getElementById('btnWorkspaceViewSource');
   if (previewBtn) previewBtn.classList.add('active');

@@ -348,37 +348,132 @@
           <span class="workbench-header-tag" id="workbenchHeaderTag">系统算法与功能导引</span>
         </div>
         <div class="workbench-header-actions" id="workbenchHeaderActions">
-          <!-- 1. 预览/源码 切换器 -->
-          <div class="workspace-view-switcher" id="workspaceViewSwitcher">
-            <button type="button" class="btn-doc-meta-action active" id="btnWorkspaceViewPreview" onclick="switchWorkspaceViewMode('preview')" title="切换到渲染视图">
-              <span class="meta-action-icon">👁️</span>
-              <span class="meta-action-text">预览</span>
+          <!-- 1. 投研助手专属功能按钮组 (仅在【投研助手】工作区显示) -->
+          <div class="header-action-group tab-actions-dashboard" id="actionsDashboard" style="display: inline-flex; align-items: center; gap: 8px;">
+            <!-- 1. 预览/源码 切换器 -->
+            <div class="workspace-view-switcher" id="workspaceViewSwitcher">
+              <button type="button" class="btn-doc-meta-action active" id="btnWorkspaceViewPreview" onclick="switchWorkspaceViewMode('preview')" title="切换到渲染视图">
+                <span class="meta-action-icon">👁️</span>
+                <span class="meta-action-text">预览</span>
+              </button>
+              <button type="button" class="btn-doc-meta-action" id="btnWorkspaceViewSource" onclick="switchWorkspaceViewMode('source')" title="切换到源码视图">
+                <span class="meta-action-icon">📄</span>
+                <span class="meta-action-text">源码</span>
+              </button>
+            </div>
+
+            <!-- 2. 目录导航 -->
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnWorkspaceToggleToc" onclick="toggleWorkspaceToc()" title="展开/收起目录导航">
+              <span class="meta-action-icon">📑</span>
+              <span class="meta-action-text">目录导航</span>
             </button>
-            <button type="button" class="btn-doc-meta-action" id="btnWorkspaceViewSource" onclick="switchWorkspaceViewMode('source')" title="切换到源码视图">
-              <span class="meta-action-icon">📄</span>
-              <span class="meta-action-text">源码</span>
+
+            <!-- 3. 复制代码 -->
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnDocMetaCopy" onclick="copyCurrentWorkbenchMarkdown()" title="复制当前文档内容">
+              <span class="meta-action-icon">📋</span>
+              <span class="meta-action-text">复制代码</span>
+            </button>
+
+            <!-- 4. 独立窗口 (HTML展示，Markdown隐藏) -->
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnWorkspaceOpenExternal" onclick="openWorkspaceDocInNewWindow()" title="在新窗口独立打开" style="display: none;">
+              <span class="meta-action-icon">↗</span>
+              <span class="meta-action-text">独立窗口</span>
             </button>
           </div>
 
-          <!-- 2. 目录导航 -->
-          <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnWorkspaceToggleToc" onclick="toggleWorkspaceToc()" title="展开/收起目录导航">
-            <span class="meta-action-icon">📑</span>
-            <span class="meta-action-text">目录导航</span>
-          </button>
+          <!-- 2. 市场行情专属功能按钮组 (仅在【市场行情】显示) -->
+          <div class="header-action-group tab-actions-market" id="actionsMarket" style="display: none; align-items: center; gap: 8px;">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="loadMarketData(); showToast('市场行情已刷新');" title="刷新市场行情数据">
+              <span class="meta-action-icon">🔄</span>
+              <span class="meta-action-text">刷新行情</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="askAboutRightContent()" title="针对当前盘面提问 AI 助手">
+              <span class="meta-action-icon">💬</span>
+              <span class="meta-action-text">盘面研判</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="showToast('技术指标设置面板已呼出')" title="技术指标设置">
+              <span class="meta-action-icon">⚙️</span>
+              <span class="meta-action-text">指标设置</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="showToast('对比指数功能已呼出')" title="对比指数">
+              <span class="meta-action-icon">◧</span>
+              <span class="meta-action-text">对比指数</span>
+            </button>
+          </div>
 
-          <!-- 3. 复制代码 -->
-          <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnDocMetaCopy" onclick="copyCurrentWorkbenchMarkdown()" title="复制当前文档内容">
-            <span class="meta-action-icon">📋</span>
-            <span class="meta-action-text">复制代码</span>
-          </button>
+          <!-- 3. 自选个股专属功能按钮组 (仅在【自选个股】显示) -->
+          <div class="header-action-group tab-actions-watchlist" id="actionsWatchlist" style="display: none; align-items: center; gap: 8px;">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="showToast('添加新自选股')" title="添加新自选标的">
+              <span class="meta-action-icon">➕</span>
+              <span class="meta-action-text">添加自选</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="loadWatchlistData(AppState.selectedStock); showToast('自选股数据已刷新');" title="刷新自选股行情">
+              <span class="meta-action-icon">🔄</span>
+              <span class="meta-action-text">刷新自选</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="askAboutRightContent()" title="针对当前自选股向 AI 提问">
+              <span class="meta-action-icon">💬</span>
+              <span class="meta-action-text">个股研判</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="showToast('自选股分组管理')" title="分组管理">
+              <span class="meta-action-icon">📁</span>
+              <span class="meta-action-text">分组管理</span>
+            </button>
+          </div>
 
-          <!-- 4. 独立窗口 (HTML展示，Markdown隐藏) -->
-          <button type="button" class="btn-workbench-action btn-doc-meta-action" id="btnWorkspaceOpenExternal" onclick="openWorkspaceDocInNewWindow()" title="在新窗口独立打开" style="display: none;">
-            <span class="meta-action-icon">↗</span>
-            <span class="meta-action-text">独立窗口</span>
-          </button>
+          <!-- 4. 收益分析专属功能按钮组 (仅在【收益分析】显示) -->
+          <div class="header-action-group tab-actions-returns" id="actionsReturns" style="display: none; align-items: center; gap: 8px;">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="loadReturnsData(); showToast('收益分析数据已刷新');" title="刷新收益与归因数据">
+              <span class="meta-action-icon">🔄</span>
+              <span class="meta-action-text">刷新收益</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="askAboutRightContent()" title="针对投资组合收益向 AI 提问">
+              <span class="meta-action-icon">💬</span>
+              <span class="meta-action-text">收益归因</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="showToast('切换收益统计周期')" title="切换统计周期">
+              <span class="meta-action-icon">📅</span>
+              <span class="meta-action-text">切换周期</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="showToast('收益分析报表导出中...')" title="导出收益报表">
+              <span class="meta-action-icon">📥</span>
+              <span class="meta-action-text">导出报表</span>
+            </button>
+          </div>
 
-          <!-- 5. 收起 -->
+          <!-- 5. 技能治理专属功能按钮组 (仅在【技能治理】显示) -->
+          <div class="header-action-group tab-actions-skills" id="actionsSkills" style="display: none; align-items: center; gap: 8px;">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="refreshSkillsGovernance()" title="重新拉取最新技能与审计数据">
+              <span class="meta-action-icon">🔄</span>
+              <span class="meta-action-text">刷新状态</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="bulkEnableAllSkills()" title="一键全部启用 17 项技能">
+              <span class="meta-action-icon">⚡</span>
+              <span class="meta-action-text">全部启用</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="openSkillTestModal()" title="打开在线调试与测试窗口">
+              <span class="meta-action-icon">🧪</span>
+              <span class="meta-action-text">在线调试</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="askAboutRightContent()" title="向 AI 咨询技能治理规则">
+              <span class="meta-action-icon">💬</span>
+              <span class="meta-action-text">治理咨询</span>
+            </button>
+          </div>
+
+          <!-- 6. 实战动作单专属功能按钮组 (仅在【实战动作单】显示) -->
+          <div class="header-action-group tab-actions-projected-action" id="actionsProjectedAction" style="display: none; align-items: center; gap: 8px;">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="showToast('实战动作单已重新试算')" title="重新计算保本价与风控位">
+              <span class="meta-action-icon">🛡️</span>
+              <span class="meta-action-text">重新试算</span>
+            </button>
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="askAboutRightContent()" title="针对动作单向 AI 提问">
+              <span class="meta-action-icon">💬</span>
+              <span class="meta-action-text">风控复核</span>
+            </button>
+          </div>
+
+          <!-- 7. 通用收起按钮 (各模块共享) -->
           <button type="button" class="btn-collapse-workbench" id="btnCollapseWorkbench" onclick="toggleWorkbenchCollapse()" title="收起工作台">
             <span class="collapse-text">收起</span>
             <span class="collapse-icon">▶</span>
