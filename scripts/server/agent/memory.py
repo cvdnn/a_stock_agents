@@ -16,13 +16,17 @@ logger = get_logger("server.agent.memory")
 
 # Common A-stock market intent action patterns
 INTENT_PATTERNS = [
+    (r"(调研.*(?:投资策略|策略|下周|操作)|(?:投资策略|策略|下周).*调研)", "调研与下周投资策略"),
+    (r"(投资策略|下周策略|操作预案|操作策略|下周操作|下周怎么操作)", "走势研判与操作策略"),
     (r"(保本价|最低卖出价|保本|止损|盈亏平衡)", "保本价与三级止损精算"),
-    (r"(选股|5a|五维|主线轮动|多因子)", "5A多因子选股与轮动"),
+    (r"(选股|5a|五维|主线轮动|多因子|潜力股)", "5A多因子选股与轮动"),
     (r"(大盘|上证|指数|两市|行情研判|盘面走势)", "大盘行情与市场动向研判"),
     (r"(二次金叉|底背离|水下金叉|macd)", "MACD底背离与二次金叉"),
     (r"(退哥|短线|涨停|连板|龙头首阴)", "退哥短线接力与战法筛查"),
     (r"(辩论|多空|7大分析师|多空决议)", "多空7角色对抗辩论"),
     (r"(解套|被套|持仓诊断|持股评估)", "持仓诊断与解套决策"),
+    (r"(深度调研|调研报告|调研|个股调研)", "深度调研报告"),
+    (r"(后市走势|后市|走势|趋势|行情走势)", "后市走势与形态分析"),
     (r"(收益|归因|夏普|最大回撤|资产净值)", "投资收益分析与归因"),
     (r"(模拟盘|买入|卖出|撤单|持仓查询)", "模拟盘实战撮合交易"),
     (r"(筹码|主力控盘|集中度)", "筹码分布与主力动向"),
@@ -31,8 +35,15 @@ INTENT_PATTERNS = [
 ]
 
 # Regex for A-Stock codes (6 digits, or with market prefix like sh600519/sz000001)
-STOCK_CODE_PATTERN = re.compile(r"\b((?:sh|sz|bj)?(?:00\d{4}|30\d{4}|60\d{4}|68\d{4}|43\d{4}|83\d{4}|87\d{4}|92\d{4}))\b", re.IGNORECASE)
-INDEX_CODE_PATTERN = re.compile(r"\b(sh000001|399001|399006|000688|000300|000016|000905)\b", re.IGNORECASE)
+STOCK_CODE_PATTERN = re.compile(r"(?<![0-9a-zA-Z])((?:sh|sz|bj)?(?:00\d{4}|30\d{4}|60\d{4}|68\d{4}|43\d{4}|83\d{4}|87\d{4}|92\d{4}))(?![0-9a-zA-Z])", re.IGNORECASE)
+INDEX_CODE_PATTERN = re.compile(r"(?<![0-9a-zA-Z])(sh000001|399001|399006|000688|000300|000016|000905)(?![0-9a-zA-Z])", re.IGNORECASE)
+
+# Common known A-stock names
+COMMON_STOCK_NAMES = [
+    "紫金矿业", "贵州茅台", "宁德时代", "比亚迪", "海光信息", "中芯国际", "中国平安",
+    "中信证券", "中际旭创", "福晶科技", "药明康德", "隆基绿能", "通威股份", "立讯精密",
+    "招商银行", "五粮液", "北方华创", "寒武纪", "中科曙光", "东方财富", "赛力斯", "工业富联"
+]
 
 
 class SessionMemoryManager:
@@ -55,6 +66,22 @@ class SessionMemoryManager:
         # Remove markdown tags, operators like @, #
         cleaned = re.sub(r"[@#][^\s]+", "", raw).strip()
 
+        # 1.1 Check for stock name from common stock list
+        matched_stock_name = ""
+        for sname in COMMON_STOCK_NAMES:
+            if sname in cleaned:
+                matched_stock_name = sname
+                break
+
+        # 1.2 Slot regex matching for stock target: e.g. "调研紫金矿业股票信息"
+        if not matched_stock_name and not code:
+            slot_match = re.search(r"(?:调研|分析|看下|评估|诊断|持仓|持有|买入|卖出)\s*([A-Za-z\u4e00-\u9fa50-9]{2,8}?)(?:股票|个股|标的|\(|（|\s+|,|，|$)", cleaned)
+            if slot_match:
+                cand = slot_match.group(1).strip()
+                excluded = {"大盘", "两市", "指数", "行情", "走势", "市场", "股票", "个股", "标的", "今日", "下周", "下月"}
+                if cand not in excluded and len(cand) >= 2:
+                    matched_stock_name = cand
+
         # 2. Check for intent action
         matched_action = ""
         for pat, action_name in INTENT_PATTERNS:
@@ -63,10 +90,13 @@ class SessionMemoryManager:
                 break
 
         # 3. Formulate standard title
-        if code and matched_action:
-            return f"{code} {matched_action}"
-        elif code:
-            return f"{code} 标的量化诊断"
+        target = code or matched_stock_name
+        if target and matched_action:
+            if re.search(r"[\u4e00-\u9fa5]", target):
+                return f"{target}{matched_action}"
+            return f"{target} {matched_action}"
+        elif target:
+            return f"{target} 标的量化诊断"
         elif matched_action:
             return matched_action
 

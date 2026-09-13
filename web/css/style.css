@@ -4583,51 +4583,273 @@ input:checked + .slider:before {
 }
 
 .session-item {
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  height: 38px;
+  min-height: 38px;
+  padding: 0 8px 0 12px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: var(--transition-fast);
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease, border-color 0.2s ease;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   border: 1px solid transparent;
   position: relative;
   background: transparent;
+  box-sizing: border-box;
+  user-select: none;
+  margin-bottom: 2px;
 }
 
-.session-item:hover {
-  background: var(--bg-hover);
-}
-
+.session-item:hover,
 .session-item.active {
-  background: #E8F3FF;
-  border-color: #BAE0FF;
+  background: #eaedf0;
 }
 
-.session-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* 当鼠标移入更多按钮时，或菜单已打开时，焦点只留在更多按钮：清除 session-item 的背景焦点 */
+.session-item:has(.session-more-btn:hover),
+.session-item.more-focused,
+.session-item.menu-open {
+  background: transparent !important;
+}
+
+body.dark-mode .session-item:hover,
+body.dark-mode .session-item.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .session-item:has(.session-more-btn:hover),
+body.dark-mode .session-item.more-focused,
+body.dark-mode .session-item.menu-open {
+  background: transparent !important;
 }
 
 .session-item-title {
-  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--text-title);
+  color: #1f2937;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 175px;
+  line-height: 38px;
+  padding-right: 6px;
 }
 
 .session-item.active .session-item-title {
-  color: var(--primary);
   font-weight: 600;
+  color: #111827;
 }
 
-.session-item-time {
-  font-size: 10px;
-  color: var(--text-muted);
+body.dark-mode .session-item-title {
+  color: #e5e7eb;
+}
+
+body.dark-mode .session-item.active .session-item-title {
+  color: #ffffff;
+}
+
+/* 更多操作按钮 (竖型三点 ⋮) - 带焦点切换微动效 */
+.session-more-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.92);
+  transition: opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              color 0.18s ease,
+              box-shadow 0.2s ease;
+}
+
+.session-item:hover .session-more-btn,
+.session-item.menu-open .session-more-btn,
+.session-item.active .session-more-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+/* 更多按钮自身获得焦点态：平滑微放大、背景高亮、微阴影动效 */
+.session-more-btn:hover,
+.session-item.menu-open .session-more-btn {
+  background: #eaedf0;
+  color: #111827;
+  transform: scale(1.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.session-more-btn:active {
+  transform: scale(0.96);
+}
+
+body.dark-mode .session-more-btn {
+  color: #9ca3af;
+}
+
+body.dark-mode .session-more-btn:hover,
+body.dark-mode .session-item.menu-open .session-more-btn {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* 内联重命名输入框 */
+.session-rename-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 4px;
+}
+
+.session-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid #1677FF;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 12px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
+}
+
+body.dark-mode .session-rename-input {
+  background: #1f2430;
+  color: #f3f4f6;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.session-rename-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.session-rename-btn.confirm {
+  background: #1677FF;
+  color: #ffffff;
+}
+
+.session-rename-btn.confirm:hover {
+  background: #0958d9;
+}
+
+.session-rename-btn.cancel {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.session-rename-btn.cancel:hover {
+  background: #d1d5db;
+}
+
+body.dark-mode .session-rename-btn.cancel {
+  background: #374151;
+  color: #d1d5db;
+}
+
+/* 更多操作浮层菜单 (向右侧弹出) */
+.session-action-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 136px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transform-origin: left center;
+  animation: sessionMenuFadeInRight 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sessionMenuFadeInRight {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
+}
+
+body.dark-mode .session-action-menu {
+  background: #1e222d;
+  border-color: #374151;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35);
+}
+
+.session-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.session-menu-item:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+body.dark-mode .session-menu-item {
+  color: #d1d5db;
+}
+
+body.dark-mode .session-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.session-menu-item.session-menu-item-danger {
+  color: #ef4444;
+}
+
+.session-menu-item.session-menu-item-danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+body.dark-mode .session-menu-item.session-menu-item-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.session-menu-icon {
+  flex-shrink: 0;
 }
 
 .session-load-more {

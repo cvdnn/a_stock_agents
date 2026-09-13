@@ -80,7 +80,17 @@ const HistoricalSessions = [
   { id: 's20', title: '全市场换手率与波动率因子有效性', time: '08-23 16:30', tab: 'returns' }
 ];
 
-// Initialize and render session list
+function escapeSessionHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Initialize and render session list (仅保留短摘要title，右侧显示更多按钮)
 function renderSessionList() {
   const container = document.getElementById('sessionList');
   if (!container) return;
@@ -88,24 +98,285 @@ function renderSessionList() {
   const currentCount = AppState.loadedSessionCount;
   const sessionsToRender = HistoricalSessions.slice(0, currentCount);
 
-  container.innerHTML = sessionsToRender.map((s, idx) => `
-    <div class="session-item ${idx === 0 ? 'active' : ''}" data-id="${s.id}" onclick="selectSession('${s.id}')">
-      <div class="session-item-header">
-        <div class="session-item-title" title="${s.title}">${s.title}</div>
+  container.innerHTML = sessionsToRender.map((s, idx) => {
+    const isActive = AppState.currentSessionId ? s.id === AppState.currentSessionId : idx === 0;
+    const safeTitle = escapeSessionHtml(s.title);
+    const safeId = escapeSessionHtml(s.id);
+    return `
+      <div class="session-item ${isActive ? 'active' : ''}" data-id="${safeId}" onclick="selectSession('${safeId}')">
+        <div class="session-item-title" title="${safeTitle}">${safeTitle}</div>
+        <button class="session-more-btn" type="button" title="更多操作" onclick="openSessionMenu(event, '${safeId}')">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="8" cy="3" r="1.5"/>
+            <circle cx="8" cy="8" r="1.5"/>
+            <circle cx="8" cy="13" r="1.5"/>
+          </svg>
+        </button>
       </div>
-      <div class="session-item-time">${s.time}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   // Update load more indicator
   const loadMoreElem = document.getElementById('sessionLoadMore');
   if (loadMoreElem) {
     if (currentCount >= HistoricalSessions.length) {
-      loadMoreElem.innerHTML = '<span style="color:#B4BCC8;">已加载全部历史会话 (20条)</span>';
+      loadMoreElem.innerHTML = `<span style="color:#B4BCC8;">已加载全部历史会话 (${HistoricalSessions.length}条)</span>`;
     } else {
       loadMoreElem.innerHTML = '<span class="spinner-dot"></span><span>下拉自动加载更早记录...</span>';
     }
   }
+}
+
+// Session Action Menu (Pop-over) controls
+function openSessionMenu(e, sessionId) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  const btn = e ? e.currentTarget : null;
+  const menu = document.getElementById('sessionActionMenu');
+  if (!menu) return;
+
+  if (menu.dataset.sessionId === sessionId && menu.style.display !== 'none') {
+    closeSessionMenu();
+    return;
+  }
+
+  menu.dataset.sessionId = sessionId;
+  menu.style.display = 'flex';
+
+  document.querySelectorAll('.session-item').forEach(item => {
+    if (item.dataset.id === sessionId) item.classList.add('menu-open');
+    else item.classList.remove('menu-open');
+  });
+
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = 140;
+    const menuHeight = 84;
+    // 1. 弹出框修改到右侧 (right + 8px)
+    let left = rect.right + 8;
+    let top = rect.top - 4;
+
+    // 若右侧空间不足则降级弹出到左侧
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = rect.left - menuWidth - 8;
+    }
+    if (left < 10) left = 10;
+
+    // 上下视口边界保护
+    if (top + menuHeight > window.innerHeight - 10) {
+      top = window.innerHeight - menuHeight - 10;
+    }
+    if (top < 10) top = 10;
+
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+  }
+}
+
+function closeSessionMenu() {
+  const menu = document.getElementById('sessionActionMenu');
+  if (menu) {
+    menu.style.display = 'none';
+    delete menu.dataset.sessionId;
+  }
+  document.querySelectorAll('.session-item.menu-open').forEach(item => {
+    item.classList.remove('menu-open');
+  });
+}
+
+function handleMenuRenameClick(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('sessionActionMenu');
+  const sessionId = menu ? menu.dataset.sessionId : null;
+  closeSessionMenu();
+  if (sessionId) {
+    startSessionRename(sessionId);
+  }
+}
+
+function handleMenuDeleteClick(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('sessionActionMenu');
+  const sessionId = menu ? menu.dataset.sessionId : null;
+  closeSessionMenu();
+  if (sessionId) {
+    openSessionDeleteModal(sessionId);
+  }
+}
+
+// Inline Rename Session Title
+function startSessionRename(sessionId) {
+  closeSessionMenu();
+  const item = document.querySelector(`.session-item[data-id="${sessionId}"]`);
+  if (!item) return;
+
+  const titleEl = item.querySelector('.session-item-title');
+  if (!titleEl) return;
+  const oldTitle = titleEl.textContent.trim();
+
+  item.classList.add('editing');
+  item.onclick = (e) => e.stopPropagation();
+
+  item.innerHTML = `
+    <div class="session-rename-wrapper" onclick="event.stopPropagation()">
+      <input class="session-rename-input" type="text" value="${escapeSessionHtml(oldTitle)}" maxlength="50" spellcheck="false" />
+      <button class="session-rename-btn confirm" type="button" title="保存">✓</button>
+      <button class="session-rename-btn cancel" type="button" title="取消">✕</button>
+    </div>
+  `;
+
+  const input = item.querySelector('.session-rename-input');
+  const confirmBtn = item.querySelector('.session-rename-btn.confirm');
+  const cancelBtn = item.querySelector('.session-rename-btn.cancel');
+
+  if (input) {
+    input.focus();
+    input.select();
+  }
+
+  let isFinished = false;
+  const handleFinish = async (save) => {
+    if (isFinished) return;
+    isFinished = true;
+
+    if (save && input) {
+      const newTitle = input.value.trim();
+      if (!newTitle) {
+        showToast('会话标题不能为空');
+        renderSessionList();
+        return;
+      }
+      if (newTitle !== oldTitle) {
+        const sess = HistoricalSessions.find(s => s.id === sessionId);
+        if (sess) sess.title = newTitle;
+
+        if (window.AStockAPI && typeof window.AStockAPI.updateSessionTitle === 'function') {
+          try {
+            await window.AStockAPI.updateSessionTitle(sessionId, newTitle);
+          } catch (err) {
+            console.warn('API updateSessionTitle error:', err);
+          }
+        }
+
+        if (typeof SessionStore !== 'undefined') {
+          SessionStore.saveCurrentSessionSnapshot();
+        }
+
+        showToast(`会话已重命名为：“${newTitle}”`);
+      }
+    }
+    renderSessionList();
+  };
+
+  if (input) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleFinish(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleFinish(false);
+      }
+    });
+  }
+
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleFinish(true);
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleFinish(false);
+    });
+  }
+}
+
+// Session Delete Modal and Execution
+function openSessionDeleteModal(sessionId) {
+  closeSessionMenu();
+  const modal = document.getElementById('sessionDeleteModal');
+  const desc = document.getElementById('sessionDeleteModalDesc');
+  const sess = HistoricalSessions.find(s => s.id === sessionId);
+  const title = sess ? sess.title : '选中的会话';
+
+  if (modal && desc) {
+    desc.textContent = `确定要删除会话「${title}」吗？删除后此会话的全部历史提问与量化分析成果将无法找回。`;
+    modal.dataset.deleteSessionId = sessionId;
+    modal.style.display = 'flex';
+  } else {
+    if (confirm(`确定要删除会话「${title}」吗？删除后不可恢复。`)) {
+      executeSessionDelete(sessionId);
+    }
+  }
+}
+
+function closeSessionDeleteModal() {
+  const modal = document.getElementById('sessionDeleteModal');
+  if (modal) {
+    modal.style.display = 'none';
+    delete modal.dataset.deleteSessionId;
+  }
+}
+
+async function executeSessionDelete(targetSessionId) {
+  let sessionId = targetSessionId;
+  const modal = document.getElementById('sessionDeleteModal');
+  if (!sessionId && modal) {
+    sessionId = modal.dataset.deleteSessionId;
+  }
+  closeSessionDeleteModal();
+  if (!sessionId) return;
+
+  // 1. 调用后端 API 持久化删除
+  if (window.AStockAPI && typeof window.AStockAPI.deleteSession === 'function') {
+    try {
+      await window.AStockAPI.deleteSession(sessionId);
+    } catch (err) {
+      console.warn('API deleteSession error:', err);
+    }
+  }
+
+  // 2. 清除本地快照
+  if (typeof SessionStore !== 'undefined') {
+    try {
+      localStorage.removeItem((SessionStore.prefix || 'astock_sess_v2_') + sessionId);
+    } catch (_) {}
+  }
+
+  // 3. 从列表中移除
+  const idx = HistoricalSessions.findIndex(s => s.id === sessionId);
+  const isCurrent = AppState.currentSessionId === sessionId;
+  if (idx !== -1) {
+    HistoricalSessions.splice(idx, 1);
+  }
+
+  // 4. 调整展示条数
+  AppState.loadedSessionCount = Math.max(1, Math.min(AppState.loadedSessionCount, HistoricalSessions.length));
+
+  // 5. 切换或清空当前会话
+  if (isCurrent) {
+    if (HistoricalSessions.length > 0) {
+      const nextIndex = Math.min(idx, HistoricalSessions.length - 1);
+      const nextSession = HistoricalSessions[nextIndex];
+      AppState.currentSessionId = nextSession.id;
+      renderSessionList();
+      selectSession(nextSession.id);
+    } else {
+      AppState.currentSessionId = null;
+      renderSessionList();
+      startNewChat();
+    }
+  } else {
+    renderSessionList();
+  }
+
+  showToast('已删除该条会话记录');
 }
 
 // Infinite scroll listener for session history
@@ -115,6 +386,7 @@ function setupSessionInfiniteScroll() {
 
   let isFetching = false;
   container.addEventListener('scroll', () => {
+    closeSessionMenu();
     if (isFetching) return;
     if (AppState.loadedSessionCount >= HistoricalSessions.length) return;
 
@@ -134,7 +406,37 @@ function setupSessionInfiniteScroll() {
       }, 500);
     }
   });
+
+  // 2. 鼠标移入/移出更多按钮时，切换 item 的 more-focused 状态（焦点只留在更多按钮，微动效协同）
+  if (!container._moreFocusEventsAttached) {
+    container._moreFocusEventsAttached = true;
+    container.addEventListener('mouseover', (e) => {
+      const moreBtn = e.target.closest('.session-more-btn');
+      if (moreBtn) {
+        const item = moreBtn.closest('.session-item');
+        if (item) item.classList.add('more-focused');
+      }
+    });
+    container.addEventListener('mouseout', (e) => {
+      const moreBtn = e.target.closest('.session-more-btn');
+      if (moreBtn) {
+        const item = moreBtn.closest('.session-item');
+        if (item) item.classList.remove('more-focused');
+      }
+    });
+  }
 }
+
+// Global click to close session action menu
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('sessionActionMenu');
+  if (menu && menu.style.display !== 'none') {
+    if (!menu.contains(e.target) && !e.target.closest('.session-more-btn')) {
+      closeSessionMenu();
+    }
+  }
+});
+window.addEventListener('resize', closeSessionMenu);
 
 // Update session title dynamically in sidebar
 function updateSessionItemTitle(sessionId, newTitle) {
@@ -327,11 +629,13 @@ async function selectSession(id) {
         // 卡片标题与副标题保持与聊天卡片一致
         const cardTitle = '当前A股市场行情分析';
         const cardSummary = '等待后端返回可验证行情证据';
+        const dynamicCardTitle = (session && session.title && session.title !== '新建投研对话') ? session.title : cardTitle;
+        const dynamicCardSummary = (session && session.title) ? '模型结合盘面数据与实战风控铁律综合研判' : cardSummary;
 
         appendChatMessage('ai', renderedText, {
           msgId: `hist_ai_${cur.id || i}`,
-          title: cardTitle,
-          summary: cardSummary,
+          title: dynamicCardTitle,
+          summary: dynamicCardSummary,
           initialTimelineHtml: timelineHtml
         });
       } else {
@@ -365,8 +669,9 @@ function renderFallbackSessionContent(session) {
 
   // 3. AI 气泡：还原标准卡片形态与真实调研报告
   let aiBody = '';
-  let cardTitle = '当前A股市场行情分析';
-  let cardSummary = '等待后端返回可验证行情证据';
+  const refinedTitleInfo = typeof refineTitleAndSummaryFromInput !== 'undefined' ? refineTitleAndSummaryFromInput(title) : null;
+  let cardTitle = (session && session.title && session.title !== '当前A股市场行情分析') ? ((refinedTitleInfo && refinedTitleInfo.title) || session.title) : '当前A股市场行情分析';
+  let cardSummary = (refinedTitleInfo && refinedTitleInfo.summary) ? refinedTitleInfo.summary : '等待后端返回可验证行情证据';
 
   const match = title.match(/\b(00\d{4}|30\d{4}|60\d{4}|68\d{4}|43\d{4}|83\d{4}|87\d{4}|92\d{4})\b/);
   if (match || title.includes('福晶科技')) {
@@ -4515,16 +4820,203 @@ window.copyDeliverableContent = copyDeliverableContent;
 window.focusActiveSession = focusActiveSession;
 window.cancelCurrentExecution = cancelCurrentExecution;
 
+// ==========================================================================
+// 用户提问意图提炼与标题摘要合成引擎 (Refine Title & Summary from User Input)
+// ==========================================================================
+function refineTitleAndSummaryFromInput(rawText, operators = null) {
+  const text = (rawText || '').trim();
+  if (!text) {
+    return {
+      title: '当前A股市场行情分析',
+      summary: '等待后端返回可验证行情证据'
+    };
+  }
+
+  // 1. 提取股票代码或标的名称
+  let target = '';
+  // 1.1 从 operators.stocks 提取
+  if (operators && operators.stocks && operators.stocks.length) {
+    const s = operators.stocks[0];
+    target = s.name ? `${s.name}${s.code ? ` (${s.code})` : ''}` : s.code;
+  }
+
+  // 1.2 从文本中提取代码 (如 600519, 002222, sh601899)
+  if (!target) {
+    const codeMatch = text.match(/(?<![0-9a-zA-Z])((?:sh|sz|bj)?(?:00\d{4}|30\d{4}|60\d{4}|68\d{4}|43\d{4}|83\d{4}|87\d{4}|92\d{4}))(?![0-9a-zA-Z])/i);
+    if (codeMatch) {
+      target = codeMatch[1];
+    }
+  }
+
+  // 1.3 从内置知名股票列表匹配 (如 紫金矿业, 贵州茅台, 比亚迪, 宁德时代, 海光信息, 中芯国际等)
+  const commonStockNames = [
+    '紫金矿业', '贵州茅台', '宁德时代', '比亚迪', '海光信息', '中芯国际', '中国平安',
+    '中信证券', '中际旭创', '福晶科技', '药明康德', '隆基绿能', '通威股份', '立讯精密',
+    '招商银行', '五粮液', '北方华创', '寒武纪', '中科曙光', '东方财富', '赛力斯', '工业富联'
+  ];
+  if (!target) {
+    for (const name of commonStockNames) {
+      if (text.includes(name)) {
+        target = name;
+        break;
+      }
+    }
+  }
+
+  // 1.4 槽位正则匹配："调研[标的]股票", "分析[标的]走势"
+  if (!target) {
+    const slotMatch = text.match(/(?:调研|分析|看下|评估|诊断|持仓|持有|买入|卖出)\s*([A-Za-z\u4e00-\u9fa50-9]{2,8}?)(?:股票|个股|标的|\(|（|\s+|,|，|$)/);
+    if (slotMatch) {
+      const cand = slotMatch[1].trim();
+      const excluded = ['大盘', '两市', '指数', '行情', '走势', '市场', '股票', '个股', '标的', '今日', '下周', '下月'];
+      if (!excluded.includes(cand) && cand.length >= 2) {
+        target = cand;
+      }
+    }
+  }
+
+  // 2. 意图模式匹配与标题/副标题映射
+  const intentRules = [
+    {
+      regex: /(调研.*(?:投资策略|策略|下周|操作)|(?:投资策略|策略|下周).*调研)/i,
+      action: '调研与下周投资策略',
+      summary: '结合基本面、量价结构、资金流与实战风控综合推演'
+    },
+    {
+      regex: /(投资策略|下周策略|操作预案|操作策略|下周操作|下周怎么操作)/i,
+      action: '走势研判与操作策略',
+      summary: '量化均线与MACD共振结构，生成三场景即时动作单'
+    },
+    {
+      regex: /(解套|被套|持仓诊断|持股评估|持股策略)/i,
+      action: '持仓量化诊断与解套决策',
+      summary: '全景透视持仓盈亏画像，制定三档阶梯减仓与解套预案'
+    },
+    {
+      regex: /(保本价|最低卖出价|保本|止损|盈亏平衡)/i,
+      action: '保本价与三级止损精算',
+      summary: '计入印花税、佣金与过户费进位精算，恪守-3%/-5%/-8%止损阶梯'
+    },
+    {
+      regex: /(选股|5a|五维|主线轮动|多因子|潜力股)/i,
+      action: '5A多因子选股与轮动',
+      summary: '量价/基本面/估值/主线/资金 5维共振选股模型筛选高胜率标的'
+    },
+    {
+      regex: /(大盘|上证|指数|两市|行情研判|盘面走势|今日走势)/i,
+      action: '大盘走势与市场动向研判',
+      summary: '基于两市成交动能、板块轮动与主力资金流向综合研判'
+    },
+    {
+      regex: /(二次金叉|底背离|水下金叉|macd)/i,
+      action: 'MACD底背离与二次金叉战法',
+      summary: '精准过滤零轴下二次金叉与底背离形态，规避假信号'
+    },
+    {
+      regex: /(退哥|短线|涨停|连板|龙头首阴)/i,
+      action: '退哥短线接力与战法筛查',
+      summary: '严格执行短线纪律，评估连板接力与分歧承接强弱'
+    },
+    {
+      regex: /(深度调研|调研报告|调研|个股调研)/i,
+      action: '深度调研报告',
+      summary: '覆盖基本面估值、技术形态与机构资金流向深度剖析'
+    },
+    {
+      regex: /(后市走势|后市|走势|趋势|行情走势|走势分析)/i,
+      action: '后市走势与形态分析',
+      summary: '综合多周期均线排列、量价异动与支撑阻力位研判'
+    },
+    {
+      regex: /(收益|归因|夏普|最大回撤|资产净值)/i,
+      action: '投资收益全景分析与归因',
+      summary: '多因子拆解组合Alpha超额收益与风险敞口归因'
+    },
+    {
+      regex: /(筹码|主力控盘|集中度)/i,
+      action: '筹码分布与主力动向',
+      summary: '穿透筹码获利比例、集中度与主力吸筹抛压区间'
+    },
+    {
+      regex: /(行业|板块|资金流向|热点)/i,
+      action: '板块轮动与资金流向分析',
+      summary: '追踪主力大单净流入，捕捉主线热点轮动窗口'
+    },
+    {
+      regex: /(诊断|体检|评估|打分)/i,
+      action: '个股量化综合体检',
+      summary: '百分配额量化打分，结合风控铁律输出操作评级'
+    }
+  ];
+
+  let matchedRule = null;
+  for (const rule of intentRules) {
+    if (rule.regex.test(text)) {
+      matchedRule = rule;
+      break;
+    }
+  }
+
+  let finalTitle = '';
+  let finalSummary = matchedRule ? matchedRule.summary : '模型结合盘面数据与实战风控铁律综合研判';
+
+  if (target && matchedRule) {
+    if (/[\u4e00-\u9fa5]/.test(target)) {
+      finalTitle = `${target}${matchedRule.action}`;
+    } else {
+      finalTitle = `${target} ${matchedRule.action}`;
+    }
+  } else if (target) {
+    finalTitle = `${target} 标的量化诊断`;
+    finalSummary = '多因子量化扫描与实战风控综合诊断报告';
+  } else if (matchedRule) {
+    finalTitle = matchedRule.action;
+  } else {
+    let cleanText = text
+      .replace(/^(请问|帮我|请帮我|麻烦帮我|麻烦|我想了解一下|我想知道|看一下|查一下|请|分析一下|评估一下|测试)\s*/g, '')
+      .replace(/[@#][^\s]+/g, '')
+      .replace(/[？?！!。]+$/g, '')
+      .trim();
+    if (cleanText.length > 20) {
+      cleanText = cleanText.slice(0, 18) + '...';
+    }
+    finalTitle = cleanText ? `${cleanText}研报` : '量化投研综合研报';
+    if (cleanText.endsWith('研报') || cleanText.endsWith('分析') || cleanText.endsWith('策略')) {
+      finalTitle = cleanText;
+    }
+  }
+
+  return {
+    title: finalTitle,
+    summary: finalSummary
+  };
+}
+window.refineTitleAndSummaryFromInput = refineTitleAndSummaryFromInput;
+
 function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}) {
   let fullText = contentOrTpl;
-  let title = titleParam || '当前A股市场行情分析';
-  let summary = summaryParam || '等待后端返回可验证结果';
+  const userText = metaParam.userText || '';
+  const refined = userText ? refineTitleAndSummaryFromInput(userText, metaParam.operators) : null;
+
+  let title = titleParam;
+  let summary = summaryParam;
 
   if (contentOrTpl && typeof contentOrTpl === 'object') {
     fullText = contentOrTpl.body || '';
-    if (contentOrTpl.title) title = contentOrTpl.title;
-    if (contentOrTpl.summary) summary = contentOrTpl.summary;
+    if (contentOrTpl.title && !title) title = contentOrTpl.title;
+    if (contentOrTpl.summary && !summary) summary = contentOrTpl.summary;
   }
+
+  // 截图中标记title需要根据用户提交的内容做提炼摘要进行应答
+  if ((!title || title === '当前A股市场行情分析' || title === '量化投研综合研报') && refined && refined.title) {
+    title = refined.title;
+    if (!summary || summary === '等待后端返回可验证行情证据' || summary === '等待后端返回可验证结果') {
+      summary = refined.summary;
+    }
+  }
+
+  title = title || '当前A股市场行情分析';
+  summary = summary || '等待后端返回可验证结果';
 
   const msgId = 'aiMsg_' + Date.now();
   const queryText = metaParam.userText || title;
@@ -4605,6 +5097,14 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
           if (s && s.session_id) AppState.currentSessionId = s.session_id;
           if (s && s.title) {
             updateSessionItemTitle(s.session_id, s.title);
+            // 截图中标记title根据后端返回的精炼标题动态同步更新卡片
+            const aiCard = document.getElementById(msgId);
+            if (aiCard) {
+              const cardTitleEl = aiCard.querySelector('.ai-msg-title');
+              if (cardTitleEl) {
+                cardTitleEl.textContent = s.title;
+              }
+            }
           }
         },
         onThought: (thought) => {
@@ -4749,8 +5249,11 @@ function streamAIResponse(contentOrTpl, titleParam, summaryParam, metaParam = {}
 // 7.1 Agent2UI (A2UI) Task Pipeline Execution
 // --------------------------------------------------------------------------
 function executeA2UITask(promptText = '分析市场行情', stockParam = null, operatorsParam = null) {
+  const refined = refineTitleAndSummaryFromInput(promptText, operatorsParam);
   const stockLabel = stockParam ? `【${stockParam.name} (${stockParam.code})】` : '当前市场';
-  streamAIResponse('', `${stockLabel}分析`, '', {
+  const taskTitle = (refined && refined.title) ? refined.title : `${stockLabel}分析`;
+  const taskSummary = (refined && refined.summary) ? refined.summary : '模型结合盘面数据与风控铁律输出';
+  streamAIResponse('', taskTitle, taskSummary, {
     userText: promptText,
     operators: operatorsParam || null
   });
@@ -4760,6 +5263,8 @@ function executeA2UITask(promptText = '分析市场行情', stockParam = null, o
 // 7.2 任务路由与 @操作符 综合执行引擎
 // --------------------------------------------------------------------------
 function executeOperatorTask(text, operators, overriddenModel = null) {
+  const refined = refineTitleAndSummaryFromInput(text, operators);
+
   // 1. 如果包含股票标的，优先执行该股票的量化研报与诊断
   if (operators.stocks && operators.stocks.length > 0) {
     const targetStock = operators.stocks[0];
@@ -4771,7 +5276,8 @@ function executeOperatorTask(text, operators, overriddenModel = null) {
     }
 
     const tpl = PromptTemplates['评估持股策略'];
-    const title = `${targetStock.name} (${targetStock.code}) 深度诊断研报`;
+    const title = refined.title || `${targetStock.name} (${targetStock.code}) 深度诊断研报`;
+    const summary = refined.summary || '持仓综合评分88分，精算税费保本卖出价与三级止损阶梯';
     streamAIResponse(tpl.body, title, summary, { operators, userText: text, overriddenModel });
     return;
   }
@@ -5015,7 +5521,7 @@ function extractWorkbenchSectionData(refName) {
     return;
   }
 
-  // 5. 默认降级路由
+  // 5. 默认降级路由：根据用户提交内容做提炼摘要进行应答
   let tpl = PromptTemplates['行情分析'];
   if (text.includes('持股') || text.includes('持仓') || text.includes('保本')) {
     tpl = PromptTemplates['评估持股策略'];
@@ -5027,7 +5533,10 @@ function extractWorkbenchSectionData(refName) {
     tpl = PromptTemplates['选股模型'];
   }
 
-  streamAIResponse(tpl.body, tpl.title, tpl.summary, { operators, userText: text, overriddenModel });
+  const title = (refined && refined.title) ? refined.title : tpl.title;
+  const summary = (refined && refined.summary) ? refined.summary : tpl.summary;
+
+  streamAIResponse(tpl.body, title, summary, { operators, userText: text, overriddenModel });
 }
 
 function handleSendChat() {
@@ -5112,20 +5621,8 @@ function handleSendChat() {
   if (text.includes('IC/IR') || text.includes('衰减')) operators.algos.push('因子IC/IR时序滚动回测');
 
   // 5. Bug 1 修复：每次提交提示词时，在会话记录中必须新增一条会话记录
-  let initialTitle = text.slice(0, 18) + (text.length > 18 ? '...' : '');
-  if (operators.stocks && operators.stocks.length) {
-    initialTitle = `${operators.stocks[0].name || operators.stocks[0].code} 标的量化诊断`;
-  } else if (text.includes('保本') || text.includes('止损')) {
-    initialTitle = '保本价与三级止损精算';
-  } else if (text.includes('大盘') || text.includes('行情')) {
-    initialTitle = 'A股大盘行情与市场动向研判';
-  } else if (text.includes('5A') || text.includes('选股')) {
-    initialTitle = '5A多因子量化选股与主线轮动';
-  } else if (text.includes('收益') || text.includes('归因')) {
-    initialTitle = '投资收益分析与多因子归因';
-  } else if (text.includes('二次金叉') || text.includes('底背离')) {
-    initialTitle = 'MACD底背离与二次金叉战法';
-  }
+  const refinedInfo = refineTitleAndSummaryFromInput(text, operators);
+  let initialTitle = refinedInfo.title || (text.slice(0, 18) + (text.length > 18 ? '...' : ''));
 
   const ts = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
   const randHex = Math.random().toString(36).substring(2, 8);
