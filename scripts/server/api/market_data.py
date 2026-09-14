@@ -574,7 +574,7 @@ def _configured_pool_entries(config: Dict[str, Any]) -> List[Dict[str, str]]:
 
 
 @router.get("/watchlist")
-async def get_watchlist(active_code: str = Query(default="300750")) -> Dict[str, Any]:
+async def get_watchlist(active_code: str = Query(default="")) -> Dict[str, Any]:
     """获取自选股池列表及当前选中股票的深度画像"""
     pool_entries = _configured_pool_entries(load_stock_pools())
     if not pool_entries:

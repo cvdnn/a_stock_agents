@@ -9,7 +9,13 @@ const AppState = {
   currentSessionId: null,      // 打开系统界面时无任何选中会话，保持会话记录无选中或焦点状态
   isCopilotCollapsed: false,
   isWorkbenchCollapsed: false,
-  selectedStock: '300750',
+  selectedStock: (function() {
+    try {
+      return localStorage.getItem('astock_selected_stock') || null;
+    } catch (e) {
+      return null;
+    }
+  })(),
   isChatStreaming: false,
   activeAbortController: null,
   activeMsgId: null,
@@ -1084,6 +1090,13 @@ function switchRightTab(tabId) {
   // 5. Re-render Canvas Charts and fetch dynamic data for this tab
   setTimeout(() => {
     renderTabCharts(tabId);
+    if (tabId === 'watchlist') {
+      setTimeout(() => {
+        if (typeof scrollWatchlistToActiveItem === 'function') {
+          scrollWatchlistToActiveItem(true);
+        }
+      }, 100);
+    }
   }, 40);
 }
 
@@ -2185,6 +2198,47 @@ let _watchlistSortOrder = 'desc';
 let _watchlistSearchKeyword = '';
 let _watchlistResizeTimer = null;
 
+function getStoredWatchStock() {
+  try {
+    return localStorage.getItem('astock_selected_stock') || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function setStoredWatchStock(code) {
+  try {
+    if (code) localStorage.setItem('astock_selected_stock', code);
+  } catch (e) {}
+}
+
+function scrollWatchlistToActiveItem(smooth = true) {
+  const container = document.getElementById('watchStockList');
+  if (!container) return;
+  const activeEl = container.querySelector('.watchlist-stock-row.active');
+  if (!activeEl) return;
+
+  // 若选中的项是首条（第 1 条），保持停留在最顶部
+  if (activeEl === container.firstElementChild) {
+    container.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+    return;
+  }
+
+  // 当选中的位置不是在首条，滚动到相应选中的 item 位置
+  const containerRect = container.getBoundingClientRect();
+  const elRect = activeEl.getBoundingClientRect();
+
+  // 计算当前 active 元素在滚动容器内容区域内的相对总 top 偏移
+  const elementScrollTop = container.scrollTop + (elRect.top - containerRect.top);
+  // 滚动到该 item 顶部对齐位置（留 4px 呼吸感间距）
+  const targetTop = Math.max(0, elementScrollTop - 4);
+
+  container.scrollTo({
+    top: targetTop,
+    behavior: smooth ? 'smooth' : 'auto'
+  });
+}
+
 function renderWatchlistItems(stocks, selectedCode) {
   const container = document.getElementById('watchStockList');
   if (!container) return;
@@ -2226,8 +2280,16 @@ function renderWatchlistItems(stocks, selectedCode) {
     return;
   }
 
+  // 保证选中的代码在当前过滤列表中有效，若无效或未传入则默认选中列表首项
+  let activeCode = selectedCode || AppState.selectedStock || getStoredWatchStock();
+  if (!activeCode || !filtered.some(s => s.code === activeCode)) {
+    activeCode = filtered[0].code;
+    AppState.selectedStock = activeCode;
+    setStoredWatchStock(activeCode);
+  }
+
   container.innerHTML = filtered.map(stock => {
-    const isActive = stock.code === selectedCode ? 'active' : '';
+    const isActive = stock.code === activeCode ? 'active' : '';
     const isUp = (stock.change_pct || 0) >= 0;
     const cls = isUp ? 'text-up' : 'text-down';
     const sign = isUp ? '+' : '';
@@ -2256,18 +2318,26 @@ function renderWatchlistItems(stocks, selectedCode) {
 
   const countEl = document.getElementById('watchStockCount');
   if (countEl) countEl.innerText = `自选股 (${uniqueStocks.length})`;
+
+  // 当选中的位置不是在首条，自动平滑滚动到相应选中的 item 位置
+  requestAnimationFrame(() => {
+    scrollWatchlistToActiveItem(true);
+  });
+  setTimeout(() => {
+    scrollWatchlistToActiveItem(false);
+  }, 120);
 }
 
 function filterWatchlist(val) {
   _watchlistSearchKeyword = (val || '').trim();
-  const currentCode = AppState.selectedStock || '300750';
+  const currentCode = AppState.selectedStock || getStoredWatchStock();
   const list = AppState.currentWatchlistStocks || WatchlistFallbackData.stocks;
   renderWatchlistItems(list, currentCode);
 }
 
 function toggleWatchlistSort() {
   _watchlistSortOrder = _watchlistSortOrder === 'desc' ? 'asc' : 'desc';
-  const currentCode = AppState.selectedStock || '300750';
+  const currentCode = AppState.selectedStock || getStoredWatchStock();
   const list = AppState.currentWatchlistStocks || WatchlistFallbackData.stocks;
   renderWatchlistItems(list, currentCode);
 }
@@ -2278,7 +2348,7 @@ async function switchWatchPeriod(period, tabEl) {
   if (tabEl) tabEl.classList.add('active');
 
   // 优先从真实接口获取当前代码的对应周期K线
-  const curCode = AppState.selectedStock || '300750';
+  const curCode = AppState.selectedStock || getStoredWatchStock() || '300750';
   let klines = null;
   if (window.AStockAPI && typeof window.AStockAPI.getKline === 'function') {
     try {
@@ -2413,8 +2483,7 @@ function drawWatchlistCharts(stockData) {
 }
 
 async function loadWatchlistData(selectedCode) {
-  const code = selectedCode || AppState.selectedStock || '300750';
-  AppState.selectedStock = code;
+  let preferredCode = selectedCode || AppState.selectedStock || getStoredWatchStock();
 
   // 1. 初始化 Resize 监听
   setupWatchlistResizeObserver();
@@ -2425,7 +2494,7 @@ async function loadWatchlistData(selectedCode) {
 
   if (window.AStockAPI && typeof window.AStockAPI.getWatchlist === 'function') {
     try {
-      const watchRes = await window.AStockAPI.getWatchlist(code);
+      const watchRes = await window.AStockAPI.getWatchlist(preferredCode || '');
       if (watchRes && Array.isArray(watchRes.stocks)) {
         stocksList = watchRes.stocks;
       }
@@ -2456,6 +2525,23 @@ async function loadWatchlistData(selectedCode) {
   }
   stocksList = uniqueList;
 
+  // 决策当前选中的股票：
+  // 1. 若 preferredCode 存在且在 stocksList 中，优先沿用用户的选择；
+  // 2. 否则，按当前排序规则（默认降序）自动选择列表排在第 1 位的股票，彻底避免硬编码第 2 位问题
+  let code = preferredCode;
+  if (!code || !stocksList.some(s => s.code === code)) {
+    const sortedCandidates = [...stocksList];
+    if (_watchlistSortOrder === 'desc') {
+      sortedCandidates.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0));
+    } else if (_watchlistSortOrder === 'asc') {
+      sortedCandidates.sort((a, b) => (a.change_pct || 0) - (b.change_pct || 0));
+    }
+    code = sortedCandidates.length > 0 ? sortedCandidates[0].code : (preferredCode || '300750');
+  }
+
+  AppState.selectedStock = code;
+  setStoredWatchStock(code);
+
   // 渲染自选列表
   renderWatchlistItems(stocksList, code);
 
@@ -2463,7 +2549,7 @@ async function loadWatchlistData(selectedCode) {
   syncAtOperatorQuotes(stocksList);
 
   // 3. 动态匹配当前股票数据（若返回的 activeDetail 不是当前选择的代码）
-  if (activeDetail.code !== code) {
+  if (!activeDetail || activeDetail.code !== code) {
     const matchedStock = stocksList.find(s => s.code === code);
     if (matchedStock) {
       const isUp = matchedStock.change_pct >= 0;
@@ -9351,6 +9437,7 @@ window.addEventListener('resize', () => {
 // Watchlist Stock Selector
 function selectWatchStock(code) {
   AppState.selectedStock = code;
+  setStoredWatchStock(code);
   document.querySelectorAll('.watchlist-stock-row, .watchlist-item-card').forEach(card => {
     if (card.dataset.code === code) {
       card.classList.add('active');
@@ -9358,9 +9445,11 @@ function selectWatchStock(code) {
       card.classList.remove('active');
     }
   });
+  scrollWatchlistToActiveItem(true);
   loadWatchlistData(code);
 }
 window.selectWatchStock = selectWatchStock;
+window.scrollWatchlistToActiveItem = scrollWatchlistToActiveItem;
 window.filterWatchlist = filterWatchlist;
 window.toggleWatchlistSort = toggleWatchlistSort;
 window.switchWatchPeriod = switchWatchPeriod;
