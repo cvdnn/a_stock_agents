@@ -479,11 +479,11 @@
             <span class="collapse-icon">▶</span>
           </button>
 
-          <!-- 隐藏保留AI助手launcher（非居中模式切换备用） -->
-          <button type="button" class="btn-copilot-launcher" id="btnCopilotLauncher" onclick="toggleCopilot()" title="展开AI助手" style="display: none;">
+          <!-- 除了【投研助手】外，其他菜单工作区title栏最后的【AI助手】按钮 -->
+          <button type="button" class="btn-copilot-launcher" id="btnCopilotLauncher" onclick="handleWorkbenchCopilotBtn()" title="展开AI助手">
             <span class="copilot-btn-icon">🤖</span>
             <span class="copilot-btn-label">AI助手</span>
-            <span class="copilot-btn-arrow">◀</span>
+            <span class="copilot-btn-arrow" id="copilotBtnArrow">◀</span>
           </button>
         </div>
       </div>

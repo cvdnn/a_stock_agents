@@ -737,47 +737,275 @@ function renderFallbackSessionContent(session) {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// Generate standard Welcome & Quick Actions card HTML
-function getWelcomeMessageHtml() {
+// ==========================================================================
+// 1.4 AI 助手多工作区定制问候语与推荐操作配置 (TabCopilotConfigs)
+// ==========================================================================
+const TabCopilotConfigs = {
+  'dashboard': {
+    title: '您好！我是您的 A股智能投研助手',
+    subtitle: '高内聚自包含量化投研中枢 · 多智能体协同对抗研判 · 毫秒级盘面联动',
+    desc: '基于全市场 4 级降级实时行情与工业级量化引擎，为您提供<strong>行情全景监测</strong>、<strong>多因子选股诊断</strong>、严格执行<strong>最低保本卖出价精算</strong>与 <strong>T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损</strong>，并支持投资收益多维归因及全天候智能盯盘。',
+    quickActions: [
+      {
+        icon: '🛡️',
+        title: '评估持股策略',
+        desc: '立即评估 >',
+        tooltip: '诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单',
+        action: '评估持股策略',
+        prompt: '请评估我的持股策略，对当前持仓标的进行量化健康度诊断，并根据实战三原则计算最低保本卖出价与三级风控止损阶梯。'
+      },
+      {
+        icon: '📈',
+        title: '分析今日大盘行情',
+        desc: '一键分析 >',
+        tooltip: '四大指数走势研判、两市放量动能、情绪温度与主线轮动',
+        action: '分析今日大盘行情',
+        prompt: '请深度分析今日A股大盘行情走势、两市成交量能、四大指数强弱分化与核心板块轮动主线。'
+      },
+      {
+        icon: '💰',
+        title: '收益分析',
+        desc: '查看分析 >',
+        tooltip: '复盘资产净值走势、夏普比率、最大回撤与多因子收益归因',
+        action: '收益分析',
+        prompt: '请对当前投资组合进行全景收益分析，评估资产净值曲线、夏普比率、最大回撤以及多因子收益归因。'
+      }
+    ]
+  },
+  'market': {
+    title: '您好！我是您的 市场盘面研判助手',
+    subtitle: '全景量价追踪 · 四大指数强弱分化 · 情绪周期与主力板块轮动',
+    desc: '正在为您实时盯防两市<strong>4700+只个股量价异动</strong>与<strong>核心板块资金净流向</strong>。可一键研判大盘量能底背离、情绪冰点与主线龙头接力机会。',
+    quickActions: [
+      {
+        icon: '📈',
+        title: '今日盘面量价研判',
+        desc: '一键研判 >',
+        tooltip: '研判上证、深成、创业、科创量能与技术均线排列',
+        action: '今日盘面量价研判',
+        prompt: '请结合当前四大指数分化、两市量能增减与日K线结构，输出今日大盘量价深度研判与关键支撑阻力位。'
+      },
+      {
+        icon: '🔥',
+        title: '主力资金主线扫描',
+        desc: '捕捉主线 >',
+        tooltip: '追踪行业与概念资金净流入排名，捕捉主升浪主线',
+        action: '主力资金主线扫描',
+        prompt: '请分析当前主力资金净流入前列的核心板块与题材主线，研判资金持续性与轮动扩散节奏。'
+      },
+      {
+        icon: '🌡️',
+        title: '市场情绪周期诊断',
+        desc: '情绪复盘 >',
+        tooltip: '诊断涨跌停家数、连板高度、炸板率与游资情绪周期',
+        action: '市场情绪周期诊断',
+        prompt: '请诊断当前市场情绪处于哪个周期阶段（启动/发酵/分歧/修复/退潮），并给出短线接力防守建议。'
+      },
+      {
+        icon: '⚖️',
+        title: '四大指数强弱对比',
+        desc: '强弱分化 >',
+        tooltip: '对比主板与双创指数超额表现，识别领涨主引擎',
+        action: '四大指数强弱对比',
+        prompt: '请对上证指数、深证成指、创业板指、科创50进行多维强弱对比，识别当前领涨主引擎与大小盘风格。'
+      }
+    ]
+  },
+  'watchlist': {
+    title: '您好！我是您的 自选个股量化诊断助手',
+    subtitle: '重点自选深度体检 · 主力筹码沉淀透视 · 游资战法买卖点捕捉',
+    desc: '聚焦您的自选标的池，深度穿透<strong>主力筹码密集峰与获利盘比例</strong>，提供<strong>5A共振旋转评分</strong>与<strong>陈小群/退哥短线战法形态扫描</strong>。',
+    quickActions: [
+      {
+        icon: '⭐',
+        title: '诊断当前自选标的',
+        desc: '深度诊断 >',
+        tooltip: '针对当前选中的自选股进行多因子量化体检',
+        action: '诊断当前自选标的',
+        prompt: '请对当前自选重点标的进行全流程深度量化体检，输出综合评分、主力控盘度及后市买卖参考。'
+      },
+      {
+        icon: '🔍',
+        title: '透视主力筹码分布',
+        desc: '筹码透视 >',
+        tooltip: '计算筹码获利盘比例、集中度及上下密集峰强支撑位',
+        action: '透视主力筹码分布',
+        prompt: '请测算当前自选股的主力筹码分布形态、平均持仓成本、获利盘比例及下行第一强支撑位。'
+      },
+      {
+        icon: '🎯',
+        title: '5A多因子共振评分',
+        desc: '因子测算 >',
+        tooltip: '量价/基本面/估值/主线共振 5 维量化综合打分',
+        action: '5A多因子共振评分',
+        prompt: '请运行 5A 选股引擎，对自选股进行量价动能、基本面、估值、资金面和主线旋转五维共振量化评分。'
+      },
+      {
+        icon: '🛡️',
+        title: '精算最低保本与止损',
+        desc: '风控动作 >',
+        tooltip: '计入全部税费向上进位算保本价，设定T0/T1/T2三级止损',
+        action: '精算最低保本与止损',
+        prompt: '请严格按照印花税0.05%、佣金最低5元和过户费向上进位计算当前标的最低保本卖出价，并输出T0/T1/T2三级止损线。'
+      }
+    ]
+  },
+  'returns': {
+    title: '您好！我是您的 投资收益与归因分析助手',
+    subtitle: '资产净值走势复盘 · 夏普比率与动态回撤 · Barra多因子收益归因',
+    desc: '深度归因您的投资组合真实收益来源，穿透<strong>选股Alpha超额</strong>与<strong>风格Beta暴露</strong>，助您优化仓位敞口与回撤风控。',
+    quickActions: [
+      {
+        icon: '💰',
+        title: '投资组合多因子归因',
+        desc: '收益归因 >',
+        tooltip: '穿透宏观、行业、风格与选股因子对超额收益的贡献',
+        action: '投资组合多因子归因',
+        prompt: '请对当前投资组合进行 Barra 多因子收益归因分析，详细拆解选股超额 Alpha 与市场风格 Beta 贡献。'
+      },
+      {
+        icon: '📉',
+        title: '最大回撤与风险体检',
+        desc: '回撤体检 >',
+        tooltip: '诊断动态回撤幅度、夏普比率、卡玛比率与波动率',
+        action: '最大回撤与风险体检',
+        prompt: '请对组合进行动态最大回撤、夏普比率与年化波动率量化体检，评估当前风险预算是否处于安全阈值。'
+      },
+      {
+        icon: '⚖️',
+        title: '交易胜率与盈亏比复盘',
+        desc: '复盘统计 >',
+        tooltip: '分析历史交易单胜率、盈亏比及持仓周期分布',
+        action: '交易胜率与盈亏比复盘',
+        prompt: '请复盘近期的交易单胜率与盈亏比分布，指出主要盈利来源与主要亏损交易的策略特征。'
+      },
+      {
+        icon: '🎯',
+        title: '资产配置与仓位建议',
+        desc: '仓位调优 >',
+        tooltip: '基于风险平价与目标波动率模型输出仓位优化方案',
+        action: '资产配置与仓位建议',
+        prompt: '请根据当前市场环境和回撤控制目标，提供投资组合资产配置优化与目标波动率动态调仓建议。'
+      }
+    ]
+  },
+  'skills': {
+    title: '您好！我是您的 量化技能治理与编排助手',
+    subtitle: '17项投研技能审计 · 契约门禁热插拔 · 多智能体协同链路诊断',
+    desc: '统一管控数据源、策略引擎、风控动作及报告渲染中枢。支持<strong>一键健康度体检</strong>、<strong>实时在线调试</strong>与<strong>多智能体多空辩论演练</strong>。',
+    quickActions: [
+      {
+        icon: '🧪',
+        title: '17项技能契约全量审计',
+        desc: '一键体检 >',
+        tooltip: '扫描全部 17 项技能就地状态、输入输出契约与依赖健康度',
+        action: '17项技能契约全量审计',
+        prompt: '请执行技能治理全量审计，检查 17 项量化投研技能的状态、契约规范与运行成功率。'
+      },
+      {
+        icon: '⚡',
+        title: '测试数据源4级降级链',
+        desc: '链路测试 >',
+        tooltip: '模拟验证腾讯财经、网易、新浪及回退源的可用性与延迟',
+        action: '测试数据源4级降级链',
+        prompt: '请对 astock-data-feed 数据源进行 4 级容灾降级压力测试，验证实时行情与历史K线的容灾切换机制。'
+      },
+      {
+        icon: '🛡️',
+        title: '验证实战风控动作中枢',
+        desc: '风控核验 >',
+        tooltip: '检验保本价ceil向上进位与-3%/-5%/-8%三级止损硬约束',
+        action: '验证实战风控动作中枢',
+        prompt: '请核验 astock-action-execution 技能中的实战交易三原则契约，验证保本价 math.ceil 进位与三级止损逻辑。'
+      },
+      {
+        icon: '🤖',
+        title: '发起多智能体对抗辩论',
+        desc: '协同演练 >',
+        tooltip: '调度7大分析师角色对标的展开多空博弈辩论',
+        action: '发起多智能体对抗辩论',
+        prompt: '请调度基本面、量价、消息、游资、筹码与风控 7 大 AI 分析师，针对当前市场焦点标的发起多空对抗辩论。'
+      }
+    ]
+  },
+  'projected-action': {
+    title: '您好！我是您的 实战风控与动作反应助手',
+    subtitle: '实战交易三原则中枢 · 精确保本价进位 · 三场景即时反应指令',
+    desc: '严格执行<strong>印花税0.05%</strong>、<strong>佣金最低5元</strong>、<strong>过户费进位</strong>计算最低保本价，制定<strong>T0(-3%)/T1(-5%)/T2(-8%)三级止损线</strong>及开盘冲高/窄幅震荡/急跌跳水三场景预案。',
+    quickActions: [
+      {
+        icon: '🛡️',
+        title: '精算持仓最低保本价',
+        desc: '精确试算 >',
+        tooltip: '计入全部税费向上进位至分位，拒绝任何四舍五入',
+        action: '精算持仓最低保本价',
+        prompt: '请严格核算当前持仓的最低保本卖出价，必须计入印花税、佣金和过户费，并向上进位至分位（math.ceil）。'
+      },
+      {
+        icon: '⚡',
+        title: '生成三场景即时动作单',
+        desc: '即时预案 >',
+        tooltip: '明确开盘冲高、窄幅震荡、急跌跳水三种场景应对指令',
+        action: '生成三场景即时动作单',
+        prompt: '请根据当前成本与盘面波动，生成开盘冲高、盘中震荡与急跌跳水的三场景即时动作单。'
+      },
+      {
+        icon: '🚨',
+        title: '检查三级止损风控警戒',
+        desc: '风控核验 >',
+        tooltip: '检查标的是否触及T0(-3%)/T1(-5%)/T2(-8%)风控线',
+        action: '检查三级止损风控警戒',
+        prompt: '请核查当前持仓标的是否触碰 T0(-3%) 警戒线、T1(-5%) 减仓线或 T2(-8%) 绝杀线，并输出操作指引。'
+      }
+    ]
+  }
+};
+window.TabCopilotConfigs = TabCopilotConfigs;
+
+// Helper to look up quick action across configs
+function findQuickActionConfig(actionType) {
+  for (const tab in TabCopilotConfigs) {
+    const list = TabCopilotConfigs[tab].quickActions || [];
+    const found = list.find(a => a.action === actionType);
+    if (found) return found;
+  }
+  return null;
+}
+
+// Generate standard Welcome & Quick Actions card HTML tailored to specific workspace tab
+function getWelcomeMessageHtml(tabId) {
+  const currentTab = tabId || AppState.activeRightTab || 'dashboard';
+  const cfg = TabCopilotConfigs[currentTab] || TabCopilotConfigs['dashboard'];
+
+  const quickPillsHtml = cfg.quickActions.map(action => `
+    <div class="quick-pill-box" onclick="executeQuickAction('${escapeSessionHtml(action.action)}')" title="${escapeSessionHtml(action.tooltip)}">
+      <div class="quick-pill-title">
+        <span class="quick-pill-icon">${action.icon}</span>
+        <span class="quick-pill-text">${action.title}</span>
+      </div>
+      <div class="quick-pill-val">${action.desc}</div>
+    </div>
+  `).join('');
+
   return `
     <div class="message-item message-ai">
       <div class="message-bubble-ai welcome-intro-card">
         <div class="welcome-header">
           <div class="welcome-avatar-pill">AI</div>
           <div class="welcome-title-box">
-            <h3>您好！我是您的 A股智能投研助手</h3>
-            <p>高内聚自包含量化投研中枢 · 多智能体协同对抗研判 · 毫秒级盘面联动</p>
+            <h3>${cfg.title}</h3>
+            <p>${cfg.subtitle}</p>
           </div>
         </div>
 
         <div class="welcome-feature-desc">
-          基于全市场 4 级降级实时行情与工业级量化引擎，为您提供<strong>行情全景监测</strong>、<strong>多因子选股诊断</strong>、严格执行<strong>最低保本卖出价精算</strong>与 <strong>T0(-3%)/T1(-5%)/T2(-8%) 三级风控止损</strong>，并支持投资收益多维归因及全天候智能盯盘。
+          ${cfg.desc}
         </div>
 
         <div class="quick-iron-card">
           <div class="quick-iron-header">⚡ 快捷操作推荐（点击直接发起智能体分析）：</div>
           <div class="quick-iron-grid">
-            <div class="quick-pill-box" onclick="executeQuickAction('评估持股策略')" title="诊断持仓健康度，精算保本卖出价与三级止损阶梯动作单">
-              <div class="quick-pill-title">
-                <span class="quick-pill-icon">🛡️</span>
-                <span class="quick-pill-text">评估持股策略</span>
-              </div>
-              <div class="quick-pill-val">立即评估 &gt;</div>
-            </div>
-            <div class="quick-pill-box" onclick="executeQuickAction('分析今日大盘行情')" title="四大指数走势研判、两市放量动能、情绪温度与主线轮动">
-              <div class="quick-pill-title">
-                <span class="quick-pill-icon">📈</span>
-                <span class="quick-pill-text">分析今日大盘行情</span>
-              </div>
-              <div class="quick-pill-val">一键分析 &gt;</div>
-            </div>
-            <div class="quick-pill-box" onclick="executeQuickAction('收益分析')" title="复盘资产净值走势、夏普比率、最大回撤与多因子收益归因">
-              <div class="quick-pill-title">
-                <span class="quick-pill-icon">💰</span>
-                <span class="quick-pill-text">收益分析</span>
-              </div>
-              <div class="quick-pill-val">查看分析 &gt;</div>
-            </div>
+            ${quickPillsHtml}
           </div>
         </div>
       </div>
@@ -786,7 +1014,7 @@ function getWelcomeMessageHtml() {
 }
 
 // Start a new chat session with a guaranteed unique ID
-async function startNewChat() {
+async function startNewChat(targetTab) {
   if (typeof SessionStore !== 'undefined') {
     SessionStore.saveCurrentSessionSnapshot();
   }
@@ -798,11 +1026,12 @@ async function startNewChat() {
   // 优化修改：新建会话时仅在前端【会话记录】中插入一条数据，当点击【提交】时才提交后台保存数据
   AppState.currentSessionId = newId;
 
+  const currentTab = targetTab || (AppState.layoutMode === 'workspace-main' ? AppState.activeRightTab : 'dashboard');
   const newSession = {
     id: newId,
     title: title,
     time: '刚刚',
-    tab: 'dashboard',
+    tab: currentTab,
     isDraft: true // 纯前端会话草稿态，尚未持久化至后台
   };
   HistoricalSessions.unshift(newSession);
@@ -811,24 +1040,25 @@ async function startNewChat() {
 
   const chatMessages = document.getElementById('chatMessages');
   if (chatMessages) {
-    chatMessages.innerHTML = getWelcomeMessageHtml();
+    chatMessages.innerHTML = getWelcomeMessageHtml(currentTab);
   }
   
   // 确保处于投研助手模式及默认板块
-  if (AppState.activeRightTab !== 'dashboard') {
-    switchRightTab('dashboard');
-  } else {
-    switchLayoutMode('chat-center');
+  if (targetTab === 'dashboard' || (!targetTab && AppState.layoutMode === 'chat-center')) {
+    if (AppState.activeRightTab !== 'dashboard') {
+      switchRightTab('dashboard');
+    } else {
+      switchLayoutMode('chat-center');
+    }
+    // 新建会话时工作区自动展示【用户操作指南】
+    loadUserGuideToWorkbench();
   }
-
-  // 新建会话时工作区自动展示【用户操作指南】
-  loadUserGuideToWorkbench();
 
   showToast('已创建新投研会话！欢迎查阅功能介绍与快捷操作');
 }
 
-// 快捷操作响应调度器（评估持股策略、分析今日大盘行情、收益分析）
-function executeQuickAction(actionType) {
+// 快捷操作响应调度器（支持全模块各快捷操作动态分发与会话流转）
+function executeQuickAction(actionType, promptOverride, customTitle, customSummary) {
   if (AppState.isChatStreaming) {
     showToast('AI 智能体正在研判中，请稍候...');
     return;
@@ -838,26 +1068,27 @@ function executeQuickAction(actionType) {
     SessionStore.saveCurrentSessionSnapshot();
   }
 
-  // 确保工作台处于展示状态且为投研助手居中模式
+  // 确保工作台处于展示状态且为投研助手居中模式（若在投研助手）
   if (AppState.activeRightTab === 'dashboard') {
     switchLayoutMode('chat-center');
   }
 
-  // 在左侧会话记录中新增一条对应的会话记录
+  const actionCfg = findQuickActionConfig(actionType);
   const ts = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
   const randHex = Math.random().toString(36).substring(2, 8);
   const newSessionId = `sess_${ts}_${randHex}`;
-  const actionTitle = {
+  const actionTitle = customTitle || (actionCfg ? actionCfg.title : null) || {
     '评估持股策略': '持股策略评估与保本价精算',
     '分析今日大盘行情': 'A股今日大盘行情走势研判',
     '收益分析': '投资组合全景收益与归因分析'
   }[actionType] || actionType;
 
+  const currentTab = AppState.activeRightTab || 'dashboard';
   const newSession = {
     id: newSessionId,
     title: actionTitle,
     time: '刚刚',
-    tab: actionType === '收益分析' ? 'returns' : (actionType === '分析今日大盘行情' ? 'market' : 'dashboard')
+    tab: currentTab
   };
   HistoricalSessions.unshift(newSession);
   AppState.loadedSessionCount = Math.max(AppState.loadedSessionCount + 1, HistoricalSessions.length);
@@ -869,35 +1100,38 @@ function executeQuickAction(actionType) {
     welcomeCard.closest('.message-item').remove();
   }
 
+  const prompt = promptOverride || (actionCfg ? actionCfg.prompt : null) || {
+    '评估持股策略': '请评估我的持股策略，对当前持仓标的进行量化健康度诊断，并根据实战三原则计算最低保本卖出价与三级风控止损阶梯。',
+    '分析今日大盘行情': '请深度分析今日A股大盘行情走势、两市成交量能、四大指数强弱分化与核心板块轮动主线。',
+    '收益分析': '请对当前投资组合进行全景收益分析，评估资产净值曲线、夏普比率、最大回撤以及多因子收益归因。'
+  }[actionType] || `请对【${actionType}】进行深度量化研判与实战策略分析。`;
+
+  appendChatMessage('user', prompt);
+
+  if (actionType === '分析今日大盘行情' && typeof UIEngine !== 'undefined') {
+    executeA2UITask(prompt);
+  } else {
+    const tpl = PromptTemplates[actionType] || {
+      title: actionTitle,
+      summary: customSummary || `已完成【${actionType}】多维量化研判与分析模型推演`,
+      body: `<p>已调用底层量化引擎针对<strong>${actionType}</strong>完成深度测算与多维因子研判。</p>`
+    };
+    streamAIResponse(tpl, tpl.title || actionTitle, tpl.summary || '等待后端返回可验证研判证据', { userText: prompt });
+  }
+
+  // 联动右侧视窗定位
   if (actionType === '评估持股策略') {
-    const prompt = '请评估我的持股策略，对当前持仓标的进行量化健康度诊断，并根据实战三原则计算最低保本卖出价与三级风控止损阶梯。';
-    appendChatMessage('user', prompt);
-    const tpl = PromptTemplates['评估持股策略'] || PromptTemplates['行情分析'];
-    streamAIResponse(tpl, '持股策略与实战三原则量化诊断报告', '持仓综合评分88分，精算税费保本卖出价与三级止损阶梯', { userText: prompt });
     const sec = document.getElementById('section-portfolio-overview');
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    showToast('已发起【评估持股策略】量化诊断！');
-  } else if (actionType === '分析今日大盘行情') {
-    const prompt = '请深度分析今日A股大盘行情走势、两市成交量能、四大指数强弱分化与核心板块轮动主线。';
-    appendChatMessage('user', prompt);
-    if (typeof UIEngine !== 'undefined') {
-      executeA2UITask(prompt);
-    } else {
-      const tpl = PromptTemplates['行情分析'];
-      streamAIResponse(tpl, '今日A股大盘行情与主线轮动深度研判', '等待后端返回可验证行情证据', { userText: prompt });
-    }
+  } else if (actionType === '分析今日大盘行情' || actionType === '今日盘面量价研判') {
     const sec = document.getElementById('section-market-indices');
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    showToast('已发起【分析今日大盘行情】深度研判！');
-  } else if (actionType === '收益分析') {
-    const prompt = '请对当前投资组合进行全景收益分析，评估资产净值曲线、夏普比率、最大回撤以及多因子收益归因。';
-    appendChatMessage('user', prompt);
-    const tpl = PromptTemplates['收益分析'] || PromptTemplates['行情分析'];
-    streamAIResponse(tpl, '投资组合全景收益与多因子归因报告', '等待后端返回可验证账户绩效与归因数据', { userText: prompt });
+  } else if (actionType === '收益分析' || actionType === '投资组合多因子归因') {
     const sec = document.getElementById('section-investment-analysis');
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    showToast('已发起【收益分析】多维量化研判！');
   }
+
+  showToast(`已发起【${actionType}】量化研判！`);
 }
 
 // --------------------------------------------------------------------------
@@ -1042,6 +1276,29 @@ function updateWorkbenchHeaderActions(tabId) {
       extBtn.style.display = (AppState.currentDocFormat === 'html') ? 'inline-flex' : 'none';
     }
   }
+
+  // 除了【投研助手】外，其他菜单的工作区title栏最后显示【AI助手】按钮，点击可侧边滑出AI助手
+  const copilotBtn = document.getElementById('btnCopilotLauncher');
+  const collapseWorkbenchBtn = document.getElementById('btnCollapseWorkbench');
+  if (tabId === 'dashboard') {
+    if (copilotBtn) copilotBtn.style.display = 'none';
+    if (collapseWorkbenchBtn) collapseWorkbenchBtn.style.display = 'inline-flex';
+  } else {
+    if (copilotBtn) {
+      copilotBtn.style.display = 'inline-flex';
+      const arrowEl = document.getElementById('copilotBtnArrow');
+      if (AppState.isCopilotCollapsed) {
+        copilotBtn.classList.remove('active');
+        copilotBtn.title = '展开AI助手';
+        if (arrowEl) arrowEl.innerText = '◀';
+      } else {
+        copilotBtn.classList.add('active');
+        copilotBtn.title = '收起AI助手';
+        if (arrowEl) arrowEl.innerText = '▶';
+      }
+    }
+    if (collapseWorkbenchBtn) collapseWorkbenchBtn.style.display = 'none';
+  }
 }
 window.updateWorkbenchHeaderActions = updateWorkbenchHeaderActions;
 
@@ -1084,8 +1341,15 @@ function switchRightTab(tabId) {
   const headerTagElem = document.getElementById('workbenchHeaderTag');
   if (headerTagElem && info.tag) headerTagElem.innerText = info.tag;
 
-  // 4.1 Update Header Action Buttons: 仅在【投研助手】展示【预览/源码、目录导航、复制代码、独立窗口】，其他模块展示各自专属功能按钮
+  // 4.1 Update Header Action Buttons: 仅在【投研助手】展示【预览/源码、目录导航、复制代码、独立窗口】，其他模块展示各自专属功能按钮与末尾【AI助手】
   updateWorkbenchHeaderActions(tabId);
+
+  // 4.2 若 AI 助手处于初始欢迎态，刷新为当前工作区专属问候与推荐操作
+  const chatMessages = document.getElementById('chatMessages');
+  const welcomeCard = chatMessages ? chatMessages.querySelector('.welcome-intro-card') : null;
+  if (chatMessages && (welcomeCard || chatMessages.children.length === 0)) {
+    chatMessages.innerHTML = getWelcomeMessageHtml(tabId);
+  }
 
   // 5. Re-render Canvas Charts and fetch dynamic data for this tab
   setTimeout(() => {
@@ -1263,14 +1527,28 @@ function projectToRight(cardType, payload = {}) {
   showToast(`已将【${title}】放大投射至右侧窗口（从左至右动画弹出，原有内容完整保留）`);
 }
 
-// Master Collapse Button Handler in Chat Header
+// Master Collapse Button Handler in Chat Header (AI助手内部标题栏右侧的收起按钮)
 function handleChatCollapseBtn() {
   if (AppState.layoutMode === 'workspace-main') {
     // Mode 2: 收起右侧 AI 助手
-    toggleCopilot();
+    toggleCopilot(true);
   }
   // Mode 1: 铁律 — AIChatUI 在投研助手模式下始终展示，不执行收起自身
 }
+
+// 工作区 Title 栏末尾 【AI助手】 按钮点击处理函数（点击后侧边滑出AI助手，再次点击收起）
+function handleWorkbenchCopilotBtn() {
+  const container = document.getElementById('appContainer') || document.querySelector('.app-container');
+  if (!container) return;
+
+  const isCollapsed = container.classList.contains('copilot-collapsed') || AppState.isCopilotCollapsed;
+  if (isCollapsed) {
+    toggleCopilot(false);
+  } else {
+    toggleCopilot(true);
+  }
+}
+window.handleWorkbenchCopilotBtn = handleWorkbenchCopilotBtn;
 
 // Toggle Workbench collapse / expand (Mode 1: 投研助手模式下工作台的收起 / 展开)
 function toggleWorkbenchCollapse(forceState) {
@@ -1306,13 +1584,34 @@ function toggleCopilot(forceState, silent = false) {
     ? forceState
     : !container.classList.contains('copilot-collapsed');
 
+  const launcherBtn = document.getElementById('btnCopilotLauncher');
+  const arrowEl = document.getElementById('copilotBtnArrow');
+
   if (willCollapse) {
     container.classList.add('copilot-collapsed');
     AppState.isCopilotCollapsed = true;
+    if (launcherBtn) {
+      launcherBtn.classList.remove('active');
+      launcherBtn.title = '展开AI助手';
+    }
+    if (arrowEl) arrowEl.innerText = '◀';
     if (!silent) showToast('已收起 AI 助手，中间主工作区已全宽大屏展现');
   } else {
     container.classList.remove('copilot-collapsed');
     AppState.isCopilotCollapsed = false;
+    if (launcherBtn) {
+      launcherBtn.classList.add('active');
+      launcherBtn.title = '收起AI助手';
+    }
+    if (arrowEl) arrowEl.innerText = '▶';
+
+    // 展开 AI 助手时：若处于初始欢迎态，刷新为当前工作区专属问候与推荐操作
+    const chatMessages = document.getElementById('chatMessages');
+    const welcomeCard = chatMessages ? chatMessages.querySelector('.welcome-intro-card') : null;
+    if (chatMessages && (welcomeCard || chatMessages.children.length === 0)) {
+      chatMessages.innerHTML = getWelcomeMessageHtml(AppState.activeRightTab);
+    }
+
     if (!silent) showToast('已展开 AI 助手伴随协同视窗');
   }
 
@@ -3080,6 +3379,101 @@ const PromptTemplates = {
     title: '5A五维共振旋转选股输出',
     summary: '等待后端根据真实候选池和因子证据生成结果',
     body: '<p>尚未取得可验证的候选池、行情和因子数据；不能生成排名、评分或买卖建议。</p>'
+  },
+  '今日盘面量价研判': {
+    title: '今日A股大盘量价结构与关键分水岭研判',
+    summary: '四大指数强弱分化与日K量能多维综合测算',
+    body: '<p>正在接入实时4级降级行情引擎，综合上证综指、深证成指、创业板指与科创50的量价形态进行结构性研判。</p>'
+  },
+  '主力资金主线扫描': {
+    title: '全市场主力资金净流向与主升浪主线扫描',
+    summary: '核心行业与热门题材资金净流入梯队透视',
+    body: '<p>已启动主力板块资金流向监控，正在计算行业与概念板块的资金沉淀与轮动扩散节奏。</p>'
+  },
+  '市场情绪周期诊断': {
+    title: '全市场短线交易情绪周期与高度板梯队诊断',
+    summary: '连板高度、涨跌停家数比与炸板率情绪测算',
+    body: '<p>已聚合两市涨停、跌停、连板梯队及游资情绪温度，正在诊断当前市场情绪周期的启动、发酵或退潮特征。</p>'
+  },
+  '四大指数强弱对比': {
+    title: '宽基指数截面动量与风格强弱多维对比',
+    summary: '主板与双创相对强弱比价及大小盘风格研判',
+    body: '<p>正在对四大指数进行截面标准化动量测算，分析权重蓝筹与成长科技之间的资金博弈与主导风格。</p>'
+  },
+  '诊断当前自选标的': {
+    title: '重点自选标的深度量化体检与资金控盘研报',
+    summary: '重点自选标的多周期量化追踪与控盘度研判',
+    body: '<p>已加载当前自选核心标的数据，正在结合量价结构、均线排列及主力控盘度出具全流程量化体检报告。</p>'
+  },
+  '透视主力筹码分布': {
+    title: '主力筹码结构分布、获利盘比例与支撑位测算',
+    summary: '筹码密集峰形态与平均持仓成本精确量化',
+    body: '<p>正在运行筹码分布计算模型，测算筹码获利盘比例、上下密集峰位置与下行第一强支撑位。</p>'
+  },
+  '5A多因子共振评分': {
+    title: '5A五维旋转选股模型多因子共振评分',
+    summary: '量价/基本面/估值/资金/主线旋转五维共振',
+    body: '<p>已启动 5A 因子合成引擎，正在执行 MAD 去极值与截面 Z-Score 标准化，输出个股综合评分与分项雷达图。</p>'
+  },
+  '精算最低保本与止损': {
+    title: '税费精算最低保本卖出价与T0/T1/T2三级止损指令单',
+    summary: '严格执行印花税0.05%、佣金最低5元、过户费进位计算',
+    body: '<p>已启动实战交易反应动作中枢，严格按照实战交易三原则核算最低保本价（math.ceil向上进位）并输出三级止损阶梯。</p>'
+  },
+  '投资组合多因子归因': {
+    title: 'Barra多因子收益归因与Alpha/Beta拆解研报',
+    summary: '超额Alpha收益与市场风格Beta暴露深度透视',
+    body: '<p>正在对投资组合资产净值走势进行 Barra 多因子归因，拆解行业配置、选股收益与宏观风格因子的贡献比例。</p>'
+  },
+  '最大回撤与风险体检': {
+    title: '组合动态回撤、夏普比率与波动率风险体检',
+    summary: '风险预算、卡玛比率与动态水下时间全面体检',
+    body: '<p>正在计算组合动态历史回撤曲线、年化波动率与夏普比率，评估当前投资组合的风险承受阈值。</p>'
+  },
+  '交易胜率与盈亏比复盘': {
+    title: '历史交易胜率、盈亏比分布与持仓周期归因',
+    summary: '历史交易单胜率分布、盈亏比与持仓时间特征',
+    body: '<p>正在汇总全部历史交易记录，输出胜率统计、盈亏比均值与短线/波段交易胜率对比分析。</p>'
+  },
+  '资产配置与仓位建议': {
+    title: '目标波动率与风险平价资产配置调优建议',
+    summary: '仓位动态平衡与分散化风险预算调控预案',
+    body: '<p>正在根据市场波动率预期与组合风险目标，提供基于风险平价和分数凯利准则的资产配置调优建议。</p>'
+  },
+  '17项技能契约全量审计': {
+    title: '17项量化投研技能就地运行与输入输出契约审计报告',
+    summary: '零全局污染原则与技能元数据契约完整性审计',
+    body: '<p>正在对工作区 .agents/skills/ 下全部 17 项技能进行就地状态核查，检验统一 CLI 调用、降级机制与输入输出规范。</p>'
+  },
+  '测试数据源4级降级链': {
+    title: '数据源4级容灾降级压力测试与高可用诊断',
+    summary: '腾讯/网易/新浪/备用源4级容灾切换实测',
+    body: '<p>正在对 astock-data-feed 数据桥接模块发起容灾压力测试，验证主从链路自动降级与数据清洗稳定性。</p>'
+  },
+  '验证实战风控动作中枢': {
+    title: '实战交易三原则保本价ceil进位与止损契约核验',
+    summary: '保本价向上进位至分位与T0/T1/T2三级止损硬约束核验',
+    body: '<p>正在验证 astock-action-execution 技能中的数学进位计算逻辑，确保实战交易铁律执行到位。</p>'
+  },
+  '发起多智能体对抗辩论': {
+    title: '7大分析师多空对抗博弈辩论研报',
+    summary: '基本面/量价/消息/政策/游资/筹码/风控7角色对抗研判',
+    body: '<p>正在调度 7 大 AI 量化分析师角色针对当前市场核心标的展开多轮对抗式多空辩论并输出收敛决策。</p>'
+  },
+  '精算持仓最低保本价': {
+    title: '实战交易最低保本卖出价精算表',
+    summary: '计入全部税费向上进位至分位（math.ceil）',
+    body: '<p>严格核算印花税、佣金与过户费，以分位向上进位给出零亏损保本卖出基准线。</p>'
+  },
+  '生成三场景即时动作单': {
+    title: '开盘冲高/盘中震荡/急跌跳水三场景即时动作单',
+    summary: '开盘冲高、震荡整理、急跌跳水对应触发条件与操作指令',
+    body: '<p>已生成针对当前标的的三场景交易动作预案，明确各价格触发区间与即时执行指令。</p>'
+  },
+  '检查三级止损风控警戒': {
+    title: '持仓风控三级阶梯（-3%/-5%/-8%）监控核验单',
+    summary: 'T0预警、T1减仓50%、T2坚决止损三级执行红线',
+    body: '<p>正在对持仓标的现价与成本价进行动态核验，输出是否触及风控止损阶梯的预警清单。</p>'
   }
 };
 
@@ -9464,7 +9858,9 @@ window.sendMessage = handleSendChat;
 window.deleteSession = executeSessionDelete;
 window.executeSessionDelete = executeSessionDelete;
 window.selectSession = selectSession;
-
-
-
-
+window.TabCopilotConfigs = TabCopilotConfigs;
+window.getWelcomeMessageHtml = getWelcomeMessageHtml;
+window.executeQuickAction = executeQuickAction;
+window.handleWorkbenchCopilotBtn = handleWorkbenchCopilotBtn;
+window.handleChatCollapseBtn = handleChatCollapseBtn;
+window.toggleCopilot = toggleCopilot;

@@ -4447,6 +4447,7 @@ input:checked + .slider:before {
 /* 2. 业务主工作区模式 (Workspace-Centric Copilot Mode): 业务区在中间跃升为主工作区，AIChatUI 定位为 AI助手在右 (390px) */
 .app-container.layout-workspace-main {
   grid-template-columns: 240px 1fr 390px;
+  transition: grid-template-columns 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .app-container.layout-workspace-main .app-right-details {
@@ -4458,18 +4459,41 @@ input:checked + .slider:before {
   order: 3;
   border-left: 1px solid var(--border-card);
   border-right: none;
+  width: 390px;
+  min-width: 390px;
+  max-width: 390px;
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.06);
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, min-width 0.32s ease, width 0.32s ease;
 }
 
-/* 3. 业务主工作区模式下 AI助手收起：中间主工作区占满 100% 宽度 */
+.app-container.layout-workspace-main .chat-workspace {
+  width: 390px;
+  min-width: 390px;
+}
+
+/* 3. 业务主工作区模式下 AI助手收起：侧边滑入滑出抽屉效果 */
 .app-container.layout-workspace-main.copilot-collapsed {
   grid-template-columns: 240px 1fr 0px;
 }
 
 .app-container.layout-workspace-main.copilot-collapsed .app-middle-chat {
-  display: none !important;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(100%);
+  visibility: hidden;
+  border-left: 1px solid transparent;
+  pointer-events: none;
+  overflow: hidden;
+  box-shadow: none;
 }
 
-/* 中间区域 Title 右侧 AI 助手呼出小按钮 */
+/* 工作台 Title 栏末尾 AI 助手呼出与收起按钮 */
 .btn-copilot-launcher,
 .btn-workbench-launcher {
   display: none;
@@ -4487,6 +4511,7 @@ input:checked + .slider:before {
   transition: var(--transition-fast);
   white-space: nowrap;
   box-shadow: 0 1px 3px rgba(22, 119, 255, 0.08);
+  user-select: none;
 }
 
 .btn-copilot-launcher:hover,
@@ -4518,9 +4543,32 @@ input:checked + .slider:before {
   transform: translateX(-2px);
 }
 
-/* 当业务主工作区模式下 AI 助手收起时，在中间主工作区 Title 右侧高亮展示小按钮 */
+/* 除了投研助手外的所有菜单工作区，Title 栏末尾均常驻显示【AI助手】按钮 */
+.app-container.layout-workspace-main .btn-copilot-launcher {
+  display: inline-flex;
+}
+
+/* 当 AI 助手处于展开状态时，按钮呈现高亮激活态 */
+.app-container.layout-workspace-main:not(.copilot-collapsed) .btn-copilot-launcher,
+.btn-copilot-launcher.active {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.25);
+}
+
+.app-container.layout-workspace-main:not(.copilot-collapsed) .btn-copilot-launcher:hover,
+.btn-copilot-launcher.active:hover {
+  background: #0958D9;
+  border-color: #0958D9;
+}
+
+/* 当 AI 助手收起时呈现待呼出状态 */
 .app-container.layout-workspace-main.copilot-collapsed .btn-copilot-launcher {
   display: inline-flex;
+  background: #E8F3FF;
+  border-color: #ADC6FF;
+  color: var(--primary);
   animation: launcherFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
