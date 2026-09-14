@@ -354,9 +354,7 @@ async function executeSessionDelete(targetSessionId) {
 
   // 2. 清除本地快照
   if (typeof SessionStore !== 'undefined') {
-    try {
-      localStorage.removeItem((SessionStore.prefix || 'astock_sess_v2_') + sessionId);
-    } catch (_) {}
+    SessionStore.remove(sessionId);
   }
 
   // 3. 从列表中移除
@@ -371,14 +369,20 @@ async function executeSessionDelete(targetSessionId) {
 
   // 5. 切换或清空当前会话
   if (isCurrent) {
+    // 核心修复：被删除会话的内容严禁残留或作为快照写入下一个会话
+    const chatContainer = document.getElementById('chatMessages');
+    if (chatContainer) {
+      chatContainer.innerHTML = '';
+    }
+    AppState.currentSessionId = null;
+
     if (HistoricalSessions.length > 0) {
       const nextIndex = Math.min(idx, HistoricalSessions.length - 1);
       const nextSession = HistoricalSessions[nextIndex];
-      AppState.currentSessionId = nextSession.id;
       renderSessionList();
-      selectSession(nextSession.id);
+      // 传递 skipSaveSnapshot: true，彻底防止被删除会话的内容污染下一个会话 (包含 selectSession(nextSession.id) 调用)
+      await selectSession(nextSession.id, { skipSaveSnapshot: true });
     } else {
-      AppState.currentSessionId = null;
       renderSessionList();
       startNewChat();
     }
@@ -486,10 +490,22 @@ const SessionStore = {
     }
   },
 
+  remove(sessionId) {
+    if (!sessionId) return;
+    try {
+      localStorage.removeItem(this.prefix + sessionId);
+    } catch (_) {}
+  },
+
   saveCurrentSessionSnapshot() {
     const curId = AppState.currentSessionId;
     const container = document.getElementById('chatMessages');
     if (!curId || !container) return;
+
+    // 关键防御：若当前激活 ID 已经从会话列表中移除（被删除），严禁保存任何快照！
+    const currentSess = (typeof HistoricalSessions !== 'undefined') ? HistoricalSessions.find(s => s.id === curId) : null;
+    if (!currentSess) return;
+
     if (container.querySelector('.working-spinner-ring')) return;
     if (container.querySelector('.welcome-intro-card') && container.children.length === 1) return;
 
@@ -498,15 +514,19 @@ const SessionStore = {
       const existing = this.get(curId) || {};
       existing.html = html;
       existing.updatedAt = Date.now();
+      existing.sessionId = curId;
+      existing.title = currentSess.title;
       this.set(curId, existing);
     }
   }
 };
 
 // Select a session and display full conversation history & memories
-async function selectSession(id) {
-  // 1. 切换前先对当前正在显示的聊天界面做无损快照保存
-  if (typeof SessionStore !== 'undefined') {
+async function selectSession(id, options = {}) {
+  const { skipSaveSnapshot = false } = options;
+
+  // 1. 切换前先对当前正在显示的聊天界面做无损快照保存（若指定 skipSaveSnapshot 则跳过）
+  if (!skipSaveSnapshot && typeof SessionStore !== 'undefined') {
     SessionStore.saveCurrentSessionSnapshot();
   }
 
@@ -535,12 +555,50 @@ async function selectSession(id) {
   if (!chatContainer) return;
 
   // 2. 优先命中本地无损快照缓存：实现 100% 像素级与真实聊天过程完全一致！
+  // 增加脏快照防串号自愈校验：如果本地快照与当前会话明显不属于同一会话，自动清除脏缓存并重新拉取/渲染
   if (typeof SessionStore !== 'undefined') {
     const cached = SessionStore.get(id);
     if (cached && cached.html && cached.html.trim()) {
-      chatContainer.innerHTML = cached.html;
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-      return;
+      let isSnapshotValid = true;
+
+      // 校验 A: 若快照元数据中存了 title，比对是否与当前会话标题明显异构
+      if (session && cached.title && session.title) {
+        const normSess = session.title.trim().toLowerCase();
+        const normCached = cached.title.trim().toLowerCase();
+        if (normCached !== normSess && !normSess.startsWith(normCached) && !normCached.startsWith(normSess)) {
+          isSnapshotValid = false;
+        }
+      }
+
+      // 校验 B: 从快照 DOM 内容中检测首条用户提问与 AI 卡片标题，防止历史无 title 脏快照串号残留
+      if (isSnapshotValid && session && session.title) {
+        try {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = cached.html;
+          const firstUserBubble = tempDiv.querySelector('.message-bubble-user');
+          const userText = firstUserBubble ? firstUserBubble.textContent.trim().toLowerCase() : '';
+          const firstAiTitle = tempDiv.querySelector('.ai-msg-title');
+          const aiTitleText = firstAiTitle ? firstAiTitle.textContent.trim().toLowerCase() : '';
+          const currentTitle = session.title.trim().toLowerCase();
+
+          // 若快照内容中包含明确提问，且该提问与当前会话标题完全无关
+          if (userText && !currentTitle.includes(userText) && !userText.includes(currentTitle.slice(0, 4))) {
+            if (aiTitleText && !currentTitle.includes(aiTitleText) && !aiTitleText.includes(currentTitle.slice(0, 4))) {
+              console.warn(`[SessionStore] 校验到本地快照内容串号污染，自动清除并自愈重新载入: id=${id}, currentTitle=${session.title}, dirtyUserText=${userText}`);
+              isSnapshotValid = false;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (isSnapshotValid) {
+        chatContainer.innerHTML = cached.html;
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        return;
+      } else {
+        // 自动清除被污染的残留脏快照，自愈进入后端真实数据或兜底模板加载
+        SessionStore.remove(id);
+      }
     }
   }
 

@@ -15,7 +15,7 @@ console.log('=== [验证新建会话仅在前端插入草稿，点击提交才�
 const appSource = fs.readFileSync(path.join(__dirname, '..', 'web', 'js', 'app.js'), 'utf8');
 
 // 验证 startNewChat 函数源码中不包含 createSession 调用
-const startNewChatMatch = appSource.match(/async\s+function\s+startNewChat\s*\(\)\s*\{([\s\S]*?)\n\}/);
+const startNewChatMatch = appSource.match(/async\s+function\s+startNewChat\s*\([^)]*\)\s*\{([\s\S]*?)\n\}/);
 assert.ok(startNewChatMatch, '必须定义 startNewChat 函数');
 const startNewChatBody = startNewChatMatch[1];
 assert.strictEqual(
