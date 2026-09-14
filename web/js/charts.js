@@ -208,13 +208,17 @@ class FinancialCharts {
     const percent = Math.min(1, Math.max(0, (value - min) / (max - min)));
 
     const cx = width / 2;
-    const cy = height * 0.82;
-    const radius = Math.min(width * 0.40, height * 0.70);
     const strokeWidth = options.strokeWidth || 8;
 
-    const startAngle = Math.PI * 0.85;
-    const endAngle = Math.PI * 2.15;
+    // 半圆刻度参数：采用标准 180° 半圆 (Math.PI 到 2 * Math.PI)
+    // 保证在限定高度的容器中左右两端水平收口，端点圆角完全保留在可视区域内，避免底部被裁剪
+    const startAngle = options.startAngle !== undefined ? options.startAngle : Math.PI;
+    const endAngle = options.endAngle !== undefined ? options.endAngle : Math.PI * 2;
     const totalAngle = endAngle - startAngle;
+
+    // 基准 Y 坐标：预留端点圆角与游标下边距
+    const cy = options.cy !== undefined ? options.cy : (height - strokeWidth / 2 - 4);
+    const radius = options.radius || Math.min((width - strokeWidth * 2 - 12) / 2, cy - strokeWidth / 2 - 6);
 
     // 1. 底层灰色轨道
     ctx.beginPath();
@@ -261,22 +265,31 @@ class FinancialCharts {
 
     ctx.beginPath();
     ctx.arc(pinX, pinY, strokeWidth * 0.35, 0, Math.PI * 2);
-    ctx.fillStyle = '#1677FF';
+    ctx.fillStyle = options.pinColor || '#1677FF';
     ctx.fill();
 
-    // 4. 中心标题与数值 (如 主力控盘度 68.32%)
-    const title = options.centerTitle || '主力控盘度';
-    const valText = options.centerValue || `${value}%`;
+    // 4. 中心标题与数值 (仅在明确传入 centerTitle 或 showCenterText 且未设置 hideCenterText 时绘制)
+    // 避免在外部使用 HTML 元素（如 #mktSentimentScore, #mktSentimentLabel）覆盖展示时发生图文冲突与重影
+    if (!options.hideCenterText && (options.centerTitle || options.showCenterText)) {
+      const title = options.centerTitle || '';
+      const valText = options.centerValue || `${value}%`;
 
-    ctx.fillStyle = '#86909C';
-    ctx.font = '10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(title, cx, cy - 22);
+      if (title) {
+        ctx.fillStyle = '#86909C';
+        ctx.font = '10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(title, cx, cy - 22);
+      }
 
-    ctx.fillStyle = '#1D2129';
-    ctx.font = 'bold 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
-    ctx.fillText(valText, cx, cy - 3);
+      if (valText) {
+        ctx.fillStyle = '#1D2129';
+        ctx.font = 'bold 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(valText, cx, cy - 3);
+      }
+    }
   }
 
   // 4. Donut Chart (for 资金流向分布 & 北向资金)

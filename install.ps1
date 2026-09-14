@@ -36,14 +36,19 @@ if (-not (Test-Path ".venv")) {
 $VenvPy = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 $VenvPip = Join-Path $ProjectRoot ".venv\Scripts\pip.exe"
 
-# 3. 安装依赖
-Write-Host "[3/4] 安装项目核心量化与分析依赖 (requirements.txt)..." -ForegroundColor Yellow
-& $VenvPip install --upgrade pip -q
-& $VenvPip install -r requirements.txt -q
+if (Get-Command uv -ErrorAction SilentlyContinue) {
+    & uv sync --all-extras
+} elseif (Test-Path $VenvPip) {
+    & $VenvPip install --upgrade pip -q
+    & $VenvPip install -r requirements.txt -q
+} else {
+    & $VenvPy -m ensurepip --upgrade
+    & $VenvPy -m pip install -r requirements.txt -q
+}
 
 # 4. 工作区就地挂载与目录初始化
 Write-Host "[4/5] 正在配置工作区就地挂载 (.agents\skills)..." -ForegroundColor Yellow
-& $VenvPy core\workspace.py
+& $VenvPy scripts\core\workspace.py
 
 # 5. 运行快速自检
 Write-Host "----------------------------------------------------------------------" -ForegroundColor Gray

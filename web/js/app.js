@@ -1801,8 +1801,25 @@ async function loadMarketData() {
     if (window.AStockAPI && typeof window.AStockAPI.getMarketSentiment === 'function') {
       const sent = await window.AStockAPI.getMarketSentiment();
       if (sent) {
-        hydrateFastText('mktSentimentScore', sent.score || 78);
-        hydrateFastText('mktSentimentLabel', sent.label || sent.status_text || (sent.score >= 70 ? '较强' : '中性'));
+        const sentScore = sent.score !== undefined ? sent.score : 78;
+        hydrateFastText('mktSentimentScore', sentScore);
+        const sentLabelText = sent.label || sent.status_text || (sentScore >= 70 ? '较强' : sentScore <= 35 ? '低迷' : '中性');
+        hydrateFastText('mktSentimentLabel', sentLabelText);
+
+        const sentBadgeEl = document.getElementById('mktSentimentLabel');
+        if (sentBadgeEl) {
+          if (sentScore >= 70) {
+            sentBadgeEl.style.color = '#FA541C';
+            sentBadgeEl.style.backgroundColor = '#FFF2E8';
+          } else if (sentScore <= 35) {
+            sentBadgeEl.style.color = '#52C41A';
+            sentBadgeEl.style.backgroundColor = '#F6FFED';
+          } else {
+            sentBadgeEl.style.color = '#1677FF';
+            sentBadgeEl.style.backgroundColor = '#E6F4FF';
+          }
+        }
+
         hydrateFastText('mktLimitUpCount', sent.limit_up || sent.limit_up_count || 86);
         hydrateFastText('mktLimitDownCount', sent.limit_down || sent.limit_down_count || 6);
         hydrateFastText('mktTotalTurnover', sent.total_turnover || '1.20万亿');
@@ -1812,7 +1829,7 @@ async function loadMarketData() {
 
         if (typeof FinancialCharts !== 'undefined' && document.getElementById('sentimentGauge')) {
           requestAnimationFrame(() => {
-            FinancialCharts.drawGauge('sentimentGauge', sent.score || 78, { colorType: 'sentiment' });
+            FinancialCharts.drawGauge('sentimentGauge', sentScore, { colorType: 'sentiment', hideCenterText: true });
           });
         }
 
@@ -2062,7 +2079,8 @@ function setupMarketResizeObserver() {
               FinancialCharts.drawSparkline(canvasId, item.sparkline, item.change_pct >= 0);
             });
             // 重绘 Gauge
-            FinancialCharts.drawGauge('sentimentGauge', 78, { colorType: 'sentiment' });
+            const curScore = parseInt(document.getElementById('mktSentimentScore')?.textContent, 10) || 78;
+            FinancialCharts.drawGauge('sentimentGauge', curScore, { colorType: 'sentiment', hideCenterText: true });
             // 重绘 K线
             const klines = generateKlines(3350, 35, 0.0035);
             FinancialCharts.drawCandlestickChart('marketKlineCanvas', klines, { showVolume: true });

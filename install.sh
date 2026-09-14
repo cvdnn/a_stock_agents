@@ -36,10 +36,15 @@ fi
 VENV_PY="${PROJECT_ROOT}/.venv/bin/python"
 VENV_PIP="${PROJECT_ROOT}/.venv/bin/pip"
 
-# 3. 安装依赖
-echo "[3/4] 安装项目核心量化与分析依赖 (requirements.txt)..."
-"${VENV_PIP}" install --upgrade pip -q
-"${VENV_PIP}" install -r requirements.txt -q
+if command -v uv &> /dev/null; then
+    uv sync --all-extras
+elif [ -f "${VENV_PIP}" ]; then
+    "${VENV_PIP}" install --upgrade pip -q
+    "${VENV_PIP}" install -r requirements.txt -q
+else
+    "${VENV_PY}" -m ensurepip --upgrade 2>/dev/null || true
+    "${VENV_PY}" -m pip install -r requirements.txt -q
+fi
 
 # 4. 设置执行权限与工作区就地挂载
 echo "[4/5] 设置执行权限与工作区就地挂载 (.agents/skills)..."
@@ -48,7 +53,7 @@ chmod +x install.sh || true
 chmod +x update.sh || true
 chmod +x run.sh || true
 
-"${VENV_PY}" core/workspace.py
+"${VENV_PY}" scripts/core/workspace.py
 
 # 5. 运行快速自检
 echo "----------------------------------------------------------------------"
