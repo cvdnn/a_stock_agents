@@ -32,7 +32,7 @@ def test_live_main_web_ui_root():
     with urllib.request.urlopen(req, timeout=5) as response:
         assert response.status == 200
         html = response.read().decode("utf-8")
-        assert "AI量化投资助手" in html
+        assert "GC量化投资助手" in html or "AI量化投资助手" in html
         assert "ovTotalAssets" in html
         assert "js/api.js" in html
 
@@ -50,7 +50,7 @@ def test_live_static_ui():
     with urllib.request.urlopen(req, timeout=5) as response:
         assert response.status == 200
         html = response.read().decode("utf-8")
-        assert "AI量化投资助手" in html or "A-Stock Agents" in html
+        assert "GC量化投资助手" in html or "AI量化投资助手" in html or "A-Stock Agents" in html
         assert "ovTotalAssets" in html
         assert "mktShPrice" in html
         assert "watchHeroPrice" in html

@@ -342,3 +342,29 @@ def cmd_vol_breakout(args):
         print(f"  收缩期次数: {bt.get('squeeze_periods', 0)} 次 | 突破信号: {bt.get('breakout_signals', 0)} 次")
         print(f"  历史成功率: {bt.get('win_rate', 0):.1f}% | 平均5日收益: {bt.get('avg_return_5d', 0):+.2f}%")
         print(f"  突破机会评分: {score['score']}/100 → {score['rating']} ({score.get('reason', '')})")
+
+
+def cmd_chenxiaoqun(args):
+    """游资陈小群核心战法量化检测与交易决策"""
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent.parent.parent
+    check_script_path = root / ".agents" / "skills" / "astock-strategy-chenxiaoqun" / "scripts"
+    if str(check_script_path) not in sys.path:
+        sys.path.insert(0, str(check_script_path))
+
+    from chenxiaoqun_check import ChenXiaoqunStrategyEngine
+
+    code = getattr(args, "code", "600519")
+    cost = getattr(args, "cost", None)
+    shares = getattr(args, "shares", 1000)
+    count = getattr(args, "count", 60)
+
+    res = ChenXiaoqunStrategyEngine.evaluate(code=code, cost=cost, shares=shares, count=count)
+
+    if getattr(args, "json", False) or getattr(args, "output", "") == "json":
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+    else:
+        print(ChenXiaoqunStrategyEngine.render_markdown(res))
+

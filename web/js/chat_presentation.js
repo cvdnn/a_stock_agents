@@ -1057,6 +1057,7 @@
     'astock-agent-debate': { name: 'Debate Orchestrator', role: '7大分析师多空辩论', icon: '⚖️' },
     'astock-data-feed': { name: 'Data Feed Agent', role: '行情与筹码穿透智能体', icon: '🔍' },
     'astock-strategy-tuige': { name: 'Tuige Shortline Agent', role: '短线接力规则智能体', icon: '⚡' },
+    'astock-strategy-chenxiaoqun': { name: 'Chen Xiaoqun HotMoney Agent', role: '陈小群游资战法智能体', icon: '🔥' },
     'astock-strategy-mainboard': { name: 'Mainboard Swing Agent', role: '主板波段智能体', icon: '🎯' },
     'astock-trade-paper': { name: 'Paper Trading Agent', role: '模拟撮合交易智能体', icon: '💹' },
     'astock-quant-engine': { name: 'Quant Pipeline Agent', role: '量化因子工程引擎', icon: '⚙️' },

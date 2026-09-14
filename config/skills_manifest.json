@@ -1,7 +1,7 @@
 {
   "platform": "A-Stock-Agents-Universal",
   "version": "v3",
-  "total_skills": 17,
+  "total_skills": 18,
   "skills": [
     {
       "id": "astock-data-feed",
@@ -319,6 +319,28 @@
       "cli_command": "astock tips",
       "skill_doc": ".agents/skills/astock-meta-routing/SKILL.md",
       "recommended_model": "flash"
+    },
+    {
+      "id": "astock-strategy-chenxiaoqun",
+      "name": "astock-strategy-chenxiaoqun",
+      "title": "游资陈小群核心战法与实战超短决策体系",
+      "category": "strategy",
+      "description": "基于顶级游资陈小群实战模式：总龙头深水核按钮低吸(地天板)、爆量烂板次日竞价超预期弱转强、主升中军做T换手板与龙头首阴反包二波决策体系。",
+      "triggers": [
+        "陈小群",
+        "大连金马路",
+        "深水低吸",
+        "弱转强",
+        "竞价抢筹",
+        "地天板",
+        "换手板",
+        "龙头首阴",
+        "游资战法"
+      ],
+      "entry_point": ".agents/skills/astock-strategy-chenxiaoqun/scripts/chenxiaoqun_check.py",
+      "cli_command": "astock pattern chenxiaoqun {code}",
+      "skill_doc": ".agents/skills/astock-strategy-chenxiaoqun/SKILL.md",
+      "recommended_model": "inherit"
     }
   ]
 }

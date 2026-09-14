@@ -23,7 +23,7 @@
 
 ---
 
-## 🧭 17 项就地技能全景清单与意图路由 (Skills Manifest)
+## 🧭 18 项就地技能全景清单与意图路由 (Skills Manifest)
 
 当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** [`.agents/skills/<skill_id>/SKILL.md`](file:///Users/handy/workon/a_stock_agents/.agents/skills) 或 [`config/skills_manifest.json`](file:///Users/handy/workon/a_stock_agents/config/skills_manifest.json)。
 
@@ -36,6 +36,7 @@
 | **`astock-action-execution`** | 保本价、止损位、开盘冲高/急跌应对动作单 | `astock action plan --code <代码> --cost <成本> --shares <股数> --json` | 计入全部税费并向上进位至分位（`ceil`）的保本价精算与三级风控 |
 | **`astock-strategy-macd`** | 水下二次金叉、MACD底背离、双底形态 | `astock pattern macd <代码> --json` | 波谷极值对比与波段间距过滤的纯粹 MACD 经典形态识别 |
 | **`astock-strategy-tuige`** | 退哥短线、涨停回调、连板接力、龙头首阴 | `astock shortline check --code <代码> --json` | 纪律严明的 A 股短线与接力交易规则库 |
+| **`astock-strategy-chenxiaoqun`** | 陈小群、大连金马路、深水低吸、弱转强、地天板、中军换手板、首阴反包 | `astock pattern chenxiaoqun <代码> --json` | 顶级游资总龙头战法：深水低吸/竞价弱转强/中军做T锁仓/首阴二波 |
 | **`astock-strategy-mainboard`** | 主板波段、趋势回踩、防守反击、流动性池 | `astock strategy swing --code <代码> --json` | 聚焦主板大市值流动性品种的多波段防御策略 |
 | **`astock-pool-dashboard`** | 股票池、自选股、关注池、持仓池查看 | `astock pool list --json` | 个人三级股票池生命周期管理与盘中监控 |
 | **`astock-pool-audit`** | 审查股票池、清洗失效标的、支撑阻力重算 | `astock pool audit --json` | 自动清洗过期失效标的，更新关键位与止损参考 |
@@ -46,6 +47,7 @@
 | **`astock-meta-routing`** | 任务路由、大模型选型策略 | `astock tips --json` | 纯分析 vs 代码执行的任务分流规范与模型推荐 |
 | **`astock-knowledge-tips`** | 避坑指南、集合竞价、防被封技巧 | `astock tips --json` | 历史实战踩坑经验、数据源降级策略与风控心法 |
 | **`astock-model-validation`** | 外部AI时序模型检验、样本外回测 | `astock validate-model --json` | 外部时序模型（TimesFM/Kronos）的滚动样本外回测标准 |
+
 
 ---
 

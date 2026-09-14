@@ -24,6 +24,7 @@ from core.commands.model_cmds import (
 )
 from core.commands.strategy_cmds import (
     cmd_action_plan,
+    cmd_chenxiaoqun,
     cmd_downside,
     cmd_golden_cross,
     cmd_grid,
@@ -66,6 +67,7 @@ __all__ = [
     "cmd_golden_cross",
     "cmd_portfolio_risk",
     "cmd_action_plan",
+    "cmd_chenxiaoqun",
     "cmd_intent",
     "cmd_downside",
     "cmd_screen",

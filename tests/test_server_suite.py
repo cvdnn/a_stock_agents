@@ -308,7 +308,7 @@ class TestFastAPIRoutes:
         with TestClient(app) as client:
             r1 = client.get("/")
             assert r1.status_code == 200
-            assert "AI量化投资助手" in r1.text or "A-Stock Agents" in r1.text
+            assert "GC量化投资助手" in r1.text or "AI量化投资助手" in r1.text or "A-Stock Agents" in r1.text
 
             r_api = client.get("/api")
             assert r_api.status_code == 200
@@ -368,3 +368,17 @@ class TestFastAPIRoutes:
             assert "event: conversation_start" in body
             assert "event: content_delta" in body
             assert "event: done" in body
+
+    def test_watchlist_no_duplicate_stocks(self):
+        with TestClient(app) as client:
+            resp = client.get("/api/watchlist?active_code=603259")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["status"] == "success"
+            stocks = data["stocks"]
+            assert len(stocks) > 0
+            codes = [s["code"] for s in stocks]
+            assert len(codes) == len(set(codes)), f"Found duplicate stock codes: {[c for c in set(codes) if codes.count(c) > 1]}"
+            assert codes.count("603259") == 1
+            assert data["count"] == len(stocks)
+            assert data["active_stock_detail"]["code"] == "603259"

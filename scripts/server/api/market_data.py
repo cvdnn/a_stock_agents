@@ -566,10 +566,9 @@ def _configured_pool_entries(config: Dict[str, Any]) -> List[Dict[str, str]]:
             else:
                 code = str(item).strip()
                 name = ""
-            key = (str(pool_name), code)
-            if not code or key in seen:
+            if not code or code in seen:
                 continue
-            seen.add(key)
+            seen.add(code)
             entries.append({"code": code, "name": name, "pool_type": str(pool_name)})
     return entries
 
@@ -600,8 +599,12 @@ async def get_watchlist(active_code: str = Query(default="300750")) -> Dict[str,
         pass
 
     stocks = []
+    seen_codes = set()
     for s in pool_entries:
         c = s["code"]
+        if not c or c in seen_codes:
+            continue
+        seen_codes.add(c)
         sym = DataBridge.normalize_symbol(c, with_prefix=True)
         q = quotes.get(sym) or quotes.get(c) or {}
         price = float(q.get("price") or 0.0)

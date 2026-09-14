@@ -2189,9 +2189,19 @@ function renderWatchlistItems(stocks, selectedCode) {
   const container = document.getElementById('watchStockList');
   if (!container) return;
 
-  AppState.currentWatchlistStocks = stocks || [];
+  // 防御性去重：确保自选股列表中每个代码唯一
+  const seenCodes = new Set();
+  const uniqueStocks = [];
+  for (const s of (stocks || [])) {
+    if (s && s.code && !seenCodes.has(s.code)) {
+      seenCodes.add(s.code);
+      uniqueStocks.push(s);
+    }
+  }
 
-  let filtered = [...(stocks || [])];
+  AppState.currentWatchlistStocks = uniqueStocks;
+
+  let filtered = [...uniqueStocks];
   if (_watchlistSearchKeyword) {
     const kw = _watchlistSearchKeyword.toLowerCase();
     filtered = filtered.filter(s => (s.name && s.name.toLowerCase().includes(kw)) || (s.code && s.code.includes(kw)));
@@ -2212,7 +2222,7 @@ function renderWatchlistItems(stocks, selectedCode) {
       </div>
     `;
     const countEl = document.getElementById('watchStockCount');
-    if (countEl) countEl.innerText = `自选股 (${(stocks || []).length})`;
+    if (countEl) countEl.innerText = `自选股 (${uniqueStocks.length})`;
     return;
   }
 
@@ -2245,7 +2255,7 @@ function renderWatchlistItems(stocks, selectedCode) {
   }).join('');
 
   const countEl = document.getElementById('watchStockCount');
-  if (countEl) countEl.innerText = `自选股 (${(stocks || []).length})`;
+  if (countEl) countEl.innerText = `自选股 (${uniqueStocks.length})`;
 }
 
 function filterWatchlist(val) {
@@ -2434,6 +2444,17 @@ async function loadWatchlistData(selectedCode) {
   if (!activeDetail) {
     activeDetail = WatchlistFallbackData.detail300750;
   }
+
+  // 渲染自选列表（先执行唯一性清洗）
+  const uniqueList = [];
+  const seenCodes = new Set();
+  for (const s of stocksList) {
+    if (s && s.code && !seenCodes.has(s.code)) {
+      seenCodes.add(s.code);
+      uniqueList.push(s);
+    }
+  }
+  stocksList = uniqueList;
 
   // 渲染自选列表
   renderWatchlistItems(stocksList, code);
@@ -3029,6 +3050,7 @@ const AtOperatorRegistry = {
     { name: 'astock-action-execution', code: 'skill_action', insertText: '@astock-action-execution', desc: '全部税费向上进位(ceil)最低保本价与三级风控阶梯', icon: '🛡️', tag: '实战风控' },
     { name: 'astock-strategy-macd', code: 'skill_macd', insertText: '@astock-strategy-macd', desc: '水下二次金叉与MACD底背离经典形态识别算法', icon: '〽️', tag: '经典形态' },
     { name: 'astock-strategy-tuige', code: 'skill_tuige', insertText: '@astock-strategy-tuige', desc: '退哥短线规则、涨停回调、连板接力与龙头首阴', icon: '⚡', tag: '短线规则' },
+    { name: 'astock-strategy-chenxiaoqun', code: 'skill_cxq', insertText: '@astock-strategy-chenxiaoqun', desc: '游资陈小群总龙头深水低吸、竞价弱转强与首阴二波战法', icon: '🔥', tag: '顶级游资' },
     { name: 'astock-strategy-mainboard', code: 'skill_mainboard', insertText: '@astock-strategy-mainboard', desc: '聚焦主板大市值流动性品种的多波段防御回踩策略', icon: '🌊', tag: '波段防御' },
     { name: 'astock-agent-debate', code: 'skill_debate', insertText: '@astock-agent-debate', desc: '基本面/量价/政策/游资/筹码/风控 7 角色对抗研判', icon: '👥', tag: '多智能体' },
     { name: 'astock-trade-paper', code: 'skill_paper', insertText: '@astock-trade-paper', desc: '考虑市场冲击滑点与 T+1 硬约束的模拟撮合交易', icon: '💼', tag: '模拟交易' }
@@ -8564,6 +8586,25 @@ const BuiltinSkillsManifest = [
     require_confirmation: false,
     enabled: true,
     sample_params: { code: "000001", scenario: "limit_up_pullback" }
+  },
+  {
+    id: "astock-strategy-chenxiaoqun",
+    name: "astock-strategy-chenxiaoqun",
+    title: "游资陈小群核心战法与实战超短决策体系",
+    category: "strategy",
+    categoryName: "实战策略",
+    risk_level: "strategy",
+    riskName: "策略风控",
+    description: "基于顶级游资陈小群实战模式：总龙头深水核按钮低吸(地天板)、爆量烂板次日竞价超预期弱转强、主升中军做T换手板与龙头首阴反包二波决策体系。",
+    triggers: ["陈小群", "大连金马路", "深水低吸", "弱转强", "竞价抢筹", "地天板", "换手板", "龙头首阴", "游资战法"],
+    cli_command: "astock pattern chenxiaoqun {code}",
+    entry_point: ".agents/skills/astock-strategy-chenxiaoqun/scripts/chenxiaoqun_check.py",
+    skill_doc: ".agents/skills/astock-strategy-chenxiaoqun/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 30,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { code: "600519" }
   },
   {
     id: "astock-strategy-macd",

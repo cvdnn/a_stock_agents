@@ -43,6 +43,7 @@ from core.commands import (
     cmd_action_plan,
     cmd_analyze,
     cmd_backtest,
+    cmd_chenxiaoqun,
     cmd_debate,
     cmd_balance,
     cmd_batch,
@@ -96,6 +97,7 @@ __all__ = [
     "cmd_golden_cross",
     "cmd_portfolio_risk",
     "cmd_action_plan",
+    "cmd_chenxiaoqun",
     "cmd_intent",
     "cmd_downside",
     "cmd_screen",
@@ -270,6 +272,26 @@ def build_parser() -> argparse.ArgumentParser:
     p_action.add_argument("--cost", type=float, default=None, help="持仓成本")
     p_action.add_argument("--shares", type=int, default=None, help="持仓股数")
     p_action.add_argument("--count", type=int, default=120)
+
+    # chenxiaoqun
+    p_cxq = subparsers.add_parser("chenxiaoqun", help="游资陈小群核心战法量化检测与决策", parents=[common_parser])
+    p_cxq.add_argument("code", nargs="?", default="600519", help="股票代码")
+    p_cxq.add_argument("--cost", type=float, default=None, help="持仓成本")
+    p_cxq.add_argument("--shares", type=int, default=1000, help="持仓股数")
+    p_cxq.add_argument("--count", type=int, default=60, help="K线数量")
+
+    # pattern
+    p_pat = subparsers.add_parser("pattern", help="经典形态与游资模式检测", parents=[common_parser])
+    pat_sub = p_pat.add_subparsers(dest="pattern_cmd")
+    p_pat_cxq = pat_sub.add_parser("chenxiaoqun", help="陈小群游资战法检测", parents=[common_parser])
+    p_pat_cxq.add_argument("code", nargs="?", default="600519", help="股票代码")
+    p_pat_cxq.add_argument("--cost", type=float, default=None, help="持仓成本")
+    p_pat_cxq.add_argument("--shares", type=int, default=1000, help="持仓股数")
+    p_pat_cxq.add_argument("--count", type=int, default=60, help="K线数量")
+    p_pat_macd = pat_sub.add_parser("macd", help="MACD二次金叉与底背离检测", parents=[common_parser])
+    p_pat_macd.add_argument("code", help="股票代码")
+    p_pat_macd.add_argument("--count", type=int, default=120)
+
 
     # intent
     p_intent = subparsers.add_parser("intent", help="自然语言意图智能解析", parents=[common_parser])
@@ -477,6 +499,16 @@ def main():
         if getattr(args, "opt_code", None):
             args.code = args.opt_code
         cmd_action_plan(args)
+    elif cmd == "chenxiaoqun":
+        cmd_chenxiaoqun(args)
+    elif cmd == "pattern":
+        pat_cmd = getattr(args, "pattern_cmd", None)
+        if pat_cmd == "chenxiaoqun":
+            cmd_chenxiaoqun(args)
+        elif pat_cmd == "macd":
+            cmd_golden_cross(args)
+        else:
+            parser.print_help()
     elif cmd == "intent":
         cmd_intent(args)
     elif cmd == "downside":
