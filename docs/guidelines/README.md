@@ -15,6 +15,7 @@
 |:---|:---|:---:|:---|
 | **项目工程结构与智能体工作区架构规范** | [`project-structure-specification.md`](project-structure-specification.md) | [`SPEC-ENG-001`](../specs/engineering/eng-project-structure-and-workspace.md) | 零全局污染原则、单一真理来源 (SSOT)、跨平台 CLI 门面、用户私有数据物理隔离 (`output/`) |
 | **A2UI 组件库拆解与模块化注册发现机制规范** | [`a2ui-component-registry-specification.md`](a2ui-component-registry-specification.md) | [`SPEC-A2UI-002`](../specs/a2ui/a2ui-component-registry-specification.md) | 领域组件包规范 (`@a2ui/pack-astock`)、未决缓冲队列时序解耦、命名空间隔离与自省清单 |
+| **前端架构重构与开发指南：app.js 源码拆分与模块化规范** | [`app-js-modularization-guide.md`](app-js-modularization-guide.md) | - | 9340行巨石单体解耦为22个领域驱动模块、零构建工具依赖、100%兼容215处HTML内联事件与后续开发规范 |
 
 ### 2. 研发与设计指南 (Guides & Governance)
 | 指南名称 | 物理路径 | 关联看板/规范 | 核心内容概述 |
