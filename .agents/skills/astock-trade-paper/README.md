@@ -33,14 +33,13 @@
 
 ## 启动
 
-默认配置已经改成用户级运行目录，不再把数据库写进 skill 目录：
+默认配置已经改成**项目内**统一运行目录，符合 `AGENTS.md` 的「工作区输出目录规范 (Three-Bucket Discipline)」，**严禁**把数据库/日志写到系统全局目录：
 
-- macOS: `~/Library/Application Support/a-share-paper-trading/`
-- Linux: `${XDG_DATA_HOME:-~/.local/share}/a-share-paper-trading/`
+- 数据库与 PID：`{PROJECT_ROOT}/output/cache/paper_trading/paper_trading.db`
+- 服务运行日志：`{PROJECT_ROOT}/log/paper_trading/service.log`
+- 临时下载/解压：`{PROJECT_ROOT}/temp/paper_trading/`（如启用）
 
-默认 SQLite 路径：
-
-- `~/Library/Application Support/a-share-paper-trading/paper_trading.db`（macOS）
+> 早期版本曾以 macOS `~/Library/Application Support/a-share-paper-trading/` 与 Linux `~/.local/share/a-share-paper-trading/` 作为落点，**已废弃**，请使用 `A_STOCK_AGENTS_ROOT` / `A_STOCK_OUTPUT_DIR` / `A_STOCK_LOG_DIR` 环境变量进行覆盖。
 
 默认监听地址：
 
@@ -49,21 +48,21 @@
 前台启动：
 
 ```bash
-python3 /Users/yanyun/dev/git_repo/ai-stock/ai-stock-data-v2/a-share-skill/a-share-paper-trading/scripts/paper_trading_service.py --host 127.0.0.1 --port 18765
+python3 "$PROJECT_ROOT/scripts/core/paper_trading/paper_trading_service.py" --host 127.0.0.1 --port 18765
 ```
 
 推荐用控制脚本后台常驻：
 
 ```bash
-python3 /Users/yanyun/dev/git_repo/ai-stock/ai-stock-data-v2/a-share-skill/a-share-paper-trading/scripts/paper_trading_ctl.py start
-python3 /Users/yanyun/dev/git_repo/ai-stock/ai-stock-data-v2/a-share-skill/a-share-paper-trading/scripts/paper_trading_ctl.py status
-python3 /Users/yanyun/dev/git_repo/ai-stock/ai-stock-data-v2/a-share-skill/a-share-paper-trading/scripts/paper_trading_ctl.py stop
+python3 "$PROJECT_ROOT/scripts/core/paper_trading/paper_trading_ctl.py" start
+python3 "$PROJECT_ROOT/scripts/core/paper_trading/paper_trading_ctl.py" status
+python3 "$PROJECT_ROOT/scripts/core/paper_trading/paper_trading_ctl.py" stop
 ```
 
 若希望开机自动拉起，可安装 launchd：
 
 ```bash
-python3 /Users/yanyun/dev/git_repo/ai-stock/ai-stock-data-v2/a-share-skill/a-share-paper-trading/scripts/paper_trading_ctl.py install-launchd
+python3 "$PROJECT_ROOT/scripts/core/paper_trading/paper_trading_ctl.py" install-launchd
 ```
 
 ## 验证脚本

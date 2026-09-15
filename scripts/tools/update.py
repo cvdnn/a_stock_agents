@@ -61,7 +61,8 @@ def create_backup() -> Path:
 def apply_update_from_zip(zip_path: Path, backup_dir: Path) -> bool:
     """Extracts update package non-destructively, protecting output/."""
     print(f"--> [更新] 正在从更新包解压更新: {zip_path}...")
-    temp_dir = PROJECT_ROOT / "cache" / "_update_temp"
+    # 临时解压目录统一落入 temp/，符合"可重建中间产物暂存区"规范
+    temp_dir = TEMP_DIR / "_update_temp"
     if temp_dir.exists():
         shutil.rmtree(temp_dir)
     temp_dir.mkdir(parents=True, exist_ok=True)

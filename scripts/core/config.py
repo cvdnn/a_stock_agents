@@ -16,23 +16,37 @@ VERSION = "3.0.0"
 
 
 def get_logger(name: str = "a_stock") -> logging.Logger:
-    """获取带统一配置的分级日志器。
+    """获取带统一配置的分级日志器；同时落 log/，便于事后追溯。
 
     可通过环境变量 ASTOCK_LOG_LEVEL 控制级别 (DEBUG, INFO, WARNING, ERROR)，默认为 WARNING。
+    通过 ASTOCK_LOG_TO_FILE=false 可关闭文件落盘（默认开启）。
     """
     logger = logging.getLogger(name)
     if not logger.handlers:
         level_name = os.environ.get("ASTOCK_LOG_LEVEL", "WARNING").upper()
         level = getattr(logging, level_name, logging.WARNING)
         logger.setLevel(level)
-        handler = logging.StreamHandler(sys.stderr)
-        handler.setLevel(level)
         formatter = logging.Formatter(
             fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+
+        # 1) stderr：保证 CLI 实时可见
+        sh = logging.StreamHandler(sys.stderr)
+        sh.setLevel(level)
+        sh.setFormatter(formatter)
+        logger.addHandler(sh)
+
+        # 2) 文件：落 log/{name}/{name}-YYYYMMDD.log（默认开启，可通过 ENV 关闭）
+        if os.environ.get("ASTOCK_LOG_TO_FILE", "true").lower() not in {"0", "false", "no"}:
+            try:
+                from scripts.core.workspace import get_log_path  # local import to avoid cycles
+                fh = logging.FileHandler(get_log_path(name), encoding="utf-8")
+                fh.setLevel(level)
+                fh.setFormatter(formatter)
+                logger.addHandler(fh)
+            except Exception as exc:  # 降级：文件落盘失败不影响 stderr 输出
+                sh.handleError if False else logger.debug(f"log file handler init failed: {exc}")
     return logger
 
 
@@ -250,6 +264,29 @@ BACKUPS_DIR = PROJECT_ROOT / paths_cfg.get("backups_dir", "backups")
 
 # Initialize required directories safely
 for p in [OUTPUT_DIR, OUTPUT_POOLS_DIR, OUTPUT_REPORTS_DIR, OUTPUT_CACHE_DIR, OUTPUT_BACKTEST_DIR, BACKUPS_DIR]:
+    p.mkdir(parents=True, exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# 运行时观测目录 (log/) 与 可重建临时目录 (temp/)
+# ---------------------------------------------------------------------------
+# log/  运行时观测唯一沉淀区（系统日志/CLI 轨迹/监控/审计）
+#       支持环境变量 A_STOCK_LOG_DIR 覆盖（绝对路径或相对项目根的相对路径）
+# temp/ 可重建中间产物暂存区（导出/下载/临时缓存）
+#       支持环境变量 A_STOCK_TEMP_DIR 覆盖
+# ---------------------------------------------------------------------------
+def _resolve_runtime_dir(env_var: str, default_rel: str) -> Path:
+    val = os.environ.get(env_var)
+    if val:
+        p = Path(val)
+        return p if p.is_absolute() else (PROJECT_ROOT / p).resolve()
+    return PROJECT_ROOT / default_rel
+
+
+LOG_DIR: Path = _resolve_runtime_dir("A_STOCK_LOG_DIR", "log")
+TEMP_DIR: Path = _resolve_runtime_dir("A_STOCK_TEMP_DIR", "temp")
+
+for p in [LOG_DIR, TEMP_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
 

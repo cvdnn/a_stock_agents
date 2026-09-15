@@ -32,12 +32,28 @@ TEMPLATE_PATH = _resolve_template_path()
 
 
 def _sanitize_report_output_path(output_path: str) -> Path:
-    """Ensure report output path is safely sandboxed within an authorized reports directory."""
+    """Ensure report output path is safely sandboxed within an authorized directory.
+
+    允许的输出位置（三桶规范）：
+      1) output/reports/        — 用户最终交付物唯一落盘区
+      2) temp/                  — 可重建中间产物暂存区（含 verify 自检产物、LLM 草稿）
+    其它任意系统路径一律重定向到 output/reports/，防止 LLM 写出沙箱。
+    """
     out_p = Path(output_path)
     clean_name = out_p.name
     resolved_out = (PROJECT_ROOT / out_p).resolve() if not out_p.is_absolute() else out_p.resolve()
-    reports_subdirs = [(PROJECT_ROOT / "output" / "reports").resolve(), OUTPUT_REPORTS_DIR.resolve()]
-    for r_dir in reports_subdirs:
+    # 解析 temp/（可能已被环境变量 A_STOCK_TEMP_DIR 覆盖）
+    try:
+        from core.config import TEMP_DIR
+        temp_root = TEMP_DIR.resolve()
+    except Exception:
+        temp_root = (PROJECT_ROOT / "temp").resolve()
+    allowed_subdirs = [
+        (PROJECT_ROOT / "output" / "reports").resolve(),
+        OUTPUT_REPORTS_DIR.resolve(),
+        temp_root,
+    ]
+    for r_dir in allowed_subdirs:
         try:
             resolved_out.relative_to(r_dir)
             return resolved_out

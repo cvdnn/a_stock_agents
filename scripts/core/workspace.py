@@ -26,6 +26,40 @@ def _find_project_root() -> Path:
 PROJECT_ROOT = _find_project_root()
 
 
+# ---------------------------------------------------------------------------
+# 三大运行时目录常量 (Three-Bucket Discipline)
+# ---------------------------------------------------------------------------
+# output/  用户最终交付物唯一落盘区（报告/股池/持仓/回测/缓存）
+# log/     运行时观测唯一沉淀区（系统日志/CLI 轨迹/监控/审计）
+# temp/    可重建中间产物暂存区（导出/下载/临时缓存，会话结束清理）
+OUTPUT_DIR: Path = PROJECT_ROOT / "output"
+LOG_DIR: Path = PROJECT_ROOT / "log"
+TEMP_DIR: Path = PROJECT_ROOT / "temp"
+
+
+def ensure_workspace_dirs() -> None:
+    """惰性创建 output/log/temp 三大目录，避免空目录缺失影响下游 IO。"""
+    for d in (OUTPUT_DIR, LOG_DIR, TEMP_DIR):
+        d.mkdir(parents=True, exist_ok=True)
+
+
+def get_log_path(module: str = "app", session_id: str | None = None) -> Path:
+    """生成按 (模块名 + 会话 ID 或日期) 分文件的日志路径，统一落入 log/。"""
+    ensure_workspace_dirs()
+    sub = LOG_DIR / module
+    sub.mkdir(parents=True, exist_ok=True)
+    tag = session_id or __import__("datetime").datetime.now().strftime("%Y%m%d")
+    return sub / f"{module}-{tag}.log"
+
+
+def get_temp_path(name: str = "scratch") -> Path:
+    """生成 temp/ 下的子目录路径，用于可重建的中间产物；会话结束应清理。"""
+    ensure_workspace_dirs()
+    p = TEMP_DIR / name
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def setup_workspace_mount() -> Tuple[bool, str]:
     """
     Ensures .agents/skills is present and root skills compatibility link exists.

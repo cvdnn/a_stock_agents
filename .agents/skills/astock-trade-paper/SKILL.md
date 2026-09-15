@@ -26,10 +26,13 @@ SKILL_DIR="<本skill绝对路径>"
 python3 "$SKILL_DIR/scripts/paper_trading_service.py" --host 127.0.0.1 --port 18765
 ```
 
-默认监听 `http://127.0.0.1:18765`，默认数据库不再落在 skill 目录，而是落到用户级数据目录：
+默认监听 `http://127.0.0.1:18765`，数据库、日志、运行时 PID 全部落到**项目内**统一目录，符合 `AGENTS.md` 的「工作区输出目录规范 (Three-Bucket Discipline)」：
 
-- macOS: `~/Library/Application Support/a-share-paper-trading/paper_trading.db`
-- Linux: `${XDG_DATA_HOME:-~/.local/share}/a-share-paper-trading/paper_trading.db`
+- 数据库与 PID：`{PROJECT_ROOT}/output/cache/paper_trading/paper_trading.db`
+- 服务运行日志：`{PROJECT_ROOT}/log/paper_trading/service.log`
+- 临时下载/解压：`{PROJECT_ROOT}/temp/paper_trading/`（如启用）
+
+> 可通过环境变量 `A_STOCK_AGENTS_ROOT` 覆盖项目根；`A_STOCK_OUTPUT_DIR` 与 `A_STOCK_LOG_DIR` 可进一步覆盖 output/log 的物理位置。早期版本曾以 macOS `~/Library/Application Support/a-share-paper-trading/` 与 Linux `~/.local/share/a-share-paper-trading/` 作为落点，**现已废弃**，避免用户私有数据散落到系统全局目录。
 
 若本机该端口**已有**模拟盘进程在跑，**不要**再启动第二个实例：会报 `Address already in use`，且多进程可能争用同一 SQLite 库文件。启动前可先检查端口是否在监听，例如：
 

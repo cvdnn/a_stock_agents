@@ -32,6 +32,14 @@ output/
 !output/**/*.example
 user_data/
 
+# Runtime observation directory (log/) - 系统日志/CLI 轨迹/监控/审计 唯一沉淀区
+log/
+!log/**/.gitkeep
+
+# Rebuildable intermediate scratch directory (temp/) - 可重建中间产物暂存区
+temp/
+!temp/**/.gitkeep
+
 
 # Local runtime caches & databases
 cache/

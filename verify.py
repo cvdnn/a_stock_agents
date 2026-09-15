@@ -247,7 +247,10 @@ def run_tests():
         assert r_tr.returncode == 0 and "kelly_f" in r_tr.stdout, f"trapped CLI failed: {r_tr.stderr}"
 
         # 3. report
-        cmd_rp = [sys.executable, str(cli_script), "report", "600519", "--json"]
+        # 使用 --output 将报告写到项目内 temp/ 目录，避免污染 output/ 并适配受限沙箱
+        report_target = PROJECT_ROOT / "temp" / "_verify_report_600519.html"
+        report_target.parent.mkdir(parents=True, exist_ok=True)
+        cmd_rp = [sys.executable, str(cli_script), "report", "600519", "--json", "--output", str(report_target)]
         r_rp = subprocess.run(cmd_rp, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert r_rp.returncode == 0 and "report_path" in r_rp.stdout, f"report CLI failed: {r_rp.stderr}"
 

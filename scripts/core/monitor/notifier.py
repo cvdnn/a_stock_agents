@@ -13,14 +13,25 @@ import subprocess
 import sys
 from typing import Optional
 
+try:
+    from core.config import get_logger
+except Exception:  # 兼容直跑脚本
+    def get_logger(name: str = "a_stock"):
+        import logging
+        return logging.getLogger(name)
+
+
+_notifier_logger = get_logger("notifier")
+
 
 def send_windows_toast(title: str, message: str, timeout_sec: int = 10) -> bool:
     """发送 Windows 系统气泡提醒 (Toast Notification)。
-    
+
     采用 PowerShell NotifyIcon 实现，无需外部第三方 GUI 依赖。非 Windows 环境下自动降级为控制台日志。
     """
     if sys.platform != "win32":
         print(f"[{title}] {message}")
+        _notifier_logger.info("[%s] %s", title, message)
         return False
 
     clean_title = title.replace('"', '`"').replace("'", "''")

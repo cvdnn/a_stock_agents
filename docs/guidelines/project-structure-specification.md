@@ -23,7 +23,20 @@ A-Stock Agents 作为一个高内聚、自包含且面向多智能体（Multi-Ag
 - 个人自选池、关注池、持仓档案、实盘交易流水账单、私人研报与本地缓存严格物理限定在 `output/` 目录；
 - 安全打包发布工具（`bin/pack.py`）与版本控制系统（`.gitignore`）执行强制排除策略，严防任何用户个人敏感资产外泄。
 
-### 4. 统一跨平台命令行门面 (Unified CLI Facade)
+### 4. 三大运行时目录铁律 (Three-Bucket Discipline)
+为彻底隔离用户最终交付物、运行时观测噪声与可重建的临时中间产物，工程根目录强制维护三大独立目录（`output/`、`log/`、`temp/`），全链路代码必须严格按用途落盘，禁止跨界：
+
+| 目录 | 归属内容 | 典型子目录/文件 |
+| :--- | :--- | :--- |
+| `output/` | 用户最终交付物唯一落盘区 | `pools/`、`positions/`、`reports/`、`cache/`、`backtest/` |
+| `log/` | 运行时观测唯一沉淀区（系统日志/CLI 轨迹/监控/审计/Skill 异常） | `a_stock-YYYYMMDD.log`、`paper_trading/`、`monitors/`、`notifier/` |
+| `temp/` | 可重建中间产物暂存区（导出/下载/临时缓存） | `_update_temp/`、`scratch/` |
+
+- **`output/` 用户私有数据强制隔离**：严禁把运行日志/中间缓存错放到此目录；
+- **`log/` 运行时观测唯一沉淀**：所有 `print` / `logger.*` / 监控告警 / CLI 调用轨迹**必须**显式指向 `log/`，按"模块名+日期"或"技能 ID+会话 ID"命名分文件归档；
+- **`temp/` 可重建中间产物暂存**：仅用于单次会话内的临时数据交换；任务结束应显式或自动清理；**严禁**保存任何用户最终交付物。
+
+### 5. 统一跨平台命令行门面 (Unified CLI Facade)
 - 提供统一且语义对齐的 CLI 入口，各操作系统平台提供一致的体验（Windows CMD/PowerShell 下的 `.\bin\astock.cmd`、Linux/macOS 下的 `./bin/astock`，底层统一转发至 `python scripts/core/cli.py`）。
 
 ---
@@ -102,6 +115,14 @@ a_stock_agents/
 │   ├── reports/             # 个股研报·多股报告·复盘 HTML
 │   ├── cache/               # 本地计算缓存与盘中监控状态
 │   └── backtest/            # 策略回测日志与绩效报告
+├── log/                     # ★ 运行时观测唯一沉淀区 (不纳入版本控制)
+│   ├── a_stock-YYYYMMDD.log          # 平台根 Logger (config.get_logger)
+│   ├── paper_trading/                # 模拟盘后台服务日志与 PID
+│   ├── monitors/                     # 监控守护与定时任务日志
+│   └── notifier/                     # 跨平台通知降级日志
+├── temp/                    # ★ 可重建中间产物暂存区 (不纳入版本控制)
+│   ├── _update_temp/                 # 安全热更新临时解压目录
+│   └── scratch/                      # 单次会话临时缓存
 ├── scripts/                 # 系统核心 Python 源码工程
 │   ├── core/                # 工业级量化金融内核
 │   │   ├── cli.py           # 统一 CLI 子命令总路由器

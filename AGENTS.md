@@ -23,6 +23,39 @@
 
 ---
 
+## 📂 工作区输出目录规范 (Workspace Output Directory Specification)
+
+为了保持工程工作区的整洁、隔离用户私有数据与运行时残留物，项目根目录强制按以下规范组织三大运行时目录，所有 CLI 命令、技能执行、定时任务与守护进程**必须严格遵守**：
+
+| 目录 | 用途与归属内容 | 强制约束 |
+| :--- | :--- | :--- |
+| **`output/`** | 用户使用过程中产生的各类最终交付文档，包含但不限于：个股研报、多股联合报告、复盘 HTML、自选/关注/持仓池 CSV、持仓档案、实盘交易流水账单、策略回测报告与本地计算缓存 | 用户私有数据**唯一落盘区**，强制物理隔离；**严禁**纳入版本控制（已在 `.gitignore` 中排除），`bin/pack.py` 打包发布时强制排除 |
+| **`log/`** | 系统运行日志、CLI 调用轨迹、监控守护日志、定时任务执行日志、Skill 异常堆栈与审计追踪 | 运行时观测**唯一沉淀区**；按"日期/技能 ID/会话 ID"分文件持久化归档，便于事后追溯与故障排查 |
+| **`temp/`** | 数据导出中间产物、脚本执行临时缓存、单次会话中间态、临时下载文件与可重建的中间计算结果 | 可重建中间产物暂存区；**严禁**保存任何用户最终交付物；任务结束后应显式或自动清理 |
+
+### 1. 路径发现与跨平台访问契约
+所有读写上述三个目录的代码**必须**通过 [`scripts/core/workspace.py`](file:///c:/Users/cvdnn/coding/a_stock_agents/scripts/core/workspace.py) 中的 `PROJECT_ROOT` 解析根路径，禁止任何形式的硬编码绝对路径或运行期相对路径字符串拼接：
+
+```python
+from scripts.core.workspace import PROJECT_ROOT
+
+OUTPUT_DIR = PROJECT_ROOT / "output"
+LOG_DIR    = PROJECT_ROOT / "log"
+TEMP_DIR   = PROJECT_ROOT / "temp"
+```
+
+### 2. 写入策略铁律 (Three-Bucket Discipline)
+- **`output/` 是"用户最终交付物唯一落盘区"**：所有面向用户交付的文档、报告、股池、持仓档案与回测结果**必须**归集到 `output/` 下对应的子目录（`pools/`、`reports/`、`positions/`、`cache/`、`backtest/` 等），**严禁**散落到项目根、`scripts/`、`web/` 或任何代码目录。
+- **`log/` 是"运行时观测唯一沉淀区"**：所有 `print`、`logger.*`、监控告警、CLI 调用轨迹**必须**显式指向 `log/`，按"功能模块+日期"或"技能 ID+会话 ID"命名分文件归档，**严禁**仅在 stdout/stderr 中输出后即丢失。
+- **`temp/` 是"可重建中间产物暂存区"**：仅用于单次会话内的临时数据交换；**严禁**将任何"看起来像临时文件但实际是用户最终交付物"的内容写入此目录；所有写入路径必须在任务结束后显式清理或声明自动清理策略。
+
+### 3. 版本控制与发布隔离
+- `output/`、`log/`、`temp/` 均应在 `.gitignore` 中显式排除，避免用户私有资产、运行噪声与临时垃圾进入代码仓库；
+- 仅保留 `output/**/.gitkeep`（及必要的 `.example` 占位）作为空目录占位符，确保目录结构在克隆后仍可被还原；
+- `bin/pack.py` 安全打包发布工具执行强制排除策略，严防任何用户个人敏感资产、运行日志或临时缓存外泄。
+
+---
+
 ## 🧭 18 项就地技能全景清单与意图路由 (Skills Manifest)
 
 当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** [`.agents/skills/<skill_id>/SKILL.md`](file:///Users/handy/workon/a_stock_agents/.agents/skills) 或 [`config/skills_manifest.json`](file:///Users/handy/workon/a_stock_agents/config/skills_manifest.json)。

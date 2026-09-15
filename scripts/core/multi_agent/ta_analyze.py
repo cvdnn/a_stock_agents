@@ -37,12 +37,13 @@ from typing import Any, Dict, List, Optional
 # ── 路径常量 ──────────────────────────────────────────────────────────────────
 
 try:
-    from core.config import PROJECT_ROOT, SKILLS_DIR, OUTPUT_DIR, OUTPUT_POOLS_DIR
+    from core.config import PROJECT_ROOT, SKILLS_DIR, OUTPUT_DIR, OUTPUT_POOLS_DIR, LOG_DIR
 except ImportError:
     PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
     SKILLS_DIR = PROJECT_ROOT / "skills"
     OUTPUT_DIR = PROJECT_ROOT / "output"
     OUTPUT_POOLS_DIR = OUTPUT_DIR / "pools"
+    LOG_DIR = PROJECT_ROOT / "log"
 
 # TradingAgents 项目路径（自动检测）
 _TA_PATHS = [
@@ -624,7 +625,7 @@ def phase3_deploy_monitor(ticker: str, entry_price: float, stop_price: float,
         '# MODE = os.environ.get("MONITOR_MODE", "stop")',
         'MODE = "stop"')
 
-    monitor_dir = OUTPUT_DIR / "monitors"
+    monitor_dir = LOG_DIR / "monitors"
     monitor_dir.mkdir(parents=True, exist_ok=True)
 
     stop_path = monitor_dir / f"ta_monitor_{ticker}.py"
