@@ -91,7 +91,7 @@ python verify.py
 
 #### 3. 工作台核心功能
 - **全景投研工作区**：内置分时/日K线走势图、五维健康度雷达图、资金流向监测、自选与持仓池实时监控。
-- **AI 智能投研助手 (AIChat)**：支持从左向右平滑弹出与折叠收起，具备 SSE 打字机流式输出，原生挂载 ReAct 智能体循环与 17 项技能工具调用。
+- **AI 智能投研助手 (AIChat)**：支持从左向右平滑弹出与折叠收起，具备 SSE 打字机流式输出，原生挂载 ReAct 智能体循环与 18 项技能工具调用。
 - **模拟盘操作面板**：支持账户切换、实时持仓盈亏分析、限价/市价委托下单与订单撤单。
 
 ---
@@ -193,11 +193,11 @@ python verify.py
 
 ## 五、主流 AI Agent 平台集成指南
 
-本项目设计严格遵循**零全局污染原则 (Zero Global Pollution)**，全部 17 项技能及底层量化引擎**就地运行在当前工作区内**，严禁将技能复制到系统全局目录。
+本项目设计严格遵循**零全局污染原则 (Zero Global Pollution)**，全部 18 项技能及底层量化引擎**就地运行在当前工作区内**，严禁将技能复制到系统全局目录。
 
 ### 1. Google Antigravity / Gemini CLI
 - 将本项目根目录作为 Workspace 打开。
-- Antigravity 自动识别工作区内 [`.agents/skills/`](../.agents/skills) 的 17 项技能。
+- Antigravity 自动识别工作区内 [`.agents/skills/`](../.agents/skills) 的 18 项技能。
 - 支持在侧边栏或对话中直接按需激活任一技能，底层通过统一 CLI 就地执行，输出标准 JSON / Markdown 结果。
 
 ### 2. Hermes / Codex / Claude Code

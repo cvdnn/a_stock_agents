@@ -13,7 +13,7 @@ tags: [a-stock, pitfalls, workarounds, L1-mode]
 > 交易历史记录审查完整案例(24笔交易验证、双向验证分界点、FIFO/加权平均双方法、K线价格验证)见 `references/trade-history-audit-workflow.md`
 > **web 工具链失效时的 curl 直连数据源**(东财快讯/新浪7x24/板块涨幅/全市场主力净流入排行/市场主线研判)见 `references/curl-data-sources-main-line.md`
 > **本地K线「技术评分 + MA20趋势回测」一体工具** `scripts/local_ma20_backtest.py` —— 规避 backtest_engine 的 urllib SSL 超时、及 execute_code 沙箱无外网(Errno 101)。**主线选股+回测验证**标准做法：东财板块/主力净流入 clist 定主线 → terminal curl 落盘 `ifzq.gtimg.cn` fqkline JSON 到 /tmp/astk/kl/ → 本脚本评分+回测。回测仅作策略有效性参考(信号有限,非买卖指令)。
-> **v3三方融合选股模型(PDF+v2+旋转模型)设计文档与回测验证**见 `references/multi-dim-model-v3-design-20260812.md` — 多股旋转回测引擎(+94.3%)、2仓分散(回撤-16.7%)、MA15离场、门控双层(上证>MA20+健康度)、跟踪止盈真实实现、指数K线获取方法
+> **v3三方融合选股模型(PDF+v2+旋转模型)设计文档与回测验证**见 `docs/specs/algorithm/archive/2026-08-12-multi-dim-model-design-revision.md` — 多股旋转回测引擎(+94.3%)、2仓分散(回撤-16.7%)、MA15离场、门控双层(上证>MA20+健康度)、跟踪止盈真实实现、指数K线获取方法
 
 ## 回测指标解读基准 (业界标准)
 
@@ -1264,7 +1264,7 @@ curl -s "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh000001,day,,
 
 ## 工作流: 三方融合选股模型v3 — 多股旋转回测 (2026-08-12实测)
 
-当用户要求"整合v2和旋转模型报告形成v3版本"时, 核心是将**PDF理论+v2截面评估+旋转模型回测**三方优势焊接到一个可运行的Python脚本中。v3设计文档和回测结果见 `references/multi-dim-model-v3-design-20260812.md`。
+当用户要求"整合v2和旋转模型报告形成v3版本"时, 核心是将**PDF理论+v2截面评估+旋转模型回测**三方优势焊接到一个可运行的Python脚本中。v3设计文档和回测结果见 `docs/specs/algorithm/archive/2026-08-12-multi-dim-model-design-revision.md`。
 
 ### v3相对v2的3项HIGH缺陷修复
 

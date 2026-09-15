@@ -141,7 +141,7 @@ docker compose up -d --build
 # 查看运行状态与健康检查
 docker compose ps
 ```
-> 详细运维、日志排查与容器内 CLI 调用见 [Docker 容器化部署指南](docs/DOCKER_DEPLOY.md)。
+> 详细运维、日志排查与容器内 CLI 调用见 [Docker 容器化部署指南](docs/docker-deploy.md)。
 
 > [!TIP]
 > **自动就地挂载保障**：安装脚本会自动调用 `core/workspace.py`，根据当前操作系统自适应建立 `.agents/skills` 链接（POSIX 相对软链接 / Windows 目录联接），确保任何 AI Agent 打开即可原地工作，绝不污染全局系统。
@@ -170,7 +170,7 @@ docker compose ps
 #### A. Google Antigravity (原生工作区支持)
 - **开箱即用**：
   - Antigravity 官方工作区定制根为 `.agents/`。本项目已跨平台自动挂载 `.agents/skills -> skills`。
-  - 只需在 Antigravity 中将本项目作为工作区（Open Workspace）打开，系统原生技能列表即可**原地自动挂载 17 项技能**。
+  - 只需在 Antigravity 中将本项目作为工作区（Open Workspace）打开，系统原生技能列表即可**原地自动挂载 18 项技能**。
   - 对话中直接说“帮我查茅台行情”或“5A选股”，Antigravity 会自动激活对应技能，并通过 `run_command` 执行 `./bin/astock ... --json`。
 
 #### B. Hermes Agent (会话级挂载)
@@ -330,7 +330,7 @@ python bin/update.py --rollback backup_20260902_174003
 flowchart TB
     subgraph Frontend["Web 前端交互系统 (现代响应式 UI)"]
         UI_Chat["AIChat 交互对话台\n(SSE流式打字机 / Tool 调用进度折叠卡片)"]
-        UI_Gov["Skill 治理控制台\n(17项技能看板 / 动态启停 / 契约Schema / 耗时审计)"]
+        UI_Gov["Skill 治理控制台\n(18项技能看板 / 动态启停 / 契约Schema / 耗时审计)"]
         UI_Report["交互式研报预览中心\n(K线缩放 / 5A雷达图 / 实时筹码 / 保本操作单)"]
     end
 
@@ -391,7 +391,7 @@ flowchart TB
 | **代码审查** | [`docs/guidelines/code-review.md`](docs/guidelines/code-review.md) | - | 代码质量基准、安全红线与质量审查报告标准 |
 | **测试规约** | [`docs/guidelines/testing-guide.md`](docs/guidelines/testing-guide.md) | - | 10 大核心领域回归测试架构与临时用例即测即删铁律 |
 | **命名范式** | [`docs/guidelines/naming-conventions.md`](docs/guidelines/naming-conventions.md) | - | 消除文件名版本化侵入与模型演进四大设计范式 (SSOT) |
-| **系统架构** | [`docs/guidelines/web-aichat-architecture.md`](docs/guidelines/web-aichat-architecture.md) | [`SPEC-ARCH-001`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 17 技能治理架构 |
+| **系统架构** | [`docs/guidelines/web-aichat-architecture.md`](docs/guidelines/web-aichat-architecture.md) | [`SPEC-ARCH-001`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 技能治理架构 |
 | **系统架构** | [`docs/guidelines/llm-provider-architecture.md`](docs/guidelines/llm-provider-architecture.md) | [`SPEC-ARCH-002`](docs/specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与业务场景角色绑定 (Roles) 架构 |
 | **系统架构** | [`docs/guidelines/token-security-architecture.md`](docs/guidelines/token-security-architecture.md) | [`SPEC-ARCH-003`](docs/specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离与指纹审计架构 |
 | **A2UI架构** | [`docs/guidelines/a2ui-framework-architecture.md`](docs/guidelines/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](docs/specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 前端渲染引擎、WebApp Shell 硬锁定与五阶段渐进水合 |
@@ -402,7 +402,7 @@ flowchart TB
 ### 2. 规范实施进度看板与实战索引
 | 领域分类 | 入口文件 | 核心说明 |
 |---|---|---|
-| **知识速查全景** | [`docs/index.md`](docs/index.md) | 系统导图、6大引擎与 17 技能架构速查 |
+| **知识速查全景** | [`docs/index.md`](docs/index.md) | 系统导图、6大引擎与 18 技能架构速查 |
 | **快速上手向导** | [`docs/quickstart.md`](docs/quickstart.md) | 环境安装、依赖配置、自检与核心命令演示 |
 | **规范实施总览** | [`docs/specs/README.md`](docs/specs/README.md) | 6 大领域规范实施落地进度追踪总看板 (SPEC-INDEX) |
 | **实战交易手册** | [`docs/trading/execution-manual.md`](docs/trading/execution-manual.md) | 六大实战反应动作与挂单纪律实操指南 |

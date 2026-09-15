@@ -190,10 +190,10 @@ def cmd_deploy_monitor(args):
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("1. 部署全天持仓盯盘任务 (每5分钟):")
     print("   AI-Platform cron create --name '全天持仓监控' \\")
-    print("     --script skills/astock-platform-evaluate/scripts/monitor_watchdog.py \\")
+    print("     --script scripts/core/monitor/monitor_watchdog.py \\")
     print("     --schedule 'every 5m' --no-agent --deliver all")
     print("\n2. 测试运行监控:")
-    print("   python skills/astock-platform-evaluate/scripts/monitor_watchdog.py")
+    print("   python scripts/core/monitor/monitor_watchdog.py")
 
 
 def cmd_screen(args):

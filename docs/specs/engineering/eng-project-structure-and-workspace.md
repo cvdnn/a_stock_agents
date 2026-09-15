@@ -19,7 +19,7 @@
 - **规范名称**：项目工程结构与智能体工作区架构规范
 - **核心定位**：保障系统跨平台自洽运行、零全局环境污染与多智能体就地调度的基础工程标准。
 - **关键设计要点**：
-  1. [零全局污染原则](../../guidelines/project-structure-specification.md#1-零全局污染原则-zero-global-pollution)：全部 17 项技能就地自包含运行，严禁向系统全局目录写入资产；
+  1. [零全局污染原则](../../guidelines/project-structure-specification.md#1-零全局污染原则-zero-global-pollution)：全部 18 项技能就地自包含运行，严禁向系统全局目录写入资产；
   2. [SSOT 与动态根路径探测](../../guidelines/project-structure-specification.md#2-单一真理来源-single-source-of-truth-ssot-与物理路径解耦)：通过 `Path(__file__).resolve().parents[...]` 根除硬编码路径与软链接；
   3. [用户隐私数据物理隔离](../../guidelines/project-structure-specification.md#3-用户敏感数据强制物理隔离-output)：持仓档案、自选股池与交易流水严格限定在 `output/` 并排除于版本控制之外；
   4. [统一跨平台 CLI 门面](../../guidelines/project-structure-specification.md#4-统一跨平台命令行门面-unified-cli-facade)：Linux/macOS、Windows CMD/PowerShell 具备一致命令行语义。
@@ -30,7 +30,7 @@
 
 | 实施任务项 | 负责模块 / 代码映射路径 | 交付状态 | 验收说明与测试基准 | 验收日期 |
 |:---|:---|:---:|:---|:---:|
-| **17项技能就地物理迁移** | `.agents/skills/` | ✅ 100% | 验证 Antigravity、Hermes 等工具就地调用正常，无全局路径依赖 | 2026-09-07 |
+| **18项技能就地物理迁移** | `.agents/skills/` | ✅ 100% | 验证 Antigravity、Hermes 等工具就地调用正常，无全局路径依赖 | 2026-09-07 |
 | **全平台 CLI 启动器构建** | `bin/astock`, `bin/astock.cmd`, `scripts/core/cli.py` | ✅ 100% | Linux/macOS 与 Windows 统一转发至统一 CLI 入口并通过 `--json` 测试 | 2026-09-07 |
 | **路径动态解析改造** | `scripts/core/config.py`, `scripts/core/data/` | ✅ 100% | 消除全库硬编码 `/Users/handy` 与软链接，使用 `pathlib.Path` 自适应 | 2026-09-07 |
 | **用户私有数据隔离** | `output/` (`pools/`, `positions/`, `reports/`) | ✅ 100% | `.gitignore` 严格忽略用户私有数据，`bin/pack.py` 纯净打包排除 | 2026-09-07 |

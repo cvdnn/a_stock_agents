@@ -146,7 +146,7 @@
 ### 1. 技能治理中心弹窗 (Skill Governance Modal)
 - 常驻于顶栏右侧工具区：`[🛡️ 技能治理]`；
 - 点击弹出沉浸式治理看板，包含：
-  - 17 项技能状态卡片矩阵（分类标签、版本、只读/交易权限徽标、启停开关 Switch）；
+  - 18 项技能状态卡片矩阵（分类标签、版本、只读/交易权限徽标、启停开关 Switch）；
   - 动态参数调试测试终端；
   - 运行监控指标（调用量、平均响应耗时、错误率）；
   - 一键热重载（Reload Manifest）。
@@ -215,7 +215,7 @@
 |:---:|:---:|:---|:---|
 | **股票** | 📈 | AtOperatorRegistry.stock（三大股池合并） | 按【持仓→自选→关注】池优先级排列，池内按中文名称 `localeCompare('zh-Hans-CN')` 排序 |
 | **引用** | 📎 | AtOperatorRegistry.ref（工作台六大板块引用） | 固定顺序 |
-| **技能** | 🧩 | AtOperatorRegistry.skill（17项技能子集） | 固定顺序 |
+| **技能** | 🧩 | AtOperatorRegistry.skill（18项技能子集） | 固定顺序 |
 | **算法** | 🔬 | AtOperatorRegistry.algo（量化算法子集） | 固定顺序 |
 
 ### 5. 股票搜索过滤机制 (Stock Search Filter)

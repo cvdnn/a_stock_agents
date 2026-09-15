@@ -13,7 +13,7 @@
 随着 A-Stock Agents 系统的快速迭代，前端核心控制文件 [web/js/app.js](file:///Users/handy/workon/a_stock_agents/web/js/app.js) 已膨胀至 **9,340 行**（约 400 KB），承担了全站 72.5% 的前端自定义逻辑。经深度语法与依赖审查，暴露出以下严重工程缺陷：
 
 * **单一职责原则严重违背 (SRP Violation)**：
-  单文件内混杂了数据通信（REST API/SSE 流）、Canvas 金融图表绘制、富文本输入控制（@操作符/#模型选择）、NLP 提问意图解析、任务分步执行树态导轨、Markdown/HTML 工作区双模渲染、大模型提供商密钥 CRUD，以及 17 项量化投研技能的在线沙箱调试控制台。
+  单文件内混杂了数据通信（REST API/SSE 流）、Canvas 金融图表绘制、富文本输入控制（@操作符/#模型选择）、NLP 提问意图解析、任务分步执行树态导轨、Markdown/HTML 工作区双模渲染、大模型提供商密钥 CRUD，以及 18 项量化投研技能的在线沙箱调试控制台。
 * **高频 Git 冲突与协作瓶颈**：
   由于全站核心逻辑均集中在单个文件，不同开发者或智能体在进行界面微调、指标增补或接口适配时，极易产生大面积的代码合并冲突。
 * **全局状态无序穿透 (State Mutation Chaos)**：
@@ -79,7 +79,7 @@ flowchart TB
     end
 
     subgraph SkillsLayer["7. 17项量化技能治理 (web/js/skills/)"]
-        K_Man["skills_manifest.js (345行)\n17项技能元数据清单"]
+        K_Man["skills_manifest.js (345行)\n18项技能元数据清单"]
         K_Gov["skills_governance.js (356行)\n技能启闭与分类过滤"]
         K_Dbg["skills_debugger.js (223行)\n在线沙箱调试控制台"]
     end
@@ -125,7 +125,7 @@ flowchart TB
 | **`workbench/deliverable_sync.js`**| `L5446 - L6099`| 交付物持久化存储同步 (`saveDeliverableDoc`)、HTML/Markdown 互转、独立窗口导出新标签页打开、会话聚焦联动 | `openDocumentInWorkbench`, `closeDeliverablePane`, `copyDeliverableContent`, `setupChatMarkdownLinkDelegation` |
 | **`settings/providers_manager.js`**| `L7228 - L8211`<br>`L8313 - L8370` | 大模型提供商管理模态框、提供商 CRUD、Key安全掩码显示、自定义端点连接测试、模型列表拉取与禁用勾选 | `openSettingsModal`, `openProvidersSettingsModal`, `closeSettingsModal`, `ChatModelSelectorController`, `saveSettings` |
 | **`settings/model_roles.js`** | `L8212 - L8312` | 7大 AI 分析师角色矩阵配置与动态下拉映射（对话/摘要/量化/辩论/多模态模型角色分配） | `isRoleOptionCompatible`, `chooseDefaultRoleOption`, `renderModelRolesDropdowns`, `handleRoleChange` |
-| **`skills/skills_manifest.js`** | `L8396 - L8725` | 17 项内置量化投研技能元数据规范 (`BuiltinSkillsManifest`)、参数 Schema 约束与降级样例字典 | `BuiltinSkillsManifest` |
+| **`skills/skills_manifest.js`** | `L8396 - L8725` | 18 项内置量化投研技能元数据规范 (`BuiltinSkillsManifest`)、参数 Schema 约束与降级样例字典 | `BuiltinSkillsManifest` |
 | **`skills/skills_governance.js`**| `L8726 - L9044` | 技能独立治理中心、技能卡片渲染、一键批量启停开关、分级分类过滤、CLI 命令复制 | `initSkillsGovernance`, `bulkEnableAllSkills`, `handleSkillToggle`, `copyCliCommand` |
 | **`skills/skills_debugger.js`** | `L9045 - L9242` | 技能在线沙箱调试控制台、测试参数实时微调、在线执行测试与 200/500 状态解析呈现 | `openSkillTestModal`, `closeSkillTestModal`, `handleDebugSkillChange`, `runSkillTestExecution` |
 | **`app.js` (瘦身后主入口)** | `L9243 - L9340` | `DOMContentLoaded` 启动引导生命周期编排、防抖 Resize 监听、全局快捷指令与版本元数据注入 | `AStock.version = '2.0.0'` |
@@ -226,7 +226,7 @@ AppState.set('activeRightTab', 'market');
   <script src="js/views/returns_view.js"></script>
   <script src="js/views/common_views.js"></script>
 
-  <!-- 5. 设置治理与 17 项量化技能系统 -->
+  <!-- 5. 设置治理与 18 项量化技能系统 -->
   <script src="js/settings/providers_manager.js"></script>
   <script src="js/settings/model_roles.js"></script>
   <script src="js/skills/skills_manifest.js"></script>
@@ -282,7 +282,7 @@ flowchart TD
 ### 阶段 3：抽离 Settings 设置与 Skills 技能治理
 * **目标**：建立 `web/js/settings/` 与 `web/js/skills/` 目录。
 * **动作**：
-  1. 剥离 17 项量化技能 Manifest 静态配置字典至 `skills/skills_manifest.js`（彻底精简 350 行静态数据）；
+  1. 剥离 18 项量化技能 Manifest 静态配置字典至 `skills/skills_manifest.js`（彻底精简 350 行静态数据）；
   2. 提取技能卡片渲染与启闭逻辑至 `skills/skills_governance.js`，沙箱执行至 `skills/skills_debugger.js`；
   3. 提取服务商管理与测试至 `settings/providers_manager.js`，角色矩阵映射至 `settings/model_roles.js`。
 * **验收标准**：打开模型设置与技能治理弹窗，连接测试与沙箱执行结果正常返回。

@@ -61,58 +61,57 @@ related_skills: [a-share-data, trading-combo, a-share-paper-trading, a-share-das
 
 | 脚本 | 行数 | 功能 | 依赖 |
 |:-----|:----:|:-----|:-----|
-| `scripts/data_bridge.py` | 368 | **4层降级数据桥接**: L1腾讯/L2新浪/L3 proxy-patch/L4 efinance + **P0新增**: CYQ筹码/个股事件/积分余额/A+H列表/PE查询 | 标准库(urllib)+可选subprocess |
-| `scripts/technical_indicators.py` | 441 | **零依赖技术指标**: MA/EMA/MACD/KDJ/RSI/BOLL/ATR + **P1新增**: MACD二次金叉识别 + 跳空分析 | **纯标准库 math** |
-| `scripts/combo_scorer.py` | 401 | **完整100分策略评分**: 均线(25)+MACD(20)+量价(15)+**筹码(15)**+**资金(15)**+板块(5)+**PE(5)** +入场判断 | technical_indicators+data_bridge |
-| `scripts/market_assessor.py` | 155 | **五维大盘健康度**: 趋势(30)+情绪(20)+量能(20)+结构(15)+资金(15) | data_bridge |
-| `scripts/trapped_position.py` | 245 | **被困持仓量化解套**: 诊断画像+凯利公式+4种量化策略+决策树 | technical_indicators+data_bridge |
-| `scripts/stock_screener.py` | 275 | **🆕 三层漏斗选股**: 板块→技术→策略评分的端到端流水线 | data_bridge+combo_scorer |
-| `scripts/risk_manager.py` | 263 | **🆕 风控管理**: T0/T1/T2三级止损+卖点信号(MACD死叉/顶背离)+回撤控制+K线形态 | technical_indicators+data_bridge |
-| `scripts/a_stocks.py` | 552 | **统一CLI**: 14个子命令 | 以上所有 |
-| `scripts/monitor_watchdog.py` | 179 | **Cron全天监控**: 三级止损预警+散户行为矫正 | 仅 url lib 标准库 |
-| `scripts/report_generator.py` | 203 | **HTML报告生成**: 白色系·涨红跌绿·自包含 | 标准库 |
-| `scripts/strategy_evaluator.py` | 285 | **持股策略评估**: 历史策略 vs 实际走势比对, 4维准确率模型 | data_bridge+combo_scorer |
-| `scripts/backtest_engine.py` | 966 | **🆕 P0 回测评估引擎**: 夏普/最大回撤/Calmar/盈亏比/胜率/过拟合检测+样本内外分割, 预置SMA交叉+combo评分策略 | data_bridge+technical_indicators+combo_scorer |
-| `scripts/multi_factor_scorer.py` | 393 | **🆕 P1 多因子选股**: 动量(20日/60日)+价值(PE/PB)+质量+波动率因子Z-score合成, 截面排序选股 | data_bridge+technical_indicators+combo_scorer |
-| `scripts/portfolio_risk_manager.py` | 611 | **🆕 P1 组合风险管理**: 波动率目标(15%目标)/相关性矩阵(>0.7减仓)/三档回撤控制(5%/10%/15%)/行业暴露限制 | data_bridge+technical_indicators |
-| `scripts/mean_reversion_strategy.py` | 298 | **🆕 P2 均值回归策略**: RSI<30+BOLL下轨买入, RSI>70+BOLL上轨卖出, 均值回归评分 | data_bridge+technical_indicators |
-| `scripts/grid_trading_strategy.py` | 322 | **🆕 P2 网格交易策略**: ATR锚定BOLL区间分档, 网格适合度评估(波动率/带宽/趋势) | data_bridge+technical_indicators |
-| `scripts/volatility_breakout_strategy.py` | 644 | **🆕 P3 波动率突破策略**: BOLL带宽收缩(60日20%分位)+放量突破(1.5倍)入场, 收缩检测+突破评分 | data_bridge+technical_indicators |
-| `scripts/execution_action_engine.py` | 380 | **🆕 P0 交易反应与执行决策中枢 (EMS 2.0)**: 自然语言意图评估(5大类)+五类下跌精准诊断应对矩阵+6大实战反应战术+万0.85摩擦税费保本计算 | `technical_indicators`+`data_bridge` |
+| `scripts/core/data/data_bridge.py` | 368 | **4层降级数据桥接**: L1腾讯/L2新浪/L3 proxy-patch/L4 efinance + **P0新增**: CYQ筹码/个股事件/积分余额/A+H列表/PE查询 | 标准库(urllib)+可选subprocess |
+| `scripts/core/indicators/technical_indicators.py` | 441 | **零依赖技术指标**: MA/EMA/MACD/KDJ/RSI/BOLL/ATR + **P1新增**: MACD二次金叉识别 + 跳空分析 | **纯标准库 math** |
+| `scripts/core/models/combo_scorer.py` | 401 | **完整100分策略评分**: 均线(25)+MACD(20)+量价(15)+**筹码(15)**+**资金(15)**+板块(5)+**PE(5)** +入场判断 | technical_indicators+data_bridge |
+| `scripts/core/models/market_assessor.py` | 155 | **五维大盘健康度**: 趋势(30)+情绪(20)+量能(20)+结构(15)+资金(15) | data_bridge |
+| `scripts/core/strategy/trapped_position.py` | 245 | **被困持仓量化解套**: 诊断画像+凯利公式+4种量化策略+决策树 | technical_indicators+data_bridge |
+| `scripts/core/models/stock_screener.py` | 275 | **🆕 三层漏斗选股**: 板块→技术→策略评分的端到端流水线 | data_bridge+combo_scorer |
+| `scripts/core/strategy/risk_manager.py` | 263 | **🆕 风控管理**: T0/T1/T2三级止损+卖点信号(MACD死叉/顶背离)+回撤控制+K线形态 | technical_indicators+data_bridge |
+| `scripts/core/cli.py` | 552 | **统一CLI入口**: 14个子命令 (data / screen / quant / action / trade / debate / evaluate …) | 以上所有 |
+| `scripts/core/monitor/monitor_watchdog.py` | 179 | **Cron全天监控**: 三级止损预警+散户行为矫正 | 仅 urllib 标准库 |
+| `scripts/core/reporting/report_generator.py` | 203 | **HTML报告生成**: 白色系·涨红跌绿·自包含 | 标准库 |
+| `scripts/core/models/strategy_evaluator.py` | 285 | **持股策略评估**: 历史策略 vs 实际走势比对, 4维准确率模型 | data_bridge+combo_scorer |
+| `scripts/core/paper_trading/a_stocks_backtest.py` | 966 | **🆕 P0 回测评估引擎**: 夏普/最大回撤/Calmar/盈亏比/胜率/过拟合检测+样本内外分割, 预置SMA交叉+combo评分策略 | data_bridge+technical_indicators+combo_scorer |
+| `scripts/core/models/multi_factor_scorer.py` | 393 | **🆕 P1 多因子选股**: 动量(20日/60日)+价值(PE/PB)+质量+波动率因子Z-score合成, 截面排序选股 | data_bridge+technical_indicators+combo_scorer |
+| `scripts/core/strategy/portfolio_risk_manager.py` | 611 | **🆕 P1 组合风险管理**: 波动率目标(15%目标)/相关性矩阵(>0.7减仓)/三档回撤控制(5%/10%/15%)/行业暴露限制 | data_bridge+technical_indicators |
+| `scripts/core/strategy/mean_reversion_strategy.py` | 298 | **🆕 P2 均值回归策略**: RSI<30+BOLL下轨买入, RSI>70+BOLL上轨卖出, 均值回归评分 | data_bridge+technical_indicators |
+| `scripts/core/strategy/grid_trading_strategy.py` | 322 | **🆕 P2 网格交易策略**: ATR锚定BOLL区间分档, 网格适合度评估(波动率/带宽/趋势) | data_bridge+technical_indicators |
+| `scripts/core/strategy/volatility_breakout_strategy.py` | 644 | **🆕 P3 波动率突破策略**: BOLL带宽收缩(60日20%分位)+放量突破(1.5倍)入场, 收缩检测+突破评分 | data_bridge+technical_indicators |
+| `scripts/core/strategy/execution_action_engine.py` | 380 | **🆕 P0 交易反应与执行决策中枢 (EMS 2.0)**: 自然语言意图评估(5大类)+五类下跌精准诊断应对矩阵+6大实战反应战术+万0.85摩擦税费保本计算 | `technical_indicators`+`data_bridge` |
 | `setup.sh` | 90+ | **安装脚本**: 自动探测venv, 生成config | bash |
 | `config.yaml` | 100+ | **配置文件**: 策略参数+环境变量说明+数据源注册表 | yaml |
 
-**总计**: 6000+ 行 Python，18 个脚本（含6个量化策略新增模块）
+**总计**: 6000+ 行 Python，统一归口 `scripts/core/`；通过 `scripts/core/cli.py` 的统一 CLI 暴露 14+ 子命令
 
 ## 快速开始
 
+> ✅ 本技能作为统一全流程平台的**文档与配置入口**，底层实现已统一归口到 [`scripts/core/`](../../../scripts/core)。所有调用请通过统一 CLI 门面发起，避免直接 import 内部模块。
+
 ```bash
-# 1. 安装
-bash skills/astock-platform-evaluate/setup.sh
+# 1. 实时行情（数据桥接 + 4层降级）
+astock data quote 600519 --json
 
-# 2. 实时行情
-python3 skills/astock-platform-evaluate/scripts/a_stocks.py quote 600519
+# 2. 技术指标（MA/MACD/KDJ/RSI/BOLL/ATR）
+astock data tech 600519 --json
 
-# 3. 技术指标
-python3 skills/astock-platform-evaluate/scripts/a_stocks.py technical 600519
+# 3. 策略综合评分（100分制 + 入场判断）
+astock evaluate 600519 --json
 
-# 4. 策略评分
-python3 skills/astock-platform-evaluate/scripts/a_stocks.py score 600519 --board-top10
+# 4. 全维度分析（大盘 + 技术 + 评分 + 入场）
+astock evaluate 600519 --full --json
 
-# 5. 全维度分析 (大盘+技术+评分+入场)
-python3 skills/astock-platform-evaluate/scripts/a_stocks.py analyze 600519
+# 5. 解套分析（持仓画像 + 4 种量化策略）
+astock action plan --code 600760 --cost 43 --shares 2200 --json
 
-# 6. 解套分析
-python3 skills/astock-platform-evaluate/scripts/a_stocks.py trapped 600760 --cost 43 --shares 2200
+# 6. 大盘健康度
+astock market --json
 
-# 7. 大盘健康度
-python3 skills/astock-platform-evaluate/scripts/a_stocks.py market
+# 7. 批量行情
+astock data batch 600519,000400,002230 --json
 
-# 8. 批量行情
-python3 skills/astock-platform-evaluate/scripts/a_stocks.py batch "600519,000400,002230"
-
-# 9. JSON输出
-python3 skills/astock-platform-evaluate/scripts/a_stocks.py analyze 600519 --output json
+# 8. JSON 输出（同 --json）
+astock evaluate 600519 --output json
 ```
 
 ---
@@ -858,5 +857,7 @@ python3 scripts/a_stocks.py action 601899 --cost 32.50 --shares 2000
 python3 scripts/a_stocks.py downside 600760 --cost 42.70 --shares 500
 ```
 
+注意：脚本路径已统一归口至 `scripts/core/`，请优先使用 `astock` 统一 CLI 门面调用：
+
 ### 4. 详细实战手册与量化规则库
-完整操作规则、量化阈值与决策公式详见参考文档：[`references/A股实战交易反应动作与量化决策手册.md`](references/A股实战交易反应动作与量化决策手册.md)
+完整操作规则、量化阈值与决策公式详见参考文档：[`references/action-execution-manual.md`](references/action-execution-manual.md)

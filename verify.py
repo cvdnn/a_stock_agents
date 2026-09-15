@@ -291,7 +291,7 @@ def run_tests():
         r_db = subprocess.run(cmd_db, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
         assert r_db.returncode == 0 and "consensus" in r_db.stdout and "analysts" in r_db.stdout, f"debate CLI failed: {r_db.stderr}"
 
-        print(f"  --> PASS (工作区就地挂载生效、17项技能零污染、报告模板有效、7大分析师辩论自闭环)")
+        print(f"  --> PASS (工作区就地挂载生效、18项技能零污染、报告模板有效、7大分析师辩论自闭环)")
         passed_count += 1
     except Exception as e:
         print(f"  --> FAIL: {e}")

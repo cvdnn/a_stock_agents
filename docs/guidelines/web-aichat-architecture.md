@@ -27,7 +27,7 @@
 flowchart TB
     subgraph Client["Web 前端系统 (AIChatUI - 现代响应式应用)"]
         UI_Chat["AIChat 交互对话台\n(SSE 打字机 / Tool 调用进度折叠卡片 / 多轮会话)"]
-        UI_Gov["Skill 独立治理中心 (顶部菜单栏常驻)\n(17项技能看板 / 动态启停开关 / Schema 参数调试终端 / 审计监控 / 热重载)"]
+        UI_Gov["Skill 独立治理中心 (顶部菜单栏常驻)\n(18项技能看板 / 动态启停开关 / Schema 参数调试终端 / 审计监控 / 热重载)"]
         UI_Report["交互式研报预览中心\n(K线缩放联动 / 5A雷达图 / 实时筹码 / 保本操作单)"]
         UI_Pool["股票池与交易看板\n(自选·关注·持仓拖拽管理 / 模拟盘委托)"]
         UI_AtOp["@操作符数据注册中心 (AtOperatorRegistry)\n(三大股池标的 / 引用·技能·算法条目 / 输入层操作符检索与回填)"]
@@ -75,7 +75,7 @@ flowchart TB
 flowchart TB
     subgraph Core["Agent Runtime 与量化内核 (跨端共享底座)"]
         RT["AgentReActRunner (统一 ReAct 编排引擎)"]
-        CoreLib["scripts/core (算法·风控·模拟盘·17项技能)"]
+        CoreLib["scripts/core (算法·风控·模拟盘·18项技能)"]
         RT --> CoreLib
     end
 
@@ -118,7 +118,7 @@ flowchart TB
 
 > 前端解析器为 `web/js/api.js` 的 `AStockAPI.streamChatCompletions`，回调名 `onStart/onThought/onToolStart/onToolComplete/onRiskCard/onDelta/onDone/onError` 与上述事件一一对应。
 
-### 2. 17 项技能治理控制平面 (Skill Governance Plane)
+### 2. 18 项技能治理控制平面 (Skill Governance Plane)
 - **Manifest 契约化**：集中解析 `config/skills_manifest.json` 与 `.agents/skills/*/SKILL.md`；
 - **动态启停**：用户可在前端界面随时关闭某些高耗时或未授权的技能；
 - **分级风控门禁 (Gatekeeper)**：
@@ -130,7 +130,7 @@ flowchart TB
 前端在用户提交消息后，由 `handleSendChat` 解析文本中的 `@` 实体并委托 `executeOperatorTask` 实施四向精准路由：
 - **`@股票` 路由**：提取标的名称与代码，直连实战三原则决策引擎，生成包含最低保本卖出价精算与三级止损阶梯的个股深度诊断研报；
 - **`@引用` 路由**：调用 `extractWorkbenchSectionData` 实时采集右侧工作台对应板块 DOM 数据（盘面全景/快捷操作/自选异动/策略回测/模拟资产/实战风控），联动触发工作台平滑滚动定位与脉冲高亮视觉反馈（`highlightWorkbenchSection`），将快照数据内嵌至提问上下文；
-- **`@技能` 路由**：自动绑定并激活 17 项量化投研技能对应的专有 Prompt 模板与执行流水线；
+- **`@技能` 路由**：自动绑定并激活 18 项量化投研技能对应的专有 Prompt 模板与执行流水线；
 - **`@算法` 路由**：绑定工业级量化工程因子算法（MAD去极值、Z-score截面Rank、换手率沉淀、ATR阶梯止盈止损等）进行动态仿真测算；
 - **元数据与徽标回显**：用户消息渲染时由 `formatUserContentWithAtBadges` 呈现内联彩色标签，服务端流式返回（`streamAIResponse`）携带 `meta.operators` 数据，在消息气泡底栏同步渲染操作符调用徽章。
 

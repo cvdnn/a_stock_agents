@@ -92,7 +92,7 @@
 |---|---|
 | `core/governance/skill_registry.py:236,291,438`、`core/governance/auditor.py:37,62` | core → server 反向 import 共 5 处（`server.db` 的 skill 持久化、`server.agent.tools.execute_tool`），形成 `server.api.skills → core.governance → server.*` 循环依赖，靠函数内延迟 import 掩盖；审计持久化失败时静默降级内存（auditor.py:47-57），审计记录可丢失。建议依赖注入（protocol/回调注册） |
 | `tools.py:390-407` | `_sync_astock_strategy_macd` 在 server 层简化重实现 MACD 形态分类（无底背离/波谷对比），与 core 引擎口径不一致，应下沉 core |
-| `skill_registry.py:434-440` | `register_handler()` 全仓零调用，17 项技能无一注册正式 handler，治理执行实为 core→server 反向委托，「单一入口」仅形式存在 |
+| `skill_registry.py:434-440` | `register_handler()` 全仓零调用，18 项技能无一注册正式 handler，治理执行实为 core→server 反向委托，「单一入口」仅形式存在 |
 | `task_manager.py:254-274` | 跨模块引用 `server.agent.tools` 下划线私有函数（`_sync_astock_screen_5a` 等） |
 
 ### 凭据 / 安全
@@ -139,7 +139,7 @@
 - **前端传输层**：`api.js` `_fetchJSON` 严格抛错无数据兜底；SSE `terminal` 机制保证 onError/onDone 恰好一次；聊天打字机完全由真实 SSE delta 驱动，无 setTimeout 合成文本；工作台五大加载器后端单向取数、catch 整体替换为 unavailable；技能测试严格区分四种状态。
 - **core 层归属正确**：core/config.py SSOT（市场前缀、费率常量、输出目录隔离、`init_output_templates` 仅文件缺失时初始化不覆盖用户 CSV）；execution_action_engine 业务算法在 core 且无 server 依赖。
 - **升级安全**：tools/update.py 升级前强制快照备份、显式跳过 `output/user_data/backups`、Zip-Slip 防护、临时目录清理只删 `cache/_update_temp`。
-- **清单一致**：config/skills_manifest.json 17 项技能与 SKILL_SCHEMAS 一一对应；API 控制台测试路径完整走 `registry.execute_skill`。
+- **清单一致**：config/skills_manifest.json 18 项技能与 SKILL_SCHEMAS 一一对应；API 控制台测试路径完整走 `registry.execute_skill`。
 
 ---
 

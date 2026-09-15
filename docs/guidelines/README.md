@@ -30,7 +30,7 @@
 ### 3. 系统核心架构设计 (Architecture)
 | 架构设计名称 | 物理路径 | 对应实施看板 | 核心内容概述 |
 |:---|:---|:---:|:---|
-| **独立 Web AIChatUI 与 Skill 治理系统架构** | [`web-aichat-architecture.md`](web-aichat-architecture.md) | [`SPEC-ARCH-001`](../specs/architecture/arch-web-aichat-and-skill-governance.md) | 脱离第三方宿主的独立 Web 交互中枢、FastAPI 服务网关、17 项技能治理控制平面与多端部署 |
+| **独立 Web AIChatUI 与 Skill 治理系统架构** | [`web-aichat-architecture.md`](web-aichat-architecture.md) | [`SPEC-ARCH-001`](../specs/architecture/arch-web-aichat-and-skill-governance.md) | 脱离第三方宿主的独立 Web 交互中枢、FastAPI 服务网关、18 项技能治理控制平面与多端部署 |
 | **大模型双轨接入与多场景角色分配架构** | [`llm-provider-architecture.md`](llm-provider-architecture.md) | [`SPEC-ARCH-002`](../specs/architecture/arch-llm-provider-and-role-allocation.md) | 物理接入轨 (Providers) 与逻辑角色轨 (Roles) 双轨解耦、网络延迟探测与防 CORS 代理 |
 | **Token 链路安全网关与审计 Agent 架构** | [`token-security-architecture.md`](token-security-architecture.md) | [`SPEC-ARCH-003`](../specs/architecture/arch-token-security-gateway.md) | 控制平面与执行平面物理分离、请求上行脱敏、响应下行过滤、不可篡改指纹审计日志 |
 | **Agent2UI (A2UI) 前端渲染引擎框架架构** | [`a2ui-framework-architecture.md`](a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](../specs/a2ui/a2ui-framework-engine-specification.md) | 静态 WebApp Shell 容器硬锁定、1:1 骨架预占位 (CLS=0)、五阶段渐进式水合流水线 |

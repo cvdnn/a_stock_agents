@@ -4,7 +4,7 @@
 
 > [!IMPORTANT]
 > **零全局污染原则 (Zero Global Pollution)**：
-> 本项目的全部 17 项技能及底层量化引擎**完全就地运行在当前工作区内**。
+> 本项目的全部 18 项技能及底层量化引擎**完全就地运行在当前工作区内**。
 > **严禁**将本项目的技能或配置复制到系统全局目录（如 `~/.gemini/config/skills`、`~/.hermes/skills` 或系统级路径）。无论在 Antigravity、Hermes、Codex 还是 Claude Code 中，直接在本项目工作区内就地按需调用即可。
 
 ---

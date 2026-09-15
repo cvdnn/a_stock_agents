@@ -204,7 +204,7 @@
 **Files:**
 - Create: `tests/test_production_authenticity.py`
 - Modify: `docs/specs/engineering/eng-remediation-acceptance.md`
-- Modify: `docs/superpowers/specs/2026-09-10-production-agent-platform-design.md`
+- Modify: `docs/specs/architecture/production-agent-platform-design.md`
 
 - [ ] **Step 1: Add a failing production-source scan**
 

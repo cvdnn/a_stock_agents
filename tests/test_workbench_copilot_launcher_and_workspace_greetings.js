@@ -174,7 +174,7 @@ assert(marketActions.includes('主力资金主线扫描'), '市场行情必须�
 assert(watchlistActions.includes('诊断当前自选标的'), '自选个股必须推荐诊断当前自选标的');
 assert(watchlistActions.includes('透视主力筹码分布'), '自选个股必须推荐透视主力筹码分布');
 assert(returnsActions.includes('投资组合多因子归因'), '收益分析必须推荐投资组合多因子归因');
-assert(skillsActions.includes('17项技能契约全量审计'), '技能治理必须推荐17项技能契约全量审计');
+assert(skillsActions.includes('18项技能契约全量审计'), '技能治理必须推荐18项技能契约全量审计');
 
 console.log('✅ PASS [3.1]: 6 大模块 TabCopilotConfigs 问候语与快捷操作定义全部独立且精准定制！');
 

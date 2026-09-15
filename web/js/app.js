@@ -954,11 +954,11 @@ const TabCopilotConfigs = {
     quickActions: [
       {
         icon: '🧪',
-        title: '17项技能契约全量审计',
+        title: '18项技能契约全量审计',
         desc: '一键体检 >',
-        tooltip: '扫描全部 17 项技能就地状态、输入输出契约与依赖健康度',
-        action: '17项技能契约全量审计',
-        prompt: '请执行技能治理全量审计，检查 17 项量化投研技能的状态、契约规范与运行成功率。'
+        tooltip: '扫描全部 18 项技能就地状态、输入输出契约与依赖健康度',
+        action: '18项技能契约全量审计',
+        prompt: '请执行技能治理全量审计，检查 18 项量化投研技能的状态、契约规范与运行成功率。'
       },
       {
         icon: '⚡',
@@ -3498,10 +3498,10 @@ const PromptTemplates = {
     summary: '仓位动态平衡与分散化风险预算调控预案',
     body: '<p>正在根据市场波动率预期与组合风险目标，提供基于风险平价和分数凯利准则的资产配置调优建议。</p>'
   },
-  '17项技能契约全量审计': {
+  '18项技能契约全量审计': {
     title: '17项量化投研技能就地运行与输入输出契约审计报告',
     summary: '零全局污染原则与技能元数据契约完整性审计',
-    body: '<p>正在对工作区 .agents/skills/ 下全部 17 项技能进行就地状态核查，检验统一 CLI 调用、降级机制与输入输出规范。</p>'
+    body: '<p>正在对工作区 .agents/skills/ 下全部 18 项技能进行就地状态核查，检验统一 CLI 调用、降级机制与输入输出规范。</p>'
   },
   '测试数据源4级降级链': {
     title: '数据源4级容灾降级压力测试与高可用诊断',
@@ -5507,7 +5507,7 @@ window.toggleStepDetail = toggleStepDetail;
 const USER_OPERATION_GUIDE_MD = `# 🧭 A-Stock Agents 量化投研与决策中枢 · 用户操作指南
 
 > [!NOTE]
-> 欢迎使用 **A-Stock Agents**。本系统是一套高内聚、自包含、生产就绪的 A 股全流程量化投研与实战决策系统。系统内置 17 项全链路量化技能与多智能体协同对抗研判引擎，严格遵循实战风控铁律，赋能投资全生命周期。
+> 欢迎使用 **A-Stock Agents**。本系统是一套高内聚、自包含、生产就绪的 A 股全流程量化投研与实战决策系统。系统内置 18 项全链路量化技能与多智能体协同对抗研判引擎，严格遵循实战风控铁律，赋能投资全生命周期。
 
 ---
 
@@ -9343,7 +9343,7 @@ async function initSkillsGovernance() {
 
 function refreshSkillsGovernance() {
   initSkillsGovernance().then(() => {
-    showToast('已同步最新 17 项技能治理清单与调用度量数据');
+    showToast('已同步最新 18 项技能治理清单与调用度量数据');
   });
 }
 
@@ -9360,7 +9360,7 @@ function bulkEnableAllSkills() {
     }).catch(() => {});
   });
 
-  showToast('⚡ 成功启用全部 17 项投研技能');
+  showToast('⚡ 成功启用全部 18 项投研技能');
 }
 
 function renderSkillsGovernance() {

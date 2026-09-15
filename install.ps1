@@ -59,7 +59,7 @@ Write-Host "====================================================================
 Write-Host " [成功] a_stock_agents 部署完成！" -ForegroundColor Green
 Write-Host " 就地使用指引（零全局污染，开箱即用）：" -ForegroundColor Gray
 Write-Host '   - 启动服务与 Web 界面: .\run.ps1'
-Write-Host '   - Antigravity: 直接打开当前项目作为工作区，自动就地识别 17 项技能'
+Write-Host '   - Antigravity: 直接打开当前项目作为工作区，自动就地识别 18 项技能'
 Write-Host '   - Hermes/Codex: 当前目录下直接调用 .\bin\astock.ps1 <子命令> --json'
 Write-Host '   - 运行 CLI:     .\bin\astock.ps1 --help'
 Write-Host '   - 查询行情:     .\bin\astock.ps1 data quote 600519 --json'

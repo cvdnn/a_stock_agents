@@ -31,6 +31,6 @@ P0 于 2026-09-10 在 `main` 就地完成；这只证明正式路径能够失败
 | 浏览器去 Mock 与密钥持久化 | `6334db4` | 两份 Node 安全测试、`test_at_operator.js` 与三份 `node --check` 通过 |
 | 生产真实性总门禁 | 本轮最终提交 | `tests/test_production_authenticity.py`: 2 passed |
 
-P0 完整复验命令记录在 `docs/superpowers/plans/2026-09-10-production-agent-platform-p0.md`。未接通能力的逐项状态见 [Skill 能力真实性验收台账](../architecture/arch-skill-capability-acceptance.md)。
+P0 完整复验命令记录在 `docs/specs/engineering/production-agent-platform-p0-plan.md`。未接通能力的逐项状态见 [Skill 能力真实性验收台账](../architecture/arch-skill-capability-acceptance.md)。
 
 最终复验结果：P0 定向 Python 套件 `53 passed`；完整默认离线 pytest `173 passed, 14 skipped`（14 项均为需显式启动服务的 live E2E）；两份 Node 安全测试、40 项 `@` 操作符断言及三份修改后 JavaScript 的 `node --check` 全部通过。另有 2 条 Starlette/httpx 弃用警告，不影响本轮结果。

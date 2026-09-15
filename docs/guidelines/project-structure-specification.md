@@ -11,7 +11,7 @@
 A-Stock Agents 作为一个高内聚、自包含且面向多智能体（Multi-Agent）协作的生产级 A 股量化投研系统，其工程结构严格遵循四大核心基石：
 
 ### 1. 零全局污染原则 (Zero Global Pollution)
-- 本项目的全部 17 项技能（Skills）、系统提示词（Prompts）与量化引擎**完全就地运行在当前工程工作区内**；
+- 本项目的全部 18 项技能（Skills）、系统提示词（Prompts）与量化引擎**完全就地运行在当前工程工作区内**；
 - **严禁**将本项目的技能代码或环境依赖复制、软链接到操作系统的全局目录（如 `~/.gemini/config/skills`、`~/.hermes/skills` 或系统级 Python 路径）；
 - 无论外部宿主智能体为 Google Antigravity、Hermes、Codex 还是 Claude Code，均在此工作区内就地触发执行，保证开发环境的完全自包含与宿主解耦。
 
@@ -38,7 +38,7 @@ a_stock_agents/
 │   │   ├── aichat_system_prompt.md       # AIChat 自然语言系统提示词与意图路由
 │   │   ├── trading_action_prompts.md     # 实战动作单与风控指令提示词
 │   │   └── trapped_diagnostic_prompts.md # 被套解套诊断决策树提示词
-│   └── skills/              # 17 个标准化 Agent 就地技能包 (现代分层拓扑)
+│   └── skills/              # 18 个标准化 Agent 就地技能包 (现代分层拓扑)
 │       ├── astock-action-execution/      # 实战反应动作与精确保本价进位引擎
 │       ├── astock-agent-debate/          # 7大AI分析师多空对抗辩论与决议
 │       ├── astock-data-feed/             # A股全链路行情与技术指标数据引擎
@@ -52,6 +52,7 @@ a_stock_agents/
 │       ├── astock-report-archive/        # 报告结构化持久化与归档
 │       ├── astock-report-html/           # 亚光白 1344px 居中交互报告规范
 │       ├── astock-screener-5a/           # 5A 多维共振旋转选股模型
+│       ├── astock-strategy-chenxiaoqun/   # 游资陈小群深水低吸/弱转强/换手板核心战法
 │       ├── astock-strategy-macd/         # 水下二次金叉与 MACD 底背离形态识别
 │       ├── astock-strategy-mainboard/    # 主板流动性池多波段防御反击
 │       ├── astock-strategy-tuige/        # 退哥短线与涨停接力规则体系
@@ -63,8 +64,8 @@ a_stock_agents/
 │   └── update.py            # 安全热更新 + 数据快照备份 + 一键回滚
 ├── config/                  # 平台集中静态与环境配置中心
 │   ├── config.yaml          # 主配置文件 (数据源、券商费率、三级风控止损参数)
-│   ├── skills_manifest.json # 17 技能清单元数据与参数契约 (JSON)
-│   ├── skills_manifest.yaml # 17 技能清单元数据与参数契约 (YAML)
+│   ├── skills_manifest.json # 18 技能清单元数据与参数契约 (JSON)
+│   ├── skills_manifest.yaml # 18 技能清单元数据与参数契约 (YAML)
 │   └── stock_pools.yaml     # 预置关注池与基准测试对照股票池配置
 ├── docs/                    # 完整分级技术文档与架构设计规范中心
 │   ├── index.md             # 全景知识库导图
@@ -151,7 +152,7 @@ a_stock_agents/
 ## 三、 核心子系统与职责边界 (Subsystem Responsibilities)
 
 ### 1. 智能体就地资产层 (`.agents/`)
-- **`manifests/`**：存放 17 项技能的标准定义清单，定义每个技能的 CLI 命令模板、输入输出 JSON Schema、权限级别（只读 vs 交易写入）；
+- **`manifests/`**：存放 18 项技能的标准定义清单，定义每个技能的 CLI 命令模板、输入输出 JSON Schema、权限级别（只读 vs 交易写入）；
 - **`prompts/`**：纳管投研助手对话意图识别提示词、交易动作生成提示词与被套解套决策树模版；
 - **`skills/`**：包含 17 个按业务场景划分的标准就地技能，每个技能文件夹包含独立的 `SKILL.md` 指南与说明。
 

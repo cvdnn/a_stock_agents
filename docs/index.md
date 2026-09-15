@@ -48,7 +48,7 @@ mindmap
       trapped_diagnostic_prompts[被套解套诊断决策树提示词]
     [配置中心 config]
       config.yaml[主配置·数据源·券商费率·风控线]
-      skills_manifest[17技能元数据与参数契约]
+      skills_manifest[18技能元数据与参数契约]
       stock_pools.yaml[自选对照池与基准股票池]
     [数据隔离 output]
       pools[自选·关注·持仓池 CSV]
@@ -98,8 +98,8 @@ a_stock_agents/
 │   └── update.py            # 安全热更新 + 数据快照备份 + 一键回滚
 ├── config/                  # 平台集中配置文件
 │   ├── config.yaml          # 主配置文件 (数据源、券商费率、三级风控止损参数)
-│   ├── skills_manifest.json # 17 技能清单元数据与参数契约 (JSON)
-│   ├── skills_manifest.yaml # 17 技能清单元数据与参数契约 (YAML)
+│   ├── skills_manifest.json # 18 技能清单元数据与参数契约 (JSON)
+│   ├── skills_manifest.yaml # 18 技能清单元数据与参数契约 (YAML)
 │   └── stock_pools.yaml     # 预置关注池与基准测试对照股票池配置
 ├── docs/                    # 项目分级技术文档体系 (kebab-case 规范)
 │   ├── index.md             # 全景知识库导图 (本文件)
@@ -199,7 +199,7 @@ a_stock_agents/
 │   │   ├── agent/           # 原生 ReAct 智能体运行时
 │   │   │   ├── react_runner.py # ReAct 循环、工具调用与思考过程解析
 │   │   │   ├── events.py       # 领域事件流解耦与 SSE 事件分发
-│   │   │   ├── tools.py        # 17 项技能转换为 Agent 可调用工具函数
+│   │   │   ├── tools.py        # 18 项技能转换为 Agent 可调用工具函数
 │   │   │   └── prompts.py      # 服务端 ReAct 提示词模版
 │   │   ├── api/             # RESTful API 路由模块
 │   │   │   ├── chat.py         # 对话与 SSE 流式输出接口 (/api/chat)
@@ -258,14 +258,14 @@ a_stock_agents/
 | 6 | **模拟盘撮合与事件驱动回测** | `scripts/core/paper_trading` | 多账户资金隔离、Almgren-Chriss 平方根冲击滑点、T+1 硬约束、单标的与多标的轮动回测。 |
 | 7 | **监控守护与告警系统** | `scripts/core/monitor` | 交易日历网关（开盘/盘中/闭市/周末状态机）、多渠道告警（Windows Toast / Webhook）。 |
 | 8 | **投资报告生成与归档** | `scripts/core/reporting` | 1344px 居中、亚光白背景、红涨绿跌单文件自包含 HTML 研报与多标的聚合归档流水线。 |
-| 9 | **Skill 治理与审计子系统** | `scripts/core/governance` | 17 项技能集中注册、OpenAI Function Schema 转换、动态启停、执行性能与安全熔断审计。 |
+| 9 | **Skill 治理与审计子系统** | `scripts/core/governance` | 18 项技能集中注册、OpenAI Function Schema 转换、动态启停、执行性能与安全熔断审计。 |
 | 10 | **Web 服务网关与 AIChat 前端** | `scripts/server` & `web` | FastAPI 异步网关、SSE 流式打字机、ReAct 智能体运行时、双模动态视口与现代浅色金融前端。 |
 
 ---
 
-## 四、17 技能体系（6+1 现代分层架构）
+## 四、18 技能体系（6+1 现代分层架构）
 
-全部 17 项技能严格遵循**零全局污染原则**，完全就地存放在 [`.agents/skills/`](../.agents/skills) 目录下，通过统一清单 [`config/skills_manifest.json`](../config/skills_manifest.json) 驱动：
+全部 18 项技能严格遵循**零全局污染原则**，完全就地存放在 [`.agents/skills/`](../.agents/skills) 目录下，通过统一清单 [`config/skills_manifest.json`](../config/skills_manifest.json) 驱动：
 
 ```mermaid
 mindmap
@@ -440,7 +440,7 @@ flowchart TD
 ## 七、关键设计原则与工程铁律
 
 1. **零全局污染原则 (Zero Global Pollution)**：
-   - 本项目 17 项技能、提示词与量化引擎**完全就地运行在当前工作区内**。
+   - 本项目 18 项技能、提示词与量化引擎**完全就地运行在当前工作区内**。
    - 严禁将项目技能复制到系统全局目录（如 `~/.gemini/config/skills` 或系统路径）。
 2. **单一真理来源 (SSOT) 与物理路径解耦**：
    - 核心业务逻辑统一归集于 `scripts/core/`，服务网关归集于 `scripts/server/`，就地技能存放在 `.agents/skills/`。
@@ -477,7 +477,7 @@ flowchart TD
 | **代码审查** | [`guidelines/code-review.md`](guidelines/code-review.md) | - | 代码质量基准、安全红线与审查报告标准 |
 | **测试规约** | [`guidelines/testing-guide.md`](guidelines/testing-guide.md) | - | 10 大核心领域回归测试架构、TDD 流程与临时用例即测即删铁律 |
 | **命名范式** | [`guidelines/naming-conventions.md`](guidelines/naming-conventions.md) | - | 消除文件名版本化侵入、四大演进范式与文档双语命名规约 (SSOT) |
-| **系统架构** | [`guidelines/web-aichat-architecture.md`](guidelines/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 17 项技能治理系统架构 |
+| **系统架构** | [`guidelines/web-aichat-architecture.md`](guidelines/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 项技能治理系统架构 |
 | **系统架构** | [`guidelines/llm-provider-architecture.md`](guidelines/llm-provider-architecture.md) | [`SPEC-ARCH-002`](specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与 5 大业务场景角色绑定 (Roles) 架构 |
 | **系统架构** | [`guidelines/token-security-architecture.md`](guidelines/token-security-architecture.md) | [`SPEC-ARCH-003`](specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离、请求脱敏与指纹审计架构 |
 | **A2UI架构** | [`guidelines/a2ui-framework-architecture.md`](guidelines/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 前端渲染引擎、WebApp Shell 硬锁定、1:1 骨架与五阶段渐进水合 |
@@ -489,7 +489,7 @@ flowchart TD
 | 分类 | 文档路径 | 核心内容与定位 |
 |---|---|---|
 | **快速入门** | [`quickstart.md`](quickstart.md) | 环境安装、依赖配置、一键自检与 CLI / Web 快速演示向导 |
-| **容器部署** | [`DOCKER_DEPLOY.md`](DOCKER_DEPLOY.md) | Docker 与 Docker Compose 生产容器化快速部署与运维指南 |
+| **容器部署** | [`docker-deploy.md`](docker-deploy.md) | Docker 与 Docker Compose 生产容器化快速部署与运维指南 |
 | **实施总览** | [`specs/README.md`](specs/README.md) | 6 大领域规范实施落地进度追踪总看板 (SPEC-INDEX) |
 | **实战手册** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律手册 (操作指引) |
 | **保本速查** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 (快速速查) |
