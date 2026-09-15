@@ -35,6 +35,9 @@ class ServerSettings(BaseModel):
     # SQLite Database
     db_path: Path = Field(default=DEFAULT_DB_PATH, description="Path to SQLite chats.db")
     
+    # API Authentication (Optional Bearer Token)
+    api_token: Optional[str] = Field(default=None, description="Optional API Bearer token for authentication")
+
     # LLM Settings
     default_model: str = Field(default="deepseek-chat", description="Default LLM model")
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API Key")
@@ -77,6 +80,9 @@ def load_server_settings() -> ServerSettings:
     ]
     cors_origins = [origin for origin in configured_origins if origin != "*"]
 
+    token_str = os.getenv("A_STOCK_SERVER_TOKEN")
+    api_token = token_str.strip() if token_str and token_str.strip() else None
+
     return ServerSettings(
         host=os.getenv("A_STOCK_SERVER_HOST", "127.0.0.1"),
         port=int(os.getenv("A_STOCK_SERVER_PORT", "6300")),
@@ -84,6 +90,7 @@ def load_server_settings() -> ServerSettings:
         runtime_mode=os.getenv("A_STOCK_RUNTIME_MODE", "production").strip().lower(),
         cors_origins=cors_origins,
         db_path=db_path,
+        api_token=api_token,
         default_model=default_model,
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         openai_base_url=os.getenv("OPENAI_BASE_URL"),

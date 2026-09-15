@@ -121,10 +121,10 @@
               var rawLabel = text.slice(labelStart, labelEnd);
               if (isHtmlFileLink(target.url) || isHtmlFileLink(rawLabel)) {
                 var targetPath = isHtmlFileLink(target.url) ? target.url : rawLabel;
-                out += '<a href="javascript:void(0)" class="chat-md-chip chat-html-chip" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(targetPath) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\'))" title="在工作区打开 HTML 报告"><span class="chip-icon">🌐</span> <span class="chip-title">' + label + '</span> <span class="chip-arrow">↗</span></a>';
+                out += '<a href="javascript:void(0)" class="chat-md-chip chat-html-chip" data-action="open-workbench-doc" data-doc-type="html" data-doc-path="' + escapeHtml(targetPath) + '" title="在工作区打开 HTML 报告"><span class="chip-icon">🌐</span> <span class="chip-title">' + label + '</span> <span class="chip-arrow">↗</span></a>';
               } else if (isMarkdownFileLink(target.url) || isMarkdownFileLink(rawLabel)) {
                 var targetPath = isMarkdownFileLink(target.url) ? target.url : rawLabel;
-                out += '<a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\')" title="在工作区打开 Markdown 文档"><span class="chip-icon">📄</span> <span class="chip-title">' + label + '</span> <span class="chip-arrow">↗</span></a>';
+                out += '<a href="javascript:void(0)" class="chat-md-chip" data-action="open-workbench-doc" data-doc-type="markdown" data-doc-path="' + escapeHtml(targetPath) + '" title="在工作区打开 Markdown 文档"><span class="chip-icon">📄</span> <span class="chip-title">' + label + '</span> <span class="chip-arrow">↗</span></a>';
               } else {
                 var safe = safeUrl(target.url);
                 out += safe ? '<a href="' + escapeHtml(safe) + '"' + (target.title == null ? '' : ' title="' + escapeHtml(target.title) + '"') + ' target="_blank" rel="noopener noreferrer">' + label + '</a>' : label;
@@ -202,7 +202,7 @@
         return '<div class="code-block-wrapper">' +
           '<div class="code-block-header">' +
             '<span class="code-block-lang">' + escapeHtml(displayLang) + '</span>' +
-            '<button type="button" class="code-copy-btn" onclick="ChatPresentation.copyCodeBlock(this)" title="复制代码">' +
+            '<button type="button" class="code-copy-btn" data-action="copy-code" title="复制代码">' +
               '<span class="copy-icon">📋</span> <span class="copy-text">复制</span>' +
             '</button>' +
           '</div>' +
@@ -215,13 +215,13 @@
         var text = (typeof token === 'object' && token !== null ? token.text : arguments[2]) || href;
         if (isHtmlFileLink(href) || isHtmlFileLink(text)) {
           var targetPath = isHtmlFileLink(href) ? href : text;
-          return '<a href="javascript:void(0)" class="chat-md-chip chat-html-chip" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(targetPath) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\'))" title="在工作区打开 HTML 报告">' +
+          return '<a href="javascript:void(0)" class="chat-md-chip chat-html-chip" data-action="open-workbench-doc" data-doc-type="html" data-doc-path="' + escapeHtml(targetPath) + '" title="在工作区打开 HTML 报告">' +
             '<span class="chip-icon">🌐</span> <span class="chip-title">' + text + '</span> <span class="chip-arrow">↗</span>' +
           '</a>';
         }
         if (isMarkdownFileLink(href) || isMarkdownFileLink(text)) {
           var targetPath = isMarkdownFileLink(href) ? href : text;
-          return '<a href="javascript:void(0)" class="chat-md-chip" onclick="window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(targetPath) + '\')" title="在工作区打开 Markdown 文档">' +
+          return '<a href="javascript:void(0)" class="chat-md-chip" data-action="open-workbench-doc" data-doc-type="markdown" data-doc-path="' + escapeHtml(targetPath) + '" title="在工作区打开 Markdown 文档">' +
             '<span class="chip-icon">📄</span> <span class="chip-title">' + text + '</span> <span class="chip-arrow">↗</span>' +
           '</a>';
         }
@@ -340,16 +340,18 @@
       if (purifyLib && typeof purifyLib.sanitize === 'function') {
         return purifyLib.sanitize(rawHtml, {
           ADD_TAGS: ['button'],
-          ADD_ATTR: ['target', 'onclick', 'title', 'type', 'class']
+          ADD_ATTR: ['target', 'title', 'type', 'class', 'data-action', 'data-doc-path', 'data-doc-type', 'data-path', 'data-code', 'data-cost', 'data-shares']
         });
       }
     }
-    // Fallback security sanitizer if DOMPurify instance is unavailable
+    // Fallback security sanitizer if DOMPurify instance is unavailable:
+    // Strip dangerous tags, any on* event attributes, and javascript: pseudo-protocols
     return String(rawHtml)
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/<([^>]+)\s+onerror\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '<$1')
-      .replace(/<([^>]+)\s+onload\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '<$1')
-      .replace(/href\s*=\s*["']?\s*javascript:[^"'>]*/gi, 'href="#"');
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<\/?(?:iframe|object|embed|applet|meta|link|base)\b[^>]*>/gi, '')
+      .replace(/<([^>]+)\s+on[a-z]+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '<$1')
+      .replace(/(href|src)\s*=\s*["']?\s*javascript:[^"'>]*/gi, '$1="#"');
   }
 
   function renderMarkdown(markdown) {
@@ -666,7 +668,7 @@
         var isHtml = /\.html?$/i.test(filename);
         var icon = isHtml ? '🌐' : '📄';
         var chipCls = isHtml ? 'dialogue-deliverable-item deliverable-html-item' : 'dialogue-deliverable-item';
-        return '<a href="javascript:void(0)" class="' + chipCls + '" style="border: none !important; border-bottom: none !important; text-decoration: none !important;" data-path="' + escapeHtml(filename) + '" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(filename) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(filename) + '\'))" title="' + (isHtml ? '在工作区打开 HTML 页面报告' : '在工作区打开文档') + '">' +
+        return '<a href="javascript:void(0)" class="' + chipCls + '" style="border: none !important; border-bottom: none !important; text-decoration: none !important;" data-action="open-workbench-doc" data-doc-type="' + (isHtml ? 'html' : 'markdown') + '" data-doc-path="' + escapeHtml(filename) + '" data-path="' + escapeHtml(filename) + '" title="' + (isHtml ? '在工作区打开 HTML 页面报告' : '在工作区打开文档') + '">' +
           '<span class="deliverable-doc-icon" style="display: inline-block; text-decoration: none !important;">' + icon + '</span><span class="deliverable-doc-name">' + escapeHtml(filename) + '</span>' +
           '</a>';
       }).join('');
@@ -1225,7 +1227,7 @@
       var isHtml = /\.html?$/i.test(fn);
       var icon = isHtml ? '🌐' : '📄';
       var chipClass = isHtml ? 'chat-md-chip chat-html-chip' : 'chat-md-chip';
-      return '<a href="javascript:void(0)" class="' + chipClass + '" onclick="window.openDocumentInWorkbench ? window.openDocumentInWorkbench(\'' + escapeHtml(fn) + '\') : (window.openMarkdownInWorkbench &amp;&amp; window.openMarkdownInWorkbench(\'' + escapeHtml(fn) + '\'))" title="在工作区打开文档"><span class="chip-icon">' + icon + '</span> <span class="chip-title">' + escapeHtml(cleanFn) + '</span> <span class="chip-arrow">↗</span></a>';
+      return '<a href="javascript:void(0)" class="' + chipClass + '" data-action="open-workbench-doc" data-doc-type="' + (isHtml ? 'html' : 'markdown') + '" data-doc-path="' + escapeHtml(fn) + '" title="在工作区打开文档"><span class="chip-icon">' + icon + '</span> <span class="chip-title">' + escapeHtml(cleanFn) + '</span> <span class="chip-arrow">↗</span></a>';
     });
   }
 
@@ -1547,6 +1549,30 @@
     html += '</div>'; // end execution-record-box
 
     return html;
+  }
+
+  // Event delegation for chat presentation interactions (removes requirement for inline onclick)
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('click', function (e) {
+      var copyBtn = e.target && e.target.closest ? e.target.closest('.code-copy-btn') : null;
+      if (copyBtn && (copyBtn.getAttribute('data-action') === 'copy-code' || !copyBtn.getAttribute('onclick'))) {
+        copyCodeBlock(copyBtn);
+        return;
+      }
+      var docChip = e.target && e.target.closest ? e.target.closest('[data-action="open-workbench-doc"]') : null;
+      if (docChip) {
+        var docPath = docChip.getAttribute('data-doc-path') || docChip.getAttribute('data-path');
+        var docType = docChip.getAttribute('data-doc-type');
+        if (docPath) {
+          if (docType === 'html' && typeof window !== 'undefined' && window.openDocumentInWorkbench) {
+            window.openDocumentInWorkbench(docPath);
+          } else if (typeof window !== 'undefined' && window.openMarkdownInWorkbench) {
+            window.openMarkdownInWorkbench(docPath);
+          }
+        }
+        return;
+      }
+    });
   }
 
   root.escapeHtml = escapeHtml;

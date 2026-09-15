@@ -7,6 +7,8 @@ and role-to-model mapping configuration.
 from __future__ import annotations
 
 import ipaddress
+import os
+import socket
 import time
 from urllib.parse import urlparse
 from typing import Any, Dict, List, Optional
@@ -103,56 +105,98 @@ def _get_provider_for_test(provider_id: str) -> Dict[str, Any]:
 
 
 
-def _validated_models_url(base_url: str) -> str:
-    """Allow saved HTTP(S) providers while rejecting common SSRF targets."""
-    parsed = urlparse(base_url.strip().rstrip("/"))
+def _is_allowed_local_dev(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address, port: int) -> bool:
+    """
+    受控开发例外放行：
+    仅当配置允许本地连接时（A_STOCK_ALLOW_LOCAL_MODELS，默认放行本地测试），
+    且目标服务确实为本地环回 (loopback)，且目标端口严格为 11434 (Ollama) 时放行。
+    严禁放行非环回的私有内网 IP，杜绝利用 11434 端口对内网资产进行横向探测。
+    """
+    allow_local = os.getenv("A_STOCK_ALLOW_LOCAL_MODELS", "true").lower() in ("true", "1", "yes")
+    return bool(allow_local and ip_obj.is_loopback and port == 11434)
+
+
+def _validate_provider_base_url(base_url: str) -> str:
+    """
+    对 Provider Base URL 执行物理 DNS 解析与深度 SSRF 防御拦截：
+    1. 协议必须为 http 或 https，且必须包含有效主机名；
+    2. 禁止包含内嵌凭据 (username/password)；
+    3. 拦截已知云厂商元数据内部探测域名；
+    4. 物理 DNS 解析：在发起网络通信前调用 socket.getaddrinfo 获取目标域名绑定的全部 IP；
+    5. 遍历检查所有解析出的 IP，命中任何 is_private、is_loopback、is_link_local、is_reserved、is_multicast 时抛出 HTTP 400；
+    6. 仅在满足受控本地开发条件（端口严格为 11434 且 IP 为本机 loopback）时方可豁免放行。
+    """
+    cleaned = base_url.strip().rstrip("/")
+    parsed = urlparse(cleaned)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise HTTPException(status_code=400, detail="Provider Base URL must use HTTP(S)")
     if parsed.username or parsed.password:
         raise HTTPException(status_code=400, detail="Provider Base URL must not contain credentials")
 
     hostname = parsed.hostname.lower()
-    if hostname in {"metadata.google.internal", "metadata.azure.internal"}:
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+
+    # 常见内部元数据与危险目标阻断
+    if hostname in {"metadata.google.internal", "metadata.azure.internal", "instance-data"}:
         raise HTTPException(status_code=400, detail="Provider Base URL target is not allowed")
+
+    # 获取物理解析 IP 集合
+    candidate_ips: List[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
+    is_literal = False
+    _FAKE_IP_NET = ipaddress.ip_network("198.18.0.0/15")
     try:
-        address = ipaddress.ip_address(hostname)
+        literal_ip = ipaddress.ip_address(hostname)
+        candidate_ips = [literal_ip]
+        is_literal = True
     except ValueError:
-        address = None
-    if address and (
-        address.is_link_local
-        or address.is_multicast
-        or address.is_reserved
-        or address.is_unspecified
-        or (address.is_private and not address.is_loopback)
-    ):
-        raise HTTPException(status_code=400, detail="Provider Base URL target is not allowed")
-    return f"{base_url.strip().rstrip('/')}/models"
+        try:
+            addr_info = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
+            for item in addr_info:
+                ip_str = item[4][0]
+                try:
+                    candidate_ips.append(ipaddress.ip_address(ip_str))
+                except ValueError:
+                    continue
+        except socket.gaierror:
+            raise HTTPException(status_code=400, detail="Provider hostname could not be resolved")
+
+    if not candidate_ips:
+        raise HTTPException(status_code=400, detail="Provider host resolved to no valid IP addresses")
+
+    # 遍历检查所有物理 IP
+    for ip_obj in candidate_ips:
+        # TUN 模式代理 (Clash/Surge/Sing-box) 会为公网域名分配 198.18.0.0/15 虚拟 Fake-IP
+        if not is_literal and ip_obj in _FAKE_IP_NET:
+            continue
+
+        is_restricted = (
+            ip_obj.is_private
+            or ip_obj.is_loopback
+            or ip_obj.is_link_local
+            or ip_obj.is_reserved
+            or ip_obj.is_multicast
+            or ip_obj.is_unspecified
+        )
+        if is_restricted:
+            if not _is_allowed_local_dev(ip_obj, port):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Provider host resolves to restricted IP: {ip_obj}"
+                )
+
+    return cleaned
+
+
+def _validated_models_url(base_url: str) -> str:
+    """Allow saved HTTP(S) providers while rejecting SSRF targets."""
+    cleaned = _validate_provider_base_url(base_url)
+    return f"{cleaned}/models"
 
 
 def _validated_chat_url(base_url: str) -> str:
-    """Allow saved HTTP(S) providers while rejecting common SSRF targets for chat completions."""
-    parsed = urlparse(base_url.strip().rstrip("/"))
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise HTTPException(status_code=400, detail="Provider Base URL must use HTTP(S)")
-    if parsed.username or parsed.password:
-        raise HTTPException(status_code=400, detail="Provider Base URL must not contain credentials")
-
-    hostname = parsed.hostname.lower()
-    if hostname in {"metadata.google.internal", "metadata.azure.internal"}:
-        raise HTTPException(status_code=400, detail="Provider Base URL target is not allowed")
-    try:
-        address = ipaddress.ip_address(hostname)
-    except ValueError:
-        address = None
-    if address and (
-        address.is_link_local
-        or address.is_multicast
-        or address.is_reserved
-        or address.is_unspecified
-        or (address.is_private and not address.is_loopback)
-    ):
-        raise HTTPException(status_code=400, detail="Provider Base URL target is not allowed")
-    return f"{base_url.strip().rstrip('/')}/chat/completions"
+    """Allow saved HTTP(S) providers while rejecting SSRF targets for chat completions."""
+    cleaned = _validate_provider_base_url(base_url)
+    return f"{cleaned}/chat/completions"
 
 
 def _provider_headers(provider: Dict[str, Any]) -> Dict[str, str]:

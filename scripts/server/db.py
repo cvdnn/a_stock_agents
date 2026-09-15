@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 server.db - SQLite database persistence for sessions and chat messages.
 Uses WAL mode for high concurrency and local data isolation.
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
+import os
+import platform
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -149,6 +155,7 @@ def _init_schemas(conn: sqlite3.Connection) -> None:
                 updated_at TEXT NOT NULL
             );
         """)
+        _migrate_llm_providers_encryption(conn)
         _seed_initial_sessions(conn)
 
 
@@ -931,6 +938,125 @@ def list_task_records(
 
 
 # ==============================================================================
+# API Key Encryption & Obfuscation Layer (SEC-07)
+# ==============================================================================
+
+def _derive_secret_key(custom_key: Optional[str] = None) -> bytes:
+    """
+    Derive a 256-bit symmetric encryption key from A_STOCK_SECRET_KEY
+    or a host-bound machine fingerprint.
+    """
+    raw_key = custom_key or os.getenv("A_STOCK_SECRET_KEY")
+    if raw_key and raw_key.strip():
+        seed = raw_key.strip().encode("utf-8")
+    else:
+        node_name = platform.node() or "astock_host"
+        mac_addr = str(uuid.getnode())
+        comp_name = os.getenv("COMPUTERNAME", os.getenv("HOSTNAME", ""))
+        user_name = os.getenv("USERNAME", os.getenv("USER", ""))
+        fingerprint = f"{node_name}:{mac_addr}:{comp_name}:{user_name}:astock_db_salt_v1"
+        seed = fingerprint.encode("utf-8")
+    return hashlib.sha256(seed).digest()
+
+
+def _encrypt_api_key(raw_key: Optional[str], secret_key: Optional[bytes] = None) -> str:
+    """
+    Encrypt and authenticate an API Key using HMAC-SHA256 CTR keystream + HMAC-SHA256 tag.
+    Returns format: enc:v1:<b64_iv>:<b64_ct>:<b64_tag>
+    """
+    if not raw_key or not str(raw_key).strip():
+        return ""
+    text = str(raw_key).strip()
+    if text.startswith("enc:v1:"):
+        return text
+
+    key = secret_key or _derive_secret_key()
+    iv = os.urandom(16)
+    pt = text.encode("utf-8")
+
+    keystream = bytearray()
+    block_index = 0
+    while len(keystream) < len(pt):
+        block = hmac.new(
+            key,
+            iv + block_index.to_bytes(4, byteorder="big"),
+            hashlib.sha256,
+        ).digest()
+        keystream.extend(block)
+        block_index += 1
+
+    ciphertext = bytes(p ^ k for p, k in zip(pt, keystream[:len(pt)]))
+    tag = hmac.new(key, iv + ciphertext, hashlib.sha256).digest()
+
+    iv_b64 = base64.urlsafe_b64encode(iv).decode("ascii")
+    ct_b64 = base64.urlsafe_b64encode(ciphertext).decode("ascii")
+    tag_b64 = base64.urlsafe_b64encode(tag).decode("ascii")
+
+    return f"enc:v1:{iv_b64}:{ct_b64}:{tag_b64}"
+
+
+def _decrypt_api_key(stored_key: Optional[str], secret_key: Optional[bytes] = None) -> str:
+    """
+    Decrypt an encrypted API Key token.
+    Gracefully handles unencrypted legacy keys by returning them directly.
+    """
+    if not stored_key or not str(stored_key).strip():
+        return ""
+    text = str(stored_key).strip()
+    if not text.startswith("enc:v1:"):
+        return text
+
+    parts = text.split(":")
+    if len(parts) != 5:
+        return text
+
+    _, _, iv_b64, ct_b64, tag_b64 = parts
+    try:
+        iv = base64.urlsafe_b64decode(iv_b64.encode("ascii"))
+        ciphertext = base64.urlsafe_b64decode(ct_b64.encode("ascii"))
+        tag = base64.urlsafe_b64decode(tag_b64.encode("ascii"))
+    except Exception:
+        return ""
+
+    key = secret_key or _derive_secret_key()
+    expected_tag = hmac.new(key, iv + ciphertext, hashlib.sha256).digest()
+    if not hmac.compare_digest(tag, expected_tag):
+        return ""
+
+    keystream = bytearray()
+    block_index = 0
+    while len(keystream) < len(ciphertext):
+        block = hmac.new(
+            key,
+            iv + block_index.to_bytes(4, byteorder="big"),
+            hashlib.sha256,
+        ).digest()
+        keystream.extend(block)
+        block_index += 1
+
+    pt = bytes(c ^ k for c, k in zip(ciphertext, keystream[:len(ciphertext)]))
+    try:
+        return pt.decode("utf-8")
+    except UnicodeDecodeError:
+        return ""
+
+
+def _migrate_llm_providers_encryption(conn: sqlite3.Connection) -> None:
+    """Encrypt any existing plaintext API keys stored in SQLite."""
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT provider_id, api_key FROM llm_providers WHERE api_key IS NOT NULL AND api_key != '';")
+        rows = cur.fetchall()
+        for r in rows:
+            raw_key = r["api_key"]
+            if raw_key and not raw_key.startswith("enc:v1:"):
+                enc_key = _encrypt_api_key(raw_key)
+                conn.execute("UPDATE llm_providers SET api_key = ? WHERE provider_id = ?;", (enc_key, r["provider_id"]))
+    except Exception:
+        pass
+
+
+# ==============================================================================
 # LLM Providers & Model Roles Persistence
 # ==============================================================================
 
@@ -947,7 +1073,7 @@ def list_providers(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
                 "provider_id": r["provider_id"],
                 "name": r["name"],
                 "base_url": r["base_url"],
-                "api_key": r["api_key"] or "",
+                "api_key": _decrypt_api_key(r["api_key"] or ""),
                 "enabled": bool(r["enabled"]),
                 "models": json.loads(r["models_json"]) if r["models_json"] else [],
                 "custom_headers": json.loads(r["custom_headers_json"]) if r["custom_headers_json"] else {},
@@ -973,7 +1099,7 @@ def get_provider_by_id(provider_id: str, db_path: Optional[Path] = None) -> Opti
             "provider_id": r["provider_id"],
             "name": r["name"],
             "base_url": r["base_url"],
-            "api_key": r["api_key"] or "",
+            "api_key": _decrypt_api_key(r["api_key"] or ""),
             "enabled": bool(r["enabled"]),
             "models": json.loads(r["models_json"]) if r["models_json"] else [],
             "custom_headers": json.loads(r["custom_headers_json"]) if r["custom_headers_json"] else {},
@@ -986,7 +1112,6 @@ def get_provider_by_id(provider_id: str, db_path: Optional[Path] = None) -> Opti
 
 
 def save_provider(data: Dict[str, Any], db_path: Optional[Path] = None) -> Dict[str, Any]:
-    """Insert or update a provider."""
     conn = get_connection(db_path)
     now_iso = _get_utc_now_iso()
     pid = data.get("provider_id") or f"prov_{uuid.uuid4().hex[:8]}"
@@ -1008,11 +1133,12 @@ def save_provider(data: Dict[str, Any], db_path: Optional[Path] = None) -> Dict[
             created_at = existing["created_at"] if existing else now_iso
             requested_key = data.get("api_key")
             if data.get("clear_api_key"):
-                api_key = ""
+                raw_api_key = ""
             elif requested_key is None or str(requested_key).strip() == "":
-                api_key = existing["api_key"] if existing else ""
+                raw_api_key = _decrypt_api_key(existing["api_key"]) if (existing and existing["api_key"]) else ""
             else:
-                api_key = str(requested_key).strip()
+                raw_api_key = str(requested_key).strip()
+            db_api_key = _encrypt_api_key(raw_api_key) if raw_api_key else ""
 
             conn.execute("""
                 INSERT INTO llm_providers (
@@ -1030,7 +1156,7 @@ def save_provider(data: Dict[str, Any], db_path: Optional[Path] = None) -> Dict[
                     timeout_seconds = excluded.timeout_seconds,
                     updated_at = excluded.updated_at;
             """, (
-                pid, name, base_url, api_key, enabled,
+                pid, name, base_url, db_api_key, enabled,
                 models_json, headers_json, timeout_seconds,
                 created_at, now_iso
             ))

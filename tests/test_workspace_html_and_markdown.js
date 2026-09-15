@@ -46,7 +46,7 @@ console.log('✅ PASS [需求 1]: web/index.html title栏按钮规范排序、�
 
 // 2. 静态样式断言：web/css/style.css
 console.log('\n--- 2. 工作区双格式与沙箱 iframe 样式断言 ---');
-const styleCss = fs.readFileSync(path.join(__dirname, '../web/css/style.css'), 'utf8');
+const styleCss = fs.readFileSync(path.join(__dirname, '../web/css/style.css'), 'utf8').replace(/\r\n/g, '\n');
 
 assert(styleCss.includes('.workspace-html-container'), 'style.css 必须包含 .workspace-html-container 样式');
 assert(styleCss.includes('.workspace-html-frame'), 'style.css 必须包含 .workspace-html-frame 样式');

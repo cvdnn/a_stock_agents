@@ -161,7 +161,8 @@ console.log('✅ PASS [用例 3]: 工作台成功防止在 iframe 中展示原�
 // -----------------------------------------------------------------------------
 console.log('\n--- 测试用例 4: 后端 wrap_markdown_as_html_report 功能验证 ---');
 const { execSync } = require('child_process');
-const pyCmd = 'python -c "import sys; sys.path.insert(0, \'scripts\'); from core.reporting.report_generator import wrap_markdown_as_html_report; md = \'# 中国移动\\n| 指标 | 读数 |\\n|---|---|\\n| 现价 | 97.72 |\'; html = wrap_markdown_as_html_report(md, title=\'中国移动研报\', filename=\'aStocks_600941.html\'); assert \'<!DOCTYPE html>\' in html; assert \'class=\\\"tbl\\\"\' in html; assert not html.startswith(\'# 中国移动\'); print(\'PYTHON_WRAP_SUCCESS\')"';
+const pyBin = process.env.PYTHON || (process.platform === 'win32' && fs.existsSync('C:\\Users\\cvdnn\\AppData\\Local\\Programs\\Python\\Python313\\python.exe') ? 'C:\\Users\\cvdnn\\AppData\\Local\\Programs\\Python\\Python313\\python.exe' : 'python');
+const pyCmd = `"${pyBin}" -c "import sys; sys.path.insert(0, 'scripts'); from core.reporting.report_generator import wrap_markdown_as_html_report; md = '# 中国移动\\n| 指标 | 读数 |\\n|---|---|\\n| 现价 | 97.72 |'; html = wrap_markdown_as_html_report(md, title='中国移动研报', filename='aStocks_600941.html'); assert '<!DOCTYPE html>' in html; assert 'class=\\\"tbl\\\"' in html; assert not html.startswith('# 中国移动'); print('PYTHON_WRAP_SUCCESS')"`;
 const pyOut = execSync(pyCmd, {
   cwd: path.join(__dirname, '..'),
   encoding: 'utf-8'

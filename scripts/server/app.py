@@ -55,8 +55,46 @@ def create_app() -> FastAPI:
         allow_origins=server_settings.cors_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Accept", "Content-Type"],
+        allow_headers=["Accept", "Content-Type", "Authorization"],
     )
+
+    # API Token Authentication Middleware (SEC-02)
+    @app.middleware("http")
+    async def api_token_auth_middleware(request: Request, call_next):
+        token = getattr(server_settings, "api_token", None)
+        if not token:
+            return await call_next(request)
+
+        # 豁免 OPTIONS 预检请求以支持 CORS
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
+        path = request.url.path
+
+        # 白名单豁免：健康检查端点
+        if path == "/api/health" or path.startswith("/api/health/"):
+            return await call_next(request)
+
+        # 白名单豁免：Web UI 根路径与静态资源文件
+        if path in {"/", "/favicon.ico"} or path.startswith(("/ui", "/css", "/js", "/assets")):
+            return await call_next(request)
+
+        auth_header = request.headers.get("Authorization", "")
+        provided_token = None
+        if auth_header.startswith("Bearer "):
+            provided_token = auth_header[7:].strip()
+        elif auth_header.startswith("bearer "):
+            provided_token = auth_header[7:].strip()
+
+        if not provided_token or provided_token != token:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Unauthorized: Invalid or missing Bearer token"},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        return await call_next(request)
 
     # Register API Routers
     app.include_router(health_router)
@@ -108,6 +146,19 @@ def create_app() -> FastAPI:
         except ValueError:
             raise HTTPException(status_code=403, detail="Access denied: outside workspace boundary")
 
+        # 扩展名限制 (支持 Markdown 与 HTML 研报及文本交付物，彻底排除 .py 格式)
+        allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".html", ".htm"}
+        if target_file.suffix.lower() not in allowed_exts:
+            raise HTTPException(status_code=400, detail="Unsupported file format for workspace viewer")
+
+        # 敏感目录黑名单拦截：严禁探测 scripts、tests、.git、.venv、.env 等核心目录
+        forbidden_roots = {"scripts", "tests", ".git", ".github", ".venv", "venv", "node_modules"}
+        rel_parts = target_file.relative_to(workspace_root).parts
+        if any(part in forbidden_roots for part in rel_parts) or any(part.startswith(".") and part not in {".agents"} for part in rel_parts):
+            raise HTTPException(status_code=403, detail="Access denied: access to restricted directory")
+        if target_file.name in {".env", "docker-compose.yml"}:
+            raise HTTPException(status_code=403, detail="Access denied: access to sensitive configuration is forbidden")
+
         # 若直接路径不存在，尝试在常见交付物与文档子目录下检索
         if not target_file.is_file():
             filename = Path(clean_path).name
@@ -122,6 +173,29 @@ def create_app() -> FastAPI:
                 if cand.is_file():
                     target_file = cand
                     break
+
+        # 校验最终命中的文件是否在受信任的文档根目录下
+        allowed_dirs = [
+            workspace_root / "output",
+            workspace_root / "reports",
+            workspace_root / "docs",
+            workspace_root / ".agents" / "skills",
+        ]
+        is_in_allowed_dir = False
+        for allowed_dir in allowed_dirs:
+            try:
+                target_file.relative_to(allowed_dir)
+                is_in_allowed_dir = True
+                break
+            except ValueError:
+                continue
+
+        if not is_in_allowed_dir:
+            raise HTTPException(status_code=403, detail="Access denied: file outside permitted document directories")
+
+        if not target_file.is_file():
+            raise HTTPException(status_code=404, detail=f"File not found: {target_file.name}")
+
         elif target_file.suffix.lower() in {".html", ".htm"}:
             # 若命中的文件不是真实 HTML（例如被 Markdown 覆写），但 output/reports 下存在同名真实 HTML，优先采用真实 HTML
             filename = target_file.name
@@ -134,14 +208,6 @@ def create_app() -> FastAPI:
                         target_file = out_cand
                 except Exception:
                     pass
-
-        # 扩展名限制 (支持 Markdown 与 HTML 研报及文本交付物)
-        allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".py", ".html", ".htm"}
-        if target_file.suffix.lower() not in allowed_exts:
-            raise HTTPException(status_code=400, detail="Unsupported file format for workspace viewer")
-
-        if not target_file.is_file():
-            raise HTTPException(status_code=404, detail=f"File not found: {target_file.name}")
 
         try:
             content = target_file.read_text(encoding="utf-8")
@@ -161,6 +227,8 @@ def create_app() -> FastAPI:
                 "size_bytes": len(content.encode("utf-8")),
                 "content": content,
             }
+        except HTTPException:
+            raise
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Failed to read file: {str(exc)}")
 
@@ -168,31 +236,37 @@ def create_app() -> FastAPI:
     @app.post("/api/docs/save", tags=["Documents"])
     async def save_workspace_doc(req: SaveDocRequest):
         workspace_root = Path(__file__).resolve().parent.parent.parent
+        reports_dir = (workspace_root / "output" / "reports").resolve()
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
         clean_path = req.path.strip()
         if clean_path.startswith("file://"):
             clean_path = clean_path[7:]
 
-        # 若仅传入了文件名（如 report_600519.md 或 aStocks_600519.html），根据类型归档
         clean_p = Path(clean_path)
-        if not clean_p.is_absolute() and len(clean_p.parts) == 1:
-            if clean_p.suffix.lower() in {".html", ".htm"} or clean_p.name.startswith("aStocks_") or (workspace_root / "output" / "reports" / clean_p.name).is_file():
-                target_file = (workspace_root / "output" / "reports" / clean_p.name).resolve()
-            else:
-                target_file = (workspace_root / "reports" / clean_p.name).resolve()
-        elif not clean_p.is_absolute():
-            target_file = (workspace_root / clean_p).resolve()
-        else:
-            target_file = clean_p.resolve()
 
-        # 安全边界验证：严禁逃逸工作区
-        try:
-            target_file.relative_to(workspace_root)
-        except ValueError:
-            raise HTTPException(status_code=403, detail="Access denied: outside workspace boundary")
+        # 严格防御路径穿越与目录逃逸：拦截包含 .. 或尝试写入受保护系统目录的请求
+        forbidden_prefixes = {"web", "config", "scripts", "tests", ".git", ".agents", ".gemini", "node_modules"}
+        if any(part in forbidden_prefixes for part in clean_p.parts) or ".." in clean_p.parts:
+            raise HTTPException(status_code=403, detail="Access denied: write operation restricted to reports directory")
 
+        # 扩展名限制
         allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".html", ".htm"}
-        if target_file.suffix.lower() not in allowed_exts:
+        if clean_p.suffix.lower() not in allowed_exts:
             raise HTTPException(status_code=400, detail="Unsupported file format for saving document")
+
+        # 强制将保存文件锁定在 output/reports 目录，仅提取安全文件名，拒绝包含路径分隔符
+        safe_filename = clean_p.name
+        if not safe_filename or safe_filename in {".", ".."} or "/" in safe_filename or "\\" in safe_filename:
+            raise HTTPException(status_code=400, detail="Invalid filename for document save")
+
+        target_file = (reports_dir / safe_filename).resolve()
+
+        # 安全边界验证：严禁逃逸 output/reports 沙箱目录
+        try:
+            target_file.relative_to(reports_dir)
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied: outside reports boundary")
 
         content_to_save = req.content
         if target_file.suffix.lower() in {".html", ".htm"}:
@@ -224,7 +298,6 @@ def create_app() -> FastAPI:
                 )
 
         try:
-            target_file.parent.mkdir(parents=True, exist_ok=True)
             target_file.write_text(content_to_save, encoding="utf-8")
             rel_path = target_file.relative_to(workspace_root).as_posix()
             return {
