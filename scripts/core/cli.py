@@ -68,9 +68,14 @@ from core.commands import (
     cmd_pos_dispatch,
     cmd_report,
     cmd_risk,
+    cmd_quant_pipeline,
+    cmd_shortline_check,
+    cmd_strategy_swing,
     cmd_score,
     cmd_screen,
     cmd_skill_list,
+    cmd_tips,
+    cmd_validate_model,
     cmd_trapped,
     cmd_trade_dispatch,
     cmd_vol_breakout,
@@ -94,6 +99,9 @@ __all__ = [
     "cmd_multi_factor",
     "cmd_trapped",
     "cmd_risk",
+    "cmd_quant_pipeline",
+    "cmd_shortline_check",
+    "cmd_strategy_swing",
     "cmd_golden_cross",
     "cmd_portfolio_risk",
     "cmd_action_plan",
@@ -111,6 +119,8 @@ __all__ = [
     "cmd_config_paths",
     "cmd_config_market",
     "cmd_skill_list",
+    "cmd_tips",
+    "cmd_validate_model",
     "cmd_report",
     "cmd_trade_dispatch",
 ]
@@ -181,6 +191,32 @@ def build_parser() -> argparse.ArgumentParser:
     p_screen.add_argument("--allow-all-boards", action="store_true", help="允许跨板块选股 (放行创业板、科创板与北交所标的)")
     p_screen.add_argument("--cyq", action="store_true", help="拉取筹码分布")
     p_screen.add_argument("--limit", type=int, default=10, help="最多展示数量")
+
+    # strategy swing
+    p_strategy = subparsers.add_parser("strategy", help="策略信号入口", parents=[common_parser])
+    strategy_sub = p_strategy.add_subparsers(dest="strategy_cmd")
+    p_swing = strategy_sub.add_parser("swing", help="主板趋势回踩与波段信号", parents=[common_parser])
+    p_swing.add_argument("--code", default=None, help="可选：检查单只股票")
+    p_swing.add_argument("--count", type=int, default=120, help="K线数量")
+    p_swing.add_argument("--limit", type=int, default=10, help="候选数量上限")
+
+    # quant pipeline
+    p_quant = subparsers.add_parser("quant", help="量化工程流水线", parents=[common_parser])
+    quant_sub = p_quant.add_subparsers(dest="quant_cmd")
+    p_pipeline = quant_sub.add_parser("pipeline", help="仓位与ATR风险摘要", parents=[common_parser])
+    p_pipeline.add_argument("--code", default=None, help="可选：计算单股仓位")
+    p_pipeline.add_argument("--equity", type=float, default=200000.0, help="账户总权益")
+
+    # shortline check
+    p_shortline = subparsers.add_parser("shortline", help="短线场景规则", parents=[common_parser])
+    shortline_sub = p_shortline.add_subparsers(dest="shortline_cmd")
+    p_short_check = shortline_sub.add_parser("check", help="退哥短线场景检查", parents=[common_parser])
+    p_short_check.add_argument("--code", required=True, help="股票代码")
+    p_short_check.add_argument(
+        "--scenario",
+        choices=["limit_up_pullback", "continuation", "wash_end"],
+        default="limit_up_pullback",
+    )
 
     # risk
     p_risk = subparsers.add_parser("risk", help="风控止损与卖点预警", parents=[common_parser])
@@ -325,6 +361,8 @@ def build_parser() -> argparse.ArgumentParser:
     pool_sub = p_pool.add_subparsers(dest="pool_cmd")
     p_pool_list = pool_sub.add_parser("list", help="查看股票池", parents=[common_parser])
     p_pool_list.add_argument("--pool", choices=["selected", "watch"], default=None)
+    p_pool_audit = pool_sub.add_parser("audit", help="审查三级股票池", parents=[common_parser])
+    p_pool_audit.add_argument("--fix", action="store_true", help="请求自动修复（未实现时显式拒绝）")
 
     # position
     p_pos = subparsers.add_parser("position", help="实盘与模拟持仓管理", parents=[common_parser])
@@ -347,6 +385,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_skill = subparsers.add_parser("skill", help="查看已注册技能模块", parents=[common_parser])
     skill_sub = p_skill.add_subparsers(dest="skill_cmd")
     skill_sub.add_parser("list", help="列出技能列表", parents=[common_parser])
+
+    # tips / external model validation protocol
+    p_tips = subparsers.add_parser("tips", help="实战经验与数据源降级指南", parents=[common_parser])
+    p_tips.add_argument("--topic", default="all", help="主题：auction/fallback/traps/all")
+    p_validate = subparsers.add_parser("validate-model", help="外部时序模型样本外验证协议", parents=[common_parser])
+    p_validate.add_argument("--model", default="Kronos", help="模型名称")
+    p_validate.add_argument("--code", default=None, help="可选股票代码")
 
     # server
     p_srv = subparsers.add_parser("server", help="Web AIChat & 治理服务网关", parents=[common_parser])
@@ -469,6 +514,22 @@ def main():
         cmd_screen(args)
     elif cmd == "risk":
         cmd_risk(args)
+    elif cmd == "strategy":
+        if getattr(args, "strategy_cmd", None) == "swing":
+            cmd_strategy_swing(args)
+        else:
+            parser.print_help()
+    elif cmd == "quant":
+        if getattr(args, "quant_cmd", None) == "pipeline":
+            args.quant_action = "pipeline"
+            cmd_quant_pipeline(args)
+        else:
+            parser.print_help()
+    elif cmd == "shortline":
+        if getattr(args, "shortline_cmd", None) == "check":
+            cmd_shortline_check(args)
+        else:
+            parser.print_help()
     elif cmd == "golden-cross":
         cmd_golden_cross(args)
     elif cmd == "events":
@@ -537,6 +598,10 @@ def main():
             cmd_skill_list(args)
         else:
             parser.print_help()
+    elif cmd == "tips":
+        cmd_tips(args)
+    elif cmd == "validate-model":
+        cmd_validate_model(args)
     elif cmd == "server":
         server_cmd = getattr(args, "server_cmd", None)
         if server_cmd == "start":

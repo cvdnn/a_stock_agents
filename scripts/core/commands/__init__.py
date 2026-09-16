@@ -32,6 +32,9 @@ from core.commands.strategy_cmds import (
     cmd_mean_reversion,
     cmd_portfolio_risk,
     cmd_risk,
+    cmd_quant_pipeline,
+    cmd_shortline_check,
+    cmd_strategy_swing,
     cmd_vol_breakout,
 )
 from core.commands.backtest_cmds import (
@@ -45,6 +48,8 @@ from core.commands.portfolio_cmds import (
     cmd_pos_dispatch,
     cmd_report,
     cmd_skill_list,
+    cmd_tips,
+    cmd_validate_model,
 )
 from core.commands.trade_cmds import (
     cmd_trade_dispatch,
@@ -64,6 +69,9 @@ __all__ = [
     "cmd_multi_factor",
     "cmd_trapped",
     "cmd_risk",
+    "cmd_quant_pipeline",
+    "cmd_shortline_check",
+    "cmd_strategy_swing",
     "cmd_golden_cross",
     "cmd_portfolio_risk",
     "cmd_action_plan",
@@ -81,6 +89,8 @@ __all__ = [
     "cmd_config_paths",
     "cmd_config_market",
     "cmd_skill_list",
+    "cmd_tips",
+    "cmd_validate_model",
     "cmd_report",
     "cmd_pool_dispatch",
     "cmd_pos_dispatch",

@@ -25,10 +25,10 @@
 
 ### Layer 2: 状态文件检查
 
-no_agent 监控脚本通常使用状态文件（`~/.AI-Platform/scripts/*_state.json`）持久化已触发事件，避免重复推送。
+no_agent 监控脚本使用项目内状态文件（`temp/monitor-state/*_state.json`）持久化已触发事件，避免重复推送。
 
 ```
-~/.AI-Platform/scripts/
+temp/monitor-state/
 ├── position_stop_monitor_state.json   # 持仓风控已触发预警
 ├── entry_monitor_state.json           # 入场监控已触发信号（不存在=未触发）
 ├── entry_monitor_605358_state.json    # 立昂微入场监控状态
@@ -57,7 +57,7 @@ no_agent 监控脚本通常使用状态文件（`~/.AI-Platform/scripts/*_state.
 
 **重置方法**：
 ```bash
-rm ~/.AI-Platform/scripts/*_state.json
+Remove-Item -LiteralPath temp/monitor-state/<具体状态文件>.json
 ```
 
 ### Layer 3: 脚本代码审计
@@ -126,17 +126,17 @@ if not os.path.exists(WATCH_PATH):
 AI-Platform cron list
 
 # 列出所有监控脚本
-ls ~/.AI-Platform/scripts/
+Get-ChildItem temp/monitors/
 
 # 查看所有状态文件
-ls ~/.AI-Platform/scripts/*_state.json
+Get-ChildItem temp/monitor-state/*_state.json
 
 # 重置某个监控的状态
-rm ~/.AI-Platform/scripts/position_stop_monitor_state.json
+Remove-Item -LiteralPath temp/monitor-state/position_stop_monitor_state.json
 
 # 检查 gateway 是否运行
 AI-Platform gateway status
 
 # 查看推送日志
-cat ~/.AI-Platform/logs/gateway.log 2>/dev/null | grep -i 'delivery\|send\|error' | tail -20
+Select-String -Path log/gateway.log -Pattern 'delivery|send|error' | Select-Object -Last 20
 ```

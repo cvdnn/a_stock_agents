@@ -1152,8 +1152,10 @@ def cmd_consecutive_limit(date_str: str, top: int, output_json: bool):
 
 
 def _load_auth_token():
-    """从 ~/.AI-Platform/.env 或 config.yaml 读取 token"""
-    env_path = Path.home() / ".AI-Platform" / ".env"
+    """从环境变量、项目根目录 .env 或 config.yaml 读取 token。"""
+    if os.environ.get("AUTH_TOKEN"):
+        return os.environ["AUTH_TOKEN"].strip()
+    env_path = Path(__file__).resolve().parents[3] / ".env"
     if env_path.exists():
         for line in env_path.read_text().splitlines():
             line = line.strip()
@@ -1172,7 +1174,7 @@ def cmd_balance(output_json: bool):
     """查询 proxy-patch 积分余额"""
     token = _load_auth_token()
     if not token:
-        print("错误: 未找到 AUTH_TOKEN（~/.AI-Platform/.env 或 config.yaml 中均未配置）")
+        print("错误: 未找到 AUTH_TOKEN（环境变量、项目 .env 或 config.yaml 中均未配置）")
         sys.exit(1)
     try:
         resp = _http_get_json(BALANCE_CHECK_URL.format(token), timeout=10)

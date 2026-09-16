@@ -34,7 +34,7 @@ mindmap
       multi_llm[多模型适配·OpenAI/Claude/Gemini/Ollama]
       async_tasks[后台异步任务队列·SQLite持久化]
       web_workbench[双模动态视口·三栏40/60·轻量金融图表]
-    [就地技能体系 .agents/skills 17项]
+    [就地技能体系 .agents/skills 18项]
       L0元系统[路由规则与避坑实战经验]
       L1数据平台[全链路行情引擎与统一投研平台]
       L2选股量化[5A选股·工业级量化·时序模型验证]
@@ -269,7 +269,7 @@ a_stock_agents/
 
 ```mermaid
 mindmap
-  root((17 Skills))
+  root((18 Skills))
     L0元系统
       astock-meta-routing[任务模型路由规约]
       astock-knowledge-tips[避坑指南与竞价实战技巧]

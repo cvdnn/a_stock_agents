@@ -158,6 +158,57 @@ def cmd_skill_list(args):
             print(f"  - {s}")
 
 
+def cmd_tips(args):
+    """输出实战经验与数据源降级速查。"""
+    result = {
+        "status": "success",
+        "type": "reference",
+        "topic": getattr(args, "topic", "all"),
+        "tips": [
+            "集合竞价重点观察9:20-9:25不可撤单阶段的匹配量变化。",
+            "行情数据失败时按腾讯、新浪、东方财富、本地缓存顺序降级。",
+            "个股建议必须包含最低保本卖出价、三级止损和三场景动作单。",
+        ],
+    }
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def cmd_validate_model(args):
+    """输出外部时序模型的样本外验证协议。"""
+    result = {
+        "status": "success",
+        "type": "validation_protocol",
+        "model_name": getattr(args, "model", "Kronos"),
+        "code": getattr(args, "code", None),
+        "execution_available": False,
+        "steps": ["滚动样本外切分", "对比朴素基线", "计入交易摩擦", "报告IC、回撤与稳定性"],
+        "message": "当前命令提供验证协议；未安装目标模型时不会伪造预测结果。",
+    }
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def cmd_pool_audit(args):
+    """只读审查三级股池；尚未实现的自动修复会显式拒绝。"""
+    if getattr(args, "fix", False):
+        result = {
+            "status": "error",
+            "error": "MUTATION_NOT_IMPLEMENTED",
+            "message": "自动清洗尚未实现，已拒绝静默修改；请先人工确认审查结果。",
+        }
+    else:
+        from core.strategy.pool_manager import PoolManager
+
+        pools = PoolManager().get_all_pools()
+        result = {
+            "status": "success",
+            "fix": False,
+            "total_pools": len(pools),
+            "total_stocks": sum(len(rows) for rows in pools.values()),
+            "pools": {name: len(rows) for name, rows in pools.items()},
+        }
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
 def cmd_pool_dispatch(args, parser):
     """股票池子命令路由"""
     from core.strategy import pool_manager
@@ -165,6 +216,8 @@ def cmd_pool_dispatch(args, parser):
     pool_cmd = getattr(args, "pool_cmd", None)
     if pool_cmd == "list" or not pool_cmd:
         pool_manager.cmd_list(args)
+    elif pool_cmd == "audit":
+        cmd_pool_audit(args)
     else:
         parser.print_help()
 

@@ -10,19 +10,15 @@
 set -e
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_ROOT="$(cd "$SKILL_DIR/../../.." && pwd)"
 VENV_PY="${VENV_PY:-python3}"
 
 # ── 检测已有项目 ──────────────────────────────────────────────────────────────
 
-TA_PROJECT=""
-for p in "/mnt/c/Users/user/coding/TradingAgents" \
-         "/mnt/c/Users/user/coding/TradingAgents/_original_src" \
-         "$HOME/TradingAgents-astock"; do
-    if [ -d "$p/tradingagents" ]; then
-        TA_PROJECT="$p"
-        break
-    fi
-done
+TA_PROJECT="${TRADING_AGENTS_ROOT:-$PROJECT_ROOT/temp/vendor/TradingAgents-astock}"
+if [ ! -d "$TA_PROJECT/tradingagents" ]; then
+    TA_PROJECT=""
+fi
 
 # ── 参数解析 ──────────────────────────────────────────────────────────────────
 
@@ -57,9 +53,7 @@ if $CHECK_MODE; then
 
     echo "[3/5] .env 文件"
     ENV_FILE=""
-    [ -f "/mnt/c/Users/user/coding/TradingAgents/.env" ] && ENV_FILE="/mnt/c/Users/user/coding/TradingAgents/.env"
-    [ -f "/mnt/c/Users/user/coding/TradingAgents/_original_src/.env" ] && ENV_FILE="/mnt/c/Users/user/coding/TradingAgents/_original_src/.env"
-    [ -f "$HOME/TradingAgents-astock/.env" ] && ENV_FILE="$HOME/TradingAgents-astock/.env"
+    [ -n "$TA_PROJECT" ] && [ -f "$TA_PROJECT/.env" ] && ENV_FILE="$TA_PROJECT/.env"
     if [ -n "$ENV_FILE" ]; then
         KEY_COUNT=$(grep -c '_API_KEY\|_AUTH_TOKEN' "$ENV_FILE" 2>/dev/null || echo 0)
         echo "  ✅ $ENV_FILE（$KEY_COUNT 个 key 变量）"
@@ -100,7 +94,8 @@ echo "[1/5] TradingAgents 项目"
 if [ -n "$TA_PROJECT" ]; then
     echo "  ✅ 已存在: $TA_PROJECT"
 else
-    TA_PROJECT="$HOME/TradingAgents-astock"
+    TA_PROJECT="$PROJECT_ROOT/temp/vendor/TradingAgents-astock"
+    mkdir -p "$(dirname "$TA_PROJECT")"
     echo "  → 克隆到 $TA_PROJECT"
     git clone https://github.com/simonlin1212/TradingAgents-astock.git "$TA_PROJECT"
 fi

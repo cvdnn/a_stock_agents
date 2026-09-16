@@ -21,7 +21,7 @@ try:
     from core.config import OUTPUT_CACHE_DIR
     CACHE_DIR = Path(OUTPUT_CACHE_DIR) / "data_layer"
 except ImportError:
-    CACHE_DIR = Path.home() / ".AI-Platform" / "cache" / "data_layer"
+    CACHE_DIR = Path(__file__).resolve().parents[3] / "output" / "cache" / "data_layer"
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 

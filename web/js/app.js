@@ -949,7 +949,7 @@ const TabCopilotConfigs = {
   },
   'skills': {
     title: '您好！我是您的 量化技能治理与编排助手',
-    subtitle: '17项投研技能审计 · 契约门禁热插拔 · 多智能体协同链路诊断',
+    subtitle: '18项投研技能审计 · 契约门禁热插拔 · 多智能体协同链路诊断',
     desc: '统一管控数据源、策略引擎、风控动作及报告渲染中枢。支持<strong>一键健康度体检</strong>、<strong>实时在线调试</strong>与<strong>多智能体多空辩论演练</strong>。',
     quickActions: [
       {
@@ -1290,7 +1290,7 @@ const ViewDescriptions = {
   'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
   'projected-action': '实战交易三原则指令单 (保本价试算器/三级止损)',
-  'skills': '17项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)'
+  'skills': '18项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)'
 };
 
 const ViewHeaderInfo = {
@@ -1299,7 +1299,7 @@ const ViewHeaderInfo = {
   'watchlist': { title: '自选个股深度研判', icon: '⭐', tag: '重点自选多周期量化追踪' },
   'returns': { title: '投资收益全景分析', icon: '💰', tag: '资产净值曲线与多因子归因' },
   'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️', tag: '保本价精算与三级风控指令' },
-  'skills': { title: '技能治理中心', icon: '🧩', tag: '17项量化投研技能生命周期管理' }
+  'skills': { title: '技能治理中心', icon: '🧩', tag: '18项量化投研技能生命周期管理' }
 };
 
 // 切换不同菜单模块 title 栏专属功能按钮：
@@ -3499,7 +3499,7 @@ const PromptTemplates = {
     body: '<p>正在根据市场波动率预期与组合风险目标，提供基于风险平价和分数凯利准则的资产配置调优建议。</p>'
   },
   '18项技能契约全量审计': {
-    title: '17项量化投研技能就地运行与输入输出契约审计报告',
+    title: '18项量化投研技能就地运行与输入输出契约审计报告',
     summary: '零全局污染原则与技能元数据契约完整性审计',
     body: '<p>正在对工作区 .agents/skills/ 下全部 18 项技能进行就地状态核查，检验统一 CLI 调用、降级机制与输入输出规范。</p>'
   },
@@ -8950,7 +8950,7 @@ function showToast(msg) {
 }
 
 // --------------------------------------------------------------------------
-// 9. 17项量化投研技能治理中心 (Skill Governance Subsystem Controller)
+// 9. 18项量化投研技能治理中心 (Skill Governance Subsystem Controller)
 // --------------------------------------------------------------------------
 
 const BuiltinSkillsManifest = [

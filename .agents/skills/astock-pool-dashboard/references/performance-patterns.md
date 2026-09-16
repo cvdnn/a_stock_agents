@@ -29,15 +29,7 @@ df = ak.stock_zh_a_spot_em()  # do not use
 `position_manager.py open` calls `_get_quote()` internally via akshare to fetch current price. This call frequently times out (EastMoney gateway instability), making the open command unreliable.
 
 ### Workaround
-Write directly to `data/positions.csv`. Then sync the selected pool:
-
-```bash
-# Record position
-$ echo "600760,中航沈飞,2026-06-22,41.80,1200,40.00,46.00,航空装备,军工龙头,持有,趋势共振,..." >> data/positions.csv
-
-# Remove from selected pool
-$VENV_PY scripts/pool_manager.py remove --pool selected --code 600760
-```
+不要直接编辑技能目录内的 CSV。通过应用的持仓登记入口录入 `股票代码:股数@成本价`，运行时数据统一保存到 `output/pools/positions.csv`；随后使用 `astock pool list --json` 核对股池状态。
 
 ### Future Fix
 If akshare-proxy-patch stabilizes, the `_get_quote()` call may become reliable again. Re-test before enabling position_manager open as the primary path.
@@ -47,8 +39,8 @@ If akshare-proxy-patch stabilizes, the `_get_quote()` call may become reliable a
 System Python 3.9 has numpy version conflicts with akshare-proxy-patch dependencies. Always use:
 
 ```bash
-VENV_PY="python3"
-# All scripts must invoke via this path
+python scripts/core/cli.py data quote 600760 --json
+# 所有行情请求均通过项目统一 CLI 发起
 ```
 
 ## 4. Data Source Timeouts (Known)

@@ -78,7 +78,7 @@ flowchart TB
         S_Role["model_roles.js (124行)\n7大角色矩阵映射绑定"]
     end
 
-    subgraph SkillsLayer["7. 17项量化技能治理 (web/js/skills/)"]
+    subgraph SkillsLayer["7. 18项量化技能治理 (web/js/skills/)"]
         K_Man["skills_manifest.js (345行)\n18项技能元数据清单"]
         K_Gov["skills_governance.js (356行)\n技能启闭与分类过滤"]
         K_Dbg["skills_debugger.js (223行)\n在线沙箱调试控制台"]

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 股价监控模板 — 用于 no_agent cron 定时任务
-复制此文件到 ~/.AI-Platform/scripts/ 并修改以下配置：
+在当前项目内复制到 temp/monitors/ 并修改以下配置：
   CODE, NAME, TRIGGERS, COST_PRICE, HOLDINGS
 
 触发价从高到低排列（向上/向下混合排列），
@@ -33,11 +33,14 @@ COST_PRICE = 0.0         # 0 表示不计算浮亏
 HOLDINGS = 0
 # ═══════════════════════════════════════════════
 
-STATE_FILE = os.path.expanduser(f"~/.AI-Platform/scripts/stock_monitor_{CODE}_state.json")
-
-
 import sys
 from pathlib import Path
+
+PROJECT_ROOT = next(
+    parent for parent in Path(__file__).resolve().parents
+    if (parent / "scripts" / "core" / "workspace.py").exists()
+)
+STATE_FILE = str(PROJECT_ROOT / "temp" / "monitor-state" / f"stock_monitor_{CODE}_state.json")
 
 # 尝试动态加载 core 模块
 _cur = Path(__file__).resolve().parent

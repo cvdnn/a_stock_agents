@@ -2,7 +2,7 @@
 """
 包装脚本：自动初始化 akshare-proxy-patch 后调用其他 fetch 脚本。
 
-TOKEN 从 ~/.AI-Platform/.env 读取（优先级1），回退到 config.yaml（优先级2）。
+TOKEN 从 AUTH_TOKEN 环境变量或项目根目录 .env 读取（优先级1），回退到 config.yaml（优先级2）。
 
 用法：
   python3 fetch_patched.py fetch_realtime.py --quote 600760
@@ -23,8 +23,14 @@ BALANCE_WARN_THRESHOLD = 100
 
 
 def load_env_token():
-    """从 ~/.AI-Platform/.env 读取 AUTH_TOKEN"""
-    env_path = Path.home() / ".AI-Platform" / ".env"
+    """从环境变量或项目根目录 .env 读取 AUTH_TOKEN。"""
+    if os.environ.get("AUTH_TOKEN"):
+        return os.environ["AUTH_TOKEN"].strip()
+    project_root = next(
+        parent for parent in Path(__file__).resolve().parents
+        if (parent / "scripts" / "core" / "workspace.py").exists()
+    )
+    env_path = project_root / ".env"
     if not env_path.exists():
         return ""
     for line in env_path.read_text().splitlines():
@@ -68,7 +74,7 @@ def install_patch(cfg):
 
     auth_token = load_env_token() or cfg.get("auth_token", "")
     if not auth_token:
-        print("错误: 未找到 AUTH_TOKEN（~/.AI-Platform/.env 或 config.yaml 中均未配置）", file=sys.stderr)
+        print("错误: 未找到 AUTH_TOKEN（环境变量、项目 .env 或 config.yaml 中均未配置）", file=sys.stderr)
         sys.exit(1)
 
     # 积分余额预检

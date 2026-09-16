@@ -46,6 +46,7 @@ class TestCommandsSuite(unittest.TestCase):
             "events", "cyq", "balance", "evaluate", "backtest", "multi-backtest",
             "multi-factor", "portfolio-risk", "mean-reversion", "grid",
             "vol-breakout", "action", "intent", "downside", "report",
+            "strategy", "quant", "shortline", "tips", "validate-model",
             "config", "pool", "position", "data", "skill", "trade", "version"
         ]
 

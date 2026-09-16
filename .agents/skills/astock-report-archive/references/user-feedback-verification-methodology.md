@@ -63,4 +63,4 @@
 
 ## 会话审计实例
 
-参见 [`references/session-audit-case.md`](references/session-audit-case.md) — 8项审计修复的完整记录（评分矛盾、缺失维度、逻辑脱节、路径错误等）。
+参见 [`a-stocks-known-pitfalls.md`](a-stocks-known-pitfalls.md) — 已知的数据、路径与集成问题清单。

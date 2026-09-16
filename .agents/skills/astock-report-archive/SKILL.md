@@ -100,7 +100,7 @@ boll_upper = round(mid+2*std,2); boll_lower = round(mid-2*std,2)
 
 ## 已知问题与调试
 
-参见 [references/a-stocks-known-pitfalls.md](references/a-stocks-known-pitfalls.md) — a-stocks 技能的方法名陷阱、K线端点性能对比、集成冒烟测试，以及 [references/data-audit-20260728.md](references/data-audit-20260728.md) — L1 数据接口审计结果。
+参见 [references/a-stocks-known-pitfalls.md](references/a-stocks-known-pitfalls.md) — 方法名陷阱、K线端点性能对比与集成冒烟测试，以及 [references/user-feedback-verification-methodology.md](references/user-feedback-verification-methodology.md) — 数据和结论复核方法。
 
 ## 用户反馈验证流程
 

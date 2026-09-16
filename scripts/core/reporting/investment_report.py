@@ -91,12 +91,12 @@ def get_technical(code: str) -> dict:
 def _load_proxy_auth() -> tuple[str, str]:
     """从环境读取代理网关与鉴权令牌，避免在源码中硬编码凭据。
 
-    优先级: 环境变量 PROXY_GATEWAY / AUTH_TOKEN → ~/.AI-Platform/.env
+    优先级: 环境变量 PROXY_GATEWAY / AUTH_TOKEN → 项目根目录 .env
     """
     gateway = os.environ.get("PROXY_GATEWAY", "101.201.173.125")
     token = os.environ.get("AUTH_TOKEN", "")
     if not token:
-        env_path = Path.home() / ".AI-Platform" / ".env"
+        env_path = PROJECT_ROOT / ".env"
         if env_path.exists():
             for line in env_path.read_text(encoding="utf-8").splitlines():
                 line = line.strip()

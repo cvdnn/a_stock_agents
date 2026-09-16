@@ -15,9 +15,9 @@
 └──────────────────┘        └──────────────────┘        └──────────────────────┘
 ```
 
-## 三个脚本在 `~/.AI-Platform/scripts/` 下
+## 三个脚本在项目 `temp/monitors/` 下
 
-部署时脚本放在 `~/.AI-Platform/scripts/`，cron使用 `--workdir ~/.AI-Platform/scripts` 确保路径正确。
+部署时脚本放在项目 `temp/monitors/`，调度器工作目录设为项目根目录，运行数据写入 `output/`、日志写入 `log/`、状态写入 `temp/monitor-state/`。
 
 ## Python 3.9 兼容性
 
@@ -29,7 +29,7 @@
 
 ## 状态持久化
 
-每个脚本维护自己的 `_state.json` 文件在 `~/.AI-Platform/scripts/` 下，关键模式：
+每个脚本在 `temp/monitor-state/` 维护自己的 `_state.json` 文件，关键模式：
 - `triggered` 字典按 `{type}_{code}_{date}` 键存储，同一事件同一日只触发一次
 - `first_run_today` 布尔值，每日重置，用于每日首次的特殊提醒
 - 每天启动时清理7天前的旧记录

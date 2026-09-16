@@ -22,7 +22,7 @@
 ## 集成冒烟测试
 
 ```bash
-cd skills/a-stocks/scripts && python3 -c "
+cd .agents/skills/astock-platform-evaluate/scripts && python3 -c "
 from data_bridge import DataBridge; b=DataBridge()
 assert len(b.tencent_kline('600519',30))>=26
 assert b.get_realtime_quote('600519') is not None
@@ -41,7 +41,7 @@ print('OK')
 
 ## 数据接口审计
 
-详见 [`references/data-audit-20260728.md`](references/data-audit-20260728.md) — L1 数据接口的延迟、覆盖率、端点对比审计结果。
+详见 [`user-feedback-verification-methodology.md`](user-feedback-verification-methodology.md) — 数据接口与分析结论的复核方法。
 
 ## 数据解析陷阱: tencent_quote 代码字段污染
 

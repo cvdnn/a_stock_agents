@@ -27,7 +27,7 @@ related_skills: [astock-data-feed, astock-report-archive]
 ## 文件位置
 
 ```
-skills/astock-data-feed/templates/stock-report.html
+.agents/skills/astock-data-feed/templates/stock-report.html
 ```
 
 ## 占位符（8个）
@@ -130,7 +130,7 @@ def calc_min_sell(cost, shares):
 from pathlib import Path
 
 # 1. 读取模板
-template_path = Path("skills/astock-data-feed/templates/stock-report.html")
+template_path = Path(".agents/skills/astock-data-feed/templates/stock-report.html")
 html = template_path.read_text(encoding="utf-8")
 
 # 2. 替换8个占位符

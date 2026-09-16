@@ -64,9 +64,9 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 | :--- | :--- | :--- | :--- |
 | **`astock-data-feed`** | 行情、现价、K线、筹码分布、技术指标、板块资金 | `astock data quote <代码> --json`<br>`astock data tech <代码> --json` | 4级降级实时行情与日K线，全套经典技术指标与筹码模型 |
 | **`astock-platform-evaluate`** | 全流程分析、股票诊断、综合打分、大盘健康度 | `astock evaluate <代码> --json` | 100分制量化打分、解套决策树与大盘健康度综合研判 |
-| **`astock-screener-5a`** | 选股、5A选股、主线轮动、多维评分、牛股挖掘 | `astock screen 5a --json` | 量价/基本面/估值/主线旋转 5 维共振多因子选股模型 |
+| **`astock-screener-5a`** | 选股、5A选股、主线轮动、多维评分、牛股挖掘 | `astock screen --dynamic hot_sectors --json` | 量价/基本面/估值/主线旋转 5 维共振多因子选股模型 |
 | **`astock-quant-engine`** | 截面因子、换手沉淀、MAD去极值、滚动IC | `astock quant pipeline --json` | 工业级量化工程计算流水线与因子合成引擎 |
-| **`astock-action-execution`** | 保本价、止损位、开盘冲高/急跌应对动作单 | `astock action plan --code <代码> --cost <成本> --shares <股数> --json` | 计入全部税费并向上进位至分位（`ceil`）的保本价精算与三级风控 |
+| **`astock-action-execution`** | 保本价、止损位、开盘冲高/急跌应对动作单 | `astock action --code <代码> --cost <成本> --shares <股数> --json` | 计入全部税费并向上进位至分位（`ceil`）的保本价精算与三级风控 |
 | **`astock-strategy-macd`** | 水下二次金叉、MACD底背离、双底形态 | `astock pattern macd <代码> --json` | 波谷极值对比与波段间距过滤的纯粹 MACD 经典形态识别 |
 | **`astock-strategy-tuige`** | 退哥短线、涨停回调、连板接力、龙头首阴 | `astock shortline check --code <代码> --json` | 纪律严明的 A 股短线与接力交易规则库 |
 | **`astock-strategy-chenxiaoqun`** | 陈小群、大连金马路、深水低吸、弱转强、地天板、中军换手板、首阴反包 | `astock pattern chenxiaoqun <代码> --json` | 顶级游资总龙头战法：深水低吸/竞价弱转强/中军做T锁仓/首阴二波 |
@@ -75,8 +75,8 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 | **`astock-pool-audit`** | 审查股票池、清洗失效标的、支撑阻力重算 | `astock pool audit --json` | 自动清洗过期失效标的，更新关键位与止损参考 |
 | **`astock-trade-paper`** | 模拟盘、模拟买入/卖出、账户资金、持仓查询 | `astock trade balance --json`<br>`astock trade buy/sell --json` | 考虑市场冲击滑点与 T+1 硬约束的真实撮合模拟盘 |
 | **`astock-agent-debate`** | 多空辩论、7大分析师辩论、深度研报 | `astock debate <代码> --json` | 基本面/量价/消息/政策/游资/筹码/风控 7 角色对抗研判 |
-| **`astock-report-html`** | HTML报告、可视化报表生成 | `astock report html --code <代码> --json` | 白色亚光背景、红涨绿跌、自包含单文件交互式报告 |
-| **`astock-report-archive`** | 报告归档、多股联合报告 | `astock report generate --json` | 报告结构化持久化规范与多股聚合分析文档 |
+| **`astock-report-html`** | HTML报告、可视化报表生成 | `astock report <代码> --json` | 白色亚光背景、红涨绿跌、自包含单文件交互式报告 |
+| **`astock-report-archive`** | 报告归档、多股联合报告 | `astock report <代码> --json` | 报告结构化持久化规范与多股聚合分析文档 |
 | **`astock-meta-routing`** | 任务路由、大模型选型策略 | `astock tips --json` | 纯分析 vs 代码执行的任务分流规范与模型推荐 |
 | **`astock-knowledge-tips`** | 避坑指南、集合竞价、防被封技巧 | `astock tips --json` | 历史实战踩坑经验、数据源降级策略与风控心法 |
 | **`astock-model-validation`** | 外部AI时序模型检验、样本外回测 | `astock validate-model --json` | 外部时序模型（TimesFM/Kronos）的滚动样本外回测标准 |

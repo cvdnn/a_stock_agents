@@ -37,8 +37,11 @@ BREAK_HIGH = 10.50        # C档 突破追入价
 STOP_LOSS = 9.70          # 止损离场价
 TARGET = 11.20            # 第一目标止盈价
 
-SCRIPT_DIR = Path.home() / ".AI-Platform" / "scripts"
-STATE_FILE = SCRIPT_DIR / f"monitor_{CODE}_limit_state.json"
+PROJECT_ROOT = next(
+    parent for parent in Path(__file__).resolve().parents
+    if (parent / "scripts" / "core" / "workspace.py").exists()
+)
+STATE_FILE = PROJECT_ROOT / "temp" / "monitor-state" / f"monitor_{CODE}_limit_state.json"
 
 
 # 尝试动态加载 core 模块

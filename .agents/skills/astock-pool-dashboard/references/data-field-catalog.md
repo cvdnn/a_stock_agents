@@ -2,10 +2,10 @@
 
 本文件汇总 TradingAgents 系统中所有 CSV 数据文件的完整字段定义，避免跨文件 grep 查找字段名。
 
-## 一、关注股池 (data/watch_pool.csv)
+## 一、关注股池 (`output/pools/watch_pool.csv`)
 
 **定位**：潜力扫描，暂不买入。
-**管理脚本**：`scripts/pool_manager.py`
+**管理入口**：`astock pool list --pool watch --json`
 **字段数**：11
 
 | # | 字段 | 类型 | 必填 | 说明 | 示例 |
@@ -26,10 +26,10 @@
 
 ---
 
-## 二、自选股池 (data/selected_pool.csv)
+## 二、自选股池 (`output/pools/selected_pool.csv`)
 
 **定位**：准备投资，可分析评估。
-**管理脚本**：`scripts/pool_manager.py`
+**管理入口**：`astock pool list --pool selected --json`
 **字段数**：15
 
 | # | 字段 | 类型 | 必填 | 说明 | 示例 |
@@ -52,10 +52,10 @@
 
 ---
 
-## 三、当前持仓 (data/positions.csv)
+## 三、当前持仓 (`output/pools/positions.csv`)
 
 **定位**：已买入持有，实时监控。
-**管理脚本**：`scripts/position_manager.py`
+**管理入口**：`astock position list --json`
 **字段数**：18
 
 | # | 字段 | 类型 | 必填 | 说明 | 示例 |
@@ -81,10 +81,10 @@
 
 ---
 
-## 四、平仓历史 (data/positions_history.csv)
+## 四、平仓历史 (`output/pools/positions_history.csv`)
 
 **定位**：已卖出的交易记录。
-**管理脚本**：`scripts/position_manager.py`
+**管理入口**：`astock position list --history --json`
 **字段数**：16
 
 | # | 字段 | 类型 | 必填 | 说明 | 示例 |

@@ -71,7 +71,7 @@ python3 "$SKILL_DIR/scripts/daily_decisions.py" --json
 示例：
 
 ```bash
-python3 "$SKILL_DIR/scripts/daily_decisions.py" --top-n 120 --holdings "$HOME/my_holdings.txt"
+python3 "$SKILL_DIR/scripts/daily_decisions.py" --top-n 120 --holdings "output/positions/holdings.txt"
 ```
 
 JSON 输出中会同时包含原始候选与过滤后候选：
@@ -87,7 +87,7 @@ JSON 输出中会同时包含原始候选与过滤后候选：
 
 ```bash
 python3 "$SKILL_DIR/scripts/realtime_quotes.py" 600519 000001 601318 --json
-python3 "$SKILL_DIR/scripts/realtime_quotes.py" -f "$HOME/my_holdings.txt" --workers 10
+python3 "$SKILL_DIR/scripts/realtime_quotes.py" -f "output/positions/holdings.txt" --workers 10
 ```
 
 - `--json`：输出统一 JSON（含 `quotes` 与逐条 `details`）  
@@ -114,7 +114,7 @@ python3 "$SKILL_DIR/scripts/realtime_quotes.py" -f "$HOME/my_holdings.txt" --wor
 ```bash
 # 1a. 跑策略得到候选列表（去重合并 from_previous_day_close + from_last_close）
 VENV_PY="python3"
-SKILL_DIR="skills/astock-strategy-mainboard/scripts"
+SKILL_DIR=".agents/skills/astock-strategy-mainboard/scripts"
 "$VENV_PY" "$SKILL_DIR/scripts/daily_decisions.py" --top-n 300 --max-buys 30 --json 2>/dev/null
 
 # 1b. 批量拉实时行情（配合 realtime_quotes.py）

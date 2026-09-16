@@ -30,7 +30,7 @@ AI-Platform 的安全扫描对 Python 代码中的 urllib 请求不触发HTTP阻
 ### 用 a-share-data 的 fetch_realtime.py
 
 ```bash
-python3 ./.AI-Platform/skills/stocks/a-share-data/scripts/fetch_realtime.py --quote 600760 --json
+python scripts/core/cli.py data quote 600760 --json
 ```
 
 脚本内部走新浪/腾讯链路，不受此限制。

@@ -3,7 +3,7 @@
 This project is a self-contained, production-ready quantitative research and multi-agent system for China A-Share markets.
 
 ## Primary Guidelines
-1. **Zero Global Pollution**: All 17 skills are loaded in-place within this workspace. Never copy or install skills to global system directories.
+1. **Zero Global Pollution**: All 18 skills are loaded in-place within this workspace. Never copy or install skills to global system directories.
 2. **Execution Contract**: When performing quant calculations, quotes, 5A screening, or risk control, **always use the unified CLI**:
    - macOS / Linux: `./bin/astock <subcommand> --json`
    - Windows: `.\bin\astock.ps1 <subcommand> --json` (or `.\bin\astock.cmd`)

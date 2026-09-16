@@ -3,7 +3,7 @@
 【模板】硬编码MA20入场监控脚本
 
 使用方式:
-  1. 复制此文件到 ~/.AI-Platform/scripts/entry_monitor_<CODE>.py
+  1. 在当前项目内复制到 temp/monitors/entry_monitor_<CODE>.py
   2. 编辑 STOCK_CONFIG 填入目标股票的MA20值（每日收盘后从策略跑分获取）
   3. 部署 cron: AI-Platform cron create --name "监控名称" --script entry_monitor_<CODE>.py --schedule "every 5m" --no-agent --deliver all
 
@@ -29,10 +29,14 @@ STOCK_CONFIG = {
 }
 # ======================================
 
-STATE_PATH = os.path.expanduser("~/.AI-Platform/scripts/entry_monitor_state.json")
-
 import sys
 from pathlib import Path
+
+PROJECT_ROOT = next(
+    parent for parent in Path(__file__).resolve().parents
+    if (parent / "scripts" / "core" / "workspace.py").exists()
+)
+STATE_PATH = str(PROJECT_ROOT / "temp" / "monitor-state" / "entry_monitor_state.json")
 
 # 尝试动态加载 core 模块
 _cur = Path(__file__).resolve().parent

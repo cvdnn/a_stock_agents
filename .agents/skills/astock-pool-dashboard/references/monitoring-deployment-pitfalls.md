@@ -4,7 +4,7 @@
 
 ### 现象
 
-`sandbox.py` 复制到 `~/.AI-Platform/scripts/` 后，`--json` 输出：
+旧版将 `sandbox.py` 复制到工作区外后，`--json` 曾输出：
 
 ```json
 {"timestamp": "...", "positions": [], "selected": []}
@@ -18,12 +18,12 @@
 SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ```
 
-- 在技能目录运行时：`SKILL_DIR = skills/a-share-dashboard/` → 正确
-- 在 `~/.AI-Platform/scripts/` 运行时：`SKILL_DIR = ~/.AI-Platform/` → 找不到 `data/positions.csv`
+- 在项目内就地运行：通过 `PROJECT_ROOT/output/pools/` 正确读取数据
+- 复制到工作区外：根路径解析失效，可能找不到 `output/pools/positions.csv`
 
 ### 影响范围
 
-所有通过 `cp` 部署到 `~/.AI-Platform/scripts/` 的脚本，如果使用 `SKILL_DIR` 自动解析来定位数据文件，都会受影响：
+所有复制到工作区外、再用脚本相对路径定位数据文件的部署方式都会受影响：
 
 | 脚本 | 数据文件 | 影响 |
 |------|----------|------|
@@ -33,24 +33,19 @@ SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ### 修复
 
-在 `sandbox.py` 和 `position_stop_monitor.py` 顶部加：
+当前修复是从项目的 `scripts/core/workspace.py` 导入根路径：
 
 ```python
-# 部署到 ~/.AI-Platform/scripts/ 后 SKILL_DIR 会解析错误，此处硬编码
-SKILL_DIR = "./.AI-Platform/skills/stocks/a-share-dashboard"
+from scripts.core.workspace import PROJECT_ROOT
+POOLS_DIR = PROJECT_ROOT / "output" / "pools"
 ```
 
-或者创建符号链接：
-
-```bash
-ln -s ./.AI-Platform/skills/stocks/a-share-dashboard/data ./.AI-Platform/scripts/data
-```
+不要创建指向技能目录的兼容符号链接，也不要硬编码用户目录。
 
 ### 验证方法
 
 ```bash
-cd ./.AI-Platform/scripts/
-python3 sandbox.py --positions-json   # 应该输出持仓列表而非空数组
+python .agents/skills/astock-pool-dashboard/scripts/sandbox.py --positions-json
 ```
 
 ## 2. WeChat 推送限流丢失止损信号（2026-06-29 确认）
@@ -105,7 +100,7 @@ AI-Platform cron create \
   --name "gateway-每周重启" \
   --schedule "0 6 * * 0" \
   --no-agent \
-  --script ./.AI-Platform/scripts/gateway_weekly_restart.sh
+  --script temp/monitors/gateway_weekly_restart.sh
 ```
 
 其中脚本内容：

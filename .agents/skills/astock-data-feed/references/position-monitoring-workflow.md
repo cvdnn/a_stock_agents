@@ -62,8 +62,8 @@
 - 用户持仓：4000股，成本价 48.3073
 - 当前价：41.09，浮亏 -14.9%，约 2.89万
 - 触发价：42.5（减1/4）→ 44.0（减1/3）→ 46.0（减剩余）
-- 脚本：`~/.AI-Platform/scripts/stock_monitor_002230.py`
-- 状态文件：`~/.AI-Platform/scripts/stock_monitor_002230_state.json`
+- 脚本：`temp/monitors/stock_monitor_002230.py`
+- 状态文件：`temp/monitor-state/stock_monitor_002230_state.json`
 - 通知：Windows Toast + WeChat（deliver: all）
 - 调度：每5分钟，no_agent=True
 

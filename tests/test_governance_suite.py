@@ -46,11 +46,11 @@ def registry():
 
 
 class TestSkillRegistryCore:
-    """Test 17 skills loading, schema generation, validation, and execution gates."""
+    """Test 18 skills loading, schema generation, validation, and execution gates."""
 
-    def test_all_17_skills_loaded(self, registry: SkillRegistry):
+    def test_all_18_skills_loaded(self, registry: SkillRegistry):
         skills = registry.list_skills()
-        assert len(skills) == 17, f"Expected 17 skills, found {len(skills)}"
+        assert len(skills) == 18, f"Expected 18 skills, found {len(skills)}"
 
         skill_ids = [s.id for s in skills]
         assert "astock-data-feed" in skill_ids
@@ -209,7 +209,7 @@ class TestGovernanceRESTEndpoints:
             resp = client.get("/api/skills")
             assert resp.status_code == 200
             skills = resp.json()
-            assert len(skills) == 17
+            assert len(skills) == 18
 
             # Filter by category
             resp_data = client.get("/api/skills?category=data")
@@ -250,14 +250,15 @@ class TestGovernanceRESTEndpoints:
             assert res["result"]["type"] == "reference"
             assert res["latency_ms"] >= 0
 
-            unavailable = client.post(
-                "/api/skills/astock-report-html/test",
-                json={"parameters": {"code": "600519"}, "confirmed": True},
+            protocol = client.post(
+                "/api/skills/astock-model-validation/test",
+                json={"parameters": {"model_name": "Kronos"}, "confirmed": True},
             )
-            assert unavailable.status_code == 200
-            unavailable_data = unavailable.json()
-            assert unavailable_data["status"] == "unavailable"
-            assert unavailable_data["error"] == "CAPABILITY_NOT_IMPLEMENTED"
+            assert protocol.status_code == 200
+            protocol_data = protocol.json()
+            assert protocol_data["status"] == "success"
+            assert protocol_data["result"]["type"] == "validation_protocol"
+            assert protocol_data["result"]["execution_available"] is False
 
     def test_audit_stats_endpoint(self):
         with TestClient(app) as client:
@@ -297,8 +298,8 @@ class TestAsyncTaskQueue:
                 st = r_poll.json()["status"]
                 if st in ("completed", "failed"):
                     break
-            assert st == "failed"
-            assert r_poll.json()["result"]["status"] == "unavailable"
+            assert st == "completed"
+            assert r_poll.json()["result"]["status"] == "success"
 
             # 3. List tasks
             r_list = client.get("/api/tasks")

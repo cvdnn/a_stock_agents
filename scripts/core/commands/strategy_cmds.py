@@ -368,3 +368,67 @@ def cmd_chenxiaoqun(args):
     else:
         print(ChenXiaoqunStrategyEngine.render_markdown(res))
 
+
+def cmd_strategy_swing(args):
+    """主板趋势回踩策略：单股检查或候选扫描。"""
+    from core.strategy.daily_decisions import DailyDecisionEngine
+
+    engine = DailyDecisionEngine()
+    code = getattr(args, "code", None)
+    if code:
+        result = engine.evaluate_stock(code, history_count=getattr(args, "count", 120))
+    else:
+        candidates = engine.get_swing_candidates(limit=getattr(args, "limit", 10))
+        result = {"status": "success", "action": "candidates", "candidates": candidates}
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def cmd_quant_pipeline(args):
+    """量化工程流水线的仓位与ATR风险摘要。"""
+    from core.strategy.risk_position_manager import PositionSizer
+
+    action = getattr(args, "quant_action", "pipeline") or "pipeline"
+    target_weight = PositionSizer.calculate_portfolio_target_weight(market_volatility_annual=18.5)
+    code = getattr(args, "code", None)
+    result: Dict[str, Any] = {
+        "status": "success",
+        "action": action,
+        "portfolio_target_weight": target_weight,
+        "standard_board_cap": {"mainboard": 0.15, "gem_star": 0.08},
+    }
+    if code:
+        from core.data.data_bridge import DataBridge
+        from core.indicators.technical_indicators import calc_all
+
+        bridge = DataBridge()
+        quote = bridge.get_realtime_quote(code)
+        klines = bridge.tencent_kline(code, count=60)
+        if not quote or not klines or len(klines) < 15:
+            result = {"status": "error", "error": "DATA_UNAVAILABLE", "code": code}
+        else:
+            latest = calc_all(klines).get("latest", {})
+            atr = float(latest.get("atr", 0.0) or float(quote.get("price", 10.0)) * 0.03)
+            price = float(quote.get("price", 0.0))
+            allocation = PositionSizer.calculate_stock_allocation(
+                symbol=code,
+                price=price,
+                atr=atr,
+                total_equity=float(getattr(args, "equity", 200000.0)),
+                portfolio_target_weight=target_weight,
+            )
+            result.update({"code": code, "price": price, "atr": round(atr, 3), "allocation": allocation})
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def cmd_shortline_check(args):
+    """输出退哥短线场景规则；不伪造实时信号。"""
+    result = {
+        "status": "success",
+        "type": "reference",
+        "code": getattr(args, "code", None),
+        "scenario": getattr(args, "scenario", "limit_up_pullback"),
+        "action_guide": "涨停回踩关键均线不破，分歧转一致可轻仓试错；跌破关键均线立即离场。",
+        "live_signal": False,
+    }
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+

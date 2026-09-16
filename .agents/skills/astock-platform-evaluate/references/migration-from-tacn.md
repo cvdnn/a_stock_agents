@@ -2,7 +2,7 @@
 
 ## 背景
 
-2026-07-28: TACN 项目 (`/mnt/c/Users/user/coding/TACN`) 和 TradingAgents 工程将被移除。
+2026-07-28: 旧 TACN 项目和外置 TradingAgents 工程将被移除。
 aStocks 技能完整替代其全部功能，且**独立运行不依赖源代码**。
 
 ## 能力对照

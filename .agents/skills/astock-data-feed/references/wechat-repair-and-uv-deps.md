@@ -17,7 +17,7 @@ AI-Platform WeChat 集成使用 Tencent iLink 平台（ilinkai.weixin.qq.com）�
 ```bash
 AI-Platform send --list                    # 检查 WeChat 目标是否存在
 AI-Platform send --to "weixin:o9cq80_44-iOfvA2ypn-wDE5YJms@im.wechat" "test"  # 测试发送
-grep -i "session\|timeout\|weixin" ~/.AI-Platform/logs/gateway.log | tail -20   # 查看日志
+grep -i "session\|timeout\|weixin" log/gateway.log | tail -20   # 查看日志
 ```
 
 ### 修复步骤
@@ -60,7 +60,7 @@ AI-Platform send --to "weixin:<chat_id>" "测试消息"
 
 1. 浏览器打开 https://ilinkai.weixin.qq.com
 2. 登录你的 WeChat bot 账号，获取新 token
-3. 更新 `~/.AI-Platform/.env` 中的 `WEIXIN_TOKEN`
+3. 更新项目根目录 `.env` 中的 `WEIXIN_TOKEN`（该文件已被 Git 忽略）
 4. `AI-Platform gateway restart`
 
 #### 二维码渲染失败的处理

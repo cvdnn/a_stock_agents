@@ -103,7 +103,7 @@ python3 -c "from tradingagents.graph.trading_graph import 多智能体分析引�
 _TA_PATHS = [
     "./core/multi_agent/_original_src",  # 完整管道（agents/graph/llm_clients）
     "./core/multi_agent",                # 根项目（仅 dataflows/ 时不可用）
-    "~/多智能体辩论框架",                                  # 用户目录
+    "$PROJECT_ROOT/temp/vendor/TradingAgents-astock",       # 项目内临时依赖目录
 ]
 ```
 
@@ -154,7 +154,7 @@ Phase 3 — 执行 & 监控（量化数据与评分）
 
 ```bash
 VENV_PY="python3"
-SKILL_DIR="skills/astock-agent-debate"
+SKILL_DIR=".agents/skills/astock-agent-debate"
 
 # 基础分析（自动同步到自选股池）
 $VENV_PY $SKILL_DIR/scripts/ta_analyze.py 600519 --date 2026-07-09
@@ -437,7 +437,7 @@ _EXECUTE_MAP = {
 6. **A 股数据 vendor 不匹配** — `_original_src/tradingagents/dataflows/` 不含 `a_stock.py`（该文件仅在 GitHub fork 中存在）。本地改用 `akshare/` 子模块。运行时需要在 config 中指定 data_vendors。
 7. **setup.sh 语法陷阱** — bash 脚本顶部不能有 Python 的 `"""..."""` 文档字符串，否则 bash 会报错。必须用 `#` 注释替代。
 8. **模拟盘服务 Python 版本** — 不支持 Python 3.9（pandas 导入 `TypeAlias` 失败）。必须用 Python >= 3.10 的 venv 启动：`$VENV_PY paper_trading_service.py --port 18765`
-9. **符号链接缺失导致监控静默回退** — `a-share-dashboard` 的 cron 脚本部署到 `output/scripts/` 后 `SKILL_DIR` 解析错误，需创建：`ln -sf .../a-share-dashboard/data output/cache/data`
+9. **跨目录复制导致监控静默回退** — 禁止复制技能脚本；监控必须在项目内就地运行，并通过 `PROJECT_ROOT` 读取 `output/pools/`。
 10. **多智能体分析引擎 LLM 调用成本** — 一次完整分析 30-50 次 LLM 调用（20-50 万 token）。首次用 `--phase 2 --brief` 测试。
 11. **数据源冲突** — 数据层请求已统一收敛至 core.data 4级自动降级机制。
 12. **Phase 1 腾讯直连降级** — 当 `fetch_technical.py` 超时（WSL 下常见），自动退回到腾讯实时行情的简化评分，标注 `note="腾讯直连模式"`。
@@ -485,7 +485,7 @@ python3 ta_orchestrator.py --mode check-pool
 - [ ] `ta_analyze.py 600519 --phase 2 --brief` 能跑通多Agent管道
 - [ ] 多智能体分析引擎 `_original_src/` 目录存在完整 `agents/graph/llm_clients` 模块
 - [ ] 多智能体分析引擎 `.env` 文件存在且配置正确
-- [ ] `output/cache/data` 符号链接指向 `a-share-dashboard/data`（`ls -la` 验证）
+- [ ] 监控通过 `PROJECT_ROOT/output/pools/` 读取股池，不依赖符号链接
 - [ ] a-share-paper-trading 服务在端口 18765 监听（用 `curl :18765/health` 验证）
 - [ ] `--paper-trade` 能成功下单到模拟盘
 - [ ] `--deploy-monitor` 能创建 cron 监控任务

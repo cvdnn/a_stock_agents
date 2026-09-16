@@ -35,6 +35,6 @@ def fn():
 
 部署新脚本前：
 ```bash
-grep -n '->' ./.AI-Platform/scripts/xxx.py
+grep -n '->' temp/monitors/xxx.py
 # 如果看到 list[dict] | None、dict[str, Any] | None 等 → 需要移除
 ```

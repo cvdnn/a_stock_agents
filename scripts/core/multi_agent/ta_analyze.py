@@ -45,23 +45,18 @@ except ImportError:
     OUTPUT_POOLS_DIR = OUTPUT_DIR / "pools"
     LOG_DIR = PROJECT_ROOT / "log"
 
-# TradingAgents 项目路径（自动检测）
-_TA_PATHS = [
-    PROJECT_ROOT / "TradingAgents",
-    PROJECT_ROOT.parent / "TradingAgents",
-    Path.home() / "TradingAgents",
-    Path.home() / "TradingAgents-astock",
-    Path.home() / ".TradingAgents",
+# TradingAgents 项目路径：仅显式配置或项目 temp/vendor，禁止扫描用户全局目录。
+_configured_ta_root = os.environ.get("TRADING_AGENTS_ROOT", "").strip()
+_TA_PATHS = ([Path(_configured_ta_root)] if _configured_ta_root else []) + [
+    PROJECT_ROOT / "temp" / "vendor" / "TradingAgents-astock",
 ]
 TA_DIR = next((p for p in _TA_PATHS if p.exists()), None)
 
-# AI-Platform 技能路径（优先系统全局路径，回退本地 skills/）
-AI_PLATFORM_SKILLS = Path.home() / ".AI-Platform" / "skills" / "stocks"
-if not AI_PLATFORM_SKILLS.exists():
-    AI_PLATFORM_SKILLS = SKILLS_DIR
+# 技能始终从当前项目就地加载。
+AI_PLATFORM_SKILLS = SKILLS_DIR
 
 # ta-multi-agent-analysis 技能目录（监控模板所在）
-SKILL_DIR = AI_PLATFORM_SKILLS / "ta-multi-agent-analysis"
+SKILL_DIR = AI_PLATFORM_SKILLS / "astock-agent-debate"
 
 # VENV Python
 VENV_PY = Path(sys.executable)
@@ -158,14 +153,14 @@ def phase1_prescreen(ticker: str, date: str) -> Dict[str, Any]:
     result["realtime"] = _tencent_quote(ticker)
 
     # 2. 技术指标（AI-Platform a-share-data fetch_technical.py，15s超时）
-    tech = _call_ai_platform("a-share-data", "fetch_technical.py",
+    tech = _call_ai_platform("astock-data-feed", "fetch_technical.py",
                         ticker, "--freq", "1d", "--count", "120",
                         "--indicators", "MA,MACD,KDJ,RSI,BOLL",
                         timeout=15)
     result["technical"] = tech
 
     # 3. 板块排行（15s超时）
-    boards = _call_ai_platform("a-share-data", "fetch_realtime.py",
+    boards = _call_ai_platform("astock-data-feed", "fetch_realtime.py",
                           "--boards-summary", "--boards-limit", "30",
                           timeout=15)
 
@@ -289,7 +284,7 @@ def _calc_trading_combo_score(ticker: str, tech: Dict, boards: Dict) -> Dict:
 # 融合评分 & 股池同步（新增：整合优化 P0+P1）
 # ═══════════════════════════════════════════════════════════════════════════════
 
-POOL_MANAGER = AI_PLATFORM_SKILLS / "a-share-dashboard" / "scripts" / "pool_manager.py"
+POOL_MANAGER = AI_PLATFORM_SKILLS / "astock-pool-dashboard" / "scripts" / "pool_manager.py"
 
 
 def _consensus_rating(quant_score: Optional[Dict], ta_decision: Optional[Dict]) -> Dict:
@@ -520,7 +515,7 @@ print("__TA_END__")
 # Phase 3: 模拟盘执行 + 监控部署
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_PAPER_CLI = AI_PLATFORM_SKILLS / "a-share-paper-trading" / "scripts" / "paper_trade_cli.py"
+_PAPER_CLI = AI_PLATFORM_SKILLS / "astock-trade-paper" / "scripts" / "paper_trade_cli.py"
 
 
 def phase3_execute(decision: Dict, ticker: str, paper_account: str = "alpha",

@@ -4,7 +4,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILL_DIR="$(dirname "$SCRIPT_DIR")"
+SKILL_DIR="$SCRIPT_DIR"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 echo "╔══════════════════════════════════════════════════╗"
 echo "║  aStocks Skill 环境安装                           ║"
@@ -21,7 +22,7 @@ PY_VER=$($PYTHON --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1,2)
 echo "  System Python: $($PYTHON --version)"
 
 # ─── 2. 检测 a-share-data skill ──────────────────
-A_SHARE_DATA="./.AI-Platform/skills/stocks/a-share-data"
+A_SHARE_DATA="$PROJECT_ROOT/.agents/skills/astock-data-feed"
 L1_ONLY=false
 if [ -d "$A_SHARE_DATA" ]; then
     echo "  ✅ a-share-data skill: $A_SHARE_DATA"
@@ -32,7 +33,7 @@ else
 fi
 
 # ─── 3. 检测/创建 venv ────────────────────────────
-VENV_DIR="$HOME/.AI-Platform/venvs/a-stocks"
+VENV_DIR="$PROJECT_ROOT/.venv"
 VENV_PY=""
 NEED_VENV_SETUP=false
 
@@ -74,7 +75,8 @@ fi
 echo ""
 echo "  生成配置..."
 
-CONFIG_FILE="$SKILL_DIR/config.yaml"
+CONFIG_FILE="${ASTOCKS_CONFIG_FILE:-$PROJECT_ROOT/temp/setup/astock-platform-evaluate/config.yaml}"
+mkdir -p "$(dirname "$CONFIG_FILE")"
 A_SHARE_VAL="$A_SHARE_DATA"
 if [ ! -d "$A_SHARE_DATA" ]; then
     A_SHARE_VAL=""
@@ -138,40 +140,11 @@ echo ""
 echo "─── 核心功能测试 ───"
 echo ""
 
-echo "  [1/2] L1 腾讯直连 (600519)..."
-TEST_OUT=$($PYTHON -c "
-import urllib.request,json
-try:
-    req=urllib.request.Request('https://qt.gtimg.cn/q=sh600519',headers={'User-Agent':'Mozilla/5.0'})
-    resp=urllib.request.urlopen(req,timeout=10)
-    text=resp.read().decode('gbk')
-    parts=text.split('~')
-    if len(parts)>3:
-        print(f'OK: {parts[1]} ¥{parts[3]}')
-    else:
-        print('FAIL: 响应格式异常')
-except Exception as e:
-    print(f'FAIL: {e}')
-" 2>/dev/null || echo "FAIL: 网络不通")
+echo "  [1/2] 统一 CLI 行情检查 (600519)..."
+"$PYTHON" "$PROJECT_ROOT/scripts/core/cli.py" data quote 600519 --json
 
-echo "  $TEST_OUT"
-
-echo "  [2/2] 技术指标计算..."
-TECH_OUT=$($PYTHON -c "
-import sys; sys.path.insert(0,'$SKILL_DIR/scripts')
-from technical_indicators import calc_all, gap_analysis
-from data_bridge import DataBridge
-bridge = DataBridge()
-klines = bridge.tencent_kline('600519', 60)
-if klines and len(klines) >= 26:
-    tech = calc_all(klines)
-    l = tech['latest']
-    print(f'OK: close={l[\"close\"]} MA5={l.get(\"ma5\",\"N/A\")} MACD_DIF={l.get(\"dif\",\"N/A\")}')
-else:
-    print(f'FAIL: K线不足 ({len(klines)}根)')
-" 2>/dev/null || echo "FAIL: 计算异常")
-
-echo "  $TECH_OUT"
+echo "  [2/2] 统一 CLI 技术指标检查..."
+"$PYTHON" "$PROJECT_ROOT/scripts/core/cli.py" data tech 600519 --count 60 --json
 
 # ─── 6. 完成 ──────────────────────────────────────
 echo ""
@@ -182,9 +155,9 @@ echo "║  环境变量 (可选):                                 ║"
 echo "║    export ASTOCKS_VENV_PY=$VENV_PY"
 echo "║                                                  ║"
 echo "║  命令示例:                                        ║"
-echo "║    python3 $SKILL_DIR/scripts/a_stocks.py quote 600519"
-echo "║    python3 $SKILL_DIR/scripts/a_stocks.py score 600519 --board-top10"
-echo "║    python3 $SKILL_DIR/scripts/a_stocks.py analyze 600519"
+echo "║    $PYTHON $PROJECT_ROOT/scripts/core/cli.py data quote 600519 --json"
+echo "║    $PYTHON $PROJECT_ROOT/scripts/core/cli.py score 600519 --json"
+echo "║    $PYTHON $PROJECT_ROOT/scripts/core/cli.py evaluate 600519 --json"
 echo "║                                                  ║"
 if [ "$L1_ONLY" = true ]; then
 echo "║  ⚠️  L2/L3 需要 a-share-data skill               ║"

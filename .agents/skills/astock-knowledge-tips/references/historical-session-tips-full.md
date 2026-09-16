@@ -146,7 +146,7 @@ Phase 1: 多源数据采集
   │   注意: session_search返回的bookend可能包含全部所需信息
   │
   ├─ HTML报告文件 — 从磁盘读取已生成的报告
-  │   路径: /mnt/c/Users/user/coding/AAAAA/<YYYYMMDD>/*.html
+  │   路径: output/reports/<YYYYMMDD>/*.html
   │   方法: 用execute_code批量读取, re.sub去HTML标签后搜索关键词
   │   关键词: 持仓/成本/买入/卖出/减仓/加仓/股数/市值/占比/FIFO/底仓
   │   注意: bs4可能未安装, 用re+html.unescape替代
@@ -421,11 +421,11 @@ p[30]=时间 p[33]=最高 p[34]=最低 p[38]=换手 p[49]=量比
 
 关键点:
 - **cron no_agent + 空stdout=静默**: 未触发时只 print 一行日志（不推送），触发才 print 提醒（投递）。别在脚本里无条件 print 汇总，否则每 5 分钟刷屏。
-- **状态持久化**: `~/.AI-Platform/scripts/monitor_<code>_limit_state.json` 记录 `triggered` 键，`_<today>` 后缀当日去重，跨日清理。
+- **状态持久化**: `temp/monitor-state/monitor_<code>_limit_state.json` 记录 `triggered` 键，`_<today>` 后缀当日去重，跨日清理。
 - **分档价位来自入场审查**: 回踩低吸区 / 突破价 / 止损 / 第一目标。价位随行情变化需重跑入场审查更新。
 - **部署**:
   ```bash
-  cp templates/monitor_limit_order.py ~/.AI-Platform/scripts/monitor_601138_limit.py
+  cp templates/monitor_limit_order.py temp/monitors/monitor_601138_limit.py
   AI-Platform cron create --name "601138限价单监控" \
     --script monitor_601138_limit.py --schedule "every 5m" --no-agent --deliver all
   ```
@@ -433,7 +433,7 @@ p[30]=时间 p[33]=最高 p[34]=最低 p[38]=换手 p[49]=量比
 
 ### 清理历史监控
 
-设置新监控前先 `cronjob list` 找出旧的股票监控（名含旧代码/旧持仓组合，如 `portfolio_monitor` 全天持仓监控、`monitor_603501`、`auction_000400` 等），逐个 `cronjob remove`。**对应旧脚本文件**（~/.AI-Platform/scripts/ 下的 monitor_*/auction_*/midday_*/portfolio_monitor.py）移到备份目录 `/tmp/backup_old_stock_monitors/` 而非直接删（防误删可恢复）。保留非股票的 cron（gbrain/tA收盘/doc配额等）。
+设置新监控前先列出旧的股票监控（名含旧代码/旧持仓组合），逐个停用。对应的项目内旧脚本从 `temp/monitors/` 移到 `temp/backup_old_stock_monitors/`，保留可恢复性；不要操作工作区外目录。
 
 ## 已知脚本缺陷
 
@@ -455,7 +455,7 @@ p[30]=时间戳 p[32]=涨跌幅% p[33]=最高 p[34]=最低
 ### 执行步骤
 
 1. **解析校验** — 每项 `code:qty@cost`。代码可能误输（6001899→601899 紫金矿业），先用腾讯行情按名称核对再落盘
-2. **追加 positions.csv** — `a-share-dashboard/data/positions.csv`（18列）。已存在代码不重复开仓；只填确定字段 (code/name/buy_date/buy_price/qty)，名称取自腾讯行情 p[1]，sector/止损等未知留空、不臆造
+2. **登记 positions.csv** — 由持仓登记入口写入 `output/pools/positions.csv`（18列）。已存在代码不重复开仓；只填确定字段，未知字段留空、不臆造
 3. **实时盈亏表** — 腾讯 L1 批量直连 `qt.gtimg.cn/q=sh600276,sh601899` 拉现价，输出 成本 vs 现价 + 浮盈亏%（参考 a-stocks `batch` 子命令，注意 #2 缺陷可能空则用单只 quote）
 
 ### 陷阱: positions.csv 可能严重过期
@@ -488,7 +488,7 @@ python3 a_stocks.py analyze 000400
 
 # ✅ 方案C：Python 直接调用
 python3 -c "
-import sys; sys.path.insert(0, './.AI-Platform/skills/stocks/a-stocks/scripts')
+import sys; sys.path.insert(0, 'scripts')
 from data_bridge import DataBridge; from technical_indicators import calc_all
 from combo_scorer import ComboScorer
 klines = DataBridge().tencent_kline('000400', 120)
@@ -647,7 +647,7 @@ python3 a_stocks.py --output json quote 000400
 
 # ✅ 替代: 直接用Python调用（推荐，避免CLI陷阱）
 python3 -c "
-import sys; sys.path.insert(0, './.AI-Platform/skills/stocks/a-stocks/scripts')
+import sys; sys.path.insert(0, 'scripts')
 from data_bridge import DataBridge
 q = DataBridge().get_realtime_quote('000400')
 import json; print(json.dumps(q, ensure_ascii=False, indent=2))
@@ -803,10 +803,10 @@ Phase 4: LLM 多视角推理 (零额外API调用)
   └─ 核心矛盾识别 (如"仓位过重+评级D=必须减仓")
 
 Phase 5: 生成HTML报告 (stock-report.html模板)
-  ├─ 读取: skills/a-share-data/templates/stock-report.html
+  ├─ 读取: .agents/skills/astock-data-feed/templates/stock-report.html
   ├─ 替换8个占位符: {{TITLE}} {{DATE}} {{HEADER_TAG}} {{MAIN_TITLE}}
   │   {{SUB_TITLE}} {{HEADER_STATS}} {{CONTENT}} {{FOOTER_TEXT}}
-  ├─ 保存: /mnt/c/Users/user/coding/AAAAA/<YYYYMMDD>/早报_*.html
+  ├─ 保存: output/reports/<YYYYMMDD>/早报_*.html
   └─ 弹出: cmd.exe /c start "" "C:\...\早报_*.html"
 ```
 
@@ -1336,7 +1336,7 @@ RotationBacktest(
 ### 环境前提(Win 桌面,无消息渠道时)
 - **AI-Platform 桌面/CLI 会话没有 cron 实时投递通道**: 创建 cron 时 deliver 自动为 `local`,输出只保存不推送;config.yaml 无 bot token(Telegram/微信)时,唯一可靠通知 = **Windows Toast 弹窗**。
 - Gateway 必须先跑: `AI-Platform gateway install`(Win 下直接 spawn + 装开机自启项),再 `AI-Platform cron status` 确认 running,否则 cron 不触发。
-- 脚本放 `~/AppData/Local/AI-Platform/scripts/`(Windows)或 `~/.AI-Platform/scripts/`(WSL),cron 用脚本名引用。
+- 脚本只放在当前项目的 `temp/monitors/`，调度时以项目根目录为工作目录。
 
 ### 部署步骤
 1. 写独立脚本: 腾讯行情直连(qt.gtimg.cn, urllib→curl 双兜底, GBK 解码) → 计算 距止损%/距MA20% → 触发检查(跌破止损/逼近<1%/反抽减仓区/加仓位)→ PowerShell NotifyIcon 弹窗 + print stdout。
@@ -1355,7 +1355,7 @@ RotationBacktest(
 用户要求"每天 X:XX / Y:YY 审查持仓股池的综合信息 + 技术指标 + 主力动作 + 评估持仓策略"时的标准部署。比 `templates/periodic_reminder.py`(硬编码 CODES/LEVELS 简版提醒)更完整：**动态读 positions.csv、覆盖全持仓、含技术指标与主力动作推断、输出策略信号**。可复制模板见 `templates/portfolio_review.py`。
 
 ### 脚本要点 (templates/portfolio_review.py)
-- **动态读持仓**: `a-share-dashboard/data/positions.csv`(code/name/buy_price/qty) → 全池自动纳入，加仓/清仓后无需改脚本
+- **动态读持仓**: `output/pools/positions.csv`(code/name/buy_price/qty) → 全池自动纳入，加仓/清仓后无需改脚本
 - **实时行情批量**(腾讯 qt.gtimg.cn): p[3]=现价 p[32]=涨跌幅% p[38]=换手 p[49]=量比 p[7]=外盘 p[8]=内盘；urllib→curl 双兜底
 - **K线+技术指标**: curl `ifzq.gtimg.cn/.../fqkline/get` 落盘(规避 urllib SSL 挂起) → `sys.path.insert` 指向 Windows a-stocks scripts 后 `from technical_indicators import calc_all`，`tech["latest"]` 出 MA/MACD(MACD红柱=macd_bar)/KDJ(kdj_j)/RSI/BOLL/ATR
 - **主力动作推断**(L1无CYQ/资金流时): 量比>1.5+涨=放量偏多 / 量比>1.5+跌=主力杀跌 / 量比<0.8=缩量观望 / 外盘占比判多空拉锯
@@ -1364,7 +1364,7 @@ RotationBacktest(
 - 输出: stdout(存档) + Windows Toast(唯一可见通知)，session 按当前小时判断早盘/午后
 
 ### 部署
-1. `cp templates/portfolio_review.py ~/AppData/Local/AI-Platform/scripts/portfolio_review.py`，改 STOP_LEVELS(持仓代码/止损)
+1. `cp templates/portfolio_review.py temp/monitors/portfolio_review.py`，改 STOP_LEVELS(持仓代码/止损)
 2. 手动 `python <script>` 跑一次验证输出与弹窗
 3. 两个 cron(no_agent, deliver=local, workdir=脚本目录)分开建：
    ```bash
@@ -1380,9 +1380,9 @@ RotationBacktest(
 
 ## 已知缺陷 #20: 技能文档路径是 WSL 的,Windows 桌面环境需重映射 (2026-08-14实测)
 
-- 文档中的 `SKILL_DIR=./.AI-Platform/...`、`venv_python=python3` 在 Windows 主机(git-bash)不存在;系统 `python`(3.11)通常**无 pandas** → `fetch_realtime.py` 报 ModuleNotFoundError(不是接口故障)。
-- Windows 实际路径: `C:\Users\<user>\AppData\Local\AI-Platform\skills\stocks\a-share-data\scripts`。
-- **Win 下可靠数据链路(零依赖,全流程可用)**: ① 实时/竞价/五档: `curl "https://qt.gtimg.cn/q=shXXXXXX,..."` GBK 解码直接用(股票字段 p[3]=现价 p[4]=昨收 p[30]=时间);② 日K: `curl "https://ifzq.gtimg.cn/appstock/app/fqkline/get?param=shXXXXXX,day,,,140,qfq"` 落盘 JSON,取 `qfqday`/`day` 键,list-of-lists [date,open,close,high,low,vol];③ 技术指标 MA/MACD/KDJ/RSI/BOLL 用零依赖 Python 自算(EMA/RSV 公式 ~40 行)。不依赖技能脚本即可完成完整早盘分析。
+- 旧文档中的全局技能目录与系统 Python 假设已废弃；统一从项目根目录发现 `.agents/skills/` 并优先使用项目虚拟环境。
+- Windows、Linux 与 macOS 均从项目根目录的 `.agents/skills/astock-data-feed/` 就地发现技能，不依赖用户目录中的全局安装。
+- **跨平台可靠数据链路**：统一调用 `astock data quote <代码> --json`、`astock data kline <代码> --json` 与 `astock data tech <代码> --json`；数据源降级和指标计算由项目内置 CLI 负责，禁止另写临时爬虫绕过该入口。
 
 ## 工作流规范: 报告生成后提问是否弹出在浏览器中显示 (2026-08-26 确立)
 

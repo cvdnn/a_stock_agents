@@ -136,7 +136,7 @@
 
 - [ ] **Step 1: Add failing handler truthfulness tests**
 
-  Parameterize all 17 canonical Skills and legacy handlers. When a backend is absent or raises, require either explicit `status=error` or exact `{"status":"unavailable","error":"CAPABILITY_NOT_IMPLEMENTED","skill_id":"..."}`. Assert no fixed `active`, `simulated`, `passed`, `archived`, `ready`, IC `0.065`, 52/48 debate, default 10-yuan quote, 65/B score, or million-yuan account is emitted.
+  Parameterize all 18 canonical Skills and legacy handlers. When a backend is absent or raises, require either explicit `status=error` or exact `{"status":"unavailable","error":"CAPABILITY_NOT_IMPLEMENTED","skill_id":"..."}`. Assert no fixed `active`, `simulated`, `passed`, `archived`, `ready`, IC `0.065`, 52/48 debate, default 10-yuan quote, 65/B score, or million-yuan account is emitted.
 
 - [ ] **Step 2: Add failing runner status tests**
 

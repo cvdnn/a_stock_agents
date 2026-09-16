@@ -7,8 +7,8 @@
 
 使用前必改:
   1. STOP_LEVELS 止损常量 — 来自当日早盘审查，行情变化后重跑审查更新
-  2. POSITIONS_CSV / SCRIPTS_DIR 路径按环境调整 (Windows 桌面 / WSL 不同)
-部署: cp 到 ~/AppData/Local/AI-Platform/scripts/ 后手动 python 验证 →
+  2. 所有路径从当前项目根目录自动发现，不复制到用户全局目录
+部署: 在当前项目内就地验证 →
       AI-Platform cron create --script <name>.py --schedule "40 9 * * 1-5" --no-agent --deliver local
       AI-Platform cron create --script <name>.py --schedule "10 13 * * 1-5" --no-agent --deliver local
 """
@@ -19,11 +19,17 @@ import re
 import subprocess
 import sys
 import urllib.request
+from pathlib import Path
 
 # ── 路径 ──
-SCRIPTS_DIR = os.path.expanduser("~/AppData/Local/AI-Platform/skills/stocks/a-stocks/scripts")
-POSITIONS_CSV = os.path.expanduser("~/AppData/Local/AI-Platform/skills/stocks/a-share-dashboard/data/positions.csv")
-sys.path.insert(0, SCRIPTS_DIR)
+PROJECT_ROOT = next(
+    parent for parent in Path(__file__).resolve().parents
+    if (parent / "scripts" / "core" / "workspace.py").exists()
+)
+SCRIPTS_DIR = PROJECT_ROOT / "scripts" / "core" / "indicators"
+POSITIONS_CSV = PROJECT_ROOT / "output" / "pools" / "positions.csv"
+TEMP_DIR = PROJECT_ROOT / "temp"
+sys.path.insert(0, str(SCRIPTS_DIR))
 from technical_indicators import calc_all  # noqa: E402
 
 # ── 持仓止损纪律 (优先从 positions.csv 的 stop_loss 字段自动读取，亦支持覆盖) ──
@@ -76,7 +82,8 @@ def get_quotes(codes):
 
 def get_kline_tech(code, market="sh", count=120):
     """腾讯K线 → 技术指标, curl 落盘规避 urllib SSL 挂起"""
-    tmp = os.path.join(os.environ.get("LOCALAPPDATA", "/tmp"), "astk_kl_" + code + ".json")
+    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = str(TEMP_DIR / ("astk_kl_" + code + ".json"))
     url = f"https://ifzq.gtimg.cn/appstock/app/fqkline/get?param={market}{code},day,,,{count},qfq"
     ok = False
     for _ in range(3):
@@ -108,16 +115,10 @@ def get_kline_tech(code, market="sh", count=120):
     except Exception:
         return None
 
-from pathlib import Path
-
 # 尝试动态加载 core 模块
-_cur = Path(__file__).resolve().parent
-while _cur.parent != _cur:
-    if (_cur / "pyproject.toml").exists() and (_cur / "core").exists():
-        if str(_cur) not in sys.path:
-            sys.path.insert(0, str(_cur))
-        break
-    _cur = _cur.parent
+scripts_root = PROJECT_ROOT / "scripts"
+if str(scripts_root) not in sys.path:
+    sys.path.insert(0, str(scripts_root))
 
 try:
     from core.monitor import send_windows_toast as _core_send_toast

@@ -61,7 +61,7 @@
         "样本外回测"
       ],
       "entry_point": "core/models/multi_dim_model.py",
-      "cli_command": "astock screen 5a",
+      "cli_command": "astock screen --dynamic hot_sectors",
       "skill_doc": ".agents/skills/astock-screener-5a/SKILL.md",
       "recommended_model": "pro"
     },
@@ -176,7 +176,7 @@
         "短线卖点"
       ],
       "entry_point": ".agents/skills/astock-strategy-tuige/SKILL.md",
-      "cli_command": "astock shortline check",
+      "cli_command": "astock shortline check --code {code}",
       "skill_doc": ".agents/skills/astock-strategy-tuige/SKILL.md",
       "recommended_model": "inherit"
     },
@@ -214,7 +214,7 @@
         "三场景动作"
       ],
       "entry_point": "core/strategy/execution_action_engine.py",
-      "cli_command": "astock action plan",
+      "cli_command": "astock action --code {code} --cost {cost} --shares {shares}",
       "skill_doc": ".agents/skills/astock-action-execution/SKILL.md",
       "recommended_model": "inherit"
     },
@@ -248,7 +248,7 @@
         "复盘报告"
       ],
       "entry_point": ".agents/skills/astock-report-archive/SKILL.md",
-      "cli_command": "astock report generate",
+      "cli_command": "astock report {code}",
       "skill_doc": ".agents/skills/astock-report-archive/SKILL.md",
       "recommended_model": "inherit"
     },
@@ -265,7 +265,7 @@
         "可视化页面"
       ],
       "entry_point": ".agents/skills/astock-report-html/SKILL.md",
-      "cli_command": "astock report html",
+      "cli_command": "astock report {code}",
       "skill_doc": ".agents/skills/astock-report-html/SKILL.md",
       "recommended_model": "flash"
     },
@@ -299,7 +299,7 @@
         "模型打擂台"
       ],
       "entry_point": ".agents/skills/astock-model-validation/SKILL.md",
-      "cli_command": "astock validate-model",
+      "cli_command": "astock validate-model --model {model_name} --code {code}",
       "skill_doc": ".agents/skills/astock-model-validation/SKILL.md",
       "recommended_model": "inherit"
     },
@@ -316,7 +316,7 @@
         "执行规约"
       ],
       "entry_point": ".agents/skills/astock-meta-routing/SKILL.md",
-      "cli_command": "astock tips",
+      "cli_command": "astock intent \"{task_description}\"",
       "skill_doc": ".agents/skills/astock-meta-routing/SKILL.md",
       "recommended_model": "flash"
     },

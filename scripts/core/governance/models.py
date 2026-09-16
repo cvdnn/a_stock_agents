@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 class SkillRiskLevel(str, Enum):
     """Risk tier classification for skill execution and security gatekeeping."""
     READONLY = "readonly"          # 只读研判 (行情/选股/评分/诊断)
+    FILESYSTEM_WRITE = "filesystem_write"  # 生成报告、维护股池等项目内可恢复写入
     SIMULATION = "simulation"      # 模拟交易 (模拟盘下单/调仓/撤单，默认需要二次确认)
     DESTRUCTIVE = "destructive"    # 高危变更 (清空数据/策略参数重置)
 

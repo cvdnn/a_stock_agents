@@ -665,7 +665,44 @@ def _sync_astock_strategy_macd(code: str) -> Dict[str, Any]:
     }
 
 
+def _sync_astock_strategy_chenxiaoqun(
+    code: str,
+    cost: Optional[float] = None,
+    shares: int = 1000,
+    count: int = 60,
+) -> Dict[str, Any]:
+    try:
+        import sys
+        from core.config import PROJECT_ROOT
+
+        script_dir = PROJECT_ROOT / ".agents" / "skills" / "astock-strategy-chenxiaoqun" / "scripts"
+        if str(script_dir) not in sys.path:
+            sys.path.insert(0, str(script_dir))
+        from chenxiaoqun_check import ChenXiaoqunStrategyEngine
+
+        result = ChenXiaoqunStrategyEngine.evaluate(
+            code=str(code).strip(), cost=cost, shares=shares, count=count
+        )
+        result.setdefault("status", "success")
+        return result
+    except Exception as exc:
+        logger.error("Error in _sync_astock_strategy_chenxiaoqun: %s", exc, exc_info=True)
+        return {
+            "status": "error",
+            "error": "CAPABILITY_EXECUTION_FAILED",
+            "code": code,
+            "detail": str(exc),
+        }
+
+
 def _sync_astock_pool_audit(fix: bool = False, **kwargs: Any) -> Dict[str, Any]:
+    if fix:
+        return {
+            "status": "error",
+            "error": "MUTATION_NOT_IMPLEMENTED",
+            "fix": True,
+            "message": "自动清洗尚未实现，已拒绝静默修改；请先使用只读审查结果人工确认。",
+        }
     try:
         from core.strategy.pool_manager import PoolManager
         pm = PoolManager()
@@ -685,7 +722,14 @@ def _sync_astock_pool_audit(fix: bool = False, **kwargs: Any) -> Dict[str, Any]:
 
 
 def _sync_astock_report_archive(code: Optional[str] = None, report_type: Optional[str] = None) -> Dict[str, Any]:
-    return _unavailable("astock-report-archive")
+    if not code:
+        return {"status": "error", "error": "MISSING_CODE", "message": "报告归档需要股票代码。"}
+    result = _sync_astock_report_html(code=code)
+    if result.get("status") == "success":
+        result["skill_id"] = "astock-report-archive"
+        result["report_type"] = report_type or "evaluation"
+        result["archived"] = True
+    return result
 
 
 
@@ -781,7 +825,15 @@ def _sync_astock_knowledge_tips(topic: str = "all") -> Dict[str, Any]:
 
 
 def _sync_astock_model_validation(model_name: str = "Kronos", code: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
-    return _unavailable("astock-model-validation")
+    return {
+        "status": "success",
+        "type": "validation_protocol",
+        "model_name": model_name,
+        "code": code,
+        "execution_available": False,
+        "steps": ["滚动样本外切分", "与朴素基线对比", "计入A股交易摩擦", "报告IC、回撤与稳定性"],
+        "message": "已提供验证协议；未安装目标模型时不伪造预测或回测结果。",
+    }
 
 
 def _sync_astock_meta_routing(task_description: str, **kwargs: Any) -> Dict[str, Any]:
@@ -804,7 +856,7 @@ TOOL_MAP: Dict[str, Callable[..., Any]] = {
     "astock_action_plan": _sync_astock_action_plan,
     "astock_evaluate": _sync_astock_evaluate,
     "astock_screen_5a": _sync_astock_screen_5a,
-    # Phase 2 Unified 17 Skills Mappings
+    # Phase 2 Unified 18 Skills Mappings
     "astock_data_feed": _sync_astock_data_feed,
     "astock-data-feed": _sync_astock_data_feed,
     "astock_platform_evaluate": _sync_astock_evaluate,
@@ -839,6 +891,8 @@ TOOL_MAP: Dict[str, Callable[..., Any]] = {
     "astock-model-validation": _sync_astock_model_validation,
     "astock_meta_routing": _sync_astock_meta_routing,
     "astock-meta-routing": _sync_astock_meta_routing,
+    "astock_strategy_chenxiaoqun": _sync_astock_strategy_chenxiaoqun,
+    "astock-strategy-chenxiaoqun": _sync_astock_strategy_chenxiaoqun,
 }
 
 

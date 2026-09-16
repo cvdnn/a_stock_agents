@@ -1,7 +1,7 @@
 """akshare-proxy-patch: 在导入 akshare 前安装 patch 绕过东财反爬。
 
 TOKEN 解析优先级：
-  1. ~/.AI-Platform/.env 文件（推荐）
+  1. AUTH_TOKEN 环境变量或项目根目录 .env（推荐）
   2. config.yaml 的 proxy_patch.auth_token（向后兼容）
 用法: 在所有使用 akshare 东财接口的脚本顶部添加:
     from _init_patch import patched_akshare as ak
@@ -12,8 +12,14 @@ from pathlib import Path
 
 
 def _load_env_token():
-    """从 ~/.AI-Platform/.env 读取 AUTH_TOKEN"""
-    env_path = Path.home() / ".AI-Platform" / ".env"
+    """从环境变量或项目根目录 .env 读取 AUTH_TOKEN。"""
+    if os.environ.get("AUTH_TOKEN"):
+        return os.environ["AUTH_TOKEN"].strip()
+    project_root = next(
+        parent for parent in Path(__file__).resolve().parents
+        if (parent / "scripts" / "core" / "workspace.py").exists()
+    )
+    env_path = project_root / ".env"
     if not env_path.exists():
         return ""
     for line in env_path.read_text().splitlines():

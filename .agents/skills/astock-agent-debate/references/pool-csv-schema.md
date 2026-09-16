@@ -2,7 +2,7 @@
 
 本文档定义 `a-share-dashboard` 的股池 CSV 与 `ta-multi-agent-analysis` 之间的数据交换格式。
 
-## 自选股池 (`data/selected_pool.csv`)
+## 自选股池 (`output/pools/selected_pool.csv`)
 
 ### 完整列定义
 
@@ -38,7 +38,7 @@
 # HOLD → 不操作 CSV，仅内部记录
 ```
 
-## 关注股池 (`data/watch_pool.csv`)
+## 关注股池 (`output/pools/watch_pool.csv`)
 
 ### 完整列定义
 
@@ -68,7 +68,8 @@ import csv
 from pathlib import Path
 
 # 读取自选股池
-path = Path.home() / ".AI-Platform" / "skills" / "stocks" / "a-share-dashboard" / "data" / "selected_pool.csv"
+from scripts.core.workspace import PROJECT_ROOT
+path = PROJECT_ROOT / "output" / "pools" / "selected_pool.csv"
 with open(path) as f:
     rows = list(csv.DictReader(f))
 

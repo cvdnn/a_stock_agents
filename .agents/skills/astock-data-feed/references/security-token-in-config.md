@@ -1,77 +1,38 @@
-# Token 配置方案：~/.AI-Platform/.env
+# Token 配置方案：环境变量或项目 `.env`
 
-## 背景
+## 原则
 
-`scripts/config.yaml` 原有的 `proxy_patch.auth_token` 字段明文存储代理网关令牌。
-该文件位于 skill 目录下，若被共享、备份、提交到 Git，token 即泄露。
+`scripts/config.yaml` 的 `proxy_patch.auth_token` 保持为空，避免令牌进入技能目录、备份或版本控制。项目技能只在当前工作区内运行，不向用户全局目录复制配置。
 
-**已迁出到 `~/.AI-Platform/.env`，config.yaml 中 `auth_token` 已清空。**
+## 解析优先级
 
-## 当前方案（2026-07-15 最终落地）
+1. 进程环境变量 `AUTH_TOKEN`。
+2. 项目根目录 `.env` 中的 `AUTH_TOKEN=...`（`.gitignore` 已排除）。
+3. `scripts/config.yaml` 的空值兼容字段。
 
-### 文件布局
+## 新机器配置
 
-| 文件 | 内容 | 职责 |
-|------|------|------|
-| `~/.AI-Platform/.env` | `AUTH_TOKEN=***` | 唯一 Token 存储点 |
-| `scripts/config.yaml` | `auth_token: ""` | 已清空（向后兼容兜底） |
-| `scripts/_init_patch.py` | 解析 `.env` 回退 config.yaml | Token 读取逻辑 |
-| `scripts/fetch_patched.py` | 同上 + 余额预检 | Token 读取 + 余额检查 |
+PowerShell：
 
-### Token 解析优先级
-
-```
-1. ~/.AI-Platform/.env -> AUTH_TOKEN= 行           推荐（唯一入口）
-2. config.yaml -> proxy_patch.auth_token      向后兼容（已清空）
+```powershell
+$env:AUTH_TOKEN = "你的TOKEN"
+.\bin\astock.ps1 data quote 600519 --json
 ```
 
-### 标准读取模式
-
-```python
-from pathlib import Path
-
-env_path = Path.home() / ".AI-Platform" / ".env"
-if env_path.exists():
-    for line in env_path.read_text().splitlines():
-        line = line.strip()
-        if line.startswith("AUTH_TOKEN="):
-            auth_token = line.split("=", 1)[1].strip().strip("\"'")
-else:
-    cfg = yaml.safe_load(open(config_path))
-    auth_token = cfg["proxy_patch"].get("auth_token", "")
-```
-
-## 在新机器部署
+Bash：
 
 ```bash
-echo 'AUTH_TOKEN=你的TOKEN' > ~/.AI-Platform/.env
+export AUTH_TOKEN="你的TOKEN"
+./bin/astock data quote 600519 --json
 ```
 
-无需修改 `.bashrc`、无需设置环境变量。所有脚本自动读取。
+如需会话间保留，可在项目根目录创建未跟踪的 `.env`，不要把令牌写入技能或系统全局目录。
 
-## 与旧方案的差异
-
-| 维度 | 旧方案（.bashrc + os.environ） | 新方案（~/.AI-Platform/.env） |
-|------|:-------------------------------:|:------------------------:|
-| 存储位置 | Shell 配置文件，随 Shell 状态变化 | 独立文件，AI-Platform 平台无关 |
-| 读取方式 | `os.environ.get("AUTH_TOKEN")` | 显式文件解析 |
-| Shell 依赖 | 需要 `source ~/.bashrc` | 无 |
-| 权限管理 | 与 .bashrc 同级 | 可独立设置 600 |
-
-## 验证方法
+## 验证
 
 ```bash
-# 1. 确认 config.yaml 无明文 token
-grep "auth_token" ./.AI-Platform/skills/stocks/a-share-data/scripts/config.yaml
-# 输出应为: auth_token: ""
-
-# 2. 确认 .env 文件存在且格式正确
-cat ~/.AI-Platform/.env
-# 输出: AUTH_TOKEN=20260616...
-
-# 3. 全链路测试（无需 AUTH_TOKEN 环境变量）
-VENV_PY="/path/to/venv/bin/python3"
-SKILL_DIR="./.AI-Platform/skills/stocks/a-share-data/scripts"
-$VENV_PY "$SKILL_DIR/fetch_patched.py" fetch_realtime.py --quote 600519 --json
-# 应正常返回实时行情
+grep "auth_token" .agents/skills/astock-data-feed/scripts/config.yaml
+python scripts/core/cli.py data quote 600519 --json
 ```
+
+第一条应显示 `auth_token: ""`；第二条应返回结构化 JSON。

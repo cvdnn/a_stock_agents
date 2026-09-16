@@ -17,7 +17,7 @@
 **发现：** A1。**文件：** 修改 `scripts/core/governance/skill_registry.py`、`scripts/server/agent/tools.py`、`scripts/server/agent/react_runner.py`、`scripts/server/app.py`、`scripts/server/models.py`、`scripts/server/db.py`、`scripts/server/api/chat.py`；新增 `scripts/server/agent/tool_execution.py`；扩展 `tests/test_governance_suite.py`、`tests/test_server_suite.py`。
 
 - [ ] 增加 scripted provider：第一轮请求被禁用/需确认的技能，第二轮读取观察。注册 spy handler；旧运行时会绕过门禁调用 spy，测试必须先失败。四种变体断言 handler调用次数=0：禁用、未确认、参数非法、tools_enabled=false。
-- [ ] 明确所有 legacy/下划线别名到17项规范ID的映射。新增 `resolve_skill_call(tool_name, arguments) -> (skill_id, params)`，不得仅替换 `_` 为 `-`：astock_quote 映射 data-feed 的 action=quote，astock_technical 映射 action=tech，action_plan 映射 action-execution。映射在一个表内并逐条测试。
+- [ ] 明确所有 legacy/下划线别名到18项规范ID的映射。新增 `resolve_skill_call(tool_name, arguments) -> (skill_id, params)`，不得仅替换 `_` 为 `-`：astock_quote 映射 data-feed 的 action=quote，astock_technical 映射 action=tech，action_plan 映射 action-execution。映射在一个表内并逐条测试。
 - [ ] 新增 `execute_governed_tool(tool_name, arguments, *, registry, confirmed=False)`。仅 adapter 调 registry.execute_skill；registry handler 由 app 启动时装配，移除 core.governance 内对 server.agent.tools 的运行时反向导入。执行状态保留 success/error/timeout/confirmation_required，不再按 error 键推断全部状态。
 - [ ] 将 runner 内直调 execute_tool 替换为该 adapter；工具清单过滤与执行端校验均保留。拒绝和超时记一条审计，异常不要重复计两次。同步有副作用工具超时后不能后台继续写数据：采用受控子进程或可取消执行方式，并在本任务测试“超时后等待仍无写入”。
 - [ ] 在 db.py 新增 pending_tool_calls 表，字段为 call_id、session_id、skill_id、params_json、expires_at、status。服务端保存原参数，用户续跑只提交 `confirm_call_id`；ChatMessageRequest 新字段只能由 HTTP 请求提供，模型参数不能给 confirmed=true。原子地将 pending 改 running，过期/跨会话/重复请求拒绝；结果完成后存 consumed。
@@ -41,7 +41,7 @@ assert handler.call_count == 1
 
 **发现：** A2。**文件：** 修改 tools.py、registry 的能力描述；新增 `docs/specs/architecture/arch-skill-capability-acceptance.md`；扩展 test_server_suite.py。
 
-- [ ] 清点全部17项和 legacy aliases，台账逐行列出 handler、真实目标、输入schema、产物、网络/模型依赖、当前实现状态。新增参数化测试直接覆盖所有 handler 的异常路径。
+- [ ] 清点全部18项和 legacy aliases，台账逐行列出 handler、真实目标、输入schema、产物、网络/模型依赖、当前实现状态。新增参数化测试直接覆盖所有 handler 的异常路径。
 - [ ] pool audit、archive、html、model validation、debate、quant、trade、mainboard 等占位/错误降级不再返回通过、active、simulated 或 fabricated metrics。统一未实现输出：
 
 ```python

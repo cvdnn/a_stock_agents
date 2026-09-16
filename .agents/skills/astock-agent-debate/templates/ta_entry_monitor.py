@@ -5,7 +5,7 @@ ta_entry_monitor.py - TradingAgents 入场/止损 cron 监控模板
 no_agent 模式：无事件时静默退出（不推送空壳信息）。
 
 用法：
-  1. 复制到 ~/.AI-Platform/scripts/ta_monitor_{CODE}.py
+  1. 在当前项目内复制到 temp/monitors/ta_monitor_{CODE}.py
   2. 编辑下方 STOCK_CONFIG
   3. 部署 cron:
      AI-Platform cron create --name "TA监控-{CODE}" --script ta_monitor_{CODE}.py \
@@ -46,7 +46,11 @@ def _get_ma20_estimate(code: str) -> Optional[float]:
 
 # ── 核心逻辑（通常无需修改）────────────────────────────────────────────────────
 
-STATE_FILE = Path.home() / ".AI-Platform" / "scripts" / f"ta_monitor_{STOCK_CONFIG['code']}_state.json"
+PROJECT_ROOT = next(
+    parent for parent in Path(__file__).resolve().parents
+    if (parent / "scripts" / "core" / "workspace.py").exists()
+)
+STATE_FILE = PROJECT_ROOT / "temp" / "monitor-state" / f"ta_monitor_{STOCK_CONFIG['code']}_state.json"
 CODE = STOCK_CONFIG["code"]
 PREFIX = "sh" if CODE.startswith(("6", "9")) else "sz" if CODE.startswith(("0", "3")) else "bj"
 

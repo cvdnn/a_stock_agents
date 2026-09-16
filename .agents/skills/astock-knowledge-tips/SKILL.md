@@ -79,4 +79,4 @@ tags: [A股, 避坑指南, 实战经验, 数据降级, 早盘复盘, SOP]
 ### 2. 架构决策与历史审计归档 (Architecture Decision Records)
 
 历史阶段性回测审查、模型 v2/v3 理论设计与缺陷审计已统一迁移归档至 `references/archive/`。
-详见索引目录：[`references/archive/README.md`](references/archive/README.md)。
+详见历史经验汇总：[`references/historical-session-tips-full.md`](references/historical-session-tips-full.md)。

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 core.governance.skill_registry - Central Skill Registry and Governance Subsystem.
-Loads 17 A-Stock skills from config/skills_manifest.json, generates OpenAI function schemas,
+Loads 18 A-Stock skills from config/skills_manifest.json, generates OpenAI function schemas,
 manages dynamic enable/disable state, enforces security gates and timeout fuses.
 """
 from __future__ import annotations
@@ -21,7 +21,7 @@ logger = get_logger("core.governance.skill_registry")
 MANIFEST_PATH = PROJECT_ROOT / "config" / "skills_manifest.json"
 
 
-# ── Canonical Parameter Schemas for all 17 Skills ────────────────────────────
+# ── Canonical Parameter Schemas for all 18 Skills ────────────────────────────
 
 SKILL_SCHEMAS: Dict[str, Dict[str, Any]] = {
     "astock-data-feed": {
@@ -151,6 +151,16 @@ SKILL_SCHEMAS: Dict[str, Dict[str, Any]] = {
         },
         "required": ["task_description"],
     },
+    "astock-strategy-chenxiaoqun": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": "6位A股代码"},
+            "cost": {"type": "number", "description": "持仓成本价"},
+            "shares": {"type": "integer", "description": "持仓股数，默认1000"},
+            "count": {"type": "integer", "description": "K线根数，默认60"},
+        },
+        "required": ["code"],
+    },
 }
 
 
@@ -199,6 +209,9 @@ class SkillRegistry:
             if sid == "astock-trade-paper":
                 risk = SkillRiskLevel.SIMULATION
                 require_confirm = True
+            elif sid in ("astock-pool-audit", "astock-report-archive", "astock-report-html"):
+                risk = SkillRiskLevel.FILESYSTEM_WRITE
+                require_confirm = sid == "astock-pool-audit"
             elif sid in ("astock-screener-5a", "astock-quant-engine", "astock-model-validation"):
                 timeout = 60
             elif sid == "astock-agent-debate":

@@ -109,9 +109,7 @@ def mode_daily_batch(args):
     # 检查 .env
     env_candidates = [
         PROJECT_ROOT / ".env",
-        Path.home() / ".AI-Platform" / ".env",
-        Path.home() / "TradingAgents" / ".env",
-        Path.home() / "TradingAgents-astock" / ".env",
+        PROJECT_ROOT / "temp" / "vendor" / "TradingAgents-astock" / ".env",
     ]
     env_found = any(p.exists() for p in env_candidates)
     if not env_found:

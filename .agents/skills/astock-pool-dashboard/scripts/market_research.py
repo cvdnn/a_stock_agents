@@ -17,10 +17,16 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 
-A_DATA_DIR = "./.AI-Platform/skills/stocks/a-share-data/scripts"
-VENV_PY = "python3"
+PROJECT_ROOT = next(
+    parent for parent in Path(__file__).resolve().parents
+    if (parent / "scripts" / "core" / "workspace.py").exists()
+)
+A_DATA_DIR = PROJECT_ROOT / ".agents" / "skills" / "astock-data-feed" / "scripts"
+VENV_PY = sys.executable
 
 
 def _run(cmd, timeout=45):
@@ -34,7 +40,7 @@ def _run(cmd, timeout=45):
 
 
 def _fetch(script, *args):
-    return _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_patched.py"), script] + list(args))
+    return _run([VENV_PY, str(A_DATA_DIR / "fetch_patched.py"), script] + list(args))
 
 
 def research_full():

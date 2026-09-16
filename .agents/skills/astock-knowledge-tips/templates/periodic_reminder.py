@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """周期性盘中提醒脚本模板 — no_agent cron 每30分钟调用, Windows Toast 弹窗播报。
-用法: 复制到 ~/AppData/Local/AI-Platform/scripts/periodic_reminder_<codes>.py,
+用法: 在当前项目内复制到 temp/monitors/periodic_reminder_<codes>.py，
       改 CODES / LEVELS(来自当日早盘审查), 再 cronjob create:
         no_agent=true, script=<文件名>.py, schedule='*/30 9-11,13-15 * * 1-5'
 验证: 先手动 python 跑一次看弹窗, 再 cronjob run + cronjob list 看 last_status。
