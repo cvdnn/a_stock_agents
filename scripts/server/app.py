@@ -13,16 +13,21 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import VERSION, get_logger
 from server.api import (
+    audit_router,
+    auth_router,
     chat_router,
     health_router,
     market_data_router,
+    menus_router,
     models_mgmt_router,
+    roles_router,
     sessions_router,
     skills_router,
     tasks_router,
+    users_router,
 )
 from server.config import server_settings
-from server.db import init_db
+from server.db import init_db, sync_super_admin_from_config
 from server.models import SaveDocRequest
 from server.port_utils import remove_server_lockfile
 
@@ -34,6 +39,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan: initialize database schemas on startup, cleanup on shutdown."""
     logger.info("Initializing A-Stock Agents server database...")
     init_db(server_settings.db_path)
+    # Defensive: ensure the locally configured super admin is persisted to the DB on every boot.
+    try:
+        sync_super_admin_from_config()
+    except Exception as exc:
+        logger.warning(f"sync_super_admin_from_config failed: {exc}")
     logger.info(f"Database ready at: {server_settings.db_path}")
     yield
     logger.info("A-Stock Agents server shutting down.")
@@ -58,35 +68,61 @@ def create_app() -> FastAPI:
         allow_headers=["Accept", "Content-Type", "Authorization"],
     )
 
-    # API Token Authentication Middleware (SEC-02)
+    # Authentication Middleware: prefers user session tokens (Bearer or `access_token` cookie),
+    # with optional fallback to a static `server_settings.api_token` for machine integrations.
     @app.middleware("http")
     async def api_token_auth_middleware(request: Request, call_next):
-        token = getattr(server_settings, "api_token", None)
-        if not token:
-            return await call_next(request)
-
         # 豁免 OPTIONS 预检请求以支持 CORS
         if request.method == "OPTIONS":
             return await call_next(request)
 
         path = request.url.path
 
-        # 白名单豁免：健康检查端点
-        if path == "/api/health" or path.startswith("/api/health/"):
+        # 1. 白名单：完全不需要鉴权 (登录、注册不可用提示、健康检查、Web UI)
+        public_prefixes = (
+            "/api/auth/login",
+            "/api/auth/logout",
+            "/api/auth/config",
+            "/api/health",
+        )
+        if any(path == p or path.startswith(p + "/") for p in public_prefixes):
             return await call_next(request)
 
-        # 白名单豁免：Web UI 根路径与静态资源文件
+        # Web UI 与静态资源
         if path in {"/", "/favicon.ico"} or path.startswith(("/ui", "/css", "/js", "/assets")):
             return await call_next(request)
 
-        auth_header = request.headers.get("Authorization", "")
+        # 2. 用户会话 Token (优先于静态 API Token)
+        from server.db import lookup_auth_token
         provided_token = None
-        if auth_header.startswith("Bearer "):
-            provided_token = auth_header[7:].strip()
-        elif auth_header.startswith("bearer "):
-            provided_token = auth_header[7:].strip()
 
-        if not provided_token or provided_token != token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.lower().startswith("bearer "):
+            provided_token = auth_header[7:].strip()
+        if not provided_token:
+            provided_token = request.cookies.get("access_token")
+
+        if provided_token:
+            record = lookup_auth_token(provided_token)
+            if record:
+                return await call_next(request)
+            # token 存在但无效 → 401（不要静默 fallback 到静态 token，避免泄漏）
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=401,
+                content={"detail": {"error": "invalid_token", "message": "会话已过期，请重新登录"}},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # 3. 兜底：可选静态 API Token（兼容旧版机器集成）
+        static_token = getattr(server_settings, "api_token", None)
+        if static_token:
+            if auth_header and (
+                (auth_header.startswith("Bearer ") and auth_header[7:].strip() == static_token)
+                or (auth_header.startswith("bearer ") and auth_header[7:].strip() == static_token)
+                or auth_header.strip() == static_token
+            ):
+                return await call_next(request)
             from fastapi.responses import JSONResponse
             return JSONResponse(
                 status_code=401,
@@ -94,10 +130,21 @@ def create_app() -> FastAPI:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        return await call_next(request)
+        # 4. 没有任何凭证可用 → 401
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=401,
+            content={"detail": {"error": "unauthorized", "message": "请先登录"}},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     # Register API Routers
     app.include_router(health_router)
+    app.include_router(auth_router)
+    app.include_router(users_router)
+    app.include_router(roles_router)
+    app.include_router(menus_router)
+    app.include_router(audit_router)
     app.include_router(sessions_router)
     app.include_router(chat_router)
     app.include_router(skills_router)
@@ -324,6 +371,14 @@ def create_app() -> FastAPI:
             "openapi_url": "/openapi.json",
             "endpoints": {
                 "health": "/api/health",
+                "auth_login": "/api/auth/login",
+                "auth_logout": "/api/auth/logout",
+                "auth_me": "/api/auth/me",
+                "auth_change_password": "/api/auth/change-password",
+                "users": "/api/users",
+                "roles": "/api/roles",
+                "menus": "/api/menus",
+                "audit_auth": "/api/audit/auth",
                 "chat_stream": "/api/chat/completions/stream",
                 "chat_sessions": "/api/chat/sessions",
                 "docs_read": "/api/docs/read",

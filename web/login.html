@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 · GC量化投资助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ====================================================================
+       Login Page - 高度还原设计稿：浅蓝品牌区 + 白色登录表单
+       ==================================================================== */
+    html, body.login-page {
+      overflow: hidden;
+      height: 100vh;
+    }
+    body.login-page {
+      background:
+        radial-gradient(ellipse at 0% 0%, #E8F3FF 0%, transparent 55%),
+        radial-gradient(ellipse at 100% 100%, #EAF4FF 0%, transparent 60%),
+        linear-gradient(135deg, #EEF6FF 0%, #F6FAFE 50%, #F1F7FE 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .login-shell {
+      width: 100%;
+      max-width: 1080px;
+      min-height: 600px;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      background: #fff;
+      border: 1px solid var(--border-card);
+      border-radius: 18px;
+      box-shadow: 0 30px 80px rgba(22, 119, 255, 0.10), 0 6px 18px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    }
+
+    /* ======================== 左侧品牌区 ======================== */
+    .login-brand {
+      position: relative;
+      padding: 44px 44px 40px;
+      background:
+        radial-gradient(circle at 85% 10%, rgba(180, 215, 255, 0.55) 0%, rgba(180, 215, 255, 0) 45%),
+        radial-gradient(circle at 15% 90%, rgba(190, 220, 255, 0.45) 0%, rgba(190, 220, 255, 0) 50%),
+        linear-gradient(135deg, #E8F2FE 0%, #F1F7FE 55%, #FFFFFF 100%);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 头部品牌标识 */
+    .brand-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+      z-index: 2;
+    }
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #2B7FFF 0%, #1677FF 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 8px 18px rgba(22, 119, 255, 0.28);
+    }
+    .brand-title-block { display: flex; flex-direction: column; line-height: 1.2; }
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-title);
+      letter-spacing: 0.5px;
+    }
+    .brand-subtitle {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+    .brand-divider {
+      width: 1px;
+      height: 30px;
+      background: #C9D6E8;
+      margin: 0 4px;
+    }
+    .brand-tagline {
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 500;
+      letter-spacing: 1px;
+    }
+
+    /* 主标题区 */
+    .brand-hero {
+      margin-top: 32px;
+      position: relative;
+      z-index: 2;
+    }
+    .brand-headline {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--text-title);
+      line-height: 1.22;
+      letter-spacing: 1px;
+    }
+    .brand-headline .accent {
+      background: linear-gradient(135deg, #2B7FFF 0%, #1677FF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .brand-desc {
+      margin-top: 18px;
+      font-size: 13px;
+      line-height: 1.85;
+      color: var(--text-body);
+      max-width: 360px;
+    }
+
+    /* 内容区：左特性列表 + 右插图 */
+    .brand-content {
+      margin-top: 32px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+      flex: 1;
+    }
+    .brand-features {
+      display: grid;
+      gap: 16px;
+    }
+    .brand-feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .feature-icon {
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(22, 119, 255, 0.10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+    .feature-text { line-height: 1.4; }
+    .feature-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-title);
+    }
+    .feature-desc {
+      margin-top: 2px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* 3D 插图区域 */
+    .brand-illustration {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .illustration-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ======================== 右侧登录表单区 ======================== */
+    .login-panel {
+      padding: 56px 56px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: #FFFFFF;
+      position: relative;
+    }
+    .login-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-title);
+      letter-spacing: 1px;
+    }
+    .login-subtitle {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .login-form {
+      margin-top: 36px;
+      display: grid;
+      gap: 20px;
+    }
+    .login-field {
+      display: grid;
+      gap: 8px;
+    }
+    .login-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-title);
+    }
+    .login-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .login-input-icon {
+      position: absolute;
+      left: 14px;
+      color: #B8C2CC;
+      display: flex;
+      align-items: center;
+      pointer-events: none;
+    }
+    .login-input {
+      width: 100%;
+      padding: 13px 14px 13px 42px;
+      border-radius: 10px;
+      border: 1px solid #E5EAF0;
+      background: #fff;
+      font-size: 14px;
+      color: var(--text-title);
+      transition: border-color 0.18s, box-shadow 0.18s;
+      outline: none;
+    }
+    .login-input::placeholder { color: #B8C2CC; }
+    .login-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12);
+    }
+    .login-input-wrap.has-toggle .login-input { padding-right: 42px; }
+    .login-toggle {
+      position: absolute;
+      right: 14px;
+      background: none;
+      border: none;
+      color: #B8C2CC;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      transition: color 0.15s;
+    }
+    .login-toggle:hover { color: var(--primary); }
+
+    .login-error {
+      background: var(--color-up-bg);
+      border: 1px solid var(--color-up-border);
+      color: var(--color-up-dark);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+    .login-error.show { display: block; }
+
+    .login-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-body);
+      margin-top: -4px;
+    }
+    .login-remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .login-remember input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    .login-forgot {
+      color: var(--primary);
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .login-forgot:hover { opacity: 0.78; }
+
+    .login-submit {
+      margin-top: 8px;
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #2B7FFF 0%, #1677FF 100%);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.18s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .login-submit:hover {
+      box-shadow: 0 10px 24px rgba(22, 119, 255, 0.32);
+      transform: translateY(-1px);
+    }
+    .login-submit:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .login-footer {
+      margin-top: 22px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.7;
+    }
+    .login-footer a {
+      color: var(--primary);
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .login-footer a:hover { opacity: 0.78; }
+
+    /* 响应式 */
+    @media (max-width: 960px) {
+      .login-shell {
+        grid-template-columns: 1fr;
+        max-width: 460px;
+      }
+      .login-brand {
+        padding: 32px 28px;
+      }
+      .brand-content { display: none; }
+      .brand-headline { font-size: 26px; }
+      .brand-hero { margin-top: 24px; }
+      .login-panel { padding: 36px 32px 32px; }
+    }
+  </style>
+</head>
+<body class="login-page">
+  <div class="login-shell">
+    <!-- 左侧品牌区 -->
+    <section class="login-brand">
+      <div class="brand-header">
+        <div class="brand-logo">AI</div>
+        <div class="brand-title-block">
+          <span class="brand-title">GC量化投资助手</span>
+          <span class="brand-subtitle">投研与实战中枢</span>
+        </div>
+        <div class="brand-divider"></div>
+        <span class="brand-tagline">AI赋能 · 数据驱动 · 量化致胜</span>
+      </div>
+
+      <div class="brand-hero">
+        <h1 class="brand-headline">A股智能量化<br>投研与<span class="accent">实战中枢</span></h1>
+        <p class="brand-desc">融合AI大模型与量化算法，构建从数据到策略、<br>从研判到交易的全流程智能投研平台。</p>
+      </div>
+
+      <div class="brand-content">
+        <div class="brand-features">
+          <div class="brand-feature">
+            <span class="feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-7"/></svg>
+            </span>
+            <div class="feature-text">
+              <div class="feature-title">AI智能分析</div>
+              <div class="feature-desc">多维度市场分析，精准研判趋势</div>
+            </div>
+          </div>
+          <div class="brand-feature">
+            <span class="feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/></svg>
+            </span>
+            <div class="feature-text">
+              <div class="feature-title">量化策略回测</div>
+              <div class="feature-desc">海量数据回测，优化交易策略</div>
+            </div>
+          </div>
+          <div class="brand-feature">
+            <span class="feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </span>
+            <div class="feature-text">
+              <div class="feature-title">风险控制管理</div>
+              <div class="feature-desc">智能风控预警，保障投资安全</div>
+            </div>
+          </div>
+          <div class="brand-feature">
+            <span class="feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </span>
+            <div class="feature-text">
+              <div class="feature-title">实战交易支持</div>
+              <div class="feature-desc">策略执行跟踪，提升投资收益</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="brand-illustration">
+          <svg class="illustration-svg" viewBox="0 0 280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="cubeFront" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#4A95FF"/>
+                <stop offset="100%" stop-color="#1677FF"/>
+              </linearGradient>
+              <linearGradient id="cubeSide" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#2B6FE0"/>
+                <stop offset="100%" stop-color="#0E5BD9"/>
+              </linearGradient>
+              <linearGradient id="cubeTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6FB1FF"/>
+                <stop offset="100%" stop-color="#3F8AFF"/>
+              </linearGradient>
+              <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FFFFFF"/>
+                <stop offset="100%" stop-color="#EAF3FF"/>
+              </linearGradient>
+              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#2B7FFF" stop-opacity="0.0"/>
+                <stop offset="50%" stop-color="#2B7FFF" stop-opacity="0.5"/>
+                <stop offset="100%" stop-color="#2B7FFF" stop-opacity="0.0"/>
+              </linearGradient>
+            </defs>
+
+            <!-- 底部光晕环 -->
+            <ellipse cx="140" cy="230" rx="115" ry="22" fill="url(#ringGrad)" opacity="0.5"/>
+            <ellipse cx="140" cy="235" rx="80" ry="12" fill="#1677FF" opacity="0.10"/>
+
+            <!-- 底座平台 -->
+            <ellipse cx="140" cy="220" rx="70" ry="12" fill="#D6E7FF"/>
+            <ellipse cx="140" cy="216" rx="58" ry="9" fill="#FFFFFF"/>
+            <ellipse cx="140" cy="214" rx="48" ry="7" fill="#EAF3FF"/>
+
+            <!-- K线图卡片 (左上) -->
+            <g transform="translate(30, 80) rotate(-12 50 35)">
+              <rect x="0" y="0" width="100" height="68" rx="6" fill="url(#cardGrad)" stroke="#CFE0FA" stroke-width="1"/>
+              <g stroke="#1677FF" stroke-width="1.4" stroke-linecap="round">
+                <line x1="14" y1="20" x2="14" y2="48" stroke="#52C41A"/>
+                <line x1="11" y1="24" x2="17" y2="24" stroke="#52C41A"/>
+                <line x1="11" y1="44" x2="17" y2="44" stroke="#52C41A"/>
+                <rect x="12" y="28" width="4" height="12" fill="#52C41A"/>
+
+                <line x1="26" y1="14" x2="26" y2="46" stroke="#F5222D"/>
+                <line x1="23" y1="18" x2="29" y2="18" stroke="#F5222D"/>
+                <line x1="23" y1="42" x2="29" y2="42" stroke="#F5222D"/>
+                <rect x="24" y="22" width="4" height="16" fill="#F5222D"/>
+
+                <line x1="38" y1="18" x2="38" y2="50" stroke="#52C41A"/>
+                <rect x="36" y="24" width="4" height="20" fill="#52C41A"/>
+
+                <line x1="50" y1="10" x2="50" y2="42" stroke="#F5222D"/>
+                <rect x="48" y="16" width="4" height="20" fill="#F5222D"/>
+
+                <line x1="62" y1="22" x2="62" y2="54" stroke="#52C41A"/>
+                <rect x="60" y="28" width="4" height="20" fill="#52C41A"/>
+
+                <line x1="74" y1="14" x2="74" y2="46" stroke="#F5222D"/>
+                <rect x="72" y="20" width="4" height="20" fill="#F5222D"/>
+
+                <line x1="86" y1="20" x2="86" y2="50" stroke="#52C41A"/>
+                <rect x="84" y="26" width="4" height="18" fill="#52C41A"/>
+              </g>
+            </g>
+
+            <!-- 折线图卡片 (右上) -->
+            <g transform="translate(170, 70) rotate(10 50 35)">
+              <rect x="0" y="0" width="100" height="68" rx="6" fill="url(#cardGrad)" stroke="#CFE0FA" stroke-width="1"/>
+              <polyline points="8,52 22,42 36,46 50,30 64,36 78,18 92,24"
+                        fill="none" stroke="#1677FF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="78" cy="18" r="2.6" fill="#1677FF"/>
+              <circle cx="78" cy="18" r="5" fill="#1677FF" opacity="0.18"/>
+              <line x1="8" y1="60" x2="92" y2="60" stroke="#E5EAF0" stroke-width="0.8"/>
+            </g>
+
+            <!-- 中央 3D AI 立方体 -->
+            <!-- 顶面 -->
+            <polygon points="140,90 175,108 140,126 105,108" fill="url(#cubeTop)" stroke="#FFFFFF" stroke-width="0.5"/>
+            <!-- 正面 -->
+            <polygon points="105,108 140,126 140,180 105,162" fill="url(#cubeFront)" stroke="#FFFFFF" stroke-width="0.5"/>
+            <!-- 右侧面 -->
+            <polygon points="175,108 140,126 140,180 175,162" fill="url(#cubeSide)" stroke="#FFFFFF" stroke-width="0.5"/>
+
+            <!-- AI 文字 -->
+            <text x="122.5" y="150" text-anchor="middle" fill="#FFFFFF" font-family="-apple-system, Segoe UI, sans-serif" font-size="16" font-weight="700" letter-spacing="1">AI</text>
+            <text x="157.5" y="150" text-anchor="middle" fill="#FFFFFF" font-family="-apple-system, Segoe UI, sans-serif" font-size="16" font-weight="700" letter-spacing="1">AI</text>
+
+            <!-- 立方体高光 -->
+            <polygon points="105,108 122,116 122,168 105,162" fill="#FFFFFF" opacity="0.10"/>
+
+            <!-- 数据柱状图卡片 (右下) -->
+            <g transform="translate(180, 150) rotate(-8 45 30)">
+              <rect x="0" y="0" width="90" height="60" rx="6" fill="url(#cardGrad)" stroke="#CFE0FA" stroke-width="1"/>
+              <rect x="10" y="36" width="8" height="16" rx="1" fill="#1677FF" opacity="0.55"/>
+              <rect x="24" y="26" width="8" height="26" rx="1" fill="#1677FF" opacity="0.7"/>
+              <rect x="38" y="18" width="8" height="34" rx="1" fill="#1677FF" opacity="0.85"/>
+              <rect x="52" y="22" width="8" height="30" rx="1" fill="#1677FF" opacity="0.7"/>
+              <rect x="66" y="32" width="8" height="20" rx="1" fill="#1677FF" opacity="0.55"/>
+              <line x1="8" y1="52" x2="82" y2="52" stroke="#E5EAF0" stroke-width="0.8"/>
+            </g>
+
+            <!-- 浮动的连接粒子 -->
+            <circle cx="68" cy="60" r="3" fill="#1677FF" opacity="0.5"/>
+            <circle cx="240" cy="100" r="2.5" fill="#1677FF" opacity="0.45"/>
+            <circle cx="50" cy="180" r="2.5" fill="#1677FF" opacity="0.4"/>
+            <circle cx="250" cy="180" r="3" fill="#1677FF" opacity="0.55"/>
+            <circle cx="220" cy="220" r="2" fill="#1677FF" opacity="0.35"/>
+            <circle cx="60" cy="220" r="2" fill="#1677FF" opacity="0.35"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右侧登录表单区 -->
+    <section class="login-panel">
+      <div>
+        <h2 class="login-title">账号登录</h2>
+        <p class="login-subtitle">欢迎使用A股智能量化投研与实战中枢</p>
+      </div>
+
+      <div id="loginError" class="login-error"></div>
+
+      <form class="login-form" id="loginForm" autocomplete="off">
+        <div class="login-field">
+          <label class="login-label" for="loginPhone">手机号</label>
+          <div class="login-input-wrap">
+            <span class="login-input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </span>
+            <input class="login-input" type="text" inputmode="numeric" id="loginPhone"
+                   placeholder="请输入手机号" autocomplete="username" required>
+          </div>
+        </div>
+        <div class="login-field">
+          <label class="login-label" for="loginPassword">密码</label>
+          <div class="login-input-wrap has-toggle">
+            <span class="login-input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input class="login-input" type="password" id="loginPassword"
+                   placeholder="请输入密码" autocomplete="current-password" required>
+            <button type="button" class="login-toggle" id="togglePassword" aria-label="显示密码">
+              <svg id="eyeOffIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              <svg id="eyeOnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="login-options">
+          <label class="login-remember">
+            <input type="checkbox" id="rememberAccount">
+            <span>记住账号</span>
+          </label>
+          <a href="#" class="login-forgot">忘记密码？</a>
+        </div>
+
+        <button class="login-submit" type="submit" id="loginSubmit">
+          <span>登 录</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        登录即表示您已阅读并同意<a href="#">《用户协议》</a>和<a href="#">《隐私政策》</a>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    // 若已登录则直接跳转到主工作台
+    (async function bootstrap() {
+      try {
+        const me = await window.AstockAuth.fetchMe();
+        if (me && me.user) {
+          window.location.replace("/ui/");
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const form = document.getElementById("loginForm");
+      const errorEl = document.getElementById("loginError");
+      const submitBtn = document.getElementById("loginSubmit");
+      const phoneInput = document.getElementById("loginPhone");
+      const passwordInput = document.getElementById("loginPassword");
+      const rememberEl = document.getElementById("rememberAccount");
+
+      // 记住账号
+      try {
+        const saved = localStorage.getItem("astock_login_phone");
+        if (saved) {
+          phoneInput.value = saved;
+          rememberEl.checked = true;
+        }
+      } catch (e) { /* ignore */ }
+
+      // 密码可见切换
+      const toggleBtn = document.getElementById("togglePassword");
+      const eyeOff = document.getElementById("eyeOffIcon");
+      const eyeOn = document.getElementById("eyeOnIcon");
+      toggleBtn.addEventListener("click", () => {
+        const isPwd = passwordInput.type === "password";
+        passwordInput.type = isPwd ? "text" : "password";
+        eyeOff.style.display = isPwd ? "none" : "";
+        eyeOn.style.display = isPwd ? "" : "none";
+      });
+
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        errorEl.classList.remove("show");
+        errorEl.textContent = "";
+
+        const phone = phoneInput.value.trim();
+        const password = passwordInput.value;
+        if (!/^1[3-9]\d{9}$/.test(phone)) {
+          errorEl.textContent = "请输入有效的中国大陆手机号码";
+          errorEl.classList.add("show");
+          return;
+        }
+        if (!password) {
+          errorEl.textContent = "请输入登录密码";
+          errorEl.classList.add("show");
+          return;
+        }
+
+        submitBtn.disabled = true;
+        const originalHtml = submitBtn.innerHTML;
+        submitBtn.innerHTML = "<span>登录中…</span>";
+        try {
+          const result = await window.AstockAuth.login(phone, password);
+          if (result && result.token) {
+            try {
+              if (rememberEl.checked) {
+                localStorage.setItem("astock_login_phone", phone);
+              } else {
+                localStorage.removeItem("astock_login_phone");
+              }
+            } catch (e) { /* ignore */ }
+            window.location.replace("/ui/");
+          } else {
+            throw new Error("登录响应缺少 token");
+          }
+        } catch (err) {
+          errorEl.textContent = err && err.message ? err.message : "登录失败，请稍后再试";
+          errorEl.classList.add("show");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalHtml;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

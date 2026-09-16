@@ -28,3 +28,10 @@ risk_control:
   tier2_stop_pct: 0.08
   max_single_position_pct: 0.25
   max_total_position_pct: 0.8
+user_system:
+  super_admin_username: '13800138000'
+  super_admin_password: Stock@.2026
+  super_admin_role_code: super_admin
+  default_user_role_code: researcher
+  token_ttl_seconds: 28800
+  password_iterations: 120000

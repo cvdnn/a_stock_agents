@@ -105,6 +105,14 @@
           <span class="nav-icon">⚙️</span>
           <span>系统设置</span>
         </button>
+        <button class="sidebar-settings-btn" id="astockAdminEntry" style="display:none;" onclick="openAdminPanel()">
+          <span class="nav-icon">🛡️</span>
+          <span>系统管理</span>
+        </button>
+        <button class="sidebar-settings-btn" onclick="logoutFromWeb()">
+          <span class="nav-icon">🚪</span>
+          <span>退出登录</span>
+        </button>
       </div>
 
     </aside>
@@ -2361,6 +2369,303 @@
   <script src="js/libs/highlight.min.js"></script>
   <script src="js/libs/purify.min.js"></script>
   <script src="js/chat_presentation.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/admin.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- ========================================================================
+       Login Gate Overlay (未登录时遮蔽工作台，强制跳转登录页)
+       ======================================================================== -->
+  <style>
+    /* Login gate：未鉴权时以居中弹窗遮蔽工作台（参考图2样式） */
+    body.astock-auth-pending #astockLoginGate { display: flex; }
+    body.astock-auth-pending .app-header,
+    body.astock-auth-pending .app-container,
+    body.astock-auth-pending .global-modals-root { filter: blur(6px); pointer-events: none; user-select: none; }
+    #astockLoginGate {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.18);
+      backdrop-filter: blur(2px);
+      z-index: 99999;
+      align-items: center; justify-content: center;
+    }
+    #astockLoginGate .gate-card {
+      width: 100%;
+      max-width: 420px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.06);
+      padding: 32px 36px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      animation: astock-gate-pop 0.18s ease-out;
+    }
+    #astockLoginGate .gate-icon-wrap {
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      background: #F0F7FF;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      margin-bottom: 16px;
+    }
+    #astockLoginGate .gate-icon-clock {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      border: 4px solid #1677FF;
+      position: relative;
+    }
+    #astockLoginGate .gate-icon-clock::before,
+    #astockLoginGate .gate-icon-clock::after {
+      content: "";
+      position: absolute;
+      background: #1677FF;
+      transform-origin: bottom center;
+    }
+    /* 时针 */
+    #astockLoginGate .gate-icon-clock::before {
+      left: 50%; top: 50%;
+      width: 3px; height: 16px;
+      margin-left: -1.5px;
+      transform: translateY(-100%) rotate(-30deg);
+    }
+    /* 分针 */
+    #astockLoginGate .gate-icon-clock::after {
+      left: 50%; top: 50%;
+      width: 3px; height: 22px;
+      margin-left: -1.5px;
+      transform: translateY(-100%) rotate(60deg);
+    }
+    #astockLoginGate .gate-icon-bell {
+      position: absolute;
+      right: 6px; bottom: 6px;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #FF4D4F;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700;
+      box-shadow: 0 4px 10px rgba(255, 77, 79, 0.35);
+    }
+    #astockLoginGate .gate-spinner {
+      width: 42px; height: 42px; border-radius: 50%;
+      border: 4px solid rgba(22,119,255,0.18);
+      border-top-color: #1677FF;
+      animation: astock-gate-spin 0.9s linear infinite;
+      margin-bottom: 12px;
+    }
+    #astockLoginGate .gate-title {
+      font-size: 18px; font-weight: 600; color: #1D2129;
+      margin: 4px 0 10px;
+    }
+    #astockLoginGate .gate-desc {
+      font-size: 14px; line-height: 1.65; color: #4E5969;
+      margin: 0 0 6px;
+    }
+    #astockLoginGate .gate-sub {
+      font-size: 12px; color: #86909C;
+      margin: 0 0 18px;
+    }
+    #astockLoginGate .gate-action {
+      width: 100%;
+      padding: 11px 18px;
+      border: none; border-radius: 10px;
+      background: #1677FF; color: #fff;
+      font-size: 15px; font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    #astockLoginGate .gate-action:hover { background: #0F5FCC; }
+    #astockLoginGate .gate-action:disabled { background: #94C3FF; cursor: wait; }
+    @keyframes astock-gate-spin { to { transform: rotate(360deg); } }
+    @keyframes astock-gate-pop {
+      from { opacity: 0; transform: scale(0.94); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+  </style>
+  <div id="astockLoginGate" role="dialog" aria-modal="true" aria-labelledby="astockLoginGateTitle">
+    <div class="gate-card">
+      <div class="gate-icon-wrap" id="astockLoginGateIcon">
+        <div class="gate-spinner"></div>
+      </div>
+      <div class="gate-title" id="astockLoginGateTitle">登录已超时</div>
+      <p class="gate-desc" id="astockLoginGateDesc">由于您长时间未操作，当前登录状态已失效，请重新登录后继续使用系统。</p>
+      <p class="gate-sub" id="astockLoginGateSub">为保障账户安全，系统已自动退出。</p>
+      <button class="gate-action" id="astockLoginGateBtn" style="display:none;">重新登录</button>
+    </div>
+  </div>
+  <script>
+    // ======== 登录闸门：未鉴权时阻止进入工作台（居中弹窗样式） ========
+    (function () {
+      var titleEl = document.getElementById("astockLoginGateTitle");
+      var descEl = document.getElementById("astockLoginGateDesc");
+      var subEl = document.getElementById("astockLoginGateSub");
+      var btn = document.getElementById("astockLoginGateBtn");
+      var iconWrap = document.getElementById("astockLoginGateIcon");
+
+      // 根据状态切换图标：loading=旋转圈；其他=时钟+红感叹号
+      function setIcon(mode) {
+        if (!iconWrap) return;
+        iconWrap.innerHTML = "";
+        if (mode === "loading") {
+          var sp = document.createElement("div");
+          sp.className = "gate-spinner";
+          iconWrap.appendChild(sp);
+        } else {
+          var clock = document.createElement("div");
+          clock.className = "gate-icon-clock";
+          var bell = document.createElement("div");
+          bell.className = "gate-icon-bell";
+          bell.textContent = "!";
+          iconWrap.appendChild(clock);
+          iconWrap.appendChild(bell);
+        }
+      }
+
+      function showGate(state) {
+        state = state || {};
+        document.body.classList.add("astock-auth-pending");
+        var mode = state.mode || "expired";
+        if (titleEl) titleEl.textContent = state.title || "登录已超时";
+        if (descEl) descEl.textContent = state.desc || "由于您长时间未操作，当前登录状态已失效，请重新登录后继续使用系统。";
+        if (subEl) subEl.textContent = state.sub || "为保障账户安全，系统已自动退出。";
+        if (btn) {
+          btn.textContent = state.btnText || "重新登录";
+          btn.style.display = state.showBtn === false ? "none" : "";
+          btn.disabled = false;
+        }
+        setIcon(mode);
+      }
+
+      function hideGate() {
+        document.body.classList.remove("astock-auth-pending");
+      }
+
+      if (btn) {
+        btn.addEventListener("click", function () {
+          btn.disabled = true;
+          window.location.href = "/ui/login.html";
+        });
+      }
+
+      showGate({
+        mode: "loading",
+        title: "正在校验登录状态",
+        desc: "正在验证您的登录身份，请稍候...",
+        sub: "首次加载可能需要 1~2 秒。",
+        showBtn: false,
+      });
+
+      // 监听自动登出
+      window.addEventListener("astock:auth:invalid", function () {
+        showGate({ mode: "expired", btnText: "重新登录" });
+      });
+
+      // 主动探测：拉取 /api/auth/me
+      if (!window.AstockAuth) {
+        showGate({
+          mode: "expired",
+          title: "鉴权模块加载失败",
+          desc: "登录客户端初始化失败，请刷新页面或联系管理员。",
+          sub: "",
+          btnText: "重新加载",
+        });
+        if (btn) {
+          btn.onclick = function () { window.location.reload(); };
+        }
+        return;
+      }
+      window.AstockAuth.fetchMe().then(function (me) {
+        if (me && me.user) {
+          // 已登录：填充头部信息
+          hideGate();
+          try { applyUserProfile(me.user); } catch (e) { /* ignore */ }
+          // 仅超管显示系统管理入口
+          try {
+            if (window.AstockAuth.isSuperAdmin() || window.AstockAuth.hasMenu("system")) {
+              var adminEntry = document.getElementById("astockAdminEntry");
+              if (adminEntry) adminEntry.style.display = "";
+            }
+          } catch (e) {}
+        } else {
+          showGate({
+            mode: "expired",
+            title: "尚未登录",
+            desc: "您还未登录系统，请先登录后再继续操作。",
+            sub: "登录后可使用投研助手、自选个股、收益分析等功能。",
+            btnText: "前往登录",
+          });
+        }
+      }).catch(function (err) {
+        if (err && err.status === 401) {
+          showGate({ mode: "expired", btnText: "重新登录" });
+        } else {
+          showGate({
+            mode: "expired",
+            title: "鉴权服务暂时不可用",
+            desc: "无法连接到登录服务，请检查网络或稍后重试。",
+            sub: "如问题持续存在，请联系系统管理员。",
+            btnText: "重新登录",
+          });
+        }
+      });
+
+      function applyUserProfile(user) {
+        try {
+          var name = user.name || user.username || "用户";
+          var short = (name || "").substring(0, 1);
+          var headerName = document.querySelector(".user-name");
+          if (headerName) headerName.textContent = name;
+          var headerAvatar = document.querySelector(".user-avatar");
+          if (headerAvatar) headerAvatar.textContent = short;
+          var sideName = document.querySelector(".user-name-sm");
+          if (sideName) sideName.textContent = name;
+          var sideAvatar = document.querySelector(".user-avatar-sm");
+          if (sideAvatar) sideAvatar.textContent = short;
+          var sideDesc = document.querySelector(".user-desc-sm");
+          if (sideDesc) {
+            var roleLabel = user.is_super_admin ? "超级管理员" : ((user.roles && user.roles[0] && user.roles[0].name) || "普通用户");
+            sideDesc.textContent = roleLabel + " · 在线";
+          }
+        } catch (e) {}
+      }
+
+      // 全局便捷方法：系统管理面板 / 退出登录 / 修改密码
+      window.openAdminPanel = function () {
+        if (window.AstockAdmin) window.AstockAdmin.open();
+        else if (window.showToast) window.showToast("系统管理模块加载失败", "error");
+      };
+
+      window.logoutFromWeb = function () {
+        if (!window.AstockAuth) { window.location.href = "/ui/login.html"; return; }
+        var ok = window.confirm("确认退出当前登录？");
+        if (!ok) return;
+        window.AstockAuth.logout().finally(function () {
+          window.location.href = "/ui/login.html";
+        });
+      };
+
+      window.changeOwnPassword = function () {
+        if (!window.AstockAuth || !window.AstockAuth.currentUser()) {
+          window.location.href = "/ui/login.html"; return;
+        }
+        var oldPwd = window.prompt("请输入当前登录密码：");
+        if (!oldPwd) return;
+        var newPwd = window.prompt("请输入新密码（8-64位，至少2类字符）：");
+        if (!newPwd) return;
+        if (newPwd === oldPwd) { window.alert("新密码不能与当前密码相同"); return; }
+        window.AstockAuth.changePassword(oldPwd, newPwd).then(function () {
+          window.alert("密码已修改，请使用新密码重新登录");
+          return window.AstockAuth.logout();
+        }).then(function () {
+          window.location.href = "/ui/login.html";
+        }).catch(function (err) {
+          window.alert(err && err.message ? err.message : "修改失败");
+        });
+      };
+    })();
+  </script>
 </body>
 </html>

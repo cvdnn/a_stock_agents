@@ -157,6 +157,8 @@ def _init_schemas(conn: sqlite3.Connection) -> None:
         """)
         _migrate_llm_providers_encryption(conn)
         _seed_initial_sessions(conn)
+        _init_user_schemas(conn)
+        _seed_user_system(conn)
 
 
 def _seed_initial_sessions(conn: sqlite3.Connection) -> None:
@@ -1221,6 +1223,806 @@ def save_model_roles(roles_dict: Dict[str, Dict[str, str]], db_path: Optional[Pa
                         updated_at = excluded.updated_at;
                 """, (role_key, pid, mid, now_iso))
         return get_model_roles(db_path=db_path)
+    finally:
+        conn.close()
+
+
+# ==============================================================================
+# User System: Users / Roles / Menus / Auth Tokens (RBAC)
+# ==============================================================================
+
+def _init_user_schemas(conn: sqlite3.Connection) -> None:
+    """Create user-system tables if missing (users, roles, menus, role_menus, auth_tokens, audit)."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            password_salt TEXT NOT NULL,
+            role_id INTEGER,
+            status INTEGER NOT NULL DEFAULT 1,
+            is_super_admin INTEGER NOT NULL DEFAULT 0,
+            remark TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_login_at TEXT
+        );
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id);")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            is_builtin INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS menus (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            path TEXT NOT NULL DEFAULT '',
+            icon TEXT DEFAULT '',
+            parent_id INTEGER DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_builtin INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_menus_parent ON menus(parent_id, sort_order);")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS role_menus (
+            role_id INTEGER NOT NULL,
+            menu_id INTEGER NOT NULL,
+            PRIMARY KEY (role_id, menu_id),
+            FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+            FOREIGN KEY (menu_id) REFERENCES menus(id) ON DELETE CASCADE
+        );
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS auth_tokens (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            issued_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            revoked INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_tokens_user ON auth_tokens(user_id);")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_tokens_expires ON auth_tokens(expires_at);")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS auth_audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            username TEXT,
+            action TEXT NOT NULL,
+            status TEXT NOT NULL,
+            ip TEXT DEFAULT '',
+            detail TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        );
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_auth_audit_user ON auth_audit_logs(user_id, created_at);")
+
+
+def _seed_user_system(conn: sqlite3.Connection) -> None:
+    """Seed default menus, roles, and ensure super admin user exists from config."""
+    try:
+        cur = conn.cursor()
+
+        # 1) 默认菜单 (含 5 大一级菜单 + 二级示例子菜单)
+        now = _get_utc_now_iso()
+        default_menus = [
+            # 一级菜单
+            {"code": "dashboard",    "name": "投研助手",   "path": "dashboard",    "icon": "🤖", "parent_id": 0, "sort_order": 10},
+            {"code": "watchlist",    "name": "自选个股",   "path": "watchlist",    "icon": "⭐", "parent_id": 0, "sort_order": 20},
+            {"code": "returns",      "name": "收益分析",   "path": "returns",      "icon": "📈", "parent_id": 0, "sort_order": 30},
+            {"code": "skills",       "name": "技能治理",   "path": "skills",       "icon": "🧩", "parent_id": 0, "sort_order": 40},
+            {"code": "system",       "name": "系统管理",   "path": "system",       "icon": "⚙️", "parent_id": 0, "sort_order": 50},
+            # 系统管理下的二级页面
+            {"code": "system.users",    "name": "用户管理",   "path": "system.users",    "icon": "👥", "parent_id": "system", "sort_order": 51},
+            {"code": "system.roles",    "name": "角色管理",   "path": "system.roles",    "icon": "🔐", "parent_id": "system", "sort_order": 52},
+            {"code": "system.menus",    "name": "菜单管理",   "path": "system.menus",    "icon": "📋", "parent_id": "system", "sort_order": 53},
+        ]
+        menu_id_by_code: Dict[str, int] = {}
+        for m in default_menus:
+            cur.execute("SELECT id FROM menus WHERE code = ?;", (m["code"],))
+            row = cur.fetchone()
+            if row:
+                menu_id_by_code[m["code"]] = row[0]
+            else:
+                parent_id_val = m["parent_id"]
+                if isinstance(parent_id_val, str):
+                    parent_id_val = menu_id_by_code.get(parent_id_val, 0)
+                cur.execute(
+                    "INSERT INTO menus (code, name, path, icon, parent_id, sort_order, is_builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?);",
+                    (m["code"], m["name"], m["path"], m["icon"], parent_id_val, m["sort_order"], now, now),
+                )
+                menu_id_by_code[m["code"]] = cur.lastrowid
+
+        # 2) 默认角色: 超级管理员 (全菜单) + 普通用户 (默认仅含非系统管理菜单)
+        default_roles = [
+            {"code": "super_admin", "name": "超级管理员", "description": "拥有全部菜单权限，系统内置不可删除", "all_menus": True},
+            {"code": "researcher",  "name": "投研用户",   "description": "默认普通用户角色，可访问投研助手/自选/收益/技能", "all_menus": False},
+        ]
+        role_id_by_code: Dict[str, int] = {}
+        for r in default_roles:
+            cur.execute("SELECT id FROM roles WHERE code = ?;", (r["code"],))
+            row = cur.fetchone()
+            if row:
+                role_id_by_code[r["code"]] = row[0]
+            else:
+                cur.execute(
+                    "INSERT INTO roles (code, name, description, is_builtin, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?);",
+                    (r["code"], r["name"], r["description"], now, now),
+                )
+                role_id_by_code[r["code"]] = cur.lastrowid
+                # 分配菜单
+                if r["all_menus"]:
+                    for mid in menu_id_by_code.values():
+                        cur.execute(
+                            "INSERT OR IGNORE INTO role_menus (role_id, menu_id) VALUES (?, ?);",
+                            (role_id_by_code[r["code"]], mid),
+                        )
+                else:
+                    for code in ("dashboard", "watchlist", "returns", "skills"):
+                        mid = menu_id_by_code.get(code)
+                        if mid:
+                            cur.execute(
+                                "INSERT OR IGNORE INTO role_menus (role_id, menu_id) VALUES (?, ?);",
+                                (role_id_by_code[r["code"]], mid),
+                            )
+
+        # 3) 同步本地配置文件中的超级管理员账号到数据库
+        try:
+            from server.auth.crypto import hash_password, verify_password
+
+            sys_cfg = _load_user_system_config()
+            sa_username = (sys_cfg.get("super_admin_username") or "").strip()
+            sa_password = sys_cfg.get("super_admin_password") or ""
+            sa_role_code = sys_cfg.get("super_admin_role_code") or "super_admin"
+            sa_role_id = role_id_by_code.get(sa_role_code) or role_id_by_code.get("super_admin")
+            if not sa_username or not sa_password or not sa_role_id:
+                return
+
+            cur.execute("SELECT id, password_hash, password_salt FROM users WHERE username = ?;", (sa_username,))
+            row = cur.fetchone()
+            if row:
+                # 配置文件密码与库内不一致 → 用配置覆盖库内 (本地部署唯一权威源)
+                if not verify_password(sa_password, row["password_hash"], row["password_salt"]):
+                    new_hash, new_salt = hash_password(sa_password)
+                    cur.execute(
+                        "UPDATE users SET password_hash = ?, password_salt = ?, role_id = ?, is_super_admin = 1, status = 1, updated_at = ? WHERE id = ?;",
+                        (new_hash, new_salt, sa_role_id, now, row["id"]),
+                    )
+                else:
+                    # 确保超级管理员标记与角色正确
+                    cur.execute(
+                        "UPDATE users SET is_super_admin = 1, role_id = ?, status = 1 WHERE id = ?;",
+                        (sa_role_id, row["id"]),
+                    )
+            else:
+                new_hash, new_salt = hash_password(sa_password)
+                cur.execute(
+                    "INSERT INTO users (username, name, password_hash, password_salt, role_id, status, is_super_admin, remark, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?);",
+                    (sa_username, "超级管理员", new_hash, new_salt, sa_role_id, "本地部署配置自动初始化", now, now),
+                )
+        except Exception:
+            # crypto 模块尚未加载（首次启动时循环导入），延迟到 lifespan 阶段再同步
+            pass
+    except Exception:
+        # 不阻塞主流程
+        pass
+
+
+def _load_user_system_config() -> Dict[str, Any]:
+    """Load user_system block from config.yaml."""
+    try:
+        cfg_path = PROJECT_ROOT_CONFIG()
+        if cfg_path and Path(cfg_path).exists():
+            import yaml
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+            return cfg.get("user_system") or {}
+    except Exception:
+        pass
+    return {}
+
+
+def PROJECT_ROOT_CONFIG() -> Optional[str]:
+    """Resolve config/config.yaml path."""
+    try:
+        from core.config import PROJECT_ROOT
+        return str(PROJECT_ROOT / "config" / "config.yaml")
+    except Exception:
+        return None
+
+
+def sync_super_admin_from_config(db_path: Optional[Path] = None) -> None:
+    """Synchronize the super admin credentials declared in config.yaml into the DB.
+
+    The local deployment config file is the single source of truth.
+    Called during startup and from the /api/auth/login path defensively.
+    """
+    try:
+        from server.auth.crypto import hash_password
+    except Exception:
+        return
+
+    cfg = _load_user_system_config()
+    sa_username = (cfg.get("super_admin_username") or "").strip()
+    sa_password = cfg.get("super_admin_password") or ""
+    sa_role_code = (cfg.get("super_admin_role_code") or "super_admin").strip()
+    if not sa_username or not sa_password:
+        return
+
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM roles WHERE code = ?;", (sa_role_code,))
+            row = cur.fetchone()
+            if not row:
+                return
+            role_id = row[0]
+
+            cur.execute("SELECT id, password_hash, password_salt FROM users WHERE username = ?;", (sa_username,))
+            u = cur.fetchone()
+            now = _get_utc_now_iso()
+            if u:
+                new_hash, new_salt = hash_password(sa_password)
+                cur.execute(
+                    "UPDATE users SET password_hash = ?, password_salt = ?, role_id = ?, is_super_admin = 1, status = 1, name = '超级管理员', updated_at = ? WHERE id = ?;",
+                    (new_hash, new_salt, role_id, now, u["id"]),
+                )
+            else:
+                new_hash, new_salt = hash_password(sa_password)
+                cur.execute(
+                    "INSERT INTO users (username, name, password_hash, password_salt, role_id, status, is_super_admin, remark, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?);",
+                    (sa_username, "超级管理员", new_hash, new_salt, role_id, "本地部署配置自动初始化", now, now),
+                )
+    finally:
+        conn.close()
+
+
+# ── Users CRUD ───────────────────────────────────────────────────────────────
+
+def list_users(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """List all users (no password fields)."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT u.id, u.username, u.name, u.role_id, r.code AS role_code, r.name AS role_name,
+                   u.status, u.is_super_admin, u.remark, u.created_at, u.updated_at, u.last_login_at
+            FROM users u LEFT JOIN roles r ON u.role_id = r.id
+            ORDER BY u.is_super_admin DESC, u.id ASC;
+            """
+        )
+        rows = cur.fetchall()
+        return [
+            {
+                "id": r["id"],
+                "username": r["username"],
+                "name": r["name"],
+                "role_id": r["role_id"],
+                "role_code": r["role_code"],
+                "role_name": r["role_name"],
+                "status": r["status"],
+                "is_super_admin": bool(r["is_super_admin"]),
+                "remark": r["remark"] or "",
+                "created_at": r["created_at"],
+                "updated_at": r["updated_at"],
+                "last_login_at": r["last_login_at"],
+            }
+            for r in rows
+        ]
+    finally:
+        conn.close()
+
+
+def get_user_by_username(username: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    """Fetch a single user by login username (with password hash)."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT u.*, r.code AS role_code, r.name AS role_name
+            FROM users u LEFT JOIN roles r ON u.role_id = r.id
+            WHERE u.username = ?;
+            """,
+            (username,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def get_user_by_id(user_id: int, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT u.*, r.code AS role_code, r.name AS role_name
+            FROM users u LEFT JOIN roles r ON u.role_id = r.id
+            WHERE u.id = ?;
+            """,
+            (user_id,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def create_user(
+    username: str,
+    name: str,
+    password: str,
+    role_id: int,
+    remark: str = "",
+    db_path: Optional[Path] = None,
+) -> int:
+    """Create a new regular user. Returns inserted id."""
+    from server.auth.crypto import hash_password
+    pw_hash, pw_salt = hash_password(password)
+    now = _get_utc_now_iso()
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT INTO users (username, name, password_hash, password_salt, role_id, status, is_super_admin, remark, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?, ?);
+                """,
+                (username, name, pw_hash, pw_salt, role_id, remark, now, now),
+            )
+            return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def update_user(
+    user_id: int,
+    name: Optional[str] = None,
+    role_id: Optional[int] = None,
+    status: Optional[int] = None,
+    remark: Optional[str] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
+    """Update mutable fields of a user (cannot make super admin via this path)."""
+    conn = get_connection(db_path)
+    try:
+        updates: List[str] = []
+        vals: List[Any] = []
+        if name is not None:
+            updates.append("name = ?")
+            vals.append(name)
+        if role_id is not None:
+            updates.append("role_id = ?")
+            vals.append(role_id)
+        if status is not None:
+            updates.append("status = ?")
+            vals.append(int(status))
+        if remark is not None:
+            updates.append("remark = ?")
+            vals.append(remark)
+        if not updates:
+            return True
+        updates.append("updated_at = ?")
+        vals.append(_get_utc_now_iso())
+        vals.append(user_id)
+        with conn:
+            cur = conn.execute(
+                f"UPDATE users SET {', '.join(updates)} WHERE id = ? AND is_super_admin = 0;",
+                tuple(vals),
+            )
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def update_user_password(user_id: int, new_password: str, db_path: Optional[Path] = None) -> bool:
+    """Reset a user's password. Caller must ensure authorization."""
+    from server.auth.crypto import hash_password
+    pw_hash, pw_salt = hash_password(new_password)
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.execute(
+                "UPDATE users SET password_hash = ?, password_salt = ?, updated_at = ? WHERE id = ?;",
+                (pw_hash, pw_salt, _get_utc_now_iso(), user_id),
+            )
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def delete_user(user_id: int, db_path: Optional[Path] = None) -> bool:
+    """Delete a non-super-admin user."""
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.execute(
+                "DELETE FROM users WHERE id = ? AND is_super_admin = 0;",
+                (user_id,),
+            )
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def touch_user_last_login(user_id: int, db_path: Optional[Path] = None) -> None:
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            conn.execute(
+                "UPDATE users SET last_login_at = ? WHERE id = ?;",
+                (_get_utc_now_iso(), user_id),
+            )
+    finally:
+        conn.close()
+
+
+# ── Roles CRUD ───────────────────────────────────────────────────────────────
+
+def list_roles(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, code, name, description, is_builtin, created_at, updated_at FROM roles ORDER BY is_builtin DESC, id ASC;"
+        )
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_role_by_code(code: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM roles WHERE code = ?;", (code,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_role_by_id(role_id: int, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM roles WHERE id = ?;", (role_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def create_role(code: str, name: str, description: str = "", menu_ids: Optional[List[int]] = None, db_path: Optional[Path] = None) -> int:
+    now = _get_utc_now_iso()
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO roles (code, name, description, is_builtin, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?);",
+                (code, name, description, now, now),
+            )
+            rid = cur.lastrowid
+            for mid in (menu_ids or []):
+                cur.execute("INSERT OR IGNORE INTO role_menus (role_id, menu_id) VALUES (?, ?);", (rid, int(mid)))
+            return rid
+    finally:
+        conn.close()
+
+
+def update_role(
+    role_id: int,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    menu_ids: Optional[List[int]] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
+    """Update mutable fields of a role. Built-in roles may not be deleted but may have menus edited."""
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.cursor()
+            updates: List[str] = []
+            vals: List[Any] = []
+            if name is not None:
+                updates.append("name = ?")
+                vals.append(name)
+            if description is not None:
+                updates.append("description = ?")
+                vals.append(description)
+            if updates:
+                updates.append("updated_at = ?")
+                vals.append(_get_utc_now_iso())
+                vals.append(role_id)
+                cur.execute(f"UPDATE roles SET {', '.join(updates)} WHERE id = ?;", tuple(vals))
+            if menu_ids is not None:
+                cur.execute("DELETE FROM role_menus WHERE role_id = ?;", (role_id,))
+                for mid in menu_ids:
+                    cur.execute("INSERT OR IGNORE INTO role_menus (role_id, menu_id) VALUES (?, ?);", (role_id, int(mid)))
+            return True
+    finally:
+        conn.close()
+
+
+def delete_role(role_id: int, db_path: Optional[Path] = None) -> bool:
+    """Delete a non-builtin role (unless it's still referenced by users)."""
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.cursor()
+            cur.execute("SELECT is_builtin FROM roles WHERE id = ?;", (role_id,))
+            row = cur.fetchone()
+            if not row:
+                return False
+            if row["is_builtin"]:
+                return False
+            cur.execute("SELECT COUNT(*) FROM users WHERE role_id = ?;", (role_id,))
+            if (cur.fetchone()[0] or 0) > 0:
+                return False
+            cur.execute("DELETE FROM roles WHERE id = ?;", (role_id,))
+            return True
+    finally:
+        conn.close()
+
+
+def get_role_menu_ids(role_id: int, db_path: Optional[Path] = None) -> List[int]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT menu_id FROM role_menus WHERE role_id = ?;", (role_id,))
+        return [r[0] for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+# ── Menus CRUD ───────────────────────────────────────────────────────────────
+
+def list_menus(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, code, name, path, icon, parent_id, sort_order, is_builtin, created_at, updated_at FROM menus ORDER BY parent_id ASC, sort_order ASC, id ASC;"
+        )
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_menu_by_id(menu_id: int, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM menus WHERE id = ?;", (menu_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def create_menu(
+    code: str,
+    name: str,
+    path: str = "",
+    icon: str = "",
+    parent_id: int = 0,
+    sort_order: int = 0,
+    db_path: Optional[Path] = None,
+) -> int:
+    now = _get_utc_now_iso()
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO menus (code, name, path, icon, parent_id, sort_order, is_builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?);",
+                (code, name, path, icon, parent_id, sort_order, now, now),
+            )
+            return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def update_menu(
+    menu_id: int,
+    name: Optional[str] = None,
+    path: Optional[str] = None,
+    icon: Optional[str] = None,
+    parent_id: Optional[int] = None,
+    sort_order: Optional[int] = None,
+    db_path: Optional[Path] = None,
+) -> bool:
+    conn = get_connection(db_path)
+    try:
+        updates: List[str] = []
+        vals: List[Any] = []
+        if name is not None:
+            updates.append("name = ?"); vals.append(name)
+        if path is not None:
+            updates.append("path = ?"); vals.append(path)
+        if icon is not None:
+            updates.append("icon = ?"); vals.append(icon)
+        if parent_id is not None:
+            updates.append("parent_id = ?"); vals.append(int(parent_id))
+        if sort_order is not None:
+            updates.append("sort_order = ?"); vals.append(int(sort_order))
+        if not updates:
+            return True
+        updates.append("updated_at = ?"); vals.append(_get_utc_now_iso())
+        vals.append(menu_id)
+        with conn:
+            cur = conn.execute(
+                f"UPDATE menus SET {', '.join(updates)} WHERE id = ? AND is_builtin = 0;",
+                tuple(vals),
+            )
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def delete_menu(menu_id: int, db_path: Optional[Path] = None) -> bool:
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.execute(
+                "DELETE FROM menus WHERE id = ? AND is_builtin = 0;",
+                (menu_id,),
+            )
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_user_menus(user_id: int, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Return menus accessible to the user based on their role. Super admin gets all."""
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT role_id, is_super_admin FROM users WHERE id = ?;",
+            (user_id,),
+        )
+        u = cur.fetchone()
+        if not u:
+            return []
+        if u["is_super_admin"]:
+            cur.execute(
+                "SELECT id, code, name, path, icon, parent_id, sort_order FROM menus ORDER BY parent_id ASC, sort_order ASC, id ASC;"
+            )
+            return [dict(r) for r in cur.fetchall()]
+        cur.execute(
+            """
+            SELECT m.id, m.code, m.name, m.path, m.icon, m.parent_id, m.sort_order
+            FROM menus m INNER JOIN role_menus rm ON rm.menu_id = m.id
+            WHERE rm.role_id = ?
+            ORDER BY m.parent_id ASC, m.sort_order ASC, m.id ASC;
+            """,
+            (u["role_id"],),
+        )
+        return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+# ── Auth Tokens ──────────────────────────────────────────────────────────────
+
+def create_auth_token(user_id: int, ttl_seconds: int, db_path: Optional[Path] = None) -> Dict[str, Any]:
+    import secrets as _secrets
+    token = _secrets.token_urlsafe(48)
+    now = _get_utc_now_iso()
+    expires_at = datetime.fromisoformat(now).replace(tzinfo=timezone.utc).timestamp() + ttl_seconds
+    expires_iso = datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat()
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            conn.execute(
+                "INSERT INTO auth_tokens (token, user_id, issued_at, expires_at, revoked) VALUES (?, ?, ?, ?, 0);",
+                (token, user_id, now, expires_iso),
+            )
+    finally:
+        conn.close()
+    return {"token": token, "issued_at": now, "expires_at": expires_iso}
+
+
+def lookup_auth_token(token: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    if not token:
+        return None
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT t.token, t.user_id, t.issued_at, t.expires_at, t.revoked FROM auth_tokens t WHERE t.token = ?;",
+            (token,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        if row["revoked"]:
+            return None
+        try:
+            expires_at = datetime.fromisoformat(row["expires_at"])
+        except Exception:
+            return None
+        if expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            return None
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def revoke_auth_token(token: str, db_path: Optional[Path] = None) -> bool:
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            cur = conn.execute(
+                "UPDATE auth_tokens SET revoked = 1 WHERE token = ?;",
+                (token,),
+            )
+            return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def record_auth_audit(
+    user_id: Optional[int],
+    username: Optional[str],
+    action: str,
+    status: str,
+    ip: str = "",
+    detail: str = "",
+    db_path: Optional[Path] = None,
+) -> None:
+    conn = get_connection(db_path)
+    try:
+        with conn:
+            conn.execute(
+                "INSERT INTO auth_audit_logs (user_id, username, action, status, ip, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?);",
+                (user_id, username, action, status, ip, detail, _get_utc_now_iso()),
+            )
+    finally:
+        conn.close()
+
+
+def list_auth_audit(limit: int = 50, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, user_id, username, action, status, ip, detail, created_at FROM auth_audit_logs ORDER BY id DESC LIMIT ?;",
+            (limit,),
+        )
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()
 

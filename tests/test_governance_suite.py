@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import pytest
+from contextlib import contextmanager
 from pathlib import Path
 from starlette.testclient import TestClient
 
@@ -37,6 +38,23 @@ from server.port_utils import (
     write_server_lockfile,
 )
 from server.tasks.task_manager import TaskManager, TaskStatus, get_task_manager
+from server.db import _load_user_system_config
+
+
+@contextmanager
+def authenticated_client():
+    """Create a client authenticated as the configured local super admin."""
+    with TestClient(app) as client:
+        cfg = _load_user_system_config()
+        response = client.post(
+            "/api/auth/login",
+            json={
+                "username": cfg["super_admin_username"],
+                "password": cfg["super_admin_password"],
+            },
+        )
+        assert response.status_code == 200, response.text
+        yield client
 
 
 @pytest.fixture
@@ -205,7 +223,7 @@ class TestGovernanceRESTEndpoints:
     """Test /api/skills and /api/skills/audit/stats endpoints."""
 
     def test_list_skills_api(self):
-        with TestClient(app) as client:
+        with authenticated_client() as client:
             resp = client.get("/api/skills")
             assert resp.status_code == 200
             skills = resp.json()
@@ -218,7 +236,7 @@ class TestGovernanceRESTEndpoints:
             assert all(s["category"] == "data" for s in data_skills)
 
     def test_skill_detail_and_patch(self):
-        with TestClient(app) as client:
+        with authenticated_client() as client:
             # Detail
             r_get = client.get("/api/skills/astock-screener-5a")
             assert r_get.status_code == 200
@@ -238,7 +256,7 @@ class TestGovernanceRESTEndpoints:
             client.patch("/api/skills/astock-screener-5a", json={"timeout_seconds": 60})
 
     def test_skill_test_endpoint(self):
-        with TestClient(app) as client:
+        with authenticated_client() as client:
             payload = {
                 "parameters": {"topic": "auction"},
                 "confirmed": True,
@@ -259,9 +277,8 @@ class TestGovernanceRESTEndpoints:
             assert protocol_data["status"] == "success"
             assert protocol_data["result"]["type"] == "validation_protocol"
             assert protocol_data["result"]["execution_available"] is False
-
     def test_audit_stats_endpoint(self):
-        with TestClient(app) as client:
+        with authenticated_client() as client:
             resp = client.get("/api/skills/audit/stats")
             assert resp.status_code == 200
             data = resp.json()
@@ -275,7 +292,7 @@ class TestAsyncTaskQueue:
     """Test asynchronous background task submission, polling, and circuit-breakers."""
 
     def test_task_lifecycle_rest(self):
-        with TestClient(app) as client:
+        with authenticated_client() as client:
             # 1. Create task
             req_payload = {
                 "task_type": "quant_pipeline",
