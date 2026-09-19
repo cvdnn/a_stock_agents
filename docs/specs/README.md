@@ -44,6 +44,7 @@
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
 | `SPEC-ALGO-001`| 算法资产审查、架构评估与全生命周期治理规范 | [`algorithm/algo-lifecycle-and-governance-specification.md`](algorithm/algo-lifecycle-and-governance-specification.md) | [`algorithm-governance.md`](../guidelines/algorithm-governance.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-ALGO-ISS-001` | 智能选股系统功能建设规范 | [`algorithm/configurable-funnel-feature-build-spec.md`](algorithm/configurable-funnel-feature-build-spec.md) | [`algorithm-governance.md`](../guidelines/algorithm-governance.md) | 📋 待评审 | 选股模型版本控制、层级漏斗引擎、多次运行记录、本地数据装配、结果研究、实时/T+N跟踪与简单优化建议 |
 
 ### 7. 数据架构与同步机制设计 (`data/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
