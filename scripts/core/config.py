@@ -285,9 +285,20 @@ def _resolve_runtime_dir(env_var: str, default_rel: str) -> Path:
 
 LOG_DIR: Path = _resolve_runtime_dir("A_STOCK_LOG_DIR", "log")
 TEMP_DIR: Path = _resolve_runtime_dir("A_STOCK_TEMP_DIR", "temp")
+LOCAL_DIR: Path = PROJECT_ROOT / "local"
+LOCAL_MARKET_DATA_DIR: Path = LOCAL_DIR / "market_data"
+LOCAL_CACHE_DIR: Path = LOCAL_DIR / "cache"
+LOCAL_SERVER_DIR: Path = LOCAL_DIR / "server"
 
-for p in [LOG_DIR, TEMP_DIR]:
+for p in [LOG_DIR, TEMP_DIR, LOCAL_DIR, LOCAL_MARKET_DATA_DIR, LOCAL_CACHE_DIR, LOCAL_SERVER_DIR]:
     p.mkdir(parents=True, exist_ok=True)
+
+import platform
+if platform.system() != "Windows":
+    try:
+        os.chmod(LOCAL_DIR, 0o700)
+    except Exception:
+        pass
 
 
 # Backward-compatibility aliases

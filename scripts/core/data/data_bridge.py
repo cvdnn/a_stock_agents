@@ -376,6 +376,21 @@ class DataBridge:
         except Exception as e:
             logger.debug(f"[L3] Ashare 降级读取失败: {e}")
 
+        # Step 3.5: 从本地同步数据库读取 (保障断网/降级下使用真实历史K线)
+        try:
+            from core.data.sync_engine import MarketDataStore
+            store = MarketDataStore()
+            local_data = store.get_klines(norm, count=count)
+            if local_data and len(local_data) >= 15:
+                res_local = [
+                    [k["date"], str(k["open"]), str(k["close"]), str(k["high"]), str(k["low"]), str(k["volume"])]
+                    for k in local_data
+                ]
+                cls._KLINE_CACHE[norm] = {"ts": now_ts, "data": res_local}
+                return res_local
+        except Exception as e:
+            logger.debug(f"[LocalDB] 本地数据读取失败: {e}")
+
         # 若原缓存有任意数据，即便稍过期也作为备用返回
         if cached and cached.get("data"):
             return cached["data"][-count:]

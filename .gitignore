@@ -28,6 +28,9 @@ htmlcov/
 
 # User Output Data & Private Assets (Complete Isolation)
 output/
+
+# System-wide local shared data (market data, server db, caches)
+local/
 !output/**/.gitkeep
 !output/**/*.example
 user_data/

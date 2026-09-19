@@ -35,12 +35,28 @@ PROJECT_ROOT = _find_project_root()
 OUTPUT_DIR: Path = PROJECT_ROOT / "output"
 LOG_DIR: Path = PROJECT_ROOT / "log"
 TEMP_DIR: Path = PROJECT_ROOT / "temp"
+LOCAL_DIR: Path = PROJECT_ROOT / "local"
+
+
+def enforce_secure_permissions(path: Path) -> None:
+    """保障 local 目录与内部文件安全，严格限制仅当前用户可读写 (0o700 / 0o600)，阻断权限泄漏。"""
+    if platform.system() != "Windows" and path.exists():
+        try:
+            os.chmod(path, 0o700)
+            for root, dirs, files in os.walk(path):
+                for d in dirs:
+                    os.chmod(os.path.join(root, d), 0o700)
+                for file_name in files:
+                    os.chmod(os.path.join(root, file_name), 0o600)
+        except Exception:
+            pass
 
 
 def ensure_workspace_dirs() -> None:
-    """惰性创建 output/log/temp 三大目录，避免空目录缺失影响下游 IO。"""
-    for d in (OUTPUT_DIR, LOG_DIR, TEMP_DIR):
+    """惰性创建 output/log/temp/local 运行时目录，并加固 local 安全权限。"""
+    for d in (OUTPUT_DIR, LOG_DIR, TEMP_DIR, LOCAL_DIR):
         d.mkdir(parents=True, exist_ok=True)
+    enforce_secure_permissions(LOCAL_DIR)
 
 
 def get_log_path(module: str = "app", session_id: str | None = None) -> Path:

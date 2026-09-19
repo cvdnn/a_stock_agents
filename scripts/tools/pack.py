@@ -37,7 +37,7 @@ EXCLUDE_DIRS = {
     ".venv", "venv", "env", "__pycache__", ".git", "backups", custom_backup_name,
     "output", "user_data", "cache", "reports", ".data_cache", custom_out_name,
     # 运行时观测 log/ 与可重建临时产物 temp/：严防运行日志/临时垃圾外泄
-    "log", "temp",
+    "log", "temp", "local",
 }
 EXCLUDE_EXTS = {".pyc", ".db", ".sqlite", ".sqlite3", ".log", ".pid", ".zip", ".tar.gz"}
 

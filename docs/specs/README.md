@@ -45,6 +45,11 @@
 |:---:|:---|:---|:---|:---:|:---|
 | `SPEC-ALGO-001`| 算法资产审查、架构评估与全生命周期治理规范 | [`algorithm/algo-lifecycle-and-governance-specification.md`](algorithm/algo-lifecycle-and-governance-specification.md) | [`algorithm-governance.md`](../guidelines/algorithm-governance.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
 
+### 7. 数据架构与同步机制设计 (`data/`)
+| 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
+|:---:|:---|:---|:---|:---:|:---|
+| `SPEC-DATA-001` | 本地行情数据同步机制实施计划与验收看板 | [`data/market-data-sync-implementation-plan.md`](data/market-data-sync-implementation-plan.md) | [`market-data-sync-specification.md`](../guidelines/market-data-sync-specification.md) | ✅ 正式基线 | SQLite嵌入式时序主库、交易日历断点探测与自愈、`local/` 700权限物理阻断、全套回归验证证据 |
+
 ---
 
 ## 二、 规范生命周期状态定义

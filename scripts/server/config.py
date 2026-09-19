@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 SERVER_DIR = Path(__file__).resolve().parent
 from core.config import PROJECT_ROOT
 
-DEFAULT_DB_PATH = PROJECT_ROOT / "output" / "cache" / "chats.db"
+DEFAULT_DB_PATH = PROJECT_ROOT / "local" / "server" / "chats.db"
 
 
 class ServerSettings(BaseModel):
@@ -56,6 +56,15 @@ def load_server_settings() -> ServerSettings:
     """Load settings from environment variables and defaults."""
     db_str = os.getenv("A_STOCK_DB_PATH")
     db_path = Path(db_str).resolve() if db_str else DEFAULT_DB_PATH
+    # 兼容性平滑迁移: 若原 output/cache/chats.db 存在且当前不存在，自动迁移至 local/server
+    legacy_chats = PROJECT_ROOT / "output" / "cache" / "chats.db"
+    if not db_path.exists() and legacy_chats.exists():
+        try:
+            import shutil
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(legacy_chats, db_path)
+        except Exception:
+            pass
     
     # Production never infers Mock. Tests must opt in explicitly.
     default_model = os.getenv("A_STOCK_DEFAULT_MODEL")

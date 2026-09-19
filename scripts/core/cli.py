@@ -52,6 +52,7 @@ from core.commands import (
     cmd_cyq,
     cmd_data_quote,
     cmd_data_technical,
+    cmd_data_sync,
     cmd_deploy_monitor,
     cmd_downside,
     cmd_evaluate,
@@ -380,6 +381,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_data_t = data_sub.add_parser("tech", help="获取技术指标", parents=[common_parser])
     p_data_t.add_argument("code", help="股票代码")
     p_data_t.add_argument("--count", type=int, default=120)
+    p_data_s = data_sub.add_parser("sync", help="行情与K线数据本地同步", parents=[common_parser])
+    p_data_s.add_argument("--code", help="股票代码")
+    p_data_s.add_argument("--codes", help="股票代码列表，逗号分隔")
+    p_data_s.add_argument("--pool", choices=["holdings", "watchlist", "focus"], help="按股票池同步")
+    p_data_s.add_argument("--indices", action="store_true", help="同步核心大盘指数")
+    p_data_s.add_argument("--all", action="store_true", help="同步全标的池")
+    p_data_s.add_argument("--today", action="store_true", help="同步当日收盘行情快照")
+    p_data_s.add_argument("--start", help="起始日期 (YYYY-MM-DD)")
+    p_data_s.add_argument("--end", help="结束日期 (YYYY-MM-DD)")
+    p_data_s.add_argument("--days", type=int, help="同步最近N个交易日K线")
+    p_data_s.add_argument("--mode", choices=["incremental", "full"], default="incremental", help="增量或全量同步模式")
+    p_data_s.add_argument("--check", action="store_true", help="校验本地数据完整性与断点")
+    p_data_s.add_argument("--repair", action="store_true", help="自动靶向修复并回补缺漏数据")
 
     # skill
     p_skill = subparsers.add_parser("skill", help="查看已注册技能模块", parents=[common_parser])
@@ -392,6 +406,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_validate = subparsers.add_parser("validate-model", help="外部时序模型样本外验证协议", parents=[common_parser])
     p_validate.add_argument("--model", default="Kronos", help="模型名称")
     p_validate.add_argument("--code", default=None, help="可选股票代码")
+
 
     # server
     p_srv = subparsers.add_parser("server", help="Web AIChat & 治理服务网关", parents=[common_parser])
@@ -591,6 +606,8 @@ def main():
             cmd_data_quote(args)
         elif data_cmd == "tech":
             cmd_data_technical(args)
+        elif data_cmd == "sync":
+            cmd_data_sync(args)
         else:
             parser.print_help()
     elif cmd == "skill":

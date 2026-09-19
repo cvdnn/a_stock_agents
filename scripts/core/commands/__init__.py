@@ -9,6 +9,7 @@ from core.commands.data_cmds import (
     cmd_cyq,
     cmd_data_quote,
     cmd_data_technical,
+    cmd_data_sync,
     cmd_events,
     cmd_market,
 )
@@ -58,6 +59,7 @@ from core.commands.trade_cmds import (
 __all__ = [
     "cmd_data_quote",
     "cmd_data_technical",
+    "cmd_data_sync",
     "cmd_batch",
     "cmd_events",
     "cmd_cyq",

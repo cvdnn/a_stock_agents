@@ -185,3 +185,95 @@ def cmd_market(args):
             chg = v.get("change_pct", 0)
             arrow = "↑" if chg > 0 else "↓"
             print(f"  {v.get('name', k):<8} {v.get('price', 'N/A')} {arrow} {chg:+.2f}%")
+
+
+def cmd_data_sync(args):
+    """行情与K线数据同步命令"""
+    from core.data.sync_engine import DataSyncEngine
+
+    engine = DataSyncEngine()
+
+    raw_code = getattr(args, 'code', None)
+    raw_codes = getattr(args, 'codes', None)
+    codes = []
+    if raw_code:
+        codes.append(raw_code)
+    elif raw_codes:
+        if isinstance(raw_codes, list):
+            codes = raw_codes
+        else:
+            codes = [c.strip() for c in str(raw_codes).split(',') if c.strip()]
+
+    pool = getattr(args, 'pool', None)
+    include_indices = getattr(args, 'indices', False)
+    all_pool = getattr(args, 'all', False)
+
+    symbols = engine.resolve_symbols(
+        codes=codes, pool=pool, include_indices=include_indices, all_pool=all_pool
+    )
+
+    is_json = getattr(args, 'json', False) or getattr(args, 'output', '') == 'json'
+
+    # 1. 完整性校验模式 (--check)
+    if getattr(args, 'check', False):
+        res = engine.audit_integrity(symbols, start_date=getattr(args, 'start', None), end_date=getattr(args, 'end', None))
+        if is_json:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+        else:
+            print(f"=== 行情数据完整性校验报告 (共 {len(symbols)} 只标的) ===")
+            print(f"{'代码':<10} {'状态':<8} {'在库条数':<8} {'时间范围':<23} {'缺漏数':<8} {'坏点数':<8}")
+            print('-' * 75)
+            for r in res:
+                st_icon = '🟢' if r['status'] == 'healthy' else ('⚪' if r['status'] == 'empty' else '🔴')
+                date_range = f"{r.get('min_date', '')} ~ {r.get('max_date', '')}" if r.get('min_date') else '无'
+                print(f"{r['symbol']:<10} {st_icon} {r['status']:<6} {r['row_count']:<8} {date_range:<23} {r.get('missing_count', 0):<8} {r.get('bad_count', 0):<8}")
+                if r.get('missing_days'):
+                    print(f"   └─ 缺漏日期切片: {', '.join(r['missing_days'])}")
+        return
+
+    # 2. 缺漏回补修复模式 (--repair)
+    if getattr(args, 'repair', False):
+        res = engine.repair_gaps(symbols)
+        if is_json:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+        else:
+            print(f"=== 缺漏数据修复回补报告 (共 {len(symbols)} 只标的) ===")
+            for r in res:
+                icon = '✅' if r['repaired'] else 'ℹ️'
+                print(f"{icon} [{r['symbol']}] {r['message']}")
+        return
+
+    # 3. 当日快照模式 (--today)
+    if getattr(args, 'today', False):
+        res = engine.sync_today_snapshot(symbols)
+        if is_json:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+        else:
+            print(f"=== 当日行情快照同步完成 ===")
+            print(f"日期: {res.get('date')} | 更新条数: {res.get('updated_count')}/{res.get('total_requested')}")
+        return
+
+    # 4. 常规增量/全量同步
+    mode = getattr(args, 'mode', 'incremental') or 'incremental'
+    days = getattr(args, 'days', None)
+    start_date = getattr(args, 'start', None)
+    end_date = getattr(args, 'end', None)
+    count = getattr(args, 'count', 250)
+    if days and days > 0:
+        count = days
+
+    res = engine.sync_batch(
+        symbols, mode=mode, count=count, start_date=start_date, end_date=end_date
+    )
+
+    if is_json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+    else:
+        print(f"=== A-Stock 数据同步完成 ({mode}) ===")
+        print(f"耗时: {res['elapsed_seconds']}s | 成功: {res['success_count']}/{res['total_requested']} | 失败: {res['failed_count']}")
+        print(f"{'代码':<10} {'状态':<12} {'本次拉取':<10} {'在库总数':<10} {'最新在库日期':<12}")
+        print('-' * 65)
+        for d in res['details']:
+            st = d.get('status', '')
+            icon = '✅' if st in ['success', 'up_to_date'] else '❌'
+            print(f"{d['symbol']:<10} {icon} {st:<10} {d.get('synced_count', 0):<10} {d.get('total_count', 0):<10} {d.get('last_date', ''):<12}")
