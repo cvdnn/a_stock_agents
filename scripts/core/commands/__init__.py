@@ -55,6 +55,7 @@ from core.commands.portfolio_cmds import (
 from core.commands.trade_cmds import (
     cmd_trade_dispatch,
 )
+from core.commands.funnel_cmds import cmd_funnel
 
 __all__ = [
     "cmd_data_quote",
@@ -97,4 +98,5 @@ __all__ = [
     "cmd_pool_dispatch",
     "cmd_pos_dispatch",
     "cmd_trade_dispatch",
+    "cmd_funnel",
 ]

@@ -77,6 +77,7 @@ from core.commands import (
     cmd_skill_list,
     cmd_tips,
     cmd_validate_model,
+    cmd_funnel,
     cmd_trapped,
     cmd_trade_dispatch,
     cmd_vol_breakout,
@@ -122,6 +123,7 @@ __all__ = [
     "cmd_skill_list",
     "cmd_tips",
     "cmd_validate_model",
+    "cmd_funnel",
     "cmd_report",
     "cmd_trade_dispatch",
 ]
@@ -407,6 +409,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_validate.add_argument("--model", default="Kronos", help="模型名称")
     p_validate.add_argument("--code", default=None, help="可选股票代码")
 
+    # configurable funnel
+    p_funnel = subparsers.add_parser("funnel", help="配置驱动的收盘至早盘漏斗选股", parents=[common_parser])
+    funnel_sub = p_funnel.add_subparsers(dest="funnel_cmd")
+    p_funnel_validate = funnel_sub.add_parser("validate", help="校验漏斗配置", parents=[common_parser])
+    p_funnel_validate.add_argument("--config", default=None, help="自定义漏斗YAML路径")
+    p_funnel_run = funnel_sub.add_parser("run", help="执行一个漏斗阶段", parents=[common_parser])
+    p_funnel_run.add_argument("--stage", required=True, help="阶段ID，如 post_close/market_gate/opening_gap/turning_point")
+    p_funnel_run.add_argument("--input", required=True, help="输入JSON路径；使用 - 从stdin读取")
+    p_funnel_run.add_argument("--context", default=None, help="可选的独立上下文JSON路径")
+    p_funnel_run.add_argument("--config", default=None, help="自定义漏斗YAML路径")
+    p_funnel_run.add_argument("--save", action="store_true", help="将阶段结果归档到 output/pools/funnel/")
+    p_funnel_run.add_argument("--trade-date", default=None, help="归档交易日标签 YYYYMMDD")
 
     # server
     p_srv = subparsers.add_parser("server", help="Web AIChat & 治理服务网关", parents=[common_parser])
@@ -619,6 +633,8 @@ def main():
         cmd_tips(args)
     elif cmd == "validate-model":
         cmd_validate_model(args)
+    elif cmd == "funnel":
+        cmd_funnel(args)
     elif cmd == "server":
         server_cmd = getattr(args, "server_cmd", None)
         if server_cmd == "start":

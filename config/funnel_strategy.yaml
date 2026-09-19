@@ -1,0 +1,107 @@
+version: 1
+strategy:
+  id: close_to_open_turning_point
+  name: 收盘突破至早盘拐点漏斗
+  timezone: Asia/Shanghai
+  notes:
+    - 默认按公式原文使用20日新高；将 breakout_high.lookback 改为60即可切换。
+    - 默认高开区间为1%至2%；若“只要高开”则将 min 改为0且 max改为null。
+
+stages:
+  - id: post_close
+    name: 收盘后硬条件初筛
+    scope: candidate_filter
+    schedule: "15:05-23:59"
+    rules:
+      - id: exclude_st
+        type: text_exclude
+        field: name
+        tokens: [ST, "*ST", 退]
+      - id: exclude_bse
+        type: symbol_prefix_exclude
+        field: code
+        prefixes: [4, 8, 92]
+      - id: minimum_float_market_cap
+        type: field_compare
+        field: circulating_market_cap
+        op: gt
+        value: 3000000000
+      - id: daily_gain_below_7pct
+        type: field_compare
+        field: change_pct
+        op: lt
+        value: 7.0
+      - id: breakout_high
+        type: rolling_high
+        field: closes
+        lookback: 20
+        strict: true
+      - id: close_above_ma60
+        type: above_sma
+        series_field: closes
+        period: 60
+        strict: true
+      - id: ma60_rising
+        type: sma_slope
+        field: closes
+        period: 60
+        lag: 1
+        min_slope_pct: 0.0
+        strict: true
+      - id: volume_expansion
+        type: series_compare
+        field: volumes
+        left_offset: -1
+        right_offset: -2
+        op: gt
+      - id: main_fund_inflow
+        type: field_compare
+        field: main_net_inflow
+        op: gt
+        value: 0
+
+  - id: market_gate
+    name: 次日大盘MA20门控
+    scope: universe_gate
+    schedule: "09:30-09:35"
+    rules:
+      - id: index_above_ma20
+        type: market_above_sma
+        benchmark: sh000001
+        price_field: market.current_price
+        series_field: market.completed_closes
+        period: 20
+        strict: true
+
+  - id: opening_gap
+    name: 次日开盘高开过滤
+    scope: candidate_filter
+    schedule: "09:30-09:31"
+    rules:
+      - id: gap_range
+        type: range
+        field: gap_pct
+        min: 1.0
+        max: 2.0
+
+  - id: turning_point
+    name: 早盘回调与供需拐点确认
+    scope: candidate_filter
+    schedule: "09:35-09:40"
+    rules:
+      - id: pullback_supply_demand_turn
+        type: intraday_turning_point
+        points_field: minute_points
+        window_start: "09:30"
+        window_end: "09:40"
+        pullback_end: "09:35"
+        confirm_start: "09:35"
+        min_points: 6
+        min_pullback_pct: 0.20
+        max_pullback_pct: 2.00
+        max_sell_ratio: 0.75
+        min_buy_ratio: 1.20
+        min_book_ratio: 1.20
+        required: [pullback, price_reversal, sell_exhaustion]
+        confirmations: [buy_strengthening, book_support]
+        min_confirmations: 1
