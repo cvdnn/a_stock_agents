@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-02（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 44 项量化金融模型、技术指标、Alpha因子、选股策略、撮合引擎与风控算法的全生命周期治理
-- **权威设计指南**：[`docs/guidelines/algorithm-governance.md`](../../guidelines/algorithm-governance.md)
+- **权威设计指南**：[`docs/guidelines/algorithm/algorithm-governance.md`](../../guidelines/algorithm/algorithm-governance.md)
 
 > 🔗 **权威规范与治理指南直达**：  
 > 本文件为 **算法资产审查、统一算法库架构评估与生命周期治理实施落地看板**。关于 44 项量化算法全景拓扑、AlgoRegistry 2.0 统一抽象基类、ALCM 四道质量门禁机制与完整资产清单，请查阅权威指南：  
-> 👉 [**《算法审查、架构评估与全生命周期治理指南》(algorithm-governance.md)**](../../guidelines/algorithm-governance.md)
+> 👉 [**《算法审查、架构评估与全生命周期治理指南》(algorithm-governance.md)**](../../guidelines/algorithm/algorithm-governance.md)
 
 ---
 
@@ -19,10 +19,10 @@
 - **规范名称**：算法审查、架构评估与全生命周期治理规范
 - **核心定位**：将分散在全库各处的 44 项量化算法资产纳管至统一标准，建立工业级 ALCM 生命周期管理闭环。
 - **关键设计要点**：
-  1. [44 项量化算法资产全景拓扑](../../guidelines/algorithm-governance.md#11-算法族群架构全景)：覆盖数据指标（10项）、量价Alpha因子（12项）、多因子评分（7项）、多智能体推断（5项）、交易策略与风控（14项）、撮合度量（6项）；
-  2. [AlgoRegistry 2.0 统一纳管抽象](../../guidelines/algorithm-governance.md#22-统一算法库algo-registry-20架构设计)：强类型元数据描述、分类纳管（Category）、适用市场状态（Regime）与兼容别名机制；
-  3. [ALCM 四道质量门禁机制](../../guidelines/algorithm-governance.md#三-算法全生命周期管理-alcm-治理框架)：G1 研发规范审查 -> G2 离线防过拟合检验 -> G3 灰度影子实盘跟踪 -> G4 运行退市熔断机制；
-  4. [平滑兼容历史别名协议](../../guidelines/naming-conventions.md#三-代码废弃与优雅退役协议-deprecation--purge-protocol)：保持向后兼容历史调用，消除版本号硬编码。
+  1. [44 项量化算法资产全景拓扑](../../guidelines/algorithm/algorithm-governance.md#11-算法族群架构全景)：覆盖数据指标（10项）、量价Alpha因子（12项）、多因子评分（7项）、多智能体推断（5项）、交易策略与风控（14项）、撮合度量（6项）；
+  2. [AlgoRegistry 2.0 统一纳管抽象](../../guidelines/algorithm/algorithm-governance.md#22-统一算法库algo-registry-20架构设计)：强类型元数据描述、分类纳管（Category）、适用市场状态（Regime）与兼容别名机制；
+  3. [ALCM 四道质量门禁机制](../../guidelines/algorithm/algorithm-governance.md#三-算法全生命周期管理-alcm-治理框架)：G1 研发规范审查 -> G2 离线防过拟合检验 -> G3 灰度影子实盘跟踪 -> G4 运行退市熔断机制；
+  4. [平滑兼容历史别名协议](../../guidelines/engineering/naming-conventions.md#三-代码废弃与优雅退役协议-deprecation--purge-protocol)：保持向后兼容历史调用，消除版本号硬编码。
 
 ---
 
@@ -75,5 +75,5 @@ timeline
 ## 五、 执行变更日志 (Execution Changelog)
 
 - **2026-09-08 (v1.3)**：校准实施任务映射测试套件路径至 `tests/test_models_suite.py` 与 ALCM 质量门禁测试套件。
-- **2026-09-08 (v1.2)**：按规范治理要求重构，将算法审查与治理指南抽离至 `docs/guidelines/algorithm-governance.md`，本文件重塑为实施看板。
+- **2026-09-08 (v1.2)**：按规范治理要求重构，将算法审查与治理指南抽离至 `docs/guidelines/algorithm/algorithm-governance.md`，本文件重塑为实施看板。
 - **2026-09-02 (v1.0)**：完成全量 44 项算法审查与 ALCM 治理框架方案。

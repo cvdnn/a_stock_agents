@@ -2,7 +2,7 @@
 
 > **文档类别**：系统架构 (Architecture)  
 > **适用范围**：脱离第三方 AI 终端宿主（Antigravity / Hermes / Codex 等），自建独立 Web 界面系统并原生兼容本地客户端（Desktop / TUI）的 A股全流程量化投研交互中枢  
-> **实施进度看板**：[`docs/specs/architecture/arch-web-aichat-and-skill-governance.md`](../specs/architecture/arch-web-aichat-and-skill-governance.md) (`SPEC-ARCH-001`)
+> **实施进度看板**：[`docs/specs/architecture/arch-web-aichat-and-skill-governance.md`](../../specs/architecture/arch-web-aichat-and-skill-governance.md) (`SPEC-ARCH-001`)
 
 ---
 

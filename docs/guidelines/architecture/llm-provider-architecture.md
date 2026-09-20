@@ -2,7 +2,7 @@
 
 > **文档类别**：系统架构 (Architecture)  
 > **适用范围**：A-Stock Agents 服务端网关、多模型适配运行时、Web 投研前端配置中心  
-> **实施进度看板**：[`docs/specs/architecture/arch-llm-provider-and-role-allocation.md`](../specs/architecture/arch-llm-provider-and-role-allocation.md) (`SPEC-ARCH-002`)
+> **实施进度看板**：[`docs/specs/architecture/arch-llm-provider-and-role-allocation.md`](../../specs/architecture/arch-llm-provider-and-role-allocation.md) (`SPEC-ARCH-002`)
 
 ---
 

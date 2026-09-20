@@ -113,7 +113,7 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 ## D1：实施前校准真实状态
 
-**依赖：** 阅读总计划。**文件：** `docs/specs/README.md`、10 项已标基线的 spec、`docs/specs/engineering/eng-remediation-acceptance.md`（新增）、`docs/guidelines/code-review.md`、`docs/guidelines/README.md`、`docs/audits/code-review-history.md`（新增）。
+**依赖：** 阅读总计划。**文件：** `docs/specs/README.md`、10 项已标基线的 spec、`docs/specs/engineering/eng-remediation-acceptance.md`（新增）、`docs/guidelines/engineering/code-review.md`、`docs/guidelines/README.md`、`docs/audits/code-review-history.md`（新增）。
 
 - [ ] 新建验收台账，逐项记录 spec、原声明、发现编号、执行任务、代码路径、测试、状态；填入原审查实测结果，不填写未来 PASS。
 - [ ] 将有缺口的 10 项当前状态改为实施中，保留历史日期和此前声明；ARCH-003 保持 RFC。

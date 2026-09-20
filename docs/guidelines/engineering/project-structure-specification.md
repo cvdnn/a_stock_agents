@@ -2,7 +2,7 @@
 
 > **文档类别**：工程规范 (Specification)  
 > **适用范围**：全仓库 Python 源码、Web 前端、多智能体工作区、CLI 工具链与跨平台部署  
-> **实施进度看板**：[`docs/specs/engineering/eng-project-structure-and-workspace.md`](../specs/engineering/eng-project-structure-and-workspace.md) (`SPEC-ENG-001`)
+> **实施进度看板**：[`docs/specs/engineering/eng-project-structure-and-workspace.md`](../../specs/engineering/eng-project-structure-and-workspace.md) (`SPEC-ENG-001`)
 
 ---
 
@@ -83,22 +83,15 @@ a_stock_agents/
 ├── docs/                    # 完整分级技术文档与架构设计规范中心
 │   ├── index.md             # 全景知识库导图
 │   ├── quickstart.md        # 快速上手向导
-│   ├── guidelines/          # 工程规范、设计指南、系统架构与业务规则知识库
+│   ├── guidelines/          # 7 大领域工程规范、设计指南、系统架构与业务规则知识库 (SSOT)
 │   │   ├── README.md        # guidelines 知识导航中心与分类矩阵
-│   │   ├── project-structure-specification.md # 本工程规范 (SSOT)
-│   │   ├── ui-design-guide.md                 # UI 界面设计与交互指南
-│   │   ├── web-aichat-architecture.md         # 独立 Web AIChat 与技能治理架构
-│   │   ├── llm-provider-architecture.md       # 大模型双轨接入与角色分配架构
-│   │   ├── token-security-architecture.md     # Token 链路安全网关架构
-│   │   ├── a2ui-framework-architecture.md     # A2UI 前端渲染引擎架构
-│   │   ├── a2ui-component-registry-specification.md # A2UI 组件库与注册机制规范
-│   │   ├── broker-commission-rules.md         # 券商佣金与市场费率配置规则
-│   │   ├── breakeven-calculation-rules.md     # 最低保本价精算与向上进位规则
-│   │   ├── trading-execution-rules.md         # 实战交易反应动作与风控止损规则
-│   │   ├── algorithm-governance.md            # 算法全生命周期治理指南
-│   │   ├── code-review.md                     # 代码审查标准与红线清单
-│   │   ├── testing-guide.md                   # 回归测试架构与规约
-│   │   └── naming-conventions.md              # 架构命名规范与设计范式指南
+│   │   ├── a2ui/            # A2UI 前端渲染引擎与组件模块化注册规范
+│   │   ├── algorithm/       # 算法全生命周期治理指南
+│   │   ├── architecture/    # 独立 Web AIChat、大模型接入与 Token 安全网关架构
+│   │   ├── business/        # 券商佣金、精确保本价进位与实战交易反应规则
+│   │   ├── data/            # 行情数据接口字典与本地同步存储隔离规范
+│   │   ├── engineering/     # 工程结构规范 (SSOT)、命名范式、代码审查、安全与测试
+│   │   └── ui/              # UI 界面设计与 app.js 源码模块化重构指南
 │   ├── specs/               # 6 大领域实施进度与任务执行看板中心
 │   │   ├── README.md        # 规范总览矩阵与落地进度看板
 │   │   ├── engineering/     # SPEC-ENG-001 实施看板

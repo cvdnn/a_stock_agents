@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-07（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 代码库物理组织、环境编排、智能体工作区契约与跨平台发行底座
-- **权威设计指南**：[`docs/guidelines/project-structure-specification.md`](../../guidelines/project-structure-specification.md)
+- **权威设计指南**：[`docs/guidelines/engineering/project-structure-specification.md`](../../guidelines/engineering/project-structure-specification.md)
 
 > 🔗 **权威规范与架构定义直达**：  
 > 本文件为**工程实施落地与任务执行跟踪看板**。关于零全局污染原则、单一真理来源 (SSOT)、目录详细拓扑、跨平台路径规范等完整定义，请查阅权威指南：  
-> 👉 [**《项目工程结构与智能体工作区架构规范》(project-structure-specification.md)**](../../guidelines/project-structure-specification.md)
+> 👉 [**《项目工程结构与智能体工作区架构规范》(project-structure-specification.md)**](../../guidelines/engineering/project-structure-specification.md)
 
 ---
 
@@ -19,10 +19,10 @@
 - **规范名称**：项目工程结构与智能体工作区架构规范
 - **核心定位**：保障系统跨平台自洽运行、零全局环境污染与多智能体就地调度的基础工程标准。
 - **关键设计要点**：
-  1. [零全局污染原则](../../guidelines/project-structure-specification.md#1-零全局污染原则-zero-global-pollution)：全部 18 项技能就地自包含运行，严禁向系统全局目录写入资产；
-  2. [SSOT 与动态根路径探测](../../guidelines/project-structure-specification.md#2-单一真理来源-single-source-of-truth-ssot-与物理路径解耦)：通过 `Path(__file__).resolve().parents[...]` 根除硬编码路径与软链接；
-  3. [用户隐私数据物理隔离](../../guidelines/project-structure-specification.md#3-用户敏感数据强制物理隔离-output)：持仓档案、自选股池与交易流水严格限定在 `output/` 并排除于版本控制之外；
-  4. [统一跨平台 CLI 门面](../../guidelines/project-structure-specification.md#4-统一跨平台命令行门面-unified-cli-facade)：Linux/macOS、Windows CMD/PowerShell 具备一致命令行语义。
+  1. [零全局污染原则](../../guidelines/engineering/project-structure-specification.md#1-零全局污染原则-zero-global-pollution)：全部 18 项技能就地自包含运行，严禁向系统全局目录写入资产；
+  2. [SSOT 与动态根路径探测](../../guidelines/engineering/project-structure-specification.md#2-单一真理来源-single-source-of-truth-ssot-与物理路径解耦)：通过 `Path(__file__).resolve().parents[...]` 根除硬编码路径与软链接；
+  3. [用户隐私数据物理隔离](../../guidelines/engineering/project-structure-specification.md#3-用户敏感数据强制物理隔离-output)：持仓档案、自选股池与交易流水严格限定在 `output/` 并排除于版本控制之外；
+  4. [统一跨平台 CLI 门面](../../guidelines/engineering/project-structure-specification.md#4-统一跨平台命令行门面-unified-cli-facade)：Linux/macOS、Windows CMD/PowerShell 具备一致命令行语义。
 
 ---
 
@@ -79,5 +79,5 @@ timeline
 ## 五、 执行变更日志 (Execution Changelog)
 
 - **2026-09-08 (v1.2)**：校准自动化测试映射路径至 `tests/test_commands_suite.py` 并收录前端交互回归套件 `tests/test_at_operator.js`。
-- **2026-09-08 (v1.1)**：按规范治理要求重构，将技术规格定义抽离至 `docs/guidelines/project-structure-specification.md`，本文件重塑为实施与任务执行跟踪看板。
+- **2026-09-08 (v1.1)**：按规范治理要求重构，将技术规格定义抽离至 `docs/guidelines/engineering/project-structure-specification.md`，本文件重塑为实施与任务执行跟踪看板。
 - **2026-09-07 (v1.0)**：初始创建，确立工程目录拓扑、零全局污染与统一 CLI 架构基线。

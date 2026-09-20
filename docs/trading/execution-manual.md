@@ -1,7 +1,7 @@
 # A股实战交易反应动作与量化决策手册
 
 **文档版本**：v1.0.0 (2026-09-01)  
-**权威知识与实施看板**：本手册为交易员执行层指引。完整交易反应动作与风控规则请参阅 [`docs/guidelines/trading-execution-rules.md`](../guidelines/trading-execution-rules.md)，实施与执行看板请参阅 [`docs/specs/business/biz-trading-execution-and-risk-control.md`](../specs/business/biz-trading-execution-and-risk-control.md) (SPEC-BIZ-003)。
+**权威知识与实施看板**：本手册为交易员执行层指引。完整交易反应动作与风控规则请参阅 [`docs/guidelines/business/trading-execution-rules.md`](../guidelines/business/trading-execution-rules.md)，实施与执行看板请参阅 [`docs/specs/business/biz-trading-execution-and-risk-control.md`](../specs/business/biz-trading-execution-and-risk-control.md) (SPEC-BIZ-003)。
 
 ---
 

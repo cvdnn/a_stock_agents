@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-05（修订日期：2026-09-08）
 - **适用场景**：脱离第三方 AI 终端宿主，自建独立 Web 界面系统并原生兼容本地客户端的 A股全流程量化投研交互中枢
-- **权威设计指南**：[`docs/guidelines/web-aichat-architecture.md`](../../guidelines/web-aichat-architecture.md)
+- **权威设计指南**：[`docs/guidelines/architecture/web-aichat-architecture.md`](../../guidelines/architecture/web-aichat-architecture.md)
 
 > 🔗 **权威规范与架构定义直达**：  
 > 本文件为 **Web AIChatUI 与 Skill 治理系统实施落地与任务执行跟踪看板**。关于四层系统架构、多端部署形态、SSE 广播协议与分级风控门禁等完整定义，请查阅权威指南：  
-> 👉 [**《独立 Web AIChatUI 与 Skill 治理系统架构设计》(web-aichat-architecture.md)**](../../guidelines/web-aichat-architecture.md)
+> 👉 [**《独立 Web AIChatUI 与 Skill 治理系统架构设计》(web-aichat-architecture.md)**](../../guidelines/architecture/web-aichat-architecture.md)
 
 ---
 
@@ -19,11 +19,11 @@
 - **规范名称**：独立 Web AIChatUI 与 Skill 治理系统架构设计规范
 - **核心定位**：脱离外部商业 Agent 宿主环境，自建高内聚、自包含的独立 Web 交互与技能治理控制底座。
 - **关键设计要点**：
-  1. [自带智能体大脑 (Native ReAct Agent Runtime)](../../guidelines/web-aichat-architecture.md#1-总体架构全景-system-architecture)：内置原生推理循环与工具调度器，无需外部宿主即可自主推演；
-  2. [18 项技能治理控制平面](../../guidelines/web-aichat-architecture.md#2-17-项技能治理控制平面-skill-governance-plane)：顶栏菜单常驻治理中心，提供运行时参数调试、启停开关与安全权限门禁；
-  3. [SSE 流式打字机通信协议](../../guidelines/web-aichat-architecture.md#1-sse-打字机流式广播规范-apichatstream)：支持思维链、工具调用进度卡片与 Markdown 打字机切片毫秒级广播；
-  4. [会话与量化投研状态持久化](../../guidelines/web-aichat-architecture.md#1-总体架构全景-system-architecture)：SQLite WAL 模式存储多轮对话上下文与标的研报卡片；
-  5. [@操作符数据注册与任务分发中枢](../../guidelines/web-aichat-architecture.md#3-操作符任务分发与工作台联动中枢-at-operator-dispatch--workbench-linking)：支持股票诊断、工作台板块数据抓取与高亮、技能绑定及算法仿真四向路由。
+  1. [自带智能体大脑 (Native ReAct Agent Runtime)](../../guidelines/architecture/web-aichat-architecture.md#1-总体架构全景-system-architecture)：内置原生推理循环与工具调度器，无需外部宿主即可自主推演；
+  2. [18 项技能治理控制平面](../../guidelines/architecture/web-aichat-architecture.md#2-17-项技能治理控制平面-skill-governance-plane)：顶栏菜单常驻治理中心，提供运行时参数调试、启停开关与安全权限门禁；
+  3. [SSE 流式打字机通信协议](../../guidelines/architecture/web-aichat-architecture.md#1-sse-打字机流式广播规范-apichatstream)：支持思维链、工具调用进度卡片与 Markdown 打字机切片毫秒级广播；
+  4. [会话与量化投研状态持久化](../../guidelines/architecture/web-aichat-architecture.md#1-总体架构全景-system-architecture)：SQLite WAL 模式存储多轮对话上下文与标的研报卡片；
+  5. [@操作符数据注册与任务分发中枢](../../guidelines/architecture/web-aichat-architecture.md#3-操作符任务分发与工作台联动中枢-at-operator-dispatch--workbench-linking)：支持股票诊断、工作台板块数据抓取与高亮、技能绑定及算法仿真四向路由。
 
 ---
 
@@ -76,6 +76,6 @@ timeline
 
 - **2026-09-08 (v1.6)**：登记 @操作符数据注册中心（AtOperatorRegistry）、四向任务路由（executeOperatorTask）与右侧工作台数据抓取联动（extractWorkbenchSectionData）。
 - **2026-09-08 (v1.5)**：审查校准：校正代码映射路径至实际工程文件（`agent/react_runner.py`、`api/chat.py`、`db.py`）。
-- **2026-09-08 (v1.4)**：按规范治理要求重构，将系统架构定义抽离至 `docs/guidelines/web-aichat-architecture.md`，本文件重塑为实施与任务执行跟踪看板。
+- **2026-09-08 (v1.4)**：按规范治理要求重构，将系统架构定义抽离至 `docs/guidelines/architecture/web-aichat-architecture.md`，本文件重塑为实施与任务执行跟踪看板。
 - **2026-09-07 (v1.3)**：完成技能治理中心自工具箱迁移至菜单栏顶部的全套前端与后端通信落地。
 - **2026-09-05 (v1.0)**：初始创建，规划独立 Web AIChat 与技能治理系统架构。

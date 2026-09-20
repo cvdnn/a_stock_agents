@@ -254,5 +254,5 @@ python bin/update.py --rollback backup_20260902_174003
 - **最低保本卖出价精算数学规则**：[`specs/business/biz-breakeven-price-calculation-rules.md`](specs/business/biz-breakeven-price-calculation-rules.md) (SPEC-BIZ-002)
 - **实战交易反应动作与风控规范**：[`specs/business/biz-trading-execution-and-risk-control.md`](specs/business/biz-trading-execution-and-risk-control.md) (SPEC-BIZ-003)
 - **算法资产全生命周期治理体系**：[`specs/algorithm/algo-lifecycle-and-governance-specification.md`](specs/algorithm/algo-lifecycle-and-governance-specification.md) (SPEC-ALGO-001)
-- **代码审查基准与防御模式**：[`guidelines/code-review.md`](guidelines/code-review.md)
-- **自动化回归测试规范**：[`guidelines/testing-guide.md`](guidelines/testing-guide.md)
+- **代码审查基准与防御模式**：[`guidelines/engineering/code-review.md`](guidelines/engineering/code-review.md)
+- **自动化回归测试规范**：[`guidelines/engineering/testing-guide.md`](guidelines/engineering/testing-guide.md)

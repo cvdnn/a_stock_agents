@@ -19,7 +19,7 @@
 - Create: `docs/audits/code-review-history.md`
 - Modify: `docs/specs/README.md`
 - Modify: the ten specs currently marked `Production Baseline | 100%`
-- Modify: `docs/guidelines/code-review.md`
+- Modify: `docs/guidelines/engineering/code-review.md`
 - Modify: `docs/guidelines/README.md`
 - Test: `tests/test_docs_suite.py`
 

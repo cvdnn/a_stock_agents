@@ -2,7 +2,7 @@
 
 **生效日期：** 2026-09-10
 
-旧审查原文与当时的“完成”声明保存在 [代码审查历史归档](../audits/code-review-history.md)。整改证据按 [审查整改验收台账](../specs/engineering/eng-remediation-acceptance.md) 逐项记录；台账未给出已验证结论的能力不得宣称完成。
+旧审查原文与当时的“完成”声明保存在 [代码审查历史归档](../../audits/code-review-history.md)。整改证据按 [审查整改验收台账](../../specs/engineering/eng-remediation-acceptance.md) 逐项记录；台账未给出已验证结论的能力不得宣称完成。
 
 ## 强制检查项
 

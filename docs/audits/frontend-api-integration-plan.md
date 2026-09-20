@@ -65,7 +65,7 @@
 ### 阶段 P3 —— 收尾与文档（✅ 已完成）
 
 - [x] 移除两处失效的 `linkedContextText` DOM 引用（`switchRightTab` / `unlinkRightContent`）。
-- [x] 更新 `docs/guidelines/web-aichat-architecture.md`：校准 SSE 事件帧契约 + 新增「前端数据契约与 MOCK 兜底规范」章节。
+- [x] 更新 `docs/guidelines/architecture/web-aichat-architecture.md`：校准 SSE 事件帧契约 + 新增「前端数据契约与 MOCK 兜底规范」章节。
 - [x] `git` 原子提交（4 个）。
 
 ---

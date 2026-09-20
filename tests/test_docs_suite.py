@@ -54,9 +54,9 @@ def test_acceptance_ledger_tracks_every_audited_spec_without_future_pass() -> No
 
 
 def test_current_code_review_guide_links_history_and_existing_code_paths() -> None:
-    guide_path = ROOT / "docs/guidelines/code-review.md"
+    guide_path = ROOT / "docs/guidelines/engineering/code-review.md"
     text = guide_path.read_text(encoding="utf-8")
-    assert "../audits/code-review-history.md" in text
+    assert "../../audits/code-review-history.md" in text
 
     code_paths = re.findall(
         r"`((?:scripts/core|scripts/server|web|tests|bin|config|\.agents)/[^`]+)`",

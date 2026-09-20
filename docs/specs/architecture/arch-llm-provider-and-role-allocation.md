@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-07（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 服务端网关、多模型适配运行时、Web 投研前端配置中心
-- **权威设计指南**：[`docs/guidelines/llm-provider-architecture.md`](../../guidelines/llm-provider-architecture.md)
+- **权威设计指南**：[`docs/guidelines/architecture/llm-provider-architecture.md`](../../guidelines/architecture/llm-provider-architecture.md)
 
 > 🔗 **权威规范与架构定义直达**：  
 > 本文件为 **大模型双轨接入与多业务场景角色分配实施落地看板**。关于物理接入轨与逻辑角色轨双轨架构、防 CORS 代理规范、模型工厂寻址逻辑等完整定义，请查阅权威指南：  
-> 👉 [**《大模型双轨接入与多业务场景角色分配架构》(llm-provider-architecture.md)**](../../guidelines/llm-provider-architecture.md)
+> 👉 [**《大模型双轨接入与多业务场景角色分配架构》(llm-provider-architecture.md)**](../../guidelines/architecture/llm-provider-architecture.md)
 
 ---
 
@@ -19,10 +19,10 @@
 - **规范名称**：大模型双轨接入与多业务场景角色分配架构设计规范
 - **核心定位**：解决多智能体量化投研中不同场景对大模型智能、成本、代码能力与多模态感知的异构诉求。
 - **关键设计要点**：
-  1. [双轨制解耦架构](../../guidelines/llm-provider-architecture.md#2-双轨制架构定义-dual-track-architecture)：物理接入轨 (Providers 凭证/延迟/发现) 与逻辑角色轨 (Chat/Summary/Quant/Debate/Vision) 彻底分离；
-  2. [服务端防 CORS 代理发现机制](../../guidelines/llm-provider-architecture.md#3-服务端防-cors-模型发现代理-apimodelsfetch-remote)：规避浏览器跨域限制，后端统一代理拉取上游服务商可用模型列表；
-  3. [网络连通性与延迟即时探测](../../guidelines/llm-provider-architecture.md#2-连通性与网络延迟探测机制-apimodelstest-connection)：支持 HTTP 200 耗时毫秒级测试与鉴权失效预警；
-  4. [运行时动态工厂与热装配](../../guidelines/llm-provider-architecture.md#四-逻辑角色轨五大业务场景角色绑定规范)：`LLMProviderFactory` 根据业务场景键名动态获取对应实例。
+  1. [双轨制解耦架构](../../guidelines/architecture/llm-provider-architecture.md#2-双轨制架构定义-dual-track-architecture)：物理接入轨 (Providers 凭证/延迟/发现) 与逻辑角色轨 (Chat/Summary/Quant/Debate/Vision) 彻底分离；
+  2. [服务端防 CORS 代理发现机制](../../guidelines/architecture/llm-provider-architecture.md#3-服务端防-cors-模型发现代理-apimodelsfetch-remote)：规避浏览器跨域限制，后端统一代理拉取上游服务商可用模型列表；
+  3. [网络连通性与延迟即时探测](../../guidelines/architecture/llm-provider-architecture.md#2-连通性与网络延迟探测机制-apimodelstest-connection)：支持 HTTP 200 耗时毫秒级测试与鉴权失效预警；
+  4. [运行时动态工厂与热装配](../../guidelines/architecture/llm-provider-architecture.md#四-逻辑角色轨五大业务场景角色绑定规范)：`LLMProviderFactory` 根据业务场景键名动态获取对应实例。
 
 ---
 
@@ -68,5 +68,5 @@ timeline
 ## 五、 执行变更日志 (Execution Changelog)
 
 - **2026-09-08 (v1.3)**：审查校准：校正代码映射路径至实际工程文件（`db.py`、`api/models_mgmt.py`、`llm/factory.py`）。
-- **2026-09-08 (v1.2)**：按规范治理要求重构，将技术设计定义抽离至 `docs/guidelines/llm-provider-architecture.md`，本文件重塑为实施看板。
+- **2026-09-08 (v1.2)**：按规范治理要求重构，将技术设计定义抽离至 `docs/guidelines/architecture/llm-provider-architecture.md`，本文件重塑为实施看板。
 - **2026-09-07 (v1.0)**：初始创建，确立大模型双轨制接入与角色分配设计基线。

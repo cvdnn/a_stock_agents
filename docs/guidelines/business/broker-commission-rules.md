@@ -2,7 +2,7 @@
 
 > **文档类别**：业务规则 (Rules)  
 > **适用范围**：A-Stock Agents 交易成本精算、实战动作单生成、模拟盘撮合引擎与策略回测模块  
-> **实施进度看板**：[`docs/specs/business/biz-broker-commission-configurable-design.md`](../specs/business/biz-broker-commission-configurable-design.md) (`SPEC-BIZ-001`)
+> **实施进度看板**：[`docs/specs/business/biz-broker-commission-configurable-design.md`](../../specs/business/biz-broker-commission-configurable-design.md) (`SPEC-BIZ-001`)
 
 ---
 

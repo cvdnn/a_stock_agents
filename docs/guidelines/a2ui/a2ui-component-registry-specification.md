@@ -2,7 +2,7 @@
 
 > **文档类别**：技术规范 (Specification)  
 > **适用范围**：A-Stock Agents 独立 Web 前端、Agent2UI (A2UI) 渲染引擎、跨端组件库生态  
-> **实施进度看板**：[`docs/specs/a2ui/a2ui-component-registry-specification.md`](../specs/a2ui/a2ui-component-registry-specification.md) (`SPEC-A2UI-002`)
+> **实施进度看板**：[`docs/specs/a2ui/a2ui-component-registry-specification.md`](../../specs/a2ui/a2ui-component-registry-specification.md) (`SPEC-A2UI-002`)
 
 ---
 

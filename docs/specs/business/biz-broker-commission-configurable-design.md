@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-02（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 交易成本精算、实战动作单生成、模拟盘撮合引擎与策略回测模块
-- **权威设计指南**：[`docs/guidelines/broker-commission-rules.md`](../../guidelines/broker-commission-rules.md)
+- **权威设计指南**：[`docs/guidelines/business/broker-commission-rules.md`](../../guidelines/business/broker-commission-rules.md)
 
 > 🔗 **权威规范与规则定义直达**：  
 > 本文件为 **券商佣金及费率参数配置化实施落地与任务执行跟踪看板**。关于全市场摩擦费率基准、配置项读取与热重载接口、未配置友好引导规则等完整细节，请查阅权威指南：  
-> 👉 [**《券商佣金及市场交易费率参数配置化业务规则》(broker-commission-rules.md)**](../../guidelines/broker-commission-rules.md)
+> 👉 [**《券商佣金及市场交易费率参数配置化业务规则》(broker-commission-rules.md)**](../../guidelines/business/broker-commission-rules.md)
 
 ---
 
@@ -19,10 +19,10 @@
 - **规范名称**：券商佣金及费率参数配置化与首次使用提示设计规范
 - **核心定位**：彻底消除系统各子模块中券商佣金（万2.5/最低5元）的硬编码，实现全局配置统一与个性化费率支持。
 - **关键设计要点**：
-  1. [全局统一费率配置中心 (`config.yaml`)](../../guidelines/broker-commission-rules.md#二-全局配置规范-configconfigyaml)：印花税、佣金比例、过户费率、单笔最低5元保底统一管理；
-  2. [免五与个性化费率支持](../../guidelines/broker-commission-rules.md#二-全局配置规范-configconfigyaml)：支持高频交易用户将 `min_commission` 设为 `0.0`；
-  3. [内存热重载与单一真理来源 (SSOT)](../../guidelines/broker-commission-rules.md#三-python-核心访问与热重载接口-scriptscoreconfigpy)：修改后即时生效，杜绝各业务模块数值分叉；
-  4. [首次使用未配置友好引导](../../guidelines/broker-commission-rules.md#三-python-核心访问与热重载接口-scriptscoreconfigpy)：`is_user_configured` 为 `false` 时显式输出配置向导提示。
+  1. [全局统一费率配置中心 (`config.yaml`)](../../guidelines/business/broker-commission-rules.md#二-全局配置规范-configconfigyaml)：印花税、佣金比例、过户费率、单笔最低5元保底统一管理；
+  2. [免五与个性化费率支持](../../guidelines/business/broker-commission-rules.md#二-全局配置规范-configconfigyaml)：支持高频交易用户将 `min_commission` 设为 `0.0`；
+  3. [内存热重载与单一真理来源 (SSOT)](../../guidelines/business/broker-commission-rules.md#三-python-核心访问与热重载接口-scriptscoreconfigpy)：修改后即时生效，杜绝各业务模块数值分叉；
+  4. [首次使用未配置友好引导](../../guidelines/business/broker-commission-rules.md#三-python-核心访问与热重载接口-scriptscoreconfigpy)：`is_user_configured` 为 `false` 时显式输出配置向导提示。
 
 ---
 
@@ -75,5 +75,5 @@ timeline
 ## 五、 执行变更日志 (Execution Changelog)
 
 - **2026-09-08 (v1.3)**：校准实施任务映射代码与测试路径至 `scripts/core/commands/cmd_backtest.py` 与 `tests/test_strategy_suite.py`。
-- **2026-09-08 (v1.2)**：按规范治理要求重构，将业务规则定义抽离至 `docs/guidelines/broker-commission-rules.md`，本文件重塑为实施看板。
+- **2026-09-08 (v1.2)**：按规范治理要求重构，将业务规则定义抽离至 `docs/guidelines/business/broker-commission-rules.md`，本文件重塑为实施看板。
 - **2026-09-02 (v1.0)**：初始创建，完成全库券商费率配置化重构。

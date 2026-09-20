@@ -2,7 +2,7 @@
 
 > **文档类别**：工程技术与数据接口规范 (Specification)  
 > **单一真理来源 (SSOT)**：`scripts/core/data/data_bridge.py` & `scripts/core/indicators/technical_indicators.py`  
-> **对应实施看板**：[`SPEC-DATA-001`](../specs/data/market-data-sync-implementation-plan.md)
+> **对应实施看板**：[`SPEC-DATA-001`](../../specs/data/market-data-sync-implementation-plan.md)
 
 ---
 

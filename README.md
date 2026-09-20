@@ -384,20 +384,20 @@ flowchart TB
 | 类别 | 知识库入口 | 对应实施看板 | 核心内容与定位 |
 |---|---|:---:|---|
 | **知识库总览** | [`docs/guidelines/README.md`](docs/guidelines/README.md) | [`docs/specs/README.md`](docs/specs/README.md) | 全景分类矩阵（规范·指南·架构·规则）与演进规约 |
-| **工程规范** | [`docs/guidelines/project-structure-specification.md`](docs/guidelines/project-structure-specification.md) | [`SPEC-ENG-001`](docs/specs/engineering/eng-project-structure-and-workspace.md) | 零全局污染、SSOT、跨平台 CLI 门面与数据隔离规范 |
-| **A2UI规范** | [`docs/guidelines/a2ui-component-registry-specification.md`](docs/guidelines/a2ui-component-registry-specification.md) | [`SPEC-A2UI-002`](docs/specs/a2ui/a2ui-component-registry-specification.md) | A2UI 组件包契约、时序解耦未决队列与自省清单规范 |
-| **界面指南** | [`docs/guidelines/ui-design-guide.md`](docs/guidelines/ui-design-guide.md) | [`SPEC-UI-001`](docs/specs/ui/ui-design-and-interaction-specification.md) | 浅色金融风格、红涨绿跌、双模视口与卡片轻量边框指南 |
-| **算法治理** | [`docs/guidelines/algorithm-governance.md`](docs/guidelines/algorithm-governance.md) | [`SPEC-ALGO-001`](docs/specs/algorithm/algo-lifecycle-and-governance-specification.md) | 44 项量化算法全景清单、AlgoRegistry 2.0 与四道质量门禁 |
-| **代码审查** | [`docs/guidelines/code-review.md`](docs/guidelines/code-review.md) | - | 代码质量基准、安全红线与质量审查报告标准 |
-| **测试规约** | [`docs/guidelines/testing-guide.md`](docs/guidelines/testing-guide.md) | - | 10 大核心领域回归测试架构与临时用例即测即删铁律 |
-| **命名范式** | [`docs/guidelines/naming-conventions.md`](docs/guidelines/naming-conventions.md) | - | 消除文件名版本化侵入与模型演进四大设计范式 (SSOT) |
-| **系统架构** | [`docs/guidelines/web-aichat-architecture.md`](docs/guidelines/web-aichat-architecture.md) | [`SPEC-ARCH-001`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 技能治理架构 |
-| **系统架构** | [`docs/guidelines/llm-provider-architecture.md`](docs/guidelines/llm-provider-architecture.md) | [`SPEC-ARCH-002`](docs/specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与业务场景角色绑定 (Roles) 架构 |
-| **系统架构** | [`docs/guidelines/token-security-architecture.md`](docs/guidelines/token-security-architecture.md) | [`SPEC-ARCH-003`](docs/specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离与指纹审计架构 |
-| **A2UI架构** | [`docs/guidelines/a2ui-framework-architecture.md`](docs/guidelines/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](docs/specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 前端渲染引擎、WebApp Shell 硬锁定与五阶段渐进水合 |
-| **业务规则** | [`docs/guidelines/breakeven-calculation-rules.md`](docs/guidelines/breakeven-calculation-rules.md) | [`SPEC-BIZ-002`](docs/specs/business/biz-breakeven-price-calculation-rules.md) | 最低保本卖出价精算公式与向上进位至分位 (`math.ceil`) 规则 |
-| **业务规则** | [`docs/guidelines/broker-commission-rules.md`](docs/guidelines/broker-commission-rules.md) | [`SPEC-BIZ-001`](docs/specs/business/biz-broker-commission-configurable-design.md) | 券商佣金及市场费率配置化、动态热重载与未配置友好提示 |
-| **业务规则** | [`docs/guidelines/trading-execution-rules.md`](docs/guidelines/trading-execution-rules.md) | [`SPEC-BIZ-003`](docs/specs/business/biz-trading-execution-and-risk-control.md) | 实战交易三原则、六大交易反应动作与 T0/T1/T2 止损阶梯 |
+| **工程规范** | [`docs/guidelines/engineering/project-structure-specification.md`](docs/guidelines/engineering/project-structure-specification.md) | [`SPEC-ENG-001`](docs/specs/engineering/eng-project-structure-and-workspace.md) | 零全局污染、SSOT、跨平台 CLI 门面与数据隔离规范 |
+| **A2UI规范** | [`docs/guidelines/a2ui/a2ui-component-registry-specification.md`](docs/guidelines/a2ui/a2ui-component-registry-specification.md) | [`SPEC-A2UI-002`](docs/specs/a2ui/a2ui-component-registry-specification.md) | A2UI 组件包契约、时序解耦未决队列与自省清单规范 |
+| **界面指南** | [`docs/guidelines/ui/ui-design-guide.md`](docs/guidelines/ui/ui-design-guide.md) | [`SPEC-UI-001`](docs/specs/ui/ui-design-and-interaction-specification.md) | 浅色金融风格、红涨绿跌、双模视口与卡片轻量边框指南 |
+| **算法治理** | [`docs/guidelines/algorithm/algorithm-governance.md`](docs/guidelines/algorithm/algorithm-governance.md) | [`SPEC-ALGO-001`](docs/specs/algorithm/algo-lifecycle-and-governance-specification.md) | 44 项量化算法全景清单、AlgoRegistry 2.0 与四道质量门禁 |
+| **代码审查** | [`docs/guidelines/engineering/code-review.md`](docs/guidelines/engineering/code-review.md) | - | 代码质量基准、安全红线与质量审查报告标准 |
+| **测试规约** | [`docs/guidelines/engineering/testing-guide.md`](docs/guidelines/engineering/testing-guide.md) | - | 10 大核心领域回归测试架构与临时用例即测即删铁律 |
+| **命名范式** | [`docs/guidelines/engineering/naming-conventions.md`](docs/guidelines/engineering/naming-conventions.md) | - | 消除文件名版本化侵入与模型演进四大设计范式 (SSOT) |
+| **系统架构** | [`docs/guidelines/architecture/web-aichat-architecture.md`](docs/guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 技能治理架构 |
+| **系统架构** | [`docs/guidelines/architecture/llm-provider-architecture.md`](docs/guidelines/architecture/llm-provider-architecture.md) | [`SPEC-ARCH-002`](docs/specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与业务场景角色绑定 (Roles) 架构 |
+| **系统架构** | [`docs/guidelines/architecture/token-security-architecture.md`](docs/guidelines/architecture/token-security-architecture.md) | [`SPEC-ARCH-003`](docs/specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离与指纹审计架构 |
+| **A2UI架构** | [`docs/guidelines/a2ui/a2ui-framework-architecture.md`](docs/guidelines/a2ui/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](docs/specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 前端渲染引擎、WebApp Shell 硬锁定与五阶段渐进水合 |
+| **业务规则** | [`docs/guidelines/business/breakeven-calculation-rules.md`](docs/guidelines/business/breakeven-calculation-rules.md) | [`SPEC-BIZ-002`](docs/specs/business/biz-breakeven-price-calculation-rules.md) | 最低保本卖出价精算公式与向上进位至分位 (`math.ceil`) 规则 |
+| **业务规则** | [`docs/guidelines/business/broker-commission-rules.md`](docs/guidelines/business/broker-commission-rules.md) | [`SPEC-BIZ-001`](docs/specs/business/biz-broker-commission-configurable-design.md) | 券商佣金及市场费率配置化、动态热重载与未配置友好提示 |
+| **业务规则** | [`docs/guidelines/business/trading-execution-rules.md`](docs/guidelines/business/trading-execution-rules.md) | [`SPEC-BIZ-003`](docs/specs/business/biz-trading-execution-and-risk-control.md) | 实战交易三原则、六大交易反应动作与 T0/T1/T2 止损阶梯 |
 
 ### 2. 规范实施进度看板与实战索引
 | 领域分类 | 入口文件 | 核心说明 |

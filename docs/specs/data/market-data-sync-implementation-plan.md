@@ -3,8 +3,8 @@
 > **规范编号**：`SPEC-DATA-001`  
 > **实施状态**：✅ **正式基线 (Production Baseline, 100% 交付)**  
 > **关联权威规范 (SSOT)**：  
-> - [`market-data-api-specification.md`](../../guidelines/market-data-api-specification.md)（行情数据接口与指标规范）  
-> - [`market-data-sync-specification.md`](../../guidelines/market-data-sync-specification.md)（数据同步与安全隔离规范）
+> - [`market-data-api-specification.md`](../../guidelines/data/market-data-api-specification.md)（行情数据接口与指标规范）  
+> - [`market-data-sync-specification.md`](../../guidelines/data/market-data-sync-specification.md)（数据同步与安全隔离规范）
 
 ---
 
@@ -24,15 +24,15 @@
 
 | 阶段 | 任务模块 | 具体改造内容与物理文件 | 状态 | 验收证据与交付成果 |
 |:---:|:---|:---|:---:|:---|
-| **P0** | **存储引擎建设** | 新建 `MarketDataStore`，支持 WAL 并发读写与索引优化<br>• [`scripts/core/data/sync_engine.py`](../../scripts/core/data/sync_engine.py) | ✅ 完成 | 建立 `daily_kline` 与 `sync_meta` 表，支持 Upsert |
-| **P0** | **日历与完整性算法** | 实现 `TradeCalendar` 节假日过滤与基准指数差集算法<br>• [`scripts/core/data/sync_engine.py`](../../scripts/core/data/sync_engine.py) | ✅ 完成 | 精准识别交易日断点与坏点，输出健康报告 |
-| **P0** | **同步调度核心** | 实现 `DataSyncEngine`，支持 `--today/--start/--mode` 等调度<br>• [`scripts/core/data/sync_engine.py`](../../scripts/core/data/sync_engine.py) | ✅ 完成 | 增量模式重复执行 0.0s 跳过，全量 250 日K 仅需 0.27s |
-| **P1** | **`local/` 目录与权限** | 建立 `local/` 独立目录，实施 0o700 / 0o600 POSIX 物理权限加固<br>• [`scripts/core/workspace.py`](../../scripts/core/workspace.py)<br>• [`scripts/core/config.py`](../../scripts/core/config.py) | ✅ 完成 | 仅 Owner 可读写，同机其他用户彻底阻断访问 |
-| **P1** | **数据服务平滑迁移** | 将 `chats.db` 与 `astock_data.db` 迁入 `local/` 并做自动兼容<br>• [`scripts/server/config.py`](../../scripts/server/config.py) | ✅ 完成 | 迁移成功，旧目录安全清理，服务端配置无缝切至 `local/` |
-| **P1** | **CLI 门面与分发** | 接入 `astock data sync`，支持终端彩色报告与 `--json`<br>• [`scripts/core/cli.py`](../../scripts/core/cli.py)<br>• [`scripts/core/commands/data_cmds.py`](../../scripts/core/commands/data_cmds.py) | ✅ 完成 | 命令行参数完备，交互体验与文档契约一致 |
-| **P1** | **离线指标分析打通** | 优化 `DataBridge.get_kline_robust()`，优先命中本地数据库<br>• [`scripts/core/data/data_bridge.py`](../../scripts/core/data/data_bridge.py) | ✅ 完成 | `astock data tech` 无需外网请求即可秒级计算指标 |
-| **P2** | **防泄漏与打包隔离** | 在版本控制与发布打包中彻底排除 `local/`<br>• [`.gitignore`](../../.gitignore)<br>• [`.dockerignore`](../../.dockerignore)<br>• [`scripts/tools/pack.py`](../../scripts/tools/pack.py) | ✅ 完成 | Git 追踪纯净，打包工具排除 `local/` |
-| **P2** | **自动化测试验证** | 编写单元测试并运行全套回归套件<br>• [`tests/test_data_sync.py`](../../tests/test_data_sync.py)<br>• [`verify.py`](../../verify.py) | ✅ 完成 | 单元测试 3/3 通过，全自检 11/11 项全部通过 |
+| **P0** | **存储引擎建设** | 新建 `MarketDataStore`，支持 WAL 并发读写与索引优化<br>• [`scripts/core/data/sync_engine.py`](../../../scripts/core/data/sync_engine.py) | ✅ 完成 | 建立 `daily_kline` 与 `sync_meta` 表，支持 Upsert |
+| **P0** | **日历与完整性算法** | 实现 `TradeCalendar` 节假日过滤与基准指数差集算法<br>• [`scripts/core/data/sync_engine.py`](../../../scripts/core/data/sync_engine.py) | ✅ 完成 | 精准识别交易日断点与坏点，输出健康报告 |
+| **P0** | **同步调度核心** | 实现 `DataSyncEngine`，支持 `--today/--start/--mode` 等调度<br>• [`scripts/core/data/sync_engine.py`](../../../scripts/core/data/sync_engine.py) | ✅ 完成 | 增量模式重复执行 0.0s 跳过，全量 250 日K 仅需 0.27s |
+| **P1** | **`local/` 目录与权限** | 建立 `local/` 独立目录，实施 0o700 / 0o600 POSIX 物理权限加固<br>• [`scripts/core/workspace.py`](../../../scripts/core/workspace.py)<br>• [`scripts/core/config.py`](../../../scripts/core/config.py) | ✅ 完成 | 仅 Owner 可读写，同机其他用户彻底阻断访问 |
+| **P1** | **数据服务平滑迁移** | 将 `chats.db` 与 `astock_data.db` 迁入 `local/` 并做自动兼容<br>• [`scripts/server/config.py`](../../../scripts/server/config.py) | ✅ 完成 | 迁移成功，旧目录安全清理，服务端配置无缝切至 `local/` |
+| **P1** | **CLI 门面与分发** | 接入 `astock data sync`，支持终端彩色报告与 `--json`<br>• [`scripts/core/cli.py`](../../../scripts/core/cli.py)<br>• [`scripts/core/commands/data_cmds.py`](../../../scripts/core/commands/data_cmds.py) | ✅ 完成 | 命令行参数完备，交互体验与文档契约一致 |
+| **P1** | **离线指标分析打通** | 优化 `DataBridge.get_kline_robust()`，优先命中本地数据库<br>• [`scripts/core/data/data_bridge.py`](../../../scripts/core/data/data_bridge.py) | ✅ 完成 | `astock data tech` 无需外网请求即可秒级计算指标 |
+| **P2** | **防泄漏与打包隔离** | 在版本控制与发布打包中彻底排除 `local/`<br>• [`.gitignore`](../../../.gitignore)<br>• [`.dockerignore`](../../../.dockerignore)<br>• [`scripts/tools/pack.py`](../../../scripts/tools/pack.py) | ✅ 完成 | Git 追踪纯净，打包工具排除 `local/` |
+| **P2** | **自动化测试验证** | 编写单元测试并运行全套回归套件<br>• [`tests/test_data_sync.py`](../../../tests/test_data_sync.py)<br>• [`verify.py`](../../../verify.py) | ✅ 完成 | 单元测试 3/3 通过，全自检 11/11 项全部通过 |
 
 ---
 

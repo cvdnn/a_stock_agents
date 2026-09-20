@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-06（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 独立 Web 投研前端、Desktop 客户端（Tauri/Electron）及跨端界面系统
-- **权威设计指南**：[`docs/guidelines/ui-design-guide.md`](../../guidelines/ui-design-guide.md)
+- **权威设计指南**：[`docs/guidelines/ui/ui-design-guide.md`](../../guidelines/ui/ui-design-guide.md)
 
 > 🔗 **权威规范与交互指南直达**：  
 > 本文件为 **UI 设计实施落地与前端交互执行跟踪看板**。关于浅色金融风格、红涨绿跌色值系统、双模动态视口布局、AIChatUI 组件设计规范等完整细节，请查阅权威指南：  
-> 👉 [**《Web UI 界面设计与交互指南》(ui-design-guide.md)**](../../guidelines/ui-design-guide.md)
+> 👉 [**《Web UI 界面设计与交互指南》(ui-design-guide.md)**](../../guidelines/ui/ui-design-guide.md)
 
 ---
 
@@ -19,11 +19,11 @@
 - **规范名称**：Web UI 界面设计与交互规范
 - **核心定位**：专为 A 股量化投资者与专业投研打造的现代浅色金融风格工作台与多模交互标准。
 - **关键设计要点**：
-  1. [浅色金融与红涨绿跌色系](../../guidelines/ui-design-guide.md#2-涨跌色彩铁律-a-stock-red-upgreen-down-standard)：严格遵循 A 股红涨绿跌标准（`#F5222D` / `#52C41A`），亚光冷白背景（`#F8FAFD`）；
-  2. [边框轻量化与零竖条原则](../../guidelines/ui-design-guide.md#4-边框轻量化与卡片视觉一致性-subtle-border--zero-stripe-principle)：全面剔除生硬彩色粗竖条，统一 1px 浅色金融微边框；
-  3. [意图驱动的双模动态视口](../../guidelines/ui-design-guide.md#二-工作区整体架构双模动态视口规范-adaptive-dual-mode-layout)：投研助手模式（40% 对话 + 60% 工作台，长条连通顶栏）与业务工作区模式（主屏看板 + 390px 伴随式 Copilot）；
-  4. [Toast 右下角反向向上堆叠](../../guidelines/ui-design-guide.md#2-toast-全局消息浮层规范)：提示浮层移至右下角，避免遮挡顶部操作核心区；
-  5. [@操作符浮窗与富文本输入框](../../guidelines/ui-design-guide.md#五-操作符浮窗交互规范-at-operator-popup-interaction-specification)：四大操作符类别（股票/引用/技能/算法）双栏浮窗、contenteditable 富文本输入框、@token 高亮回填与原子化退格删除。
+  1. [浅色金融与红涨绿跌色系](../../guidelines/ui/ui-design-guide.md#2-涨跌色彩铁律-a-stock-red-upgreen-down-standard)：严格遵循 A 股红涨绿跌标准（`#F5222D` / `#52C41A`），亚光冷白背景（`#F8FAFD`）；
+  2. [边框轻量化与零竖条原则](../../guidelines/ui/ui-design-guide.md#4-边框轻量化与卡片视觉一致性-subtle-border--zero-stripe-principle)：全面剔除生硬彩色粗竖条，统一 1px 浅色金融微边框；
+  3. [意图驱动的双模动态视口](../../guidelines/ui/ui-design-guide.md#二-工作区整体架构双模动态视口规范-adaptive-dual-mode-layout)：投研助手模式（40% 对话 + 60% 工作台，长条连通顶栏）与业务工作区模式（主屏看板 + 390px 伴随式 Copilot）；
+  4. [Toast 右下角反向向上堆叠](../../guidelines/ui/ui-design-guide.md#2-toast-全局消息浮层规范)：提示浮层移至右下角，避免遮挡顶部操作核心区；
+  5. [@操作符浮窗与富文本输入框](../../guidelines/ui/ui-design-guide.md#五-操作符浮窗交互规范-at-operator-popup-interaction-specification)：四大操作符类别（股票/引用/技能/算法）双栏浮窗、contenteditable 富文本输入框、@token 高亮回填与原子化退格删除。
 
 ---
 
@@ -89,6 +89,6 @@ timeline
 ## 五、 执行变更日志 (Execution Changelog)
 
 - **2026-09-08 (v1.4)**：新增 @操作符四大类别双栏浮窗交互系统；输入框从 textarea 重构为 contenteditable 富文本，支持 @token 高亮加粗标签内嵌与原子化退格删除；三大股池多维展示卡片（三行式排版、股池胶囊徽章、红涨绿跌涨幅标签）；修复提交按钮 hover 闪动问题（改用 `filter: brightness`）。
-- **2026-09-08 (v1.3)**：按规范治理要求重构，将 UI 界面与交互设计定义抽离至 `docs/guidelines/ui-design-guide.md`，本文件重塑为实施与任务执行跟踪看板。
+- **2026-09-08 (v1.3)**：按规范治理要求重构，将 UI 界面与交互设计定义抽离至 `docs/guidelines/ui/ui-design-guide.md`，本文件重塑为实施与任务执行跟踪看板。
 - **2026-09-07 (v1.2)**：完成自选股卡片无竖条优化、长条连通顶栏重构、三原则紧凑卡片与 Toast 右下角优化。
 - **2026-09-06 (v1.0)**：初始创建，确立双模视口与浅色金融风格。

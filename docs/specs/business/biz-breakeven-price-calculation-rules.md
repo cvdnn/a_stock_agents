@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-02（修订日期：2026-09-08）
 - **适用范围**：A股量化实战交易动作中枢、保本价试算器、HTML交互研报持仓明细表与模拟撮合风控
-- **权威设计指南**：[`docs/guidelines/breakeven-calculation-rules.md`](../../guidelines/breakeven-calculation-rules.md)
+- **权威设计指南**：[`docs/guidelines/business/breakeven-calculation-rules.md`](../../guidelines/business/breakeven-calculation-rules.md)
 
 > 🔗 **权威规范与规则定义直达**：  
 > 本文件为 **最低保本卖出价量化精算与向上进位实施落地与任务执行跟踪看板**。关于全流程摩擦税费精算数学模型、二分法求解原理、强制向上精确进位至分 (`math.ceil`) 规则等完整定义，请查阅权威指南：  
-> 👉 [**《A股最低保本卖出价量化精算与精确进位业务规则》(breakeven-calculation-rules.md)**](../../guidelines/breakeven-calculation-rules.md)
+> 👉 [**《A股最低保本卖出价量化精算与精确进位业务规则》(breakeven-calculation-rules.md)**](../../guidelines/business/breakeven-calculation-rules.md)
 
 ---
 
@@ -19,10 +19,10 @@
 - **规范名称**：最低保本卖出价量化精算与精确进位业务规则规范
 - **核心定位**：确保交易员与量化系统在卖出平仓时 100% 覆盖全部买卖双向税费，杜绝任何微小亏损。
 - **关键设计要点**：
-  1. [绝对无损保本铁律](../../guidelines/breakeven-calculation-rules.md#一-核心原则与进位铁律-the-breakeven-iron-law)：必须均强制向上精确进位至 0.01 元 (`math.ceil`)，坚决杜绝四舍五入；
-  2. [全摩擦税费覆盖](../../guidelines/breakeven-calculation-rules.md#二-费率参数标准-market-fee-parameters)：严格计入卖出印花税（0.05%）、券商佣金（万2.5/保底5元）、过户费（十万分之1）；
-  3. [精确数学建模求解](../../guidelines/breakeven-calculation-rules.md#三-保本价精算与进位算法数学模型)：以净收入函数单调性为基础，进行高精度收敛并严格进位；
-  4. [持仓明细与动作单全链路接入](../../guidelines/breakeven-calculation-rules.md#四-python-标准工程实现)：所有个股分析报告、动作单与持仓卡片必须明确展示最低保本卖出价。
+  1. [绝对无损保本铁律](../../guidelines/business/breakeven-calculation-rules.md#一-核心原则与进位铁律-the-breakeven-iron-law)：必须均强制向上精确进位至 0.01 元 (`math.ceil`)，坚决杜绝四舍五入；
+  2. [全摩擦税费覆盖](../../guidelines/business/breakeven-calculation-rules.md#二-费率参数标准-market-fee-parameters)：严格计入卖出印花税（0.05%）、券商佣金（万2.5/保底5元）、过户费（十万分之1）；
+  3. [精确数学建模求解](../../guidelines/business/breakeven-calculation-rules.md#三-保本价精算与进位算法数学模型)：以净收入函数单调性为基础，进行高精度收敛并严格进位；
+  4. [持仓明细与动作单全链路接入](../../guidelines/business/breakeven-calculation-rules.md#四-python-标准工程实现)：所有个股分析报告、动作单与持仓卡片必须明确展示最低保本卖出价。
 
 ---
 
@@ -72,6 +72,6 @@ timeline
 ## 五、 执行变更日志 (Execution Changelog)
 
 - **2026-09-08 (v1.4)**：校准实施任务映射测试套件路径至 `tests/test_strategy_suite.py`。
-- **2026-09-08 (v1.3)**：按规范治理要求重构，将业务算法规则抽离至 `docs/guidelines/breakeven-calculation-rules.md`，本文件重塑为实施看板。
+- **2026-09-08 (v1.3)**：按规范治理要求重构，将业务算法规则抽离至 `docs/guidelines/business/breakeven-calculation-rules.md`，本文件重塑为实施看板。
 - **2026-09-07 (v1.2)**：前端组件卡片优化，精简进位文本展示。
 - **2026-09-02 (v1.0)**：初始创建，实现全摩擦成本向上进位算法与测试套件。

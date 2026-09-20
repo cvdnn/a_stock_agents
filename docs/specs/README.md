@@ -13,43 +13,43 @@
 ### 1. 项目工程结构 (`engineering/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
-| `SPEC-ENG-001` | 项目工程结构与工作区架构设计规范 | [`engineering/eng-project-structure-and-workspace.md`](engineering/eng-project-structure-and-workspace.md) | [`project-structure-specification.md`](../guidelines/project-structure-specification.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-ENG-001` | 项目工程结构与工作区架构设计规范 | [`engineering/eng-project-structure-and-workspace.md`](engineering/eng-project-structure-and-workspace.md) | [`project-structure-specification.md`](../guidelines/engineering/project-structure-specification.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
 
 ### 2. UI 界面设计 (`ui/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
-| `SPEC-UI-001` | Web UI 界面设计与交互规范 | [`ui/ui-design-and-interaction-specification.md`](ui/ui-design-and-interaction-specification.md) | [`ui-design-guide.md`](../guidelines/ui-design-guide.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-UI-001` | Web UI 界面设计与交互规范 | [`ui/ui-design-and-interaction-specification.md`](ui/ui-design-and-interaction-specification.md) | [`ui-design-guide.md`](../guidelines/ui/ui-design-guide.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
 
 ### 3. 系统架构设计 (`architecture/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
-| `SPEC-ARCH-001`| 独立 Web AIChatUI 与 Skill 治理系统架构 | [`architecture/arch-web-aichat-and-skill-governance.md`](architecture/arch-web-aichat-and-skill-governance.md) | [`web-aichat-architecture.md`](../guidelines/web-aichat-architecture.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
-| `SPEC-ARCH-002`| 大模型双轨接入与多业务场景角色分配架构 | [`architecture/arch-llm-provider-and-role-allocation.md`](architecture/arch-llm-provider-and-role-allocation.md) | [`llm-provider-architecture.md`](../guidelines/llm-provider-architecture.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
-| `SPEC-ARCH-003`| Token 链路安全网关与本地化审计 Agent 架构 | [`architecture/arch-token-security-gateway.md`](architecture/arch-token-security-gateway.md) | [`token-security-architecture.md`](../guidelines/token-security-architecture.md) | 📋 规划中 (RFC) | 控制平面与执行平面物理分离、上行脱敏、下行过滤、只存 SHA-256 指纹的不可篡改审计日志 |
+| `SPEC-ARCH-001`| 独立 Web AIChatUI 与 Skill 治理系统架构 | [`architecture/arch-web-aichat-and-skill-governance.md`](architecture/arch-web-aichat-and-skill-governance.md) | [`web-aichat-architecture.md`](../guidelines/architecture/web-aichat-architecture.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-ARCH-002`| 大模型双轨接入与多业务场景角色分配架构 | [`architecture/arch-llm-provider-and-role-allocation.md`](architecture/arch-llm-provider-and-role-allocation.md) | [`llm-provider-architecture.md`](../guidelines/architecture/llm-provider-architecture.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-ARCH-003`| Token 链路安全网关与本地化审计 Agent 架构 | [`architecture/arch-token-security-gateway.md`](architecture/arch-token-security-gateway.md) | [`token-security-architecture.md`](../guidelines/architecture/token-security-architecture.md) | 📋 规划中 (RFC) | 控制平面与执行平面物理分离、上行脱敏、下行过滤、只存 SHA-256 指纹的不可篡改审计日志 |
 
 ### 4. A2UI 框架设计 (`a2ui/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
-| `SPEC-A2UI-001`| Agent2UI (A2UI) 前端引擎框架架构规范 | [`a2ui/a2ui-framework-engine-specification.md`](a2ui/a2ui-framework-engine-specification.md) | [`a2ui-framework-architecture.md`](../guidelines/a2ui-framework-architecture.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
-| `SPEC-A2UI-002`| A2UI 组件库模块化拆解与动态发现机制规范 | [`a2ui/a2ui-component-registry-specification.md`](a2ui/a2ui-component-registry-specification.md) | [`a2ui-component-registry-specification.md`](../guidelines/a2ui-component-registry-specification.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-A2UI-001`| Agent2UI (A2UI) 前端引擎框架架构规范 | [`a2ui/a2ui-framework-engine-specification.md`](a2ui/a2ui-framework-engine-specification.md) | [`a2ui-framework-architecture.md`](../guidelines/a2ui/a2ui-framework-architecture.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-A2UI-002`| A2UI 组件库模块化拆解与动态发现机制规范 | [`a2ui/a2ui-component-registry-specification.md`](a2ui/a2ui-component-registry-specification.md) | [`a2ui-component-registry-specification.md`](../guidelines/a2ui/a2ui-component-registry-specification.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
 
 ### 5. 业务规则设计 (`business/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
-| `SPEC-BIZ-001` | 券商佣金及费率参数配置化与首次使用提示规范 | [`business/biz-broker-commission-configurable-design.md`](business/biz-broker-commission-configurable-design.md) | [`broker-commission-rules.md`](../guidelines/broker-commission-rules.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
-| `SPEC-BIZ-002` | 最低保本卖出价量化精算与精确进位业务规则 | [`business/biz-breakeven-price-calculation-rules.md`](business/biz-breakeven-price-calculation-rules.md) | [`breakeven-calculation-rules.md`](../guidelines/breakeven-calculation-rules.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
-| `SPEC-BIZ-003` | 实战交易反应动作与三级风控止损阶梯执行规范 | [`business/biz-trading-execution-and-risk-control.md`](business/biz-trading-execution-and-risk-control.md) | [`trading-execution-rules.md`](../guidelines/trading-execution-rules.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-BIZ-001` | 券商佣金及费率参数配置化与首次使用提示规范 | [`business/biz-broker-commission-configurable-design.md`](business/biz-broker-commission-configurable-design.md) | [`broker-commission-rules.md`](../guidelines/business/broker-commission-rules.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-BIZ-002` | 最低保本卖出价量化精算与精确进位业务规则 | [`business/biz-breakeven-price-calculation-rules.md`](business/biz-breakeven-price-calculation-rules.md) | [`breakeven-calculation-rules.md`](../guidelines/business/breakeven-calculation-rules.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-BIZ-003` | 实战交易反应动作与三级风控止损阶梯执行规范 | [`business/biz-trading-execution-and-risk-control.md`](business/biz-trading-execution-and-risk-control.md) | [`trading-execution-rules.md`](../guidelines/business/trading-execution-rules.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
 
 ### 6. 算法规则设计 (`algorithm/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
-| `SPEC-ALGO-001`| 算法资产审查、架构评估与全生命周期治理规范 | [`algorithm/algo-lifecycle-and-governance-specification.md`](algorithm/algo-lifecycle-and-governance-specification.md) | [`algorithm-governance.md`](../guidelines/algorithm-governance.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
-| `SPEC-ALGO-ISS-001` | 智能选股系统功能建设规范 | [`algorithm/configurable-funnel-feature-build-spec.md`](algorithm/configurable-funnel-feature-build-spec.md) | [`algorithm-governance.md`](../guidelines/algorithm-governance.md) | 📋 待评审 | 选股模型版本控制、层级漏斗引擎、多次运行记录、本地数据装配、结果研究、实时/T+N跟踪与简单优化建议 |
+| `SPEC-ALGO-001`| 算法资产审查、架构评估与全生命周期治理规范 | [`algorithm/algo-lifecycle-and-governance-specification.md`](algorithm/algo-lifecycle-and-governance-specification.md) | [`algorithm-governance.md`](../guidelines/algorithm/algorithm-governance.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见验收台账 |
+| `SPEC-ALGO-ISS-001` | 智能选股系统功能建设规范 | [`algorithm/configurable-funnel-feature-build-spec.md`](algorithm/configurable-funnel-feature-build-spec.md) | [`algorithm-governance.md`](../guidelines/algorithm/algorithm-governance.md) | 📋 待评审 | 选股模型版本控制、层级漏斗引擎、多次运行记录、本地数据装配、结果研究、实时/T+N跟踪与简单优化建议 |
 
 ### 7. 数据架构与同步机制设计 (`data/`)
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
-| `SPEC-DATA-001` | 本地行情数据同步机制实施计划与验收看板 | [`data/market-data-sync-implementation-plan.md`](data/market-data-sync-implementation-plan.md) | [`market-data-sync-specification.md`](../guidelines/market-data-sync-specification.md) | ✅ 正式基线 | SQLite嵌入式时序主库、交易日历断点探测与自愈、`local/` 700权限物理阻断、全套回归验证证据 |
+| `SPEC-DATA-001` | 本地行情数据同步机制实施计划与验收看板 | [`data/market-data-sync-implementation-plan.md`](data/market-data-sync-implementation-plan.md) | [`market-data-sync-specification.md`](../guidelines/data/market-data-sync-specification.md) | ✅ 正式基线 | SQLite嵌入式时序主库、交易日历断点探测与自愈、`local/` 700权限物理阻断、全套回归验证证据 |
 
 ---
 

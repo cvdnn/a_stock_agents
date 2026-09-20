@@ -2,7 +2,7 @@
 
 > 审查范围：`scripts/server/`（config、app、db、llm/ 全部 provider 与工厂、agent/react_runner、agent/tools、api/ 全部 8 文件、tasks/task_manager）、`web/js/`（api.js、app.js、components/astock.js、ui_engine.js、charts.js）、`scripts/core/governance/`（skill_registry、auditor、models）、`scripts/core/` 抽查（config.py、strategy/execution_action_engine.py、models/multi_dim_model.py、strategy/pool_schema.py）
 > 审查方法：3 路并行子代理逐文件审查 + 主线程交叉复核全部高危项 + 回归测试取证
-> 审查基准：[docs/guidelines/code-review.md](../guidelines/code-review.md) 8 项强制检查项 + AGENTS.md 实战交易三原则
+> 审查基准：[docs/guidelines/engineering/code-review.md](../guidelines/engineering/code-review.md) 8 项强制检查项 + AGENTS.md 实战交易三原则
 > 严重度分级：🔴 高（伪造成功/绕过安全门/资金决策失真）、🟡 中（结果失真/分层违规/健壮性）、🟢 低（规范与可维护性）
 
 ## 测试证据

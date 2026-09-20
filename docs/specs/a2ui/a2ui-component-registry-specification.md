@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-07（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 独立 Web 前端、Agent2UI (A2UI) 渲染引擎、跨端组件库生态
-- **权威设计指南**：[`docs/guidelines/a2ui-component-registry-specification.md`](../../guidelines/a2ui-component-registry-specification.md)
+- **权威设计指南**：[`docs/guidelines/a2ui/a2ui-component-registry-specification.md`](../../guidelines/a2ui/a2ui-component-registry-specification.md)
 
 > 🔗 **权威规范与架构定义直达**：  
 > 本文件为 **A2UI 组件库模块化拆解与动态发现机制实施落地跟踪看板**。关于未决缓冲池时序解耦原理、命名空间隔离、约定式动态发现契约与自省清单 Schema 等完整规范，请查阅权威指南：  
-> 👉 [**《A2UI 组件库拆解与模块化注册发现机制规范》(a2ui-component-registry-specification.md)**](../../guidelines/a2ui-component-registry-specification.md)
+> 👉 [**《A2UI 组件库拆解与模块化注册发现机制规范》(a2ui-component-registry-specification.md)**](../../guidelines/a2ui/a2ui-component-registry-specification.md)
 
 ---
 
@@ -19,10 +19,10 @@
 - **规范名称**：A2UI 组件库模块化拆解与时序解耦发现机制规范
 - **核心定位**：彻底解决前端多领域组件包命名冲突、脚本载入时序耦合竞态与组件自省清单缺失痛点。
 - **关键设计要点**：
-  1. [时序解耦未决缓冲池 (`__A2UI_PENDING_PACKS__`)](../../guidelines/a2ui-component-registry-specification.md#1-时序解耦与未决缓冲队列-temporal-decoupling)：通过全局 `defineA2UIPack` 打破脚本同步加载强依赖，彻底杜绝 `UIEngine is undefined`；
-  2. [领域包命名空间隔离 (`@a2ui/pack-astock`)](../../guidelines/a2ui-component-registry-specification.md#2-命名空间隔离与双重寻址)：组件分包归集，支持短名称优先匹配与命名冲突时降级全名寻址；
-  3. [组件元数据自省清单 (`getCatalog()`)](../../guidelines/a2ui-component-registry-specification.md#3-组件能力自省契约-getcatalog)：向 Agent 和调试终端动态暴露组件参数规格与视图模式；
-  4. [约定式按需动态发现 (`loadPack()`)](../../guidelines/a2ui-component-registry-specification.md#三-架构拓扑与核心机制-registry-architecture)：运行时根据智能体指令动态加载未知组件包。
+  1. [时序解耦未决缓冲池 (`__A2UI_PENDING_PACKS__`)](../../guidelines/a2ui/a2ui-component-registry-specification.md#1-时序解耦与未决缓冲队列-temporal-decoupling)：通过全局 `defineA2UIPack` 打破脚本同步加载强依赖，彻底杜绝 `UIEngine is undefined`；
+  2. [领域包命名空间隔离 (`@a2ui/pack-astock`)](../../guidelines/a2ui/a2ui-component-registry-specification.md#2-命名空间隔离与双重寻址)：组件分包归集，支持短名称优先匹配与命名冲突时降级全名寻址；
+  3. [组件元数据自省清单 (`getCatalog()`)](../../guidelines/a2ui/a2ui-component-registry-specification.md#3-组件能力自省契约-getcatalog)：向 Agent 和调试终端动态暴露组件参数规格与视图模式；
+  4. [约定式按需动态发现 (`loadPack()`)](../../guidelines/a2ui/a2ui-component-registry-specification.md#三-架构拓扑与核心机制-registry-architecture)：运行时根据智能体指令动态加载未知组件包。
 
 ---
 
@@ -67,5 +67,5 @@ timeline
 
 ## 五、 执行变更日志 (Execution Changelog)
 
-- **2026-09-08 (v1.2)**：按规范治理要求重构，将组件库规范定义抽离至 `docs/guidelines/a2ui-component-registry-specification.md`，本文件重塑为实施看板。
+- **2026-09-08 (v1.2)**：按规范治理要求重构，将组件库规范定义抽离至 `docs/guidelines/a2ui/a2ui-component-registry-specification.md`，本文件重塑为实施看板。
 - **2026-09-07 (v1.0)**：初始创建，完成 `components/astock.js` 拆解与 UIEngine 组件治理机制升级。

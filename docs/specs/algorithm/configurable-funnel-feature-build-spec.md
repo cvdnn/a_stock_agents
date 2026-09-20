@@ -7,7 +7,7 @@
 - **最后更新**：2026-09-19
 - **适用范围**：选股模型、模型构建器、层级漏斗引擎、结果研究评估、持续跟踪、模型调优、可视化配置、校验调试器、本地行情数据接口、任务调度、FastAPI、Web 工作台、测试与运维
 - **关联基线**：`config/funnel_strategy.yaml`、`scripts/core/strategy/funnel_engine.py`、`scripts/core/strategy/stock_funnel.py`
-- **数据权威规范**：`docs/guidelines/market-data-api-specification.md`、`docs/guidelines/market-data-sync-specification.md`、`docs/specs/data/market-data-sync-implementation-plan.md`
+- **数据权威规范**：`docs/guidelines/data/market-data-api-specification.md`、`docs/guidelines/data/market-data-sync-specification.md`、`docs/specs/data/market-data-sync-implementation-plan.md`
 
 > 本文是“智能选股系统”核心编码与配套 Web 交互开发的实施依据。系统面向多类型选股模型；“漏斗选股”是其中一种复杂模型，而不是系统本身。文中“已具备”代表当前仓库已有能力；“待建设”代表不能在界面或接口中显示为已完成、已启用或运行成功。
 

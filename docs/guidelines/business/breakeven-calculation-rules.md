@@ -2,7 +2,7 @@
 
 > **文档类别**：业务规则 (Rules / Mathematics)  
 > **适用范围**：A股量化实战交易动作中枢、保本价试算器、HTML交互研报持仓明细表与模拟撮合风控  
-> **实施进度看板**：[`docs/specs/business/biz-breakeven-price-calculation-rules.md`](../specs/business/biz-breakeven-price-calculation-rules.md) (`SPEC-BIZ-002`)
+> **实施进度看板**：[`docs/specs/business/biz-breakeven-price-calculation-rules.md`](../../specs/business/biz-breakeven-price-calculation-rules.md) (`SPEC-BIZ-002`)
 
 ---
 

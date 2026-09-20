@@ -3,8 +3,8 @@
 > **文档类别**：研发与设计指南 (Guides & Governance)  
 > **适用范围**：A-Stock Agents 全栈系统（Web 服务端、前端交互看板、Agent 工具链与容器部署）  
 > **依据来源**：
-> - [`docs/audits/2026-09-14-penetration-testing-report.md`](../audits/2026-09-14-penetration-testing-report.md)（渗透测试与安全审计报告）
-> - [`docs/audits/2026-09-14-security-remediation-execution-plan.md`](../audits/2026-09-14-security-remediation-execution-plan.md)（安全漏洞整改实施执行计划）
+> - [`docs/audits/2026-09-14-penetration-testing-report.md`](../../audits/2026-09-14-penetration-testing-report.md)（渗透测试与安全审计报告）
+> - [`docs/audits/2026-09-14-security-remediation-execution-plan.md`](../../audits/2026-09-14-security-remediation-execution-plan.md)（安全漏洞整改实施执行计划）
 >
 > **核心目标**：将 2026-09-14 白盒代码审计与渗透测试中揭示的 8 项典型安全隐患，沉淀为全流程量化投研平台的长效安全规约、编码防线、架构标准与安全测试门禁，杜绝安全退化。
 
@@ -307,7 +307,7 @@ pytest tests/test_security_audit.py -v
 
 ## 五、 文档归档与更新机制
 
-- **主归档路径**：[`docs/guidelines/security-hardening-guide.md`](security-hardening-guide.md)
-- **关联审计报告**：[`docs/audits/2026-09-14-penetration-testing-report.md`](../audits/2026-09-14-penetration-testing-report.md)
-- **整改执行跟踪**：[`docs/audits/2026-09-14-security-remediation-execution-plan.md`](../audits/2026-09-14-security-remediation-execution-plan.md)
+- **主归档路径**：[`docs/guidelines/engineering/security-hardening-guide.md`](security-hardening-guide.md)
+- **关联审计报告**：[`docs/audits/2026-09-14-penetration-testing-report.md`](../../audits/2026-09-14-penetration-testing-report.md)
+- **整改执行跟踪**：[`docs/audits/2026-09-14-security-remediation-execution-plan.md`](../../audits/2026-09-14-security-remediation-execution-plan.md)
 - **演进维护要求**：未来如发现新的安全漏洞或实施新架构加固，需第一时间更新本指南的漏洞规约与审查清单，持续作为团队唯一的安全工程实施规范。

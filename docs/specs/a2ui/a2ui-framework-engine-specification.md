@@ -6,11 +6,11 @@
 - **实施状态**：实施中 | 原“正式基线 100% 已交付”声明待整改验收
 - **创建日期**：2026-09-07（修订日期：2026-09-08）
 - **适用范围**：A-Stock Agents 独立 Web 投研前端、Desktop 客户端及跨端 AI 动态驱动 UI 渲染中枢
-- **权威设计指南**：[`docs/guidelines/a2ui-framework-architecture.md`](../../guidelines/a2ui-framework-architecture.md)
+- **权威设计指南**：[`docs/guidelines/a2ui/a2ui-framework-architecture.md`](../../guidelines/a2ui/a2ui-framework-architecture.md)
 
 > 🔗 **权威规范与架构定义直达**：  
 > 本文件为 **A2UI 前端渲染引擎框架实施落地与任务执行跟踪看板**。关于 WebApp Shell 容器硬锁定、1:1 骨架屏预占位、五阶段渐进式水合流水线等完整架构设计，请查阅权威指南：  
-> 👉 [**《Agent2UI (A2UI) 前端渲染引擎框架架构设计》(a2ui-framework-architecture.md)**](../../guidelines/a2ui-framework-architecture.md)
+> 👉 [**《Agent2UI (A2UI) 前端渲染引擎框架架构设计》(a2ui-framework-architecture.md)**](../../guidelines/a2ui/a2ui-framework-architecture.md)
 
 ---
 
@@ -19,10 +19,10 @@
 - **规范名称**：Agent2UI (A2UI) 前端引擎框架设计与架构规范
 - **核心定位**：将 AI 的复杂链式推理（COT）毫秒级转化为直观结构化的金融级交互界面的动态编排引擎。
 - **关键设计要点**：
-  1. [WebApp Shell 应用外壳硬锁定](../../guidelines/a2ui-framework-architecture.md#一-概述与核心设计基石-the-trinity-of-ux)：视口锁定在 `calc(100vh - 50px)`，杜绝整页滚动，支持双模视口插槽；
-  2. [1:1 结构级骨架预占位 (CLS = 0)](../../guidelines/a2ui-framework-architecture.md#一-概述与核心设计基石-the-trinity-of-ux)：识别意图瞬间预先注入相同宽高骨架 DOM，彻底消除页面抖动；
-  3. [五阶段渐进式水合流水线](../../guidelines/a2ui-framework-architecture.md#三-五阶段渐进式水合流水线-progressive-hydration-pipeline)：意图识别 -> 骨架占位 -> 快数据先行 -> 重型图表平滑跃迁 -> 全交互激活；
-  4. [双向动作总线与自省机制](../../guidelines/a2ui-framework-architecture.md#二-总体架构拓扑-system-topology)：支持从界面参数反写回智能体与逆向穿透提问。
+  1. [WebApp Shell 应用外壳硬锁定](../../guidelines/a2ui/a2ui-framework-architecture.md#一-概述与核心设计基石-the-trinity-of-ux)：视口锁定在 `calc(100vh - 50px)`，杜绝整页滚动，支持双模视口插槽；
+  2. [1:1 结构级骨架预占位 (CLS = 0)](../../guidelines/a2ui/a2ui-framework-architecture.md#一-概述与核心设计基石-the-trinity-of-ux)：识别意图瞬间预先注入相同宽高骨架 DOM，彻底消除页面抖动；
+  3. [五阶段渐进式水合流水线](../../guidelines/a2ui/a2ui-framework-architecture.md#三-五阶段渐进式水合流水线-progressive-hydration-pipeline)：意图识别 -> 骨架占位 -> 快数据先行 -> 重型图表平滑跃迁 -> 全交互激活；
+  4. [双向动作总线与自省机制](../../guidelines/a2ui/a2ui-framework-architecture.md#二-总体架构拓扑-system-topology)：支持从界面参数反写回智能体与逆向穿透提问。
 
 ---
 
@@ -67,5 +67,5 @@ timeline
 
 ## 五、 执行变更日志 (Execution Changelog)
 
-- **2026-09-08 (v1.2)**：按规范治理要求重构，将前端渲染引擎架构定义抽离至 `docs/guidelines/a2ui-framework-architecture.md`，本文件重塑为实施看板。
+- **2026-09-08 (v1.2)**：按规范治理要求重构，将前端渲染引擎架构定义抽离至 `docs/guidelines/a2ui/a2ui-framework-architecture.md`，本文件重塑为实施看板。
 - **2026-09-07 (v1.0)**：初始创建，确立 A2UI 三位一体基石与渐进水合标准。

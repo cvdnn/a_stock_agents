@@ -2,7 +2,7 @@
 
 > **文档类别**：设计指南 (Guide / Specification)  
 > **适用范围**：A-Stock Agents 独立 Web 投研前端、Desktop 客户端（Tauri/Electron）及跨端界面系统  
-> **实施进度看板**：[`docs/specs/ui/ui-design-and-interaction-specification.md`](../specs/ui/ui-design-and-interaction-specification.md) (`SPEC-UI-001`)
+> **实施进度看板**：[`docs/specs/ui/ui-design-and-interaction-specification.md`](../../specs/ui/ui-design-and-interaction-specification.md) (`SPEC-UI-001`)
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **文档类别**：系统架构 (Architecture)  
 > **适用范围**：本地智能体（AI-Platform / Antigravity / Hermes）与上游 LLM 服务商之间的流量代理、安全脱敏与调用审计控制平面  
-> **实施进度看板**：[`docs/specs/architecture/arch-token-security-gateway.md`](../specs/architecture/arch-token-security-gateway.md) (`SPEC-ARCH-003`)
+> **实施进度看板**：[`docs/specs/architecture/arch-token-security-gateway.md`](../../specs/architecture/arch-token-security-gateway.md) (`SPEC-ARCH-003`)
 
 ---
 

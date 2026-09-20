@@ -2,7 +2,7 @@
 
 > **文档类别**：业务规则与实战指南 (Rules / Guidelines)  
 > **适用范围**：全量 A 股量化策略（5A旋转、多维共振、退哥短线、主板多波段）的统一交易反应与执行层 (EMS)  
-> **实施进度看板**：[`docs/specs/business/biz-trading-execution-and-risk-control.md`](../specs/business/biz-trading-execution-and-risk-control.md) (`SPEC-BIZ-003`)
+> **实施进度看板**：[`docs/specs/business/biz-trading-execution-and-risk-control.md`](../../specs/business/biz-trading-execution-and-risk-control.md) (`SPEC-BIZ-003`)
 
 ---
 
