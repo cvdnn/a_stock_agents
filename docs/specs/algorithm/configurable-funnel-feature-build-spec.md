@@ -180,6 +180,15 @@ flowchart LR
 - 风险面：ST、退市、停牌、流动性、异常交易；
 - 自定义：由已注册字段和规则组成，不允许执行任意代码。
 
+**首期数据准入标注（2026-09 裁定）**：维度注册与维度可发布是两个独立事实。本期仅下列维度可用于正式版本：
+
+| 维度 | 首期可发布规则 | 说明 |
+|---|---|---|
+| 技术面 | 均线、突破、量能、MACD、波动率、形态 | 全部基于本地日K快照，可发布 |
+| 市场面 | 指数趋势、涨跌停结构 | 基于指数日线，可发布 |
+| 风险面 | 高股价、超高PE、长期阴跌、ST名称型排除 | 见 §11.1；长期亏损与业绩差本期不可发布 |
+| 基本面/行业面/资金面/消息面 | 仅注册维度，不可发布 | 财务、行业快照、资金流、公告新闻契约未建立，含相应规则的版本禁止发布或激活 |
+
 逻辑使用安全表达式树，不接受字符串 `eval`：
 
 ```yaml
@@ -484,7 +493,7 @@ compiled_plan:
 
 编译契约：
 
-1. 相同模型版本和相同编译器版本必须生成相同 `plan_hash`；
+1. 相同模型版本和相同编译器版本必须生成相同 `plan_hash`。哈希输入为规范化序列化结果：JSON 键按字典序排序、去除无意义空白、数值统一为十进制字面量（不使用科学计数法）、`null` 显式保留、不包含发布时间与运行时间等非确定性字段。`plan_hash` 必须可由规范文本独立复算，并纳入规则 `version`；
 2. 条件模型的维度组被展开或引用为层内表达式节点，简单模型通常生成一个 `filter` 层；
 3. 漏斗模型的用户层级按依赖和顺序编译为多个 stage；
 4. `all/any` 只是 `and/or` 的编辑器快捷写法，运行时统一使用表达式 AST；
@@ -511,6 +520,8 @@ compiled_plan:
 | `missing_data_policy` | `reject`、`wait`、`skip_rule`、`fail_stage` |
 | `on_empty` | `stop_pipeline`、`continue_empty` |
 | `on_failure` | `stop_pipeline`、`retry`、`mark_degraded` |
+| `deadline` | 该层完成时刻上限（`HH:MM`，交易日时区）；缺省取该层 `schedule` 窗口结束时刻。仅对依赖动态数据的层（`missing_data_policy = wait`）有意义 |
+| `on_timeout` | `block_pipeline`（默认）、`continue_unknown`、`fail_run`：到达 `deadline` 仍为 UNKNOWN 时，分别进入 `BLOCKED`（跳过下游层，原因码 `STAGE_TIMEOUT`，不计为系统异常）、以 UNKNOWN 继续下游聚合、记 `FAILED` |
 
 ### 7.4 规则配置能力
 
@@ -519,6 +530,7 @@ compiled_plan:
 ```json
 {
   "type": "rolling_high",
+  "version": 1,
   "label": "滚动新高",
   "category": "日线技术",
   "description": "最新收盘价是否突破此前N个交易日高点",
@@ -531,6 +543,8 @@ compiled_plan:
   "output_metrics": ["current", "previous_high"]
 }
 ```
+
+`version` 表示规则的计算口径版本：计算方式、边界定义或输出含义变化时必须递增，并作为 `plan_hash` 输入；仅参数取值变化（如 `lookback` 由 20 改为 60）不递增。运行审计需同时记录规则 `type` 与 `version`。
 
 Web 表单必须由 `parameter_schema` 动态生成，不为每一种规则硬编码独立表单。
 
@@ -545,7 +559,7 @@ Web 表单必须由 `parameter_schema` 动态生成，不为每一种规则硬�
     window_start: "09:30"
     window_end: "09:40"
     pullback_end: "09:35"
-    confirm_start: "09:35"
+    confirm_start: "09:36"
     min_points: 6
     price_reversal:
       comparison_points: 2
@@ -558,10 +572,22 @@ Web 表单必须由 `parameter_schema` 动态生成，不为每一种规则硬�
     max_sell_ratio: 0.75
     min_buy_ratio: 1.20
     min_book_ratio: 1.20
-    required: [pullback, price_reversal, sell_exhaustion]
-    confirmations: [buy_strengthening, book_support]
-    min_confirmations: 1
+    min_pullback_points: 3
+    min_confirm_points: 2
+    required: [pullback, price_reversal]
+    confirmations: [sell_exhaustion, buy_strengthening, book_support]
+    min_confirmations: 0
+    output_policy: converge_at_window_end
+    metric_policy: real_only_for_signal
 ```
+
+拐点规则双轨与收敛语义：
+
+1. 正式信号必须使用真实主动买卖量；`sell_exhaustion`、`buy_strengthening`、`book_support` 在缺少可审计盘口契约时判 `UNKNOWN`，不得由分钟涨跌量代理顶替。
+2. 代理口径（`flow_source=price_direction_volume_proxy`）只允许用于调试预演，必须携带 `not_eligible_for_signal: true`，不得进入正式候选。
+3. 本期无盘口契约，故 `min_confirmations: 0`，拐点按“回调 + 价格反转”形态版发布；恢复供需版时必须同时把 `sell_exhaustion` 放回 `required` 且将 `min_confirmations` 改为 `1`。仅提高 `min_confirmations` 会被 `book_support` 单独满足，无法保证正式信号含真实主动买卖量。
+4. `output_policy: converge_at_window_end` 表示在窗口结束（09:40）一次性收敛输出，窗口内命中只记为待定候选，不作为信号锁存。`min_pullback_points`、`min_confirm_points` 取代规则内硬编码的 `3`、`2`。
+5. 编译期必须推导并输出 `earliest_possible_hit_time`（由 `min_points`、`min_confirm_points` 与分钟Bar起点语义决定，且只计已定盘Bar，见 §11.5），Web 不得手工填写。
 
 ### 7.6 配置存储与版本控制
 
@@ -618,6 +644,115 @@ stateDiagram-v2
 12. 发布和激活必须在模型级锁内原子完成；`active.json` 保存活动版本、指针修订号、操作者和更新时间，失败时不得留下半发布状态；
 13. 每次激活、回滚、归档、草稿覆盖冲突和版本迁移都写入审计日志。
 
+### 7.7 三态求值规范（Verdict Model）
+
+本节是 §7.1 字段状态、§7.5 规则参数化、§9 状态机的共同前置依赖。所有节点、层级、运行与最终信号判定一律使用三态：PASS / FAIL / UNKNOWN。
+
+#### 7.7.1 三态定义
+
+| Verdict | 判定条件 | 语义 |
+|---|---|---|
+| **PASS** | 参与判定的必需字段均为 `present`，且条件成立 | 候选保留/确认计数 +1 |
+| **FAIL** | 参与判定的必需字段均为 `present`，但条件不成立 | 候选淘汰，trace 记录观测值与阈值 |
+| **UNKNOWN** | 参与判定的任一必需字段 `field_status ∈ {missing, not_finalized, not_ready, unsupported, stale} ` | 不产生淘汰结论；去向由规则或层级 `missing_data_policy` 决定 |
+
+#### 7.7.2 一等字段取代布尔投影
+
+- `RuleResult` 增加一等字段 `verdict ∈ {PASS, FAIL, UNKNOWN}`；
+- `passed` 仅保留为兼容投影（`passed == (verdict == PASS)`），兼容期仅一个版本；
+- 原 `status`（含 `INSUFFICIENT_DATA`）退化为 `reason_code` ，不得承担布尔语义；
+- trace 必须同时记录：`verdict`、`reason_code`、`rule_inputs_observed` 与每项的 `field_status` 。审计不得依赖布尔字段反推 UNKNOWN。
+
+#### 7.7.3 字段状态约定
+
+每个候选项的必需字段进入装配层后附 `field_status`：
+
+| field_status | 含义 | 例 |
+|---|---|---|
+| `present` | 字段存在、已定盘、口径已声明 | 收盘后日K的 `pe>0` |
+| `missing` | 记录中无该字段 | 主机中未同步该财务字段 |
+| `not_finalized` | 已入库但未达法定或项目定义的定盘时点 | 15:05–15:30 区间的复权因子 |
+| `not_ready` | 同步或盘中捕获未推进到要求水位，可在允许窗口内等待 | 尚未收满的进行中分钟Bar、未完成的水位批次 |
+| `unsupported` | 字段需要的数据契约本期未建立 | `main_net_inflow`、`buy_volume` |
+| `stale` | 数据陈旧，超出可用的新鲜度阈值 | 超过 30 天的指数日线 |
+
+#### 7.7.4 Kleene 强三值真值表
+
+`condition_tree` 的 `all / any / not` 采用下列求值规则：
+
+| ∧ (all) | PASS | UNKNOWN | FAIL |
+|---|---|---|---|
+| **PASS** | PASS | UNKNOWN | FAIL |
+| **UNKNOWN** | UNKNOWN | UNKNOWN | FAIL |
+| **FAIL** | FAIL | FAIL | FAIL |
+
+| ∨ (any) | PASS | UNKNOWN | FAIL |
+|---|---|---|---|
+| **PASS** | PASS | PASS | PASS |
+| **UNKNOWN** | PASS | UNKNOWN | UNKNOWN |
+| **FAIL** | PASS | UNKNOWN | UNKNOWN |
+
+`¬PASS = FAIL`、`¬FAIL = PASS`、`¬UNKNOWN = UNKNOWN`。
+
+**设计要点**：
+- FAIL 对 AND 吸收，任一硬规则确定性不成立，候选必淘汰；数据缺失不能“救回”已判死的候选；
+- PASS 对 OR 吸收，任一确认项确凿成立即满足分支；数据缺失不能“拖垮”已决定性成立的分支；
+- UNKNOWN 传播但不伪装： `UNKNOWN ∧ UNKNOWN = UNKNOWN` ，不会因为两个都不知道就得出结论。
+
+#### 7.7.5 UNKNOWN 计数规则
+
+| 场景 | 规则 |
+|---|---|
+| `all` 分支 | 有 FAIL → FAIL；无 FAIL 有 UNKNOWN → UNKNOWN；否则 PASS |
+| `any` 分支 | 有 PASS → PASS；否则有 UNKNOWN → UNKNOWN；否则 FAIL |
+| `min_confirmations: N` | **只数 PASS**。UNKNOWN 确认项不计入分母也不计入分子 |
+| `required` 集合含 UNKNOWN | 本身不产生 FAIL，触发该规则的 `missing_data_policy` |
+| “层内至少 N 条通过” | 同 `min_confirmations` |
+
+**示例**（出厂模板拐点）：`min_confirmations: 1`，`sell_exhaustion=UNKNOWN`（无盘口）、`book_support=UNKNOWN` → 计数 0 < 1 → verdict = UNKNOWN。这正是拐点 `min_confirmations: 0/1` 双轨的形式化依据：0 表示“计数 ≥ 0 恒真”，全部 UNKNOWN 也不阻塞。
+
+#### 7.7.6 `missing_data_policy` 映射
+
+可在规则元数据或层级元数据上声明，层级覆盖规则。
+
+| 策略 | 叶子行为 | 聚合行为 | 适用场景 |
+|---|---|---|---|
+| `reject`（默认） | 记 verdict = UNKNOWN，候选最终淘汰 | 汇总后 UNKNOWN → FAIL（reason = `DATA_MISSING`） | 正式信号、技术面定盘字段 |
+| `wait` | 记 verdict = UNKNOWN，节点挂起 | 层/运行进入 `WAITING_DATA` （§9.1 状态机）；下个采样 tick 重评 | 盘中分钟依赖、`universe_gate` |
+| `skip_rule` | 该规则退出本轮计数（既非 PASS 也非 FAIL），trace 标注 | 其余规则照常聚合 | `confirmations` 预留项、`enabled=false` 的折停规则 |
+| `fail_stage` | 层 verdict = `BLOCKED` | 整批停止（与“门控失败整批停止”对齐） | `universe_gate` 硬依赖 |
+
+关键约束：
+1. 策略作用于聚合点，不消灭叶子 UNKNOWN；叶子始终如实记录 verdict = UNKNOWN 与 reason_code；
+2. `skip_rule` 与 `min_confirmations` 的交互：被跳过规则不计入分母也不计入分子；若剩余可达规则 PASS 数 < N，verdict = UNKNOWN；
+3. `wait` 超时未达数据且未携带 `deadline` / `on_timeout` 策略（§9.1 状态机补齐）则进入 `BLOCKED` 并记 `STAGE_TIMEOUT`；
+4. 发布门禁：正式版本的 required 集合不得被 `missing_data_policy = skip_rule` 覆盖。违反则在发布时即机检拒绝（错误码 `MODEL_NODE_NOT_DUE`）。
+
+#### 7.7.7 与现有代码的不兼容性清理
+
+| 现状代码 | 问题 | 本规范要求 |
+|---|---|---|
+| `funnel_engine.py:_evaluate` （异常路径统一转 `passed=False`） | 数据不足被隐性判为淘汰 | 异常路径返回 verdict = UNKNOWN + reason_code |
+| `data_bridge.py` 处 `pe <= 0 → None` | “亏损”与“缺失”被合并 | 数据层保留负值；“亏损”由规则显式判定 |
+| `stock_funnel.py` 盘口默认 `0` | 缺失被静默降级为“不成立” | 缺省即 verdict = UNKNOWN |
+| `stock_funnel.py:required_unavailable` 手工检查 | 缺统一语义 | 提升为本节 §7.7.6 发布门禁 |
+
+#### 7.7.8 两态兼容视图（迁移安全网）
+
+正式候选判定可等价降级为两态视图：`reject` 策略下 verdict = UNKNOWN 视同 FAIL。在迁移期：
+- 兼容 CLI（`funnel run`）的旧两态输出作为三态规范的退化视图，便于逐版本对拍；
+- §22.1 必测项包含：Kleene 真值表全组合单测、四策略映射测试、`reject` 视图与旧引擎结果一致性对拍。
+
+#### 7.7.9 与本规范其他节条的联动
+
+| 联动项 | 本节为前提的点 |
+|---|---|
+| **双轨代理（S2）** | 代理口径叶子上产出 UNKNOWN，配合 `metric_policy: real_only_for_signal` 被 `reject` 拦截；`not_eligible_for_signal` 标记由此获得形式化定义 |
+| **`enabled=false` 折停规则** | 发布层面处理；本节处理其被启用时的运行语义 |
+| **拐点双轨 `min_confirmations: 0/1`** | “0 = 形态版”语义由 §7.7.5 计数规则保证 |
+| **发布门禁（§14）** | 新增可机检规则：required 集合在当前 `field_status` 下必然全 UNKNOWN 则拒绝发布（错误码 `MODEL_NODE_NOT_DUE`），在发布时即拦住出厂模板原缺陷 |
+| **§9 状态机** | `WAITING_DATA` 由 `missing_data_policy = wait` 触发；`BLOCKED / STAGE_TIMEOUT` 由 `fail_stage` 与超时兜底触发 |
+
 ---
 
 ## 8. 规则校验与调试设计
@@ -661,6 +796,8 @@ stateDiagram-v2
     RUNNING_STAGE --> BLOCKED: 大盘门控失败
     COLLECTING_DATA --> WAITING_DATA: 数据暂不足
     WAITING_DATA --> COLLECTING_DATA: 下一个采样点
+    WAITING_DATA --> BLOCKED: 到达 deadline 仍未就绪（STAGE_TIMEOUT）
+    COLLECTING_DATA --> BLOCKED: 采集超时（STAGE_TIMEOUT）
     COLLECTING_DATA --> FAILED: 本地数据接口失败且不可降级
     RUNNING_STAGE --> FAILED: 规则或持久化异常
     CREATED --> CANCELLED
@@ -677,8 +814,10 @@ stateDiagram-v2
 - 大盘门控失败使用 `BLOCKED`，不属于系统异常；
 - 无候选使用 `EMPTY`，不生成替代股票；
 - 分钟数据尚不足使用 `WAITING_DATA`，不能标记失败或成功；
+- `WAITING_DATA` 不得无限期等待：到达该层 `deadline` 仍未就绪时按 `on_timeout` 收敛，默认进入 `BLOCKED` 并记原因码 `STAGE_TIMEOUT`，跳过下游层且不计为系统异常；
+- 未声明 `deadline` 的动态数据层，取该层 `schedule` 窗口结束时刻为隐含 `deadline`；窗口结束即必须收敛，不允许跨窗口累积后延迟出信号；
 - 只有最终阶段满足规则时才写正式 `SignalEvent`；
-- 同一股票同一模型版本同一交易日只允许锁存一次正式通知信号，但每个运行实例仍需独立保存其筛选结果；
+- 同一股票同一模型版本同一交易日只允许锁存一次正式通知信号，但每个运行实例仍需独立保存其筛选结果；采用窗口收敛输出（`converge_at_window_end`）的层级，锁存发生在窗口结束时刻，窗口内命中仅为待定候选，不构成锁存；
 - 每次定时启动或用户手工执行都创建独立 `SelectionModelRun` 和唯一 `run_id`；
 - 同一个模型及版本允许在同一交易日或不同交易日执行多次，运行记录和结果不得覆盖；
 - 后续层级通过 `execution_key` 关联到所属运行实例，不得仅按模型ID或交易日查找“当天唯一运行”；
@@ -763,7 +902,7 @@ Windows 使用任务计划程序每分钟调用 `bin\astock.ps1 screen-model tic
 | 09:30～09:40 | 每60秒 | 通过统一数据层捕获分钟线与盘口快照，固化后装配候选输入 |
 | 09:30 | 一次 | 执行 `market_gate` |
 | 09:31 | 一次 | 执行 `opening_gap` |
-| 09:36～09:40 | 每60秒 | 执行 `turning_point`，命中后锁存代码 |
+| 09:36～09:40 | 每60秒 | 执行 `turning_point`；窗口内命中只记入待定候选，09:40 收敛后锁存代码 |
 
 ### 10.4 交易日与时区
 
@@ -780,16 +919,19 @@ Windows 使用任务计划程序每分钟调用 `bin\astock.ps1 screen-model tic
 ```text
 run-start:<model_id>:<model_version>:<trigger_type>:<scheduled_slot_or_request_id>
 run-node:<run_id>:<job_or_node_id>:<scheduled_slot>
+signal-latch:<model_id>:<model_version>:<signal_trade_date>:<code>
 ```
 
 - 同一定时 `scheduled_slot` 只能创建一个运行实例；不同时间的定时触发创建不同实例；
 - 每次用户手工执行生成新的 `request_id` 和 `run_id`；只有客户端重试同一 `request_id` 时返回原运行；
 - 同一层级执行幂等键只能成功提交一次；
+- `signal-latch` 键保证同一股票、同一模型版本、同一信号交易日只锁存一次正式信号；第二次运行命中同一键时不得丢弃该次结果，而是向既有锁存记录追加 `latched_by_run_id`，每个运行实例仍独立保存自身筛选结果，审计链不断裂；
+- 采用 `converge_at_window_end` 的层级在窗口结束时写入 `signal-latch`；窗口内命中只写 `pending` 记录，不占用锁存键；
 - 使用文件锁或数据库唯一约束防止多进程重复执行；
 - 本地定盘数据读取和统一数据层盘中捕获允许有限重试，但选股模块不得绕过 `DataBridge` 直连供应商；
 - 写信号、归档和通知不得无条件自动重试；
 - 调度错过后是否补跑由阶段配置决定，早盘时效阶段默认不补跑；
-- `turning_point` 已命中后继续采样，但不得撤销或重复发送已锁存信号。
+- `turning_point` 在窗口内命中先记为待定候选，窗口结束（09:40）一次性收敛并锁存；窗口内不得提前发送信号，收敛后不得撤销或重复发送。
 
 ---
 
@@ -809,10 +951,12 @@ run-node:<run_id>:<job_or_node_id>:<scheduled_slot>
 | 分钟K | **接口/动态内存可用，未形成持久化基线** | `DataBridge` 或盘中动态内存Bar | 保存实际使用的分钟点和捕获元数据 |
 | 盘口/主动买卖量 | **部分源可能提供，尚无稳定本地契约** | 供应商响应或动态DTO | 注册标准适配器前视为 `unsupported` |
 | 主力资金净流入 | **接口能力存在，尚无本地持久化契约** | 东方财富等L3能力 | 正式模型所需时必须先补契约或注册可审计捕获适配器 |
-| 证券主数据/ST/流通市值 | **现有两份数据规范未定义** | 无权威本地Schema与水位 | “非ST、流通市值”等规则在补齐前阻止发布/激活 |
+| 流通市值 | **已具备（取字段已补齐）** | 快照字段 `parts[44]` 映射为 `circulating_market_cap`，`parts[45]` 映射为 `total_market_cap` | 两字段必须分列且 `0` 值表示缺失；任一字段缺失时不得回退取另一口径，依赖该字段的规则按 §7.7 判 UNKNOWN |
+| ST/退市/证券主数据 | **名称型判定已具备** | 快照证券名称文本；证券主数据表未定义 | `exclude_st` 按名称词元判定可发布；依赖主数据表的规则仍阻止发布 |
+| PE/PB | **快照与日K列已具备** | 快照 `parts[39]`；`daily_kline.pe/pb` 列（实际写入率待核） | 缺失与亏损语义分离后可开放 PE 风险过滤 |
 | 行业快照、公告、新闻 | **现有同步基线未覆盖** | 可能由其他能力临时提供 | 未注册成版本化输入前不得用于正式可复现运行 |
 
-因此，原四层漏斗的算法设计成立，但以当前数据基线不能直接标记“全部可正式运行”。其中日K、新高、均线、成交量和指数日线可由本地基线支撑；`security_master`、ST、流通市值、`money_flow`、稳定盘口及主动买卖量仍是上线前置缺口。系统不得以名称、涨跌量或其他代理字段静默替代；仅当模型显式选用已注册代理规则并在证据中标记口径时才允许使用。
+因此，原四层漏斗的算法设计成立，但以当前数据基线不能直接标记“全部可正式运行”。其中日K、新高、均线、成交量、指数日线，以及按名称判定的 ST 排除与由快照补齐的流通市值，可由本地基线或快照支撑；`security_master` 表、`money_flow`、稳定盘口及主动买卖量仍是上线前置缺口。系统不得以名称、涨跌量或其他代理字段静默替代；仅当模型显式选用已注册代理规则并在证据中标记口径时才允许使用。
 
 ### 11.2 统一数据边界与访问模式
 
@@ -829,10 +973,21 @@ run-node:<run_id>:<job_or_node_id>:<scheduled_slot>
 
 - 逻辑 `daily_bar` 映射物理表 `daily_kline`；指数日K使用同一时序契约；
 - 标的统一规范化为 `sh`、`sz`、`bj`、`hk` 前缀，规则层不得自行猜测市场；
-- 个股日K默认前复权 `qfq`，指数不复权，复权口径必须进入快照清单；
+- 个股日K默认前复权 `qfq`，指数不复权，复权口径必须进入快照清单；同一条规则的全部输入必须使用同一复权口径，禁止混用；
+- `daily_kline` 当前不含 `adjust` 与 `pre_close` 列，`qfq` 由取数链路按参数拉取保证；在列补齐前，依赖复权口径的规则（新高、均线）不得与不复权派生值放入同一比较，快照必须记录该口径来源；
 - 成交量单位统一为“手”，成交额统一为“元”；
+- 市值单位统一为“元”：`circulating_market_cap` 与 `total_market_cap` 在规则输入中均为“元”；`DataBridge` 腾讯快照原始值为“亿元”，必须由 `DataAssembler` 换算（×1e8）后写入输入切片，禁止把“亿元”原始值直接透传给规则；
 - 技术指标只能基于快照中的原始OHLCV本地计算，不调用外部黑盒指标；
 - 交易日判断、T+N计算、同步水位与选股调度必须共用同一 `TradeCalendar` 口径。
+
+**交易日历推导与版本（强制）**
+
+- 历史交易日集合以本地 `daily_kline` 中**实际存在**的交易日为准推导，覆盖范围即已同步区间；`weekday() < 5` 与内置固定节假日表只能作为粗筛，不得作为调度、T+N 计算与同步水位的最终判断；
+- 推导复用 `scripts/core/data/sync_engine.py` 的 `TradeCalendar`：`trading_days_from_local(start, end)` 从本地库取实际交易日集合，`get_trading_days_between(start, end, reference_dates=<本地集合>)` 以该集合为准生成序列；未传 `reference_dates` 时退化为周末+固定节假日近似，仅允许用于粗筛或本地库不可用时的降级提示；
+- 目标区间超出本地已同步覆盖时视为日历不可用：盘中自动任务按 §10.4 失败关闭，不得猜测开市，也不得把“本地无记录”当作休市；
+- `calendar_version` 是本地交易日集合的**内容标识**（由排序后的交易日集合哈希派生），集合内容发生任何变化即改变：新增交易日、回填或修复历史交易日、区间合并都会产生新版本；
+- `calendar_version` 记录在运行快照清单（§11.7）与运行元数据中，**不进入 `plan_hash`**：`plan_hash` 只覆盖模型定义、规则与参数，不得包含运行时刻、数据环境或日历内容等随运行变化的值；
+- `scripts/core/monitor/schedule_gate.py` 的 `is_trading_day()` 是纯时间窗粗筛（仅排除周末），不得作为权威日历判断入口。
 
 ### 11.3 DataAssembler 职责
 
@@ -907,6 +1062,43 @@ run-node:<run_id>:<job_or_node_id>:<scheduled_slot>
 
 该DTO表达目标契约，不证明盘口和主动买卖量当前已经可稳定取得。捕获适配器必须先声明字段可用性、时间戳、单位和来源；字段缺失时按 `unsupported/not_ready/source_error` 处理，禁止用默认数字填充。
 
+**分钟Bar时间戳规范化（强制）**
+
+分钟点时间戳由 `DataAssembler`（阶段B交付前由捕获适配器）统一规范化为 `HH:MM`：24小时制、零填充、**Bar 起点**语义（`09:36` 表示覆盖 09:36:00–09:36:59 的分钟）。规则层禁止自行解析、截取或比较时间字符串。
+
+必须支持并可验证的输入形式：
+
+| 输入形式 | 规范化结果 |
+|---|---|
+| `"09:36"` | `"09:36"` |
+| `"09:36:00"`、`"09:36:30"` | `"09:36"`（截断到Bar起点） |
+| `"0936"`、`"093600"` | `"09:36"` |
+| `"2026-09-21 09:36"`、带日期与时区的 ISO8601 | 换算到 `Asia/Shanghai` 后取 `"09:36"` |
+| UNIX 秒或毫秒时间戳 | 换算到 `Asia/Shanghai` 后取 `"09:36"` |
+
+- 无法解析、或解析结果超出 `00:00`–`23:59` 的点不得静默丢弃：该点标记 `field_status = missing`，计入运行的 `dropped_point_count` 及原因码，并按 §7.7 三态求值；全部点不可解析时该规则 verdict = UNKNOWN。
+- 窗口比较为闭区间且两端同口径：`window_start <= t <= window_end`；`pullback_end`、`confirm_start` 同口径。`min_points`、`min_pullback_points`、`min_confirm_points` 均统计规范化后的Bar数量。
+- “最早可命中时点”由 `confirm_start`、`min_confirm_points` 与Bar起点语义共同推导，编译器必须输出 `earliest_possible_hit_time`，禁止在 Web 或文档中手工填写。
+
+**进行中Bar与定盘（强制）**
+
+盘中捕获允许交付**当前进行中**的分钟Bar（覆盖当前时刻所在分钟、尚未收满60秒），但必须满足：
+
+- 该点必须写入 `field_status = not_ready`；不得省略该点、不得以估算值或上一分钟值代替、不得视为 `present`；
+- 未定盘Bar不参与正式信号判定：规则层必须把 `not_ready` 点排除在 `min_points`、`min_pullback_points`、`min_confirm_points` 的Bar计数之外，并按其 `field_status` 计入 `dropped_point_count` 与原因码 `MINUTE_BAR_NOT_FINALIZED`（不得静默丢弃）；
+- `earliest_possible_hit_time` 只由**已定盘Bar**推导（`confirm_start` + `min_confirm_points` + Bar起点语义）；进行中Bar既不提前该时点，也不构成“已命中”证据；
+- `converge_at_window_end` 的收敛以窗口结束时刻的**已定盘**集合为准，窗口末分钟的进行中Bar不参与该次收敛；
+- 某记录全部窗口内点均为 `not_ready` 时，该规则 verdict 按 §7.7 判 UNKNOWN，避免因快照提前而误判淘汰。
+
+禁止事项：
+- 规则层使用 `str(time)[-5:]` 一类字符串截取：在 `HH:MM:SS` 输入下会得到 `36:00`，被窗口比较静默排除，故障表现为恒不出信号且无告警；
+- 装配层将无法解析的时间戳替换为默认值（如 `09:30`）或填入 `0`。
+
+实现落点：
+- 归一化（装配层）：`scripts/core/data/data_layer.py` 的 `normalize_minute_timestamp()`，返回 `("HH:MM", None)` 或 `(None, 原因码)`；原因码为 `MINUTE_TIMESTAMP_UNPARSABLE`、`MINUTE_TIMESTAMP_OUT_OF_RANGE`；
+- 格式校验（规则层）：`scripts/core/strategy/stock_funnel.py` 的 `_minute_timestamp_reason()`，只接受已归一化的 `HH:MM` 且限定 `00:00`–`23:59`，不做任何字符串截取；未归一化点记原因码 `MINUTE_TIMESTAMP_NOT_NORMALIZED`；
+- 被剔除点在规则 `metrics` 中记 `dropped_point_count`、`dropped_points[].field_status`（`missing` 或 `not_ready`）与 `dropped_points[].reason_code`；可用点为零时该规则 `verdict = UNKNOWN` 而非 `FAIL`，且 `minute_points_field_status` 给出该字段的整体状态（仅时间戳不可用时为 `missing`，仅未定盘时为 `not_ready`）。
+
 ### 11.6 水位、完整性与缺失数据
 
 每个字段必须区分：`present`、`not_ready`、`missing`、`stale`、`unsupported`、`source_error`。不得用 `0` 统一代替缺失值。
@@ -917,7 +1109,7 @@ run-node:<run_id>:<job_or_node_id>:<scheduled_slot>
 - `unsupported`：当前数据能力没有该字段，发布或激活必须被阻止；
 - `source_error`：本地库、统一接口或其上游失败，不得伪装成空值。
 
-`sync_meta.integrity_status` 到选股状态的映射固定为：`healthy` 且水位、新鲜度、覆盖率全部达标才是 `present`；`degraded` 进入 `WAITING_DATA`、修复或失败关闭；`unknown` 视为 `not_ready`。全市场筛选不能只检查少量成功标的，必须检查 `UniverseWatermark`。P3全市场同步属于按需任务，调度器应等待明确的数据就绪事件或查询到合格水位，不能假定15:35时已自动完成。
+同步引擎 `sync_meta.integrity_status` 的落库值域为 `synced`（仅表示已入库）；`healthy/degraded` 由 `audit_integrity()` 现场计算，并不落库。因此到选股状态的映射固定为：`synced` 且现场审计 `healthy`、且水位/新鲜度/覆盖率全部达标才是 `present`；现场审计 `degraded` 进入 `WAITING_DATA`、修复或失败关闭；已入库但未审计或审计 `unknown` 视为 `not_ready`；`sync_meta` 无记录视为 `missing`。全市场筛选不能只检查少量成功标的，必须检查 `UniverseWatermark`。P3全市场同步属于按需任务，调度器应等待明确的数据就绪事件或查询到合格水位，不能假定15:35时已自动完成。
 
 ### 11.7 快照、复现与修复隔离
 
@@ -1550,6 +1742,19 @@ scripts/server/tasks/selection_model_tasks.py
 
 迁移原则：现有 `funnel_engine.py` 与 `stock_funnel.py` 的纯计算能力迁入或适配为层级执行器和原子规则；条件树由模型编译器转换为层内表达式。所有模型共享规则注册表、表达式求值器和层级漏斗引擎，不保留按模型类型拆分的并行运行时。回测和仓位策略优先复用项目量化引擎已有的事件驱动回测、交易成本、T+1和风险仓位能力，禁止再造口径不同的第二套计算。
 
+**复用矩阵（能力 → 既有权威实现 → 是否允许新建）**
+
+| 能力 | 既有实现 | 约束 | 接入方式 |
+|---|---|---|---|
+| 五维评分（`scoring_rank`，P2） | `scripts/core/models/multi_dim_model.py` 的 `FiveDimScorer.score()`，权重 `技术0.25/趋势0.22/量能0.18/结构0.15/资金0.20` | **必须复用**，禁止在 `stage_executors` 重写打分口径 | `score/rank` 执行器调用 `FiveDimScorer`，参数由模型定义注入，不复制权重常量 |
+| 大盘门控 | `multi_dim_model.py` 的 `MarketGate.assess()` / `gate_open()` | 优先复用；定盘门控是其口径的扩展 | `market_gate`/`universe_gate` 复用 `MarketGate` 的多空判定 |
+| 五大风险过滤 | `scripts/core/strategy/fundamental_filter.py` 的 `FundamentalFilter.inspect()`（高股价、超高PE、长期亏损、业绩差、长期阴跌） | **必须复用**；注册表只做参数适配与三态改造 | 逐条注册为原子规则，消费 `inspect()` 结论；五项风险各自独立 `RuleResult`，不合并为单一布尔 |
+| 动态股票池 | `scripts/core/strategy/dynamic_universe.py` 的 `DynamicUniverseEngine.generate_dynamic_universe()`、`infer_leading_sectors()`、`infer_active_stocks()` | **必须复用** | `input_binding: market.daily_universe` 的解析者即 `DynamicUniverseEngine`；`UniverseWatermark.expected` 由其输出规模给出 |
+| 事件驱动回测、T+1、成本与仓位 | 项目量化引擎既有回测与 `risk_position_manager` | **必须复用** | `backtest_service`、`position_policy` 调用既有引擎，不新建口径 |
+| 规则注册、表达式求值、层级执行 | 新建（`rule_registry`、`expression_evaluator`、`layered_funnel_engine`） | 允许新建 | 由 `funnel_engine.py`、`stock_funnel.py` 适配迁入，不保留并行运行时 |
+
+复核要求：`stage_executors` 中出现的任何评分口径或风险阈值，必须可追溯到上表的既有实现或用户配置；无法追溯的复制口径视为违反“不保留第二套运行时”，在评审中拒绝。
+
 ---
 
 ## 20. 权限、安全与审计
@@ -1643,12 +1848,14 @@ log/selection-models/20260921/audit.log
 - 门控失败整批终止；
 - 数据不足不产生信号；
 - 15:35之前或P3 `UniverseWatermark` 未达标时，收盘层级不执行；
-- `healthy/degraded/unknown` 正确映射为就绪、修复/失败关闭和未就绪；
-- `security_master`、流通市值、资金流或盘口适配器未注册时阻止模型发布/激活；
+- `sync_meta.integrity_status` 的 `synced` 与现场审计结论合并映射为 `present`、`WAITING_DATA` 或 `not_ready`，见 §11.6；
+- `security_master` 表、资金流或盘口适配器未注册时阻止模型发布/激活；ST 名称型排除与流通市值不构成阻断；
 - 盘中数据在规则计算前已经生成 `intraday_capture`，且捕获内容、来源和时间可审计；
 - 同一 `data_snapshot_id` 可重复得到一致结果；
 - `as_of` 查询不会读取运行时点之后的数据；
 - 选股引擎与规则运行器不直接发起外部行情网络请求，盘中网络获取只能由 `DataBridge` 完成；
+- 快照市值字段分列：`circulating_market_cap` 取自 `parts[44]`、`total_market_cap` 取自 `parts[45]`，任一字段缺失时返回 `0` 且不得回退取另一口径；
+- 市值单位换算：`DataBridge` 快照值为“亿元”，装配后规则输入必须为“元”，换算前后数值一致性可校验；
 - 技术指标快照包含 `indicator_engine_version`、参数和原始OHLCV哈希；
 - SQLite历史行经Upsert修复后，原运行仍可依靠已保存输入切片复现；
 - 信号标记分析与交易策略回测口径严格分离；
@@ -1659,7 +1866,21 @@ log/selection-models/20260921/audit.log
 - TrackingObservation只能追加版本，不能覆盖历史观察；
 - 样本不足时模型评价返回 `EVALUATION_SAMPLE_INSUFFICIENT`；
 - 调优建议不能直接修改、发布或激活生产模型；
-- 信号锁存和幂等。
+- 三态真值表：`all`/`any`/`not` 在 PASS/FAIL/UNKNOWN 全组合下与 §7.7.4 的 Kleene 强三值结果一致；
+- `min_confirmations` 与“层内至少 N 条通过”只统计 PASS，UNKNOWN 不计入分子或分母；
+- `missing_data_policy` 四策略（`reject`/`wait`/`skip_rule`/`fail_stage`）的聚合去向正确，且叶子 UNKNOWN 在聚合后仍可追溯；
+- `reject` 两态视图与旧 `funnel_engine` 判定结果对拍一致；
+- 分钟时间戳五种输入形式规范化结果一致；不可解析点计入 `dropped_point_count` 且不静默丢弃；
+- 编译期 `earliest_possible_hit_time` 与实际首次可命中时点一致；该值由 `confirm_start`、`min_confirm_points` 与Bar口径推导，不得在 Web 或文档中手工填写；
+- 含进行中Bar的快照：进行中Bar标 `field_status = not_ready` 且理由码为 `MINUTE_BAR_NOT_FINALIZED`，不计入 `min_points`/`min_pullback_points`/`min_confirm_points` 计数，不改变 `earliest_possible_hit_time`；窗口内点全为未定盘时该规则为 UNKNOWN 而非 FAIL；
+- `calendar_version` 随本地交易日集合变化而变化（新增、回填或修复任一交易日即产生新版本），且同一集合的不同顺序得到同一版本号；`plan_hash` 复算不受 `calendar_version` 影响；
+- 到达层 `deadline` 仍未就绪时按 `on_timeout` 收敛，默认 `BLOCKED` 且原因码为 `STAGE_TIMEOUT`；
+- `converge_at_window_end` 层级：窗口内命中仅记待定候选，09:40 前不产生信号，锁存唯一；
+- 评分执行器输出与直接调用 `FiveDimScorer.score()` 结果一致（§19 复用校验）；
+- 风险规则输出与 `FundamentalFilter.inspect()` 结论一致，五项风险可独立判定；
+- `plan_hash` 规范化复算：同一语义计划（键序、空白、十进制字面量写法、`null` 保留差异）得到同一 `plan_hash`；规则 `version` 变化必导致 `plan_hash` 变化；不含任何运行时刻字段；
+- 信号锁存：同一 `signal-latch:<model_id>:<model_version>:<signal_trade_date>:<code>` 在窗口内重复命中只追加 `latched_by_run_id` 并保持待定态，窗口收敛后为唯一终态；
+- 同一规则内混用复权口径被拒绝；`daily_kline` 未提供 `adjust`/`pre_close` 列时不得推导复权价。
 
 ### 22.2 调度测试
 
@@ -1806,7 +2027,7 @@ log/selection-models/20260921/audit.log
 
 1. 以 `daily_kline/sync_meta` 接入 `finalized_local`，实现一致性读取和 `UniverseWatermark`；
 2. 实现 `intraday_capture`，将 `DataBridge` 标准化快照、分钟点和已支持盘口字段固化到运行目录；
-3. 定义并实现证券主数据/ST/流通市值、资金流、盘口与主动买卖量的缺失契约，未完成前保持 `unsupported`；
+3. 定义并实现证券主数据表、资金流、盘口与主动买卖量的缺失契约，未完成前保持 `unsupported`；ST 名称型排除与流通市值已具备，登记为正式字段并纳入快照清单；
 4. 实现 `data_snapshot_id`、快照清单、输入切片、内容哈希与指标引擎版本留痕；
 5. 接入与同步引擎一致的交易日历；
 6. 实现 Scheduler Tick、15:35后定盘水位和盘中捕获就绪触发；
@@ -1888,7 +2109,7 @@ log/selection-models/20260921/audit.log
 8. 条件模型首期是否允许跨维度引用派生分数，还是仅允许布尔结果引用；
 9. 用户自建模型是否默认仅本人可见，后续是否支持模板共享和复制；
 10. 模型名称是否允许重复；建议允许显示名称重复，但 `model_id` 必须全局唯一。
-11. 证券主数据/ST/流通市值、资金流、分钟线和盘口首期哪些扩展为本地持久化表，哪些仅使用可审计的运行捕获适配器；
+11. 证券主数据表、资金流、分钟线和盘口首期哪些扩展为本地持久化表，哪些仅使用可审计的运行捕获适配器；
 12. P3全市场收盘筛选的默认覆盖率是否必须100%；建议正式信号默认100%，降低阈值必须由模型显式配置并披露缺失标的；
 13. 默认跟踪哪些候选、实时采样频率以及T+N观察点；建议首期跟踪全部最终候选，默认T+1/T+3/T+5/T+10/T+20；
 14. T+N默认使用开盘、收盘还是VWAP作为标记价格；建议同时保存标准口径，但模型评价固定一个主口径；
@@ -1897,4 +2118,11 @@ log/selection-models/20260921/audit.log
 17. 优化建议是否提供“一键带入模型构建器”；建议首期仅支持查看和标记处理状态，由用户手工修改草稿；
 18. 盘中捕获快照及实际输入切片的保留期限和容量上限；建议至少覆盖运行审计、回测与调优的最长观察周期。
 
-在这些事项确认前，规则口径默认采用当前基线：20日新高、高开1%～2%、上证指数MA20门控、09:36～09:40首次满足即锁存，仅在Web站内展示信号。但数据准入不设默认替代：证券主数据、流通市值、资金流、盘口或主动买卖量仍为 `unsupported` 时，含相应必选规则的版本不得发布或激活。
+已裁定事项（2026-09，取代上述待确认条目）：
+
+- 数据准入范围：本期仅技术面、市场面与低风险项（高股价、超高PE、长期阴跌、ST名称型排除）可发布；定盘链路补齐 `PE` 与流通市值；财务报表、资金流、盘口暂不建设。
+- 拐点数据底线：双轨，正式信号必须使用真实主动买卖量，代理口径仅限调试预演并标记 `not_eligible_for_signal`。
+- 输出时点：窗口结束（09:40）一次性收敛输出，不再于窗口内即时锁存。
+- 快照保留：普通运行切片保留 90 天；信号关联切片按最长跟踪观察周期加 30 天保留。
+
+未裁定前的规则基线仍为：20日新高、高开1%～2%、上证指数MA20门控、通知仅 Web 站内展示。数据准入不设默认替代：证券主数据表、资金流、盘口或主动买卖量仍为 `unsupported` 时，含相应必选规则的版本不得发布或激活；ST 名称型排除与流通市值已不属此列。

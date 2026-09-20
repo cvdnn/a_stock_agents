@@ -69,6 +69,21 @@ class TestModelsSuite(unittest.TestCase):
         q_score = mfs.quality_factor(self.klines, pe_value=18.0)
         self.assertGreater(q_score, 0.0)
 
+    def test_pe_missing_and_loss_are_explicitly_separated(self):
+        """§7.7.7: 数据缺失(None/0) 与 亏损(PE<0) 不得合并为同一口径"""
+        mfs = MultiFactorScorer()
+        # 缺失: None / 0 视为同一"不可用"
+        self.assertEqual(mfs.value_factor(pe_value=None), mfs.value_factor(pe_value=0))
+        # 亏损: 显式低于缺失口径
+        self.assertLess(mfs.value_factor(pe_value=-31.63), mfs.value_factor(pe_value=None))
+
+        scorer = ComboScorer()
+        self.assertEqual(scorer.score_pe(None), scorer.score_pe(0))
+        self.assertEqual(scorer.score_pe(None)[1], "PE数据不可用")
+        loss_score, loss_reason = scorer.score_pe(-31.63)
+        self.assertIn("亏损", loss_reason)
+        self.assertLess(loss_score, scorer.score_pe(None)[0])
+
     def test_multi_factor_volatility_and_scoring(self):
         mfs = MultiFactorScorer()
         vol_score = mfs.volatility_factor(self.klines)

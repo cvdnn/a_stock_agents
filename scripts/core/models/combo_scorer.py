@@ -250,11 +250,16 @@ class ComboScorer:
 
     @staticmethod
     def score_pe(pe_value: Optional[float], is_short: bool = False) -> Tuple[int, str]:
-        """PE估值评分 (主要影响中线)"""
-        if pe_value is None or pe_value <= 0:
+        """PE估值评分 (主要影响中线)
+
+        §7.7.7: "缺失"(None/0) 与"亏损"(<0) 显式区分，不合并。
+        """
+        if pe_value is None or pe_value == 0:
             return 5, "PE数据不可用"
         if is_short:
             return 5, "短线忽略PE"
+        if pe_value < 0:
+            return 2, f"PE={pe_value:.0f} 亏损 ⚠️"
         if pe_value < 15:
             return 5, f"PE={pe_value:.0f} 可能低估"
         elif pe_value < 30:

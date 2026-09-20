@@ -27,29 +27,38 @@ htmlcov/
 .idea/
 
 # User Output Data & Private Assets (Complete Isolation)
-output/
+# 注意：整体忽略目录（output/）会使后续 !negation 失效 —— Git 无法重新纳入被忽略
+# 目录内部的条目。故必须先忽略全部内容，再用 !dir/**/ 重新纳入目录本身，
+# 占位文件（.gitkeep / .example）的 negation 才会生效，克隆后才能还原目录结构。
+output/**
+!output/**/
+!output/**/.gitkeep
+!output/**/*.example
 
 # System-wide local shared data (market data, server db, caches)
 local/
-!output/**/.gitkeep
-!output/**/*.example
 user_data/
 
 # Runtime observation directory (log/) - 系统日志/CLI 轨迹/监控/审计 唯一沉淀区
-log/
+log/**
+!log/**/
 !log/**/.gitkeep
 
 # Rebuildable intermediate scratch directory (temp/) - 可重建中间产物暂存区
-temp/
+temp/**
+!temp/**/
 !temp/**/.gitkeep
 
 
 # Local runtime caches & databases
-cache/
+# 注意：cache/ 与 reports/ 必须锚定到仓库根（前导 /），否则会以“任意层级同名目录”
+# 匹配到 output/cache/、output/reports/，并在 negation 之后重新忽略它们，
+# 使 output/ 下的 .gitkeep / .example 占位无法纳入版本控制。
+/cache/
 .data_cache/
 **/.data_cache/
-reports/
-backups/
+/reports/
+/backups/
 *.db
 *.sqlite
 *.sqlite3

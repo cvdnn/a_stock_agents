@@ -53,14 +53,14 @@ def cmd_data_quote(args):
         if getattr(args, "json", False) or getattr(args, "output", "") == "json":
             print(json.dumps(results, ensure_ascii=False, indent=2))
         else:
-            print(f"{'代码':<8} {'名称':<10} {'现价':>7} {'涨跌%':>7} {'PE':>6} {'换手%':>6} {'市值(亿)':>10} {'外盘比':>6}")
+            print(f"{'代码':<8} {'名称':<10} {'现价':>7} {'涨跌%':>7} {'PE':>6} {'换手%':>6} {'流通市值(亿)':>12} {'外盘比':>6}")
             print("-" * 75)
             for r in results:
                 chg_color = "🔴" if r.get("change_pct", 0) > 0 else "🟢"
                 print(
                     f"{r.get('code',''):<8} {r.get('name',''):<10} {r.get('price',0):>7.2f} "
-                    f"{r.get('change_pct',0):>+6.2f}% {r.get('pe',0):>6.1f} {r.get('turnover_pct',0):>6.2f}% "
-                    f"{r.get('market_cap',0):>10.1f} {r.get('o_ratio',0):>5.1f}% {chg_color}"
+                    f"{r.get('change_pct',0):>+6.2f}% {(r.get('pe') if r.get('pe') is not None else 0):>6.1f} {r.get('turnover_pct',0):>6.2f}% "
+                    f"{r.get('circulating_market_cap',0):>12.1f} {r.get('o_ratio',0):>5.1f}% {chg_color}"
                 )
 
 

@@ -52,6 +52,11 @@ try:
 except ImportError:
     ef = None
 
+try:
+    from core.data.tencent_fields import parse_tencent_quote
+except ImportError:
+    from tencent_fields import parse_tencent_quote
+
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -854,46 +859,30 @@ def _generate_all_codes() -> list:
 
 
 def _parse_tencent_quote(line: str) -> Optional[dict]:
-    """解析腾讯 qt.gtimg.cn 单行数据，返回结构化 dict"""
-    if '~' not in line or len(line) < 50:
+    """解析腾讯 qt.gtimg.cn 单行数据，返回结构化 dict（复用权威解析器）。"""
+    q = parse_tencent_quote(line)
+    if not q:
         return None
-    parts = line.split('~')
-    if len(parts) < 48:
-        return None
-    try:
-        price = float(parts[3]) if parts[3] else 0
-        if price <= 0:
-            return None
-        prev_close = float(parts[4]) if parts[4] else 0
-        change_pct = round((price - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0
-        raw_code = parts[2].strip()
-        if "_sh" in parts[0] or raw_code.startswith(("6", "688", "900")):
-            market_prefix = "sh"
-        elif "_bj" in parts[0] or raw_code.startswith(("4", "8", "920")):
-            market_prefix = "bj"
-        else:
-            market_prefix = "sz"
-        return {
-            "code": f"{market_prefix}{raw_code}",
-            "name": parts[1],
-            "price": price,
-            "prev_close": prev_close,
-            "open": float(parts[5]) if parts[5] else 0,
-            "change_pct": change_pct,
-            "volume": int(parts[6]) if parts[6] else 0,
-            "amount": float(parts[37]) * 10000 if parts[37] else 0,
-            "turnover_rate": float(parts[38]) if parts[38] else 0,
-            "pe": float(parts[39]) if parts[39] else 0,
-            "high": float(parts[33]) if parts[33] else 0,
-            "low": float(parts[34]) if parts[34] else 0,
-            "amplitude": float(parts[43]) if parts[43] else 0,
-            "market_cap": float(parts[45]) if parts[45] else 0,
-            "pb": float(parts[46]) if parts[46] else 0,
-            "limit_up": float(parts[47]) if parts[47] else 0,
-            "limit_down": float(parts[48]) if len(parts) > 48 and parts[48] else 0,
-        }
-    except (ValueError, IndexError):
-        return None
+    return {
+        "code": q["code"],
+        "name": q["name"],
+        "price": q["price"],
+        "prev_close": q["prev_close"],
+        "open": q["open"] or 0,
+        "change_pct": q["change_pct"],
+        "volume": q["volume_hands"],
+        "amount": q["amount"] or 0,
+        "turnover_rate": q["turnover_pct"] or 0,
+        # §7.7.7: 缺失→None；负值(亏损 PE) 原样保留
+        "pe": q["pe"],
+        "high": q["high"] or 0,
+        "low": q["low"] or 0,
+        "amplitude": q["amplitude"] or 0,
+        "market_cap": q["total_market_cap"] or 0,
+        "pb": q["pb"] or 0,
+        "limit_up": q["limit_up"] or 0,
+        "limit_down": q["limit_down"] or 0,
+    }
 
 
 def _parse_sina_quote(line: str) -> Optional[dict]:

@@ -13,14 +13,16 @@ A-Stock Data Sync Engine (本地行情与K线数据同步引擎)
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
 import sqlite3
 import time
+from contextlib import closing
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 try:
     from core.config import PROJECT_ROOT, get_logger
@@ -76,6 +78,76 @@ class TradeCalendar:
             cur += timedelta(days=1)
         return trading_days
 
+    @classmethod
+    def trading_days_from_local(
+        cls, start_date: str, end_date: str, db_path: Optional[Path] = None
+    ) -> List[str]:
+        """以本地 `daily_kline` 实际存在的交易日推导交易日集合（规范 §11.2）。
+
+        本地库无覆盖（库不存在或区间内无记录）时返回空列表，调用方必须按
+        “日历不可用”处理并失败关闭，不得把“本地无记录”当作休市。
+        """
+        path = Path(db_path) if db_path else DB_PATH
+        if not path.exists():
+            return []
+        conn = sqlite3.connect(str(path), timeout=30.0)
+        try:
+            rows = conn.execute(
+                "SELECT DISTINCT date FROM daily_kline WHERE date BETWEEN ? AND ? ORDER BY date",
+                (start_date, end_date),
+            ).fetchall()
+        finally:
+            conn.close()
+        return [str(row[0]) for row in rows]
+
+    @classmethod
+    def calendar_version(cls, trading_days: Iterable[str]) -> str:
+        """本地交易日集合的内容标识；集合内容变化即改变（规范 §11.2）。
+
+        与集合顺序无关；该版本号进入运行快照清单与运行元数据，不进入 `plan_hash`。
+        """
+        payload = ",".join(sorted({str(day) for day in trading_days}))
+        return "cal-" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+
+    @classmethod
+    def local_calendar_version(cls, db_path: Optional[Path] = None) -> Dict[str, Any]:
+        """本地已同步区间的日历版本，供运行快照清单与运行元数据记录（§11.2 / §11.7）。
+
+        覆盖范围取本地 `daily_kline` 的实际区间（即已同步区间），不依赖周末+固定节假日近似。
+        本地库无覆盖时 `calendar_available=False` 且 `calendar_version=None`，调用方必须按
+        "日历不可用"失败关闭：不得猜测开市，也不得把"本地无记录"当作休市。
+        该版本号**不进入 `plan_hash`**（§11.2）。
+        """
+        path = Path(db_path) if db_path else DB_PATH
+        unavailable = {
+            "calendar_version": None,
+            "calendar_available": False,
+            "trading_days": 0,
+            "coverage_start": None,
+            "coverage_end": None,
+        }
+        if not path.exists():
+            return unavailable
+        conn = sqlite3.connect(str(path), timeout=30.0)
+        try:
+            row = conn.execute("SELECT MIN(date), MAX(date) FROM daily_kline").fetchone()
+        except sqlite3.Error:
+            return unavailable
+        finally:
+            conn.close()
+        if not row or not row[0] or not row[1]:
+            return unavailable
+        days = cls.trading_days_from_local(str(row[0]), str(row[1]), db_path=path)
+        if not days:
+            return unavailable
+        return {
+            "calendar_version": cls.calendar_version(days),
+            "calendar_available": True,
+            "trading_days": len(days),
+            "coverage_start": days[0],
+            "coverage_end": days[-1],
+        }
+
 
 class MarketDataStore:
     """基于 SQLite 的本地市场数据持久化与检索层 (零外部环境依赖)"""
@@ -102,7 +174,7 @@ class MarketDataStore:
         return conn
 
     def _init_db(self):
-        with self._get_conn() as conn:
+        with closing(self._get_conn()) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS daily_kline (
@@ -156,7 +228,7 @@ class MarketDataStore:
                 float(k.get("pb", 0.0)),
             ))
 
-        with self._get_conn() as conn:
+        with closing(self._get_conn()) as conn:
             cursor = conn.cursor()
             cursor.executemany("""
                 INSERT INTO daily_kline (
@@ -210,7 +282,7 @@ class MarketDataStore:
 
         query += " ORDER BY date ASC"
 
-        with self._get_conn() as conn:
+        with closing(self._get_conn()) as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -222,14 +294,14 @@ class MarketDataStore:
 
     def get_dates_set(self, symbol: str) -> Set[str]:
         norm_symbol = DataBridge.normalize_symbol(symbol, with_prefix=True)
-        with self._get_conn() as conn:
+        with closing(self._get_conn()) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT date FROM daily_kline WHERE symbol = ?", (norm_symbol,))
             return {row[0] for row in cursor.fetchall()}
 
     def get_sync_meta(self, symbol: str) -> Optional[Dict[str, Any]]:
         norm_symbol = DataBridge.normalize_symbol(symbol, with_prefix=True)
-        with self._get_conn() as conn:
+        with closing(self._get_conn()) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM sync_meta WHERE symbol = ?", (norm_symbol,))
             row = cursor.fetchone()

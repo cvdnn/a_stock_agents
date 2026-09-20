@@ -4,7 +4,7 @@
 
 ## 结论与规则评估
 
-该策略适合作为短线候选生成器，不应直接等同于自动买入系统。日线突破、趋势、放量和资金流入负责压缩股票池；次日大盘门控和高开过滤负责避开弱环境；09:30～09:40 的回调与供需拐点负责确认入场时机。
+该策略适合作为短线候选生成器，不应直接等同于自动买入系统。日线突破、趋势、放量和资金流入负责压缩股票池；次日大盘门控和高开过滤负责避开弱环境；09:30～09:40 的回调与价格反转形态负责确认入场时机，并于窗口结束 09:40 一次性收敛输出。供需拐点需在盘口契约落地后启用。
 
 原始描述存在两组口径冲突，默认配置选择：
 
@@ -17,12 +17,12 @@
 
 ## 四层漏斗
 
-1. `post_close`（15:05 后）：非 ST、非北交所、流通市值大于 30 亿、当日涨幅小于 7%、创 N 日新高、收盘高于 MA60、MA60 向上、今日量大于昨日量、主力净流入。
+1. `post_close`（15:35 后）：非 ST、非北交所、流通市值大于 30 亿、当日涨幅小于 7%、创 N 日新高、收盘高于 MA60、MA60 向上、今日量大于昨日量。15:05-15:30 为交易所清算期，复权因子未定盘，禁止使用；主力资金净流入为预留规则，因资金流契约未建立而暂不生效。
 2. `market_gate`（次日 09:30）：默认以上证指数 `sh000001` 为大盘，指数实时价必须高于此前 20 个完整交易日收盘均值。门控失败时整批停止；基准指数可在配置中替换。
-3. `opening_gap`（09:30）：用开盘价相对昨收计算高开幅度，默认保留 1%～2%。
-4. `turning_point`（09:35～09:40）：必须先有 09:30～09:35 冲高回调，再同时确认价格反转和卖压衰减；主动买量增强、五档买盘优势中还须至少满足一项。
+3. `opening_gap`（09:31）：用开盘价相对昨收计算高开幅度，默认保留 1%～2%。
+4. `turning_point`（09:36～09:40，09:40 收敛输出）：必须先有 09:30～09:35 冲高回调，再确认价格反转。
 
-拐点阶段优先使用主动买卖量；没有主动买卖量时只允许使用涨跌分钟量作为明确标注的代理。数据点不足时返回 `INSUFFICIENT_DATA`，不会产生买点。
+拐点采用双轨口径：正式信号必须使用真实主动买卖量，代理口径仅限调试预演并标记 `not_eligible_for_signal`，不得进入正式候选。本期无盘口契约，规则按 `min_confirmations: 0` 的形态版发布（回调 + 价格反转）；卖压衰减、主动买量增强、五档买盘优势为预留确认项，盘口契约落地后将 `min_confirmations` 改为 `1` 即恢复供需版。数据点不足时返回 `INSUFFICIENT_DATA`，不会产生买点。
 
 ## 输入数据契约
 
@@ -35,7 +35,7 @@
 }
 ```
 
-`post_close` 每条记录需要 `code/name/circulating_market_cap/change_pct/closes/volumes/main_net_inflow`。`opening_gap` 需要 `open/previous_close`。`turning_point` 需要 `minute_points`，每点至少含 `time/price/volume`；推荐再提供 `buy_volume/sell_volume` 和 `order_book.bid_volume/ask_volume`。
+`post_close` 每条记录需要 `code/name/circulating_market_cap/change_pct/closes/volumes`；`main_net_inflow` 为预留字段，仅在资金流契约落地后要求。`opening_gap` 需要 `open/previous_close`。`turning_point` 需要 `minute_points`，每点至少含 `time/price/volume`；`buy_volume/sell_volume` 与 `order_book.bid_volume/ask_volume` 为预留字段，正式信号不得以代理值替代。
 
 ## CLI
 
@@ -47,9 +47,9 @@
 ./bin/astock funnel run --stage turning_point --input temp/funnel/turning_point.json --save --json
 ```
 
-归档结果位于 `output/pools/funnel/<交易日>/<阶段>.json`，每条淘汰记录都包含失败规则及观测值。
+本示例的 CLI `archive`/`--save` 写入 `output/pools/funnel/<交易日>/<阶段>.json`，每条淘汰记录都包含失败规则及观测值。正式选股系统的归档路径统一为 `output/pools/selection-models/<signal_date>/`（见建设规范 §13.10），迁移期两路径并存。
 一个阶段生成的 JSON 可以直接作为下一阶段的 `--input`；CLI 会读取其中的 `passed_records`，因此整条流水线无需手工摘取代码。
-最终阶段的 `selected_codes` 即为 09:35～09:40 应输出的股票代码列表。
+最终阶段的 `selected_codes` 即为窗口结束（09:40）收敛后的股票代码列表；窗口内命中只记为待定候选，不作为信号锁存。
 
 ## 扩展方式
 

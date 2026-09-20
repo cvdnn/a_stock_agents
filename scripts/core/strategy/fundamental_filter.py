@@ -67,7 +67,7 @@ class FundamentalFilter:
         Args:
             code: 6位A股股票代码
             klines: 历史日K线 [[date, open, close, high, low, vol], ...]
-            quote: 实时行情数据 (包含 price, pe, turnover_pct, market_cap, sector, industry 等)
+            quote: 实时行情数据 (包含 price, pe, turnover_pct, circulating_market_cap, sector, industry 等)
             finance: 财务数据 (包含 net_profit, deduct_profit, profit_yoy, revenue_yoy 等)
 
         Returns:

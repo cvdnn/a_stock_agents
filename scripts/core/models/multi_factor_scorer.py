@@ -90,9 +90,14 @@ class MultiFactorScorer:
 
     @staticmethod
     def value_factor(pe_value: Optional[float], pb_value: Optional[float] = None) -> float:
-        """价值因子: PE/PB 分位评分 (0-100)"""
-        if pe_value is None or pe_value <= 0:
+        """价值因子: PE/PB 分位评分 (0-100)
+
+        §7.7.7: "缺失"(None/0) 与"亏损"(<0) 显式区分。
+        """
+        if pe_value is None or pe_value == 0:
             score = 40.0  # 无PE数据，给中性偏低分
+        elif pe_value < 0:
+            score = 20.0  # 亏损，显式低分
         elif pe_value < 15:
             score = 100.0
         elif pe_value < 30:
@@ -320,7 +325,10 @@ class MultiFactorScorer:
         if momentum_norm < 30:
             warnings.append(f"动量不足(20日{mom_20_raw:+.1f}%)")
         if value_norm < 30:
-            warnings.append(f"估值偏高(PE={pe_value})")
+            if pe_value is not None and pe_value < 0:
+                warnings.append(f"亏损(PE={pe_value:.1f})")
+            else:
+                warnings.append(f"估值偏高(PE={pe_value})")
         if volatility_norm < 20:
             warnings.append("高波动率，风险较大")
         if quality_norm < 30:
@@ -508,10 +516,8 @@ if __name__ == "__main__":
             quote = DataBridge().get_realtime_quote(args.code)
             if quote:
                 pe = quote.get("pe")
-                if pe and pe > 0:
+                if pe is not None:
                     pe = float(pe)
-                else:
-                    pe = None
         except Exception:
             pass
 

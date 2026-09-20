@@ -7,6 +7,7 @@ Validates:
 - core.config SSOT: VERSION (3.0.0), fee constants, prefix inference, normalize_symbol
 - core.data.data_layer: clean_kline_df and forwarder SSOT
 - core.data.fetch_realtime: Tencent quote parsing for SH/SZ/BJ prefixes
+- core.data.tencent_fields: authoritative Tencent L1 snapshot parser (SSOT)
 - core.data.fetch_history_fallback: EM_PERFORMANCE_URL definition
 - DataBridge: index_snapshot invocation & lazy third-party import safety
 """
@@ -184,6 +185,167 @@ class TestDataSuite(unittest.TestCase):
         res_bj = _parse_tencent_quote(make_quote_line("v_bj830001", "测试北交", "830001"))
         self.assertIsNotNone(res_bj)
         self.assertEqual(res_bj["code"], "bj830001")
+
+    def test_tencent_fields_is_authoritative_ssot(self):
+        """core.data.tencent_fields 是腾讯 L1 快照解析的单点真实源：
+        下标映射正确、PE/PB 口径符合 §7.7.7（缺失→None，负值保留），
+        且 fetch_realtime / data_bridge / paper_trading.market_data 三处复用结果与之口径一致。"""
+        from core.data.tencent_fields import parse_tencent_quote as authoritative
+
+        # 固定样本行：字段下标严格对齐腾讯 qt.gtimg.cn L1 快照
+        def build_line(pe: str = "19.30", pb: str = "8.10") -> str:
+            parts = [""] * 55
+            parts[0] = 'v_sh600519="1'
+            parts[1] = "贵州茅台"
+            parts[2] = "600519"
+            parts[3] = "1688.00"   # 现价
+            parts[4] = "1700.00"   # 昨收
+            parts[5] = "1690.00"   # 今开
+            parts[6] = "35210"     # 成交量(手)
+            parts[7] = "17600"     # 外盘
+            parts[8] = "17610"     # 内盘
+            parts[30] = "20260904150000"
+            parts[32] = "-0.71"
+            parts[33] = "1705.00"  # 最高
+            parts[34] = "1670.00"  # 最低
+            parts[37] = "594321.00"
+            parts[38] = "0.28"
+            parts[39] = pe          # PE
+            parts[43] = "2.06"
+            parts[44] = "21200.00"  # 流通市值(亿)
+            parts[45] = "21205.00"  # 总市值(亿)
+            parts[46] = pb          # PB
+            parts[47] = "1870.00"   # 涨停价
+            parts[48] = "1530.00"   # 跌停价
+            parts[49] = "0.95"      # 量比
+            return "~".join(parts)
+
+        q = authoritative(build_line())
+        self.assertIsNotNone(q)
+        self.assertEqual(q["code"], "sh600519")
+        self.assertEqual(q["code_raw"], "600519")
+        self.assertEqual(q["name"], "贵州茅台")
+        # 关键下标映射：不得错位（曾出现 parts[5]/parts[9] 被当作 high/PE 的错位实现）
+        self.assertEqual(q["open"], 1690.00)
+        self.assertEqual(q["high"], 1705.00)
+        self.assertEqual(q["low"], 1670.00)
+        self.assertEqual(q["pe"], 19.30)
+        self.assertEqual(q["pb"], 8.10)
+        self.assertEqual(q["turnover_pct"], 0.28)
+        self.assertEqual(q["amplitude"], 2.06)
+        self.assertEqual(q["vol_ratio"], 0.95)
+        self.assertEqual(q["total_market_cap"], 21205.00)
+        self.assertEqual(q["circulating_market_cap"], 21200.00)
+        self.assertEqual(q["limit_up"], 1870.00)
+        self.assertEqual(q["limit_down"], 1530.00)
+        self.assertEqual(q["amount"], 5943210000.0)
+        self.assertEqual(q["change_pct"], -0.71)
+
+        # §7.7.7: PE 缺失（空串 / 占位 "0"）→ None；亏损（负值）原样保留，数据层不归并
+        self.assertIsNone(authoritative(build_line(pe=""))["pe"])
+        self.assertIsNone(authoritative(build_line(pe="0"))["pe"])
+        self.assertEqual(authoritative(build_line(pe="-31.63"))["pe"], -31.63)
+        # PB 同口径
+        self.assertIsNone(authoritative(build_line(pb=""))["pb"])
+
+        # 结构性拒绝：非快照行 / 字段数不足 / 现价缺失
+        self.assertIsNone(authoritative("not-a-quote-line"))
+        self.assertIsNone(authoritative("v_sh600519=\"1~贵州茅台"))
+        self.assertIsNone(authoritative(build_line().replace("1688.00", "", 1)))
+
+        # 一致性：fetch_realtime 与 paper_trading.market_data 的收敛实现必须与权威口径一致
+        line = build_line()
+        fr = _parse_tencent_quote(line)
+        self.assertEqual(fr["code"], q["code"])
+        self.assertEqual(fr["open"], q["open"])
+        self.assertEqual(fr["high"], q["high"])
+        self.assertEqual(fr["low"], q["low"])
+        self.assertEqual(fr["pe"], q["pe"])
+        self.assertEqual(fr["limit_up"], q["limit_up"])
+        self.assertEqual(fr["market_cap"], q["total_market_cap"])
+
+        from core.paper_trading.market_data import _parse_tencent_quote as md_parse
+        md = md_parse(line)
+        self.assertEqual(md["code"], q["code"])
+        self.assertEqual(md["open"], q["open"])
+        self.assertEqual(md["high"], q["high"])
+        self.assertEqual(md["low"], q["low"])
+        self.assertEqual(md["limit_up"], q["limit_up"])
+        self.assertEqual(md["limit_down"], q["limit_down"])
+        self.assertEqual(md["market_cap"], q["total_market_cap"])
+
+        # 一致性：DataBridge.tencent_quote 亦复用权威解析器（含 PE 缺失口径）
+        fake_resp = MagicMock()
+        fake_resp.read.return_value = line.encode("gbk")
+        with patch("core.data.data_bridge.urllib.request.urlopen", return_value=fake_resp):
+            quotes = DataBridge.tencent_quote(["sh600519"])
+        item = quotes["600519"]
+        self.assertEqual(item["name"], "贵州茅台")
+        self.assertEqual(item["pe"], 19.30)
+        self.assertEqual(item["total_market_cap"], 21205.00)
+        self.assertEqual(item["circulating_market_cap"], 21200.00)
+        self.assertEqual(quotes["贵州茅台"]["pe"], 19.30)
+
+        # 一致性：DataLayer 两处亦收敛至权威解析器（PE/PB 口径随之统一），
+        # 且保留其自身输出契约（symbol/volume/turnover 键名与缺省回退语义）。
+        from core.data.data_layer import DataLayer
+
+        fake_resp_layer = MagicMock()
+        fake_resp_layer.read.return_value = line.encode("gbk")
+        fake_resp_layer.__enter__.return_value = fake_resp_layer
+        with patch("core.data.data_layer.urllib.request.urlopen", return_value=fake_resp_layer):
+            single = DataLayer.get_realtime_quote("600519")
+        self.assertEqual(single["symbol"], "600519")
+        self.assertEqual(single["name"], "贵州茅台")
+        self.assertEqual(single["price"], 1688.00)
+        self.assertEqual(single["high"], 1705.00)
+        self.assertEqual(single["low"], 1670.00)
+        self.assertEqual(single["volume"], 35210)
+        self.assertEqual(single["amount"], 5943210000.0)
+        self.assertEqual(single["turnover"], 0.28)
+        self.assertEqual(single["pe"], 19.30)
+        self.assertEqual(single["pb"], 8.10)
+        self.assertEqual(single["change_pct"], -0.71)
+        self.assertFalse(single["is_st"])
+        self.assertFalse(single["is_suspended"])
+
+        fake_resp_batch = MagicMock()
+        fake_resp_batch.read.return_value = (line + ";").encode("gbk")
+        fake_resp_batch.__enter__.return_value = fake_resp_batch
+        with patch("core.data.data_layer.urllib.request.urlopen", return_value=fake_resp_batch):
+            batch = DataLayer.get_batch_quotes(["600519"])
+        self.assertEqual(batch["600519"]["pe"], 19.30)
+        self.assertEqual(batch["600519"]["high"], 1705.00)
+        self.assertEqual(batch["600519"]["turnover"], 0.28)
+
+        # 缺省回退语义保持：high/low 缺失回退现价、turnover/amount 缺失回退 0、PE/PB 占位 "0"→None
+        sparse_parts = [""] * 55
+        sparse_parts[0] = 'v_sh600001="1'
+        sparse_parts[1] = "退市测试"
+        sparse_parts[2] = "600001"
+        sparse_parts[3] = "10.00"
+        sparse_parts[4] = "9.50"
+        sparse_parts[5] = "9.80"
+        sparse_parts[6] = "0"
+        sparse_parts[39] = "0"
+        fake_resp_sparse = MagicMock()
+        fake_resp_sparse.read.return_value = "~".join(sparse_parts).encode("gbk")
+        fake_resp_sparse.__enter__.return_value = fake_resp_sparse
+        with patch("core.data.data_layer.urllib.request.urlopen", return_value=fake_resp_sparse):
+            sparse = DataLayer.get_realtime_quote("600001")
+        self.assertEqual(sparse["high"], 10.00)
+        self.assertEqual(sparse["low"], 10.00)
+        self.assertEqual(sparse["turnover"], 0.0)
+        self.assertEqual(sparse["amount"], 0.0)
+        self.assertIsNone(sparse["pe"])
+        self.assertIsNone(sparse["pb"])
+        self.assertTrue(sparse["is_suspended"])
+
+        fake_resp2 = MagicMock()
+        fake_resp2.read.return_value = build_line(pe="0").encode("gbk")
+        with patch("core.data.data_bridge.urllib.request.urlopen", return_value=fake_resp2):
+            quotes2 = DataBridge.tencent_quote(["sh600519"])
+        self.assertIsNone(quotes2["600519"]["pe"])
 
     def test_fetch_history_fallback_constants(self):
         """Verify fetch_history_fallback defines EM_PERFORMANCE_URL without NameError."""

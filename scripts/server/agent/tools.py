@@ -177,7 +177,8 @@ def _sync_astock_quote(code: str) -> Dict[str, Any]:
         "prev_close": float(q.get("prev_close", 0.0)),
         "turnover_pct": q.get("turnover_pct"),
         "pe": q.get("pe"),
-        "market_cap": q.get("market_cap"),
+        "circulating_market_cap": q.get("circulating_market_cap"),
+        "total_market_cap": q.get("total_market_cap"),
         "time": q.get("time"),
     }
 

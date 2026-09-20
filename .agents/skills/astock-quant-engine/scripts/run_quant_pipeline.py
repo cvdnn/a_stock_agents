@@ -179,7 +179,10 @@ def cmd_analyze(args):
     atr_val, norm_atr = PVFactors.calculate_atr(kl, 14)
 
     print(f"标的名称: {name} ({sym})  现价: ￥{price:.2f}  当日涨跌幅: {q.get('change_pct', 0.0):+.2f}%")
-    print(f"市盈率(PE): {q.get('pe', 0.0)}  换手率: {q.get('turnover', 0.0)}%  ST状态: {'是' if q.get('is_st') else '否'}\n")
+    # §7.7.7: PE 缺失为 None（占位 0 视为缺失），负值代表亏损，显示层不得折算为 0
+    pe_val = q.get("pe")
+    pe_display = f"{pe_val:.2f}" if pe_val is not None else "不可用(缺失)"
+    print(f"市盈率(PE): {pe_display}  换手率: {q.get('turnover', 0.0)}%  ST状态: {'是' if q.get('is_st') else '否'}\n")
 
     print("【量价核心 Alpha 因子】:")
     print(f"  • 5日/20日/60日收益率:   {f.get('ret_5d'):+.2f}% / {f.get('ret_20d'):+.2f}% / {f.get('ret_60d'):+.2f}%")

@@ -177,8 +177,8 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
             <td>成交额</td><td>{quote.get('amount', quote.get('turnover_val', '--'))}</td>
           </tr>
           <tr>
-            <td>市盈率 PE(TTM)</td><td>{quote.get('pe', '--')}</td>
-            <td>总市值</td><td>{quote.get('market_cap', quote.get('circulating_cap', '--'))} 亿</td>
+            <td>市盈率 PE(TTM)</td><td>{quote.get('pe') if quote.get('pe') is not None else '--'}</td>
+            <td>总市值</td><td>{quote.get('total_market_cap', '--')} 亿</td>
           </tr>
         </table>
       </div>

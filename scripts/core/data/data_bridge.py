@@ -33,6 +33,11 @@ except ImportError:
     GLOBAL_CONFIG = {}
     logger = logging.getLogger("core.data.data_bridge")
 
+try:
+    from core.data.tencent_fields import parse_tencent_quote
+except ImportError:
+    from data.tencent_fields import parse_tencent_quote
+
 
 def _validate_stock_code(code: str) -> str:
     """白名单校验股票代码，支持纯代码、带市场前缀/后缀代码及常用指数别名，防范命令注入。"""
@@ -215,52 +220,42 @@ class DataBridge:
 
         results = QuoteDict()
         for line in text.strip().split("\n"):
-            if "~" not in line:
-                continue
-            parts = line.split("~")
-            if len(parts) < 46:
+            parsed = parse_tencent_quote(line)
+            if not parsed:
                 continue
 
-            code_raw = parts[0].split("=")[0].split("_")[-1] if "_" in parts[0] else parts[0].split("=")[0]
-            code = code_raw.replace("sh", "").replace("sz", "").replace("bj", "")
-            name = parts[1]
-            try:
-                price = float(parts[3])
-                prev_close = float(parts[4])
-                change = price - prev_close
-                change_pct = (change / prev_close * 100) if prev_close != 0 else 0
-            except (ValueError, IndexError):
-                continue
-
-            outer = float(parts[7]) if parts[7] else 0
-            inner = float(parts[8]) if parts[8] else 0
+            code = parsed["code_raw"]
+            price = parsed["price"]
+            outer, inner = parsed["outer"], parsed["inner"]
             o_ratio = (outer / (outer + inner) * 100) if (outer + inner) > 0 else 50
 
             item = {
                 "code": code,
-                "name": name,
+                "name": parsed["name"],
                 "price": round(price, 2),
-                "change": round(change, 2),
-                "change_pct": round(change_pct, 2),
-                "prev_close": round(prev_close, 2),
-                "open": round(float(parts[5]), 2) if parts[5] else price,
-                "high": round(float(parts[33]), 2) if parts[33] else price,
-                "low": round(float(parts[34]), 2) if parts[34] else price,
-                "volume_hands": int(float(parts[6])) if parts[6] else 0,
-                "amount": float(parts[37]) * 10000 if len(parts) > 37 and parts[37] else 0,
-                "amount_wan": float(parts[37]) if len(parts) > 37 and parts[37] else 0,
-                "vol_ratio": round(float(parts[49]), 2) if len(parts) > 49 and parts[49] else 1.0,
-                "turnover_pct": round(float(parts[38]), 2) if parts[38] else 0,
-                "pe": round(float(parts[39]), 2) if parts[39] and parts[39] != "0" else 0,
-                "market_cap": round(float(parts[45]), 2) if parts[45] else 0,
-                "amplitude": round(float(parts[43]), 2) if parts[43] else 0,
+                "change": round(parsed["change"], 2),
+                "change_pct": round(parsed["change_pct"], 2),
+                "prev_close": round(parsed["prev_close"], 2),
+                "open": round(parsed["open"] if parsed["open"] is not None else price, 2),
+                "high": round(parsed["high"] if parsed["high"] is not None else price, 2),
+                "low": round(parsed["low"] if parsed["low"] is not None else price, 2),
+                "volume_hands": parsed["volume_hands"],
+                "amount": parsed["amount"] or 0,
+                "amount_wan": parsed["amount_wan"] or 0,
+                "vol_ratio": round(parsed["vol_ratio"], 2) if parsed["vol_ratio"] is not None else 1.0,
+                "turnover_pct": round(parsed["turnover_pct"], 2) if parsed["turnover_pct"] is not None else 0,
+                # §7.7.7: 缺失→None；负值(亏损) 原样保留由规则层显式判定
+                "pe": parsed["pe"],
+                "circulating_market_cap": round(parsed["circulating_market_cap"], 2) if parsed["circulating_market_cap"] is not None else 0,  # 单位: 亿元
+                "total_market_cap": round(parsed["total_market_cap"], 2) if parsed["total_market_cap"] is not None else 0,  # 单位: 亿元
+                "amplitude": round(parsed["amplitude"], 2) if parsed["amplitude"] is not None else 0,
                 "o_ratio": round(o_ratio, 1),
-                "time": parts[30] if len(parts) > 30 else "",
+                "time": parsed["time"],
             }
-            primary_key = code_raw
+            primary_key = parsed["code_raw"]
             results[primary_key] = item
             results.register_alias(code, primary_key)
-            results.register_alias(name, primary_key)
+            results.register_alias(parsed["name"], primary_key)
         return results
 
     @staticmethod
@@ -635,20 +630,22 @@ class DataBridge:
         return None
 
     def get_tencent_pe(self, code: str) -> Optional[float]:
-        """从腾讯行情获取PE (零依赖)"""
+        """从腾讯行情获取PE (零依赖)
+
+        §7.7.7: 缺失记 None；负值(亏损) 原样返回，不折算为 None。
+        """
         norm = self.normalize_symbol(code)
         result = self.tencent_quote([norm])
         if result:
             data = result.get(norm) or list(result.values())[0]
-            pe = data.get("pe", 0)
-            return pe if pe and pe > 0 else None
+            return data.get("pe")
         return None
 
     def get_fundamentals(self, code: str) -> Dict[str, Any]:
         """获取基本面数据聚合 — L1优先，逐级降级
 
         返回: {
-            pe, market_cap, turnover_pct (L1腾讯),
+            pe, circulating_market_cap, total_market_cap, turnover_pct (L1腾讯),
             pb, roe, revenue_growth (L4 efinance, 可选),
             source: 数据来源层级
         }
@@ -657,16 +654,17 @@ class DataBridge:
             clean_code = _validate_stock_code(code)
         except ValueError as exc:
             logger.warning(f"Invalid stock code for fundamentals: {exc}")
-            return {"code": code, "source": "invalid_code", "pe": None, "market_cap": 0, "turnover_pct": 0}
+            return {"code": code, "source": "invalid_code", "pe": None,
+                    "circulating_market_cap": 0, "total_market_cap": 0, "turnover_pct": 0}
 
         result = {"code": clean_code, "source": "L1_tencent"}
 
         # L1: PE/市值/换手率 (腾讯直连，零依赖)
         quote = self.get_realtime_quote(clean_code)
         if quote:
-            pe = quote.get("pe", 0)
-            result["pe"] = pe if pe and pe > 0 else None
-            result["market_cap"] = quote.get("market_cap", 0)
+            result["pe"] = quote.get("pe")  # §7.7.7: 保留负值，缺失为 None
+            result["circulating_market_cap"] = quote.get("circulating_market_cap", 0)
+            result["total_market_cap"] = quote.get("total_market_cap", 0)
             result["turnover_pct"] = quote.get("turnover_pct", 0)
 
         # L4: efinance 基本面 (可选，需 efinance 包)

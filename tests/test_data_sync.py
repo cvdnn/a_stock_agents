@@ -39,6 +39,73 @@ class TestDataSyncEngine(unittest.TestCase):
         self.assertNotIn("2026-06-06", days)
         self.assertNotIn("2026-06-07", days)
 
+    def test_calendar_derived_from_local_klines_with_content_version(self):
+        """交易日历以本地 daily_kline 实际交易日推导，并派生内容版本号（规范 §11.2）。"""
+        ref_symbol = "sh000001"
+        self.store.upsert_klines(ref_symbol, [
+            {"date": "2026-06-01", "open": 3000, "close": 3010, "high": 3020, "low": 2990, "volume": 500000},
+            {"date": "2026-06-02", "open": 3010, "close": 3020, "high": 3030, "low": 3000, "volume": 500000},
+        ])
+
+        days = TradeCalendar.trading_days_from_local("2026-06-01", "2026-06-05", db_path=self.test_db_path)
+        self.assertEqual(days, ["2026-06-01", "2026-06-02"])
+
+        # 目标区间超出本地已同步覆盖 → 空集合，调用方须按"日历不可用"失败关闭
+        self.assertEqual(
+            TradeCalendar.trading_days_from_local("2027-01-01", "2027-01-05", db_path=self.test_db_path), []
+        )
+
+        # 版本号为集合内容标识，与顺序无关
+        version = TradeCalendar.calendar_version(days)
+        self.assertEqual(version, TradeCalendar.calendar_version(reversed(days)))
+
+        # 回填任一交易日即产生新版本
+        self.store.upsert_klines(ref_symbol, [
+            {"date": "2026-06-03", "open": 3020, "close": 3030, "high": 3040, "low": 3010, "volume": 500000},
+        ])
+        days_after = TradeCalendar.trading_days_from_local("2026-06-01", "2026-06-05", db_path=self.test_db_path)
+        self.assertEqual(len(days_after), 3)
+        self.assertNotEqual(version, TradeCalendar.calendar_version(days_after))
+
+    def test_local_calendar_version_reports_coverage_and_unavailability(self):
+        """`local_calendar_version` 以本地已同步区间派生日历版本，供运行元数据记录（§11.2/§11.7）。"""
+        # 本地库无覆盖 → 日历不可用，调用方须失败关闭，不得把"本地无记录"当作休市
+        missing = TradeCalendar.local_calendar_version(db_path=self.test_db_path.parent / "not_exists.db")
+        self.assertFalse(missing["calendar_available"])
+        self.assertIsNone(missing["calendar_version"])
+        self.assertEqual(missing["trading_days"], 0)
+
+        self.store.upsert_klines("sh000001", [
+            {"date": "2026-06-01", "open": 3000, "close": 3010, "high": 3020, "low": 2990, "volume": 500000},
+            {"date": "2026-06-02", "open": 3010, "close": 3020, "high": 3030, "low": 3000, "volume": 500000},
+        ])
+        meta = TradeCalendar.local_calendar_version(db_path=self.test_db_path)
+        self.assertTrue(meta["calendar_available"])
+        self.assertEqual(meta["coverage_start"], "2026-06-01")
+        self.assertEqual(meta["coverage_end"], "2026-06-02")
+        self.assertEqual(meta["trading_days"], 2)
+        self.assertEqual(
+            meta["calendar_version"],
+            TradeCalendar.calendar_version(["2026-06-01", "2026-06-02"]),
+        )
+
+        # 回填任一交易日即产生新版本
+        self.store.upsert_klines("sh000001", [
+            {"date": "2026-06-03", "open": 3020, "close": 3030, "high": 3040, "low": 3010, "volume": 500000},
+        ])
+        self.assertNotEqual(meta["calendar_version"], TradeCalendar.local_calendar_version(db_path=self.test_db_path)["calendar_version"])
+
+    def test_sqlite_handles_released_without_gc(self):
+        """SQLite 连接须在方法返回时立即关闭，不得延迟到 GC（Windows 文件锁回归保护）。"""
+        self.store.upsert_klines("sh600519", [
+            {"date": "2026-06-01", "open": 1600, "close": 1620, "high": 1630, "low": 1590, "volume": 10000},
+        ])
+        self.store.get_klines("sh600519")
+        self.store.get_dates_set("sh600519")
+        self.store.get_sync_meta("sh600519")
+        TradeCalendar.trading_days_from_local("2026-06-01", "2026-06-05", db_path=self.test_db_path)
+        self.test_db_path.unlink()  # 句柄泄漏时在 Windows 上抛 PermissionError [WinError 32]
+
     def test_upsert_and_retrieve_klines(self):
         symbol = "sh600519"
         mock_data = [

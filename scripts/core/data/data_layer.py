@@ -14,8 +14,9 @@ import os
 import time
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
     from core.config import OUTPUT_CACHE_DIR
@@ -24,6 +25,105 @@ except ImportError:
     CACHE_DIR = Path(__file__).resolve().parents[3] / "output" / "cache" / "data_layer"
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+try:  # 腾讯 L1 快照解析的唯一权威实现（SSOT），本模块不再重复定义字段下标
+    from core.data.tencent_fields import parse_tencent_quote as _parse_tencent_quote
+except ImportError:  # pragma: no cover - 兼容 scripts/core 直接入 sys.path 的场景
+    from data.tencent_fields import parse_tencent_quote as _parse_tencent_quote
+
+try:  # Windows 缺少 tzdata 时回退；中国无夏令时，UTC+8 与 Asia/Shanghai 等价
+    from zoneinfo import ZoneInfo
+
+    _SHANGHAI_TZ: Any = ZoneInfo("Asia/Shanghai")
+except Exception:  # pragma: no cover
+    _SHANGHAI_TZ = timezone(timedelta(hours=8))
+
+MINUTE_TS_UNPARSABLE = "MINUTE_TIMESTAMP_UNPARSABLE"
+MINUTE_TS_OUT_OF_RANGE = "MINUTE_TIMESTAMP_OUT_OF_RANGE"
+
+
+def _compose_minute(hour: int, minute: int) -> Tuple[Optional[str], Optional[str]]:
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None, MINUTE_TS_OUT_OF_RANGE
+    return f"{hour:02d}:{minute:02d}", None
+
+
+def _minute_from_epoch(seconds: float) -> Tuple[Optional[str], Optional[str]]:
+    try:
+        moment = datetime.fromtimestamp(seconds, tz=_SHANGHAI_TZ)
+    except (OverflowError, OSError, ValueError):
+        return None, MINUTE_TS_OUT_OF_RANGE
+    return _compose_minute(moment.hour, moment.minute)
+
+
+def normalize_minute_timestamp(value: Any) -> Tuple[Optional[str], Optional[str]]:
+    """把分钟点时间戳归一化为 Bar 起点语义的 `HH:MM`（规范 §11.5）。
+
+    返回 `(归一化时间, None)`；无法解析或超出 00:00–23:59 时返回 `(None, 原因码)`，
+    由调用方（`DataAssembler` / 捕获适配器）标记 `field_status = missing` 并计入
+    `dropped_point_count`，禁止替换为默认值。规则层不得调用本函数解析时间字符串。
+    """
+    if value is None or isinstance(value, bool):
+        return None, MINUTE_TS_UNPARSABLE
+    if isinstance(value, (int, float)):
+        magnitude = abs(float(value))
+        return _minute_from_epoch(float(value) / (1000.0 if magnitude >= 1e11 else 1.0))
+
+    text = str(value).strip()
+    if not text:
+        return None, MINUTE_TS_UNPARSABLE
+
+    head, _, tail = text.partition(":")
+    if tail and len(head) <= 2 and head.isdigit():
+        seconds = tail.split(":")
+        if len(seconds) <= 2 and all(part.isdigit() for part in seconds) and len(seconds[0]) == 2:
+            return _compose_minute(int(head), int(seconds[0]))
+
+    if text.isdigit():
+        if len(text) == 4:
+            return _compose_minute(int(text[:2]), int(text[2:]))
+        if len(text) == 6:
+            return _compose_minute(int(text[:2]), int(text[2:4]))
+        if len(text) in (10, 13):
+            return _minute_from_epoch(float(text) / (1000.0 if len(text) == 13 else 1.0))
+        return None, MINUTE_TS_UNPARSABLE
+
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None, MINUTE_TS_UNPARSABLE
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(_SHANGHAI_TZ)
+    return _compose_minute(parsed.hour, parsed.minute)
+
+
+def _quote_row_from_tencent(parsed: Dict[str, Any]) -> Dict[str, Any]:
+    """把 `tencent_fields` 权威解析结果映射为本层既有输出契约。
+
+    SSOT 只负责"字段值是什么"；本层保留原有的缺省回退语义
+    （`high`/`low` 缺失回退现价、`turnover`/`amount` 缺失回退 0）与 ST/停牌派生字段，
+    使收敛不改变下游看到的取值形态。
+    """
+    price = parsed["price"]
+    volume = parsed["volume_hands"]
+    name = parsed.get("name", "")
+    return {
+        "symbol": parsed["code_raw"],
+        "name": name,
+        "price": price,
+        "prev_close": parsed["prev_close"],
+        "open": parsed["open"],
+        "high": parsed["high"] if parsed["high"] is not None else price,
+        "low": parsed["low"] if parsed["low"] is not None else price,
+        "volume": volume,
+        "amount": parsed["amount"] if parsed["amount"] is not None else 0.0,
+        "turnover": parsed["turnover_pct"] if parsed["turnover_pct"] is not None else 0.0,
+        "pe": parsed["pe"],
+        "pb": parsed["pb"],
+        "change_pct": parsed["change_pct"],
+        "is_st": "ST" in name or "*ST" in name,
+        "is_suspended": price <= 0 or volume <= 0,
+    }
 
 
 class DataLayer:
@@ -48,7 +148,7 @@ class DataLayer:
 
     @classmethod
     def get_realtime_quote(cls, symbol: str) -> Dict[str, Any]:
-        """获取个股实时行情快照"""
+        """获取个股实时行情快照（腾讯 L1 解析口径统一收敛至 `tencent_fields` SSOT）"""
         full_code = cls.normalize_symbol(symbol)
         url = f"http://qt.gtimg.cn/q={full_code}"
 
@@ -59,43 +159,10 @@ class DataLayer:
 
             if "=" not in data:
                 return {}
-            content = data.split("=")[1].strip().strip('";')
-            parts = content.split("~")
-            if len(parts) < 45:
+            parsed = _parse_tencent_quote(data.split("=", 1)[1].strip().strip('";'))
+            if parsed is None:
                 return {}
-
-            name = parts[1]
-            code = parts[2]
-            current_price = float(parts[3])
-            prev_close = float(parts[4])
-            open_price = float(parts[5])
-            volume = float(parts[6])  # 手
-            high_price = float(parts[33]) if len(parts) > 33 and parts[33] else current_price
-            low_price = float(parts[34]) if len(parts) > 34 and parts[34] else current_price
-            turnover = float(parts[38]) if len(parts) > 38 and parts[38] else 0.0  # 换手率 %
-            pe = float(parts[39]) if len(parts) > 39 and parts[39] else 0.0
-            pb = float(parts[46]) if len(parts) > 46 and parts[46] else 0.0
-            amount = float(parts[37]) if len(parts) > 37 and parts[37] else 0.0  # 成交额 (万元)
-
-            change_pct = round((current_price - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0.0
-
-            return {
-                "symbol": code,
-                "name": name,
-                "price": current_price,
-                "prev_close": prev_close,
-                "open": open_price,
-                "high": high_price,
-                "low": low_price,
-                "volume": volume,
-                "amount": amount * 10000,  # 换算为元
-                "turnover": turnover,
-                "pe": pe,
-                "pb": pb,
-                "change_pct": change_pct,
-                "is_st": "ST" in name or "*ST" in name,
-                "is_suspended": current_price <= 0 or volume <= 0,
-            }
+            return _quote_row_from_tencent(parsed)
         except Exception as e:
             return {"symbol": symbol, "error": str(e)}
 
@@ -183,7 +250,7 @@ class DataLayer:
 
     @classmethod
     def get_batch_quotes(cls, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
-        """批量获取实时行情"""
+        """批量获取实时行情（腾讯 L1 解析口径统一收敛至 `tencent_fields` SSOT）"""
         full_codes = [cls.normalize_symbol(s) for s in symbols]
         query_str = ",".join(full_codes)
         url = f"http://qt.gtimg.cn/q={query_str}"
@@ -196,48 +263,13 @@ class DataLayer:
 
             for line in data.strip().split(";"):
                 line = line.strip()
-                if not line or "=" not in line:
+                if "=" not in line:
                     continue
-                content = line.split("=")[1].strip().strip('";')
-                parts = content.split("~")
-                if len(parts) < 45:
+                parsed = _parse_tencent_quote(line.split("=", 1)[1].strip().strip('";'))
+                if parsed is None:
                     continue
-
-                code = parts[2]
-                current_price = float(parts[3])
-                prev_close = float(parts[4])
-                open_price = float(parts[5])
-                volume = float(parts[6])
-                high_price = float(parts[33]) if len(parts) > 33 and parts[33] else current_price
-                low_price = float(parts[34]) if len(parts) > 34 and parts[34] else current_price
-                turnover = float(parts[38]) if len(parts) > 38 and parts[38] else 0.0
-                pe = float(parts[39]) if len(parts) > 39 and parts[39] else 0.0
-                pb = float(parts[46]) if len(parts) > 46 and parts[46] else 0.0
-                amount = float(parts[37]) if len(parts) > 37 and parts[37] else 0.0
-
-                change_pct = (
-                    round((current_price - prev_close) / prev_close * 100, 2)
-                    if prev_close > 0
-                    else 0.0
-                )
-
-                result[code] = {
-                    "symbol": code,
-                    "name": parts[1],
-                    "price": current_price,
-                    "prev_close": prev_close,
-                    "open": open_price,
-                    "high": high_price,
-                    "low": low_price,
-                    "volume": volume,
-                    "amount": amount * 10000,
-                    "turnover": turnover,
-                    "pe": pe,
-                    "pb": pb,
-                    "change_pct": change_pct,
-                    "is_st": "ST" in parts[1] or "*ST" in parts[1],
-                    "is_suspended": current_price <= 0 or volume <= 0,
-                }
+                row = _quote_row_from_tencent(parsed)
+                result[row["symbol"]] = row
         except Exception as e:
             print(f"Error in get_batch_quotes: {e}")
         return result

@@ -14,7 +14,11 @@ from typing import Optional
 
 
 def is_trading_day(dt: Optional[datetime] = None) -> bool:
-    """判断是否为法定交易日 (周一至周五，周末排除)。"""
+    """粗筛判断是否为交易日（仅排除周末，不含法定节假日）。
+
+    本函数不是交易日历的权威入口（规范 §11.2 / §10.4）：调度、T+N 计算与同步
+    水位的最终判断必须使用 `TradeCalendar` 与本地 `daily_kline` 实际交易日集合。
+    """
     check_dt = dt or datetime.now()
     return check_dt.weekday() < 5
 

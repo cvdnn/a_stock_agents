@@ -6,12 +6,17 @@ strategy:
   notes:
     - 默认按公式原文使用20日新高；将 breakout_high.lookback 改为60即可切换。
     - 默认高开区间为1%至2%；若“只要高开”则将 min 改为0且 max改为null。
+    - 收盘初筛最早15:35，须等 UniverseWatermark 达标后执行；15:05-15:30 为交易所清算期，禁止使用未定盘数据。
+    - main_fund_inflow 已设 enabled=false：主力资金流契约本期未建立，规则参数保留，契约落地后改回 true 即生效。
+    - 拐点双轨：本期无主动买卖量与盘口契约，sell_exhaustion/buy_strengthening/book_support 仅作预留，故 min_confirmations 设为0（形态版）。
+    - 盘口契约落地后恢复供需版：须同时把 sell_exhaustion 放回 required，并将 min_confirmations 改为1；只改 min_confirmations 会被 book_support 单独满足，不能保证含真实主动买卖量。
+    - 拐点在窗口结束（09:40）一次性收敛输出，窗口内命中只记为待定候选，不再即时锁存。
 
 stages:
   - id: post_close
     name: 收盘后硬条件初筛
     scope: candidate_filter
-    schedule: "15:05-23:59"
+    schedule: "15:35-23:59"
     rules:
       - id: exclude_st
         type: text_exclude
@@ -55,6 +60,7 @@ stages:
         right_offset: -2
         op: gt
       - id: main_fund_inflow
+        enabled: false
         type: field_compare
         field: main_net_inflow
         op: gt
@@ -87,7 +93,7 @@ stages:
   - id: turning_point
     name: 早盘回调与供需拐点确认
     scope: candidate_filter
-    schedule: "09:35-09:40"
+    schedule: "09:36-09:40"
     rules:
       - id: pullback_supply_demand_turn
         type: intraday_turning_point
@@ -95,13 +101,17 @@ stages:
         window_start: "09:30"
         window_end: "09:40"
         pullback_end: "09:35"
-        confirm_start: "09:35"
+        confirm_start: "09:36"
         min_points: 6
         min_pullback_pct: 0.20
         max_pullback_pct: 2.00
         max_sell_ratio: 0.75
         min_buy_ratio: 1.20
         min_book_ratio: 1.20
-        required: [pullback, price_reversal, sell_exhaustion]
-        confirmations: [buy_strengthening, book_support]
-        min_confirmations: 1
+        min_pullback_points: 3
+        min_confirm_points: 2
+        required: [pullback, price_reversal]
+        confirmations: [sell_exhaustion, buy_strengthening, book_support]
+        min_confirmations: 0
+        output_policy: converge_at_window_end
+        metric_policy: real_only_for_signal

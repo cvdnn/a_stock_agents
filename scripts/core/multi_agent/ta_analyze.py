@@ -61,6 +61,9 @@ SKILL_DIR = AI_PLATFORM_SKILLS / "astock-agent-debate"
 # VENV Python
 VENV_PY = Path(sys.executable)
 
+# scripts/ 根目录：子进程复用 core.* 权威模块时注入 sys.path
+SCRIPTS_DIR = Path(__file__).resolve().parents[2]
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 数据降级策略（替换 TradingAgents 原生数据源）
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -100,22 +103,33 @@ except Exception as e:
 
 
 def _tencent_quote(code: str) -> Optional[Dict]:
-    """腾讯行情 API 直连（终局备选，最稳定）。"""
+    """腾讯行情 API 直连（终局备选，最稳定）。
+
+    解析统一复用 core.data.tencent_fields 权威实现，避免本地下标错位。
+    """
     prefix = "sh" if code.startswith(("6", "9")) else "sz" if code.startswith(("0", "3")) else "bj"
     url = f"https://qt.gtimg.cn/q={prefix}{code}"
     cmd = [str(VENV_PY), "-c", f"""
-import urllib.request, json
+import json, sys, urllib.request
+sys.path.insert(0, r'{SCRIPTS_DIR}')
+from core.data.tencent_fields import parse_tencent_quote
 try:
     req = urllib.request.Request('{url}', headers={{"User-Agent": "Mozilla/5.0"}})
-    resp = urllib.request.urlopen(req, timeout=10)
-    text = resp.read().decode('gbk')
-    parts = text.split('~')
-    print(json.dumps({{
-        "name": parts[1], "price": parts[3], "change": parts[32],
-        "high": parts[5], "low": parts[6], "volume": parts[7],
-        "turnover": parts[8], "pe": parts[9], "pb": parts[10],
-        "market_cap": parts[12],
-    }}, ensure_ascii=False))
+    text = urllib.request.urlopen(req, timeout=10).read().decode('gbk')
+    q = next((_q for _q in (parse_tencent_quote(_l) for _l in text.strip().split('\\n')) if _q), None)
+    if not q:
+        print(json.dumps({{"error": "no data"}}))
+    else:
+        print(json.dumps({{
+            "name": q["name"], "price": q["price"], "change": q["change_pct"],
+            "open": q["open"], "high": q["high"], "low": q["low"],
+            "volume": q["volume_hands"], "amount": q["amount"],
+            "pe": q["pe"], "pb": q["pb"],
+            "turnover_pct": q["turnover_pct"], "amplitude": q["amplitude"],
+            "total_market_cap": q["total_market_cap"],
+            "circulating_market_cap": q["circulating_market_cap"],
+            "time": q["time"],
+        }}, ensure_ascii=False))
 except Exception as e:
     print(json.dumps({{"error": str(e)}}))
 """]
@@ -179,14 +193,14 @@ def phase1_prescreen(ticker: str, date: str) -> Dict[str, Any]:
                 "rating": "C",
                 "note": "腾讯直连模式（技术指标未获取到）",
             }
-            # 尝试用 PE 高低做简单估值参考
-            pe_str = rt.get("pe", "0")
-            pe_val = float(pe_str) if pe_str.replace(".", "").isdigit() else 0
-            if 10 < pe_val < 40:
+            # 尝试用 PE 高低做简单估值参考（缺失→None；亏损→负值，§7.7.7）
+            pe_raw = rt.get("pe")
+            pe_val = float(pe_raw) if isinstance(pe_raw, (int, float)) else None
+            if pe_val is not None and 10 < pe_val < 40:
                 score["ma"] = 15
                 score["total"] = 43
                 score["rating"] = "C"
-            if pe_val > 0:
+            if pe_val is not None and pe_val > 0:
                 score["note"] += f" | PE={pe_val:.0f}"
             result["trading_combo_score"] = score
         except (ValueError, TypeError):

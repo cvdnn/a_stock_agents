@@ -24,6 +24,11 @@ except ImportError:
     import logging
     logger = logging.getLogger("core.paper_trading.market_data")
 
+try:
+    from core.data.tencent_fields import parse_tencent_quote
+except ImportError:
+    from data.tencent_fields import parse_tencent_quote
+
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -224,46 +229,25 @@ def get_price(session: requests.Session, code: str, frequency: str = "1d", count
 
 
 def _parse_tencent_quote(line: str) -> Optional[dict]:
-    if "~" not in line or len(line) < 50:
+    """解析腾讯 qt.gtimg.cn 单行数据，返回结构化 dict（复用权威解析器）。"""
+    q = parse_tencent_quote(line)
+    if not q:
         return None
-    parts = line.split("~")
-    if len(parts) < 48:
-        return None
-    try:
-        price = float(parts[3]) if parts[3] else 0
-        if price <= 0:
-            return None
-        prev_close = float(parts[4]) if parts[4] else 0
-        change_pct = round((price - prev_close) / prev_close * 100, 2) if prev_close > 0 else 0
-        raw_code = parts[2]
-        if "v_sh" in line or line.startswith("sh") or raw_code.startswith(("6", "5", "9")):
-            market_prefix = "sh"
-        elif "v_bj" in line or line.startswith("bj") or raw_code.startswith(("8", "4", "92")):
-            market_prefix = "bj"
-        else:
-            market_prefix = "sz"
-
-        limit_up = float(parts[47]) if len(parts) > 47 and parts[47] and float(parts[47]) > 0 else None
-        limit_down = float(parts[48]) if len(parts) > 48 and parts[48] and float(parts[48]) > 0 else None
-
-        return {
-            "code": f"{market_prefix}{raw_code}",
-            "name": parts[1],
-            "price": price,
-            "prev_close": prev_close,
-            "open": float(parts[5]) if parts[5] else 0,
-            "change_pct": change_pct,
-            "volume": int(parts[6]) if parts[6] else 0,
-            "amount": float(parts[37]) * 10000 if len(parts) > 37 and parts[37] else 0,
-            "high": float(parts[33]) if parts[33] else 0,
-            "low": float(parts[34]) if parts[34] else 0,
-            "market_cap": float(parts[45]) if len(parts) > 45 and parts[45] else 0,
-            "limit_up": limit_up,
-            "limit_down": limit_down,
-        }
-    except Exception as exc:
-        logger.debug(f"Failed parsing quote line: {exc}")
-        return None
+    return {
+        "code": q["code"],
+        "name": q["name"],
+        "price": q["price"],
+        "prev_close": q["prev_close"],
+        "open": q["open"] or 0,
+        "change_pct": q["change_pct"],
+        "volume": q["volume_hands"],
+        "amount": q["amount"] or 0,
+        "high": q["high"] or 0,
+        "low": q["low"] or 0,
+        "market_cap": q["total_market_cap"] or 0,
+        "limit_up": q["limit_up"],
+        "limit_down": q["limit_down"],
+    }
 
 
 def _fetch_kline_with_fallback(
