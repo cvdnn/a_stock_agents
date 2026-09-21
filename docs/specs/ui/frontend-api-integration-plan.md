@@ -1,9 +1,12 @@
 # 前端数据接入后端 · 修改实施计划
 
+> 关联规范编号：`SPEC-UI-001`、`SPEC-ARCH-001`
+> 权威定义 (SSOT)：[`web-aichat-architecture.md`](../../guidelines/architecture/web-aichat-architecture.md)（§五「前端数据契约与 MOCK 兜底规范」）
+> **实施状态**：已完成 (Completed) | P0–P3 与里程碑 M0–M3 全部达成（2026-09-09）
+
 - 制定日期：2026-09-09
 - 关联文档：`docs/audits/frontend-hardcoded-data-audit.md`
 - 总体目标：前端所有业务数据（股票列表、行情、情绪、持仓、收益分析、分析结论）均从后台接口获取；测试阶段数据使用 MOCK（后端 MOCK + 前端 `api.js` 兜底），杜绝 HTML/JS 硬编码。
-- **执行状态：✅ 已全部完成（2026-09-09），P0–P3 与里程碑 M0–M3 全部达成。**
 
 ---
 

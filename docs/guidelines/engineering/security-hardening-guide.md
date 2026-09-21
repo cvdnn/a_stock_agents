@@ -4,7 +4,7 @@
 > **适用范围**：A-Stock Agents 全栈系统（Web 服务端、前端交互看板、Agent 工具链与容器部署）  
 > **依据来源**：
 > - [`docs/audits/2026-09-14-penetration-testing-report.md`](../../audits/2026-09-14-penetration-testing-report.md)（渗透测试与安全审计报告）
-> - [`docs/audits/2026-09-14-security-remediation-execution-plan.md`](../../audits/2026-09-14-security-remediation-execution-plan.md)（安全漏洞整改实施执行计划）
+> - [`docs/specs/engineering/security-remediation-plan.md`](../../specs/engineering/security-remediation-plan.md)（安全漏洞整改实施执行计划）
 >
 > **核心目标**：将 2026-09-14 白盒代码审计与渗透测试中揭示的 8 项典型安全隐患，沉淀为全流程量化投研平台的长效安全规约、编码防线、架构标准与安全测试门禁，杜绝安全退化。
 
@@ -255,24 +255,18 @@ def validate_external_url_safely(target_url: str, allow_local_ollama: bool = Fal
 
 ## 三、 分级实施与整改验证矩阵 (Remediation Milestones)
 
-系统安全整改采取三阶段递进策略，确保每个阶段目标明确且具备独立验证能力：
-
-| 阶段 | 治理代号 | 核心目标 | 覆盖漏洞 | 交付文件与组件 |
-| :--- | :---: | :--- | :--- | :--- |
-| **P0 阶段** | 阻断破坏与逃逸 | 消除任意文件篡改、iframe 逃逸、XSS 事件注入与源码脱裤 | SEC-01, SEC-03, SEC-04, SEC-06, SEC-08 | `scripts/server/app.py`<br>`web/index.html`<br>`web/js/chat_presentation.js`<br>`scripts/core/reporting/report_generator.py` |
-| **P1 阶段** | 边界收敛与加固 | 收敛 Docker 网络监听至本地，构建 API Token 鉴权中间件，实现 DNS 级防 SSRF 校验 | SEC-02, SEC-05 | `docker-compose.yml`<br>`scripts/server/config.py`<br>`scripts/server/api/models_mgmt.py` |
-| **P2 阶段** | 凭据加密与测试常态化 | SQLite 凭据落盘加密，建设完整的安全自动化防退化测试套件 | SEC-07, TEST | `scripts/server/db.py`<br>`tests/test_security_audit.py` |
+> 本章分级整改里程碑矩阵与交付节奏见实施看板：[`security-remediation-plan.md`](../../specs/engineering/security-remediation-plan.md)。
 
 ---
 
 ## 四、 自动化安全测试与红线代码审查门禁 (Verification & Guardrails)
 
 ### 1. 自动化安全回归测试套件
-本项目已建立专门的安全回归测试集 [`tests/test_security_audit.py`](file:///c:/Users/cvdnn/coding/a_stock_agents/tests/test_security_audit.py)，所有开发与重构在提交 PR 或合并主干前必须 100% 通过：
+本项目已建立专门的安全回归测试集 [`tests/governance/test_security_audit.py`](../../../tests/governance/test_security_audit.py)，所有开发与重构在提交 PR 或合并主干前必须 100% 通过：
 
 ```powershell
 # 执行安全审计全量回归测试
-pytest tests/test_security_audit.py -v
+pytest tests/governance/test_security_audit.py -v
 ```
 
 **测试套件核心覆盖用例清单**：
@@ -301,7 +295,7 @@ pytest tests/test_security_audit.py -v
 - [ ] **7. [网络请求 SSRF]** 后端在请求外部 URL 前，是否执行了前置的物理 DNS 解析与私有/回环 IP 过滤？
 - [ ] **8. [网络边界暴露]** 容器部署文件（如 `docker-compose.yml`）中的端口映射是否均锁定为 `127.0.0.1:PORT:PORT`？
 - [ ] **9. [凭据存储]** 新增的数据库表或文件落盘逻辑中，是否避免了明文写入各类 Token、API Key 或交易密码？
-- [ ] **10. [测试防退化]** 修改相关安全边界逻辑后，是否同步运行了 `pytest tests/test_security_audit.py` 并保持全绿？
+- [ ] **10. [测试防退化]** 修改相关安全边界逻辑后，是否同步运行了 `pytest tests/governance/test_security_audit.py` 并保持全绿？
 
 ---
 
@@ -309,5 +303,5 @@ pytest tests/test_security_audit.py -v
 
 - **主归档路径**：[`docs/guidelines/engineering/security-hardening-guide.md`](security-hardening-guide.md)
 - **关联审计报告**：[`docs/audits/2026-09-14-penetration-testing-report.md`](../../audits/2026-09-14-penetration-testing-report.md)
-- **整改执行跟踪**：[`docs/audits/2026-09-14-security-remediation-execution-plan.md`](../../audits/2026-09-14-security-remediation-execution-plan.md)
+- **整改执行跟踪**：[`docs/specs/engineering/security-remediation-plan.md`](../../specs/engineering/security-remediation-plan.md)
 - **演进维护要求**：未来如发现新的安全漏洞或实施新架构加固，需第一时间更新本指南的漏洞规约与审查清单，持续作为团队唯一的安全工程实施规范。

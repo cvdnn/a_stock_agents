@@ -1,5 +1,9 @@
 # 运行隔离、测试与交付底座实施计划
 
+> 关联规范编号：`SPEC-ENG-001`（发现 E1/E2/E3/T1；总计划见 [`eng-remediation-plan.md`](eng-remediation-plan.md)）
+> 权威定义 (SSOT)：[`project-structure-specification.md`](../../guidelines/engineering/project-structure-specification.md)、[`testing-guide.md`](../../guidelines/engineering/testing-guide.md)
+> **实施状态**：规划中 (RFC) | 待执行，按 E1→E2→E3→E4 顺序推进
+
 > **For agentic workers:** 使用 `executing-plans` 按 E1→E2→E3→E4 顺序执行；D1 与 E2 同批，D2 在所有子计划后执行。步骤使用复选框跟踪。
 
 **Goal:** 默认运行与测试不依赖用户全局目录、正式数据库或网络，安装和打包生成可验证交付物。
@@ -10,7 +14,7 @@
 
 ---
 
-总计划：[整改总计划](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-remediation-plan.md)。所有路径以仓库根为基准；Windows 命令使用项目虚拟环境，不安装全局依赖。
+总计划：[整改总计划](eng-remediation-plan.md)。所有路径以仓库根为基准；Windows 命令使用项目虚拟环境，不安装全局依赖。
 
 ## E1：统一配置及私有数据路径
 

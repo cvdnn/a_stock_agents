@@ -1,5 +1,9 @@
 # Chat Response Presentation Implementation Plan
 
+> 关联规范编号：`SPEC-UI-001`
+> 权威定义 (SSOT)：[`chat-response-presentation-guide.md`](../../guidelines/ui/chat-response-presentation-guide.md)
+> **实施状态**：实施中 | 纯渲染模块与 Node 单测已落地，回复卡片、执行时间线与工作台投射待完成
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Render safe Markdown, show a concise answer in each AI chat card, expose expandable child-task results, place task errors inside the execution timeline, and show the full response in the right workbench.
@@ -593,3 +597,44 @@ If verification required changes, rerun the failing command plus the focused Jav
 git add web/index.html web/js/chat_presentation.js web/js/app.js web/css/style.css tests/test_chat_presentation.js tests/test_chat_response_ui.js
 git commit -m "fix: harden chat response presentation"
 ```
+
+## 附录 A：测试与验收要求（源自设计文档 §11）
+
+### 11.1 单元测试
+
+- Markdown：标题、列表、表格、代码、链接、嵌套格式与危险 HTML/协议。
+- 摘要：优先章节、列表去重、长度限制、中文标点和无可提取内容回退。
+- 轨迹：事件顺序、多次同工具调用、完成前无开始事件、降级、失败和展开状态。
+- 错误：已知错误映射、未知错误兜底和敏感信息脱敏。
+
+### 11.2 DOM/交互测试
+
+- AI 卡片不再显示原始 Markdown 标记。
+- 点击子任务可展开本次执行结果，再次点击可折叠。
+- 点击完整分析只创建一个右侧标签并可重复聚焦。
+- 异常节点位于会话卡片执行轨迹内，失败时自动展开。
+- 键盘可完成所有展开、切换和打开详情操作，ARIA 状态同步。
+
+### 11.3 SSE 集成测试
+
+- 验证完整事件序列、只有正文、工具失败、模型失败、缺少调用 ID 和连接中断。
+- 验证错误后不会显示“模型响应已结束”的成功状态。
+- 验证子任务结果与正确调用节点绑定，不被后续事件覆盖。
+
+### 11.4 人工验收
+
+- 使用真实已配置模型生成包含标题、列表、表格和代码的长回复。
+- 验证会话区只显示核心内容，右侧完整内容无缺失。
+- 验证成功、降级和失败任务的展开结果与视觉层级。
+- 验证 375px、768px 和桌面宽度，不出现页面级横向滚动。
+- 验证服务端异常提示与参考交互一致，但保持项目统一浅色风格。
+
+## 附录 B：完成标准（源自设计文档 §12）
+
+- 回复 Markdown 安全渲染且无原始语法堆叠。
+- 会话卡片稳定显示 3–5 条核心结论，完整报告可在右侧查看。
+- 所有已收到的任务/工具事件在执行轨迹中可回看。
+- 每个子任务可展开查看本次结果。
+- 异常在对应会话卡片的执行轨迹中反馈，并提供可操作恢复建议和脱敏详情。
+- 现有复制、重新生成和右侧标签行为无回归。
+- 自动化测试与真实服务人工验收通过。

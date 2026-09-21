@@ -161,7 +161,7 @@ flowchart TD
 
 ## 四、安全加固实施建议与修复计划
 
-针对上述漏洞，制定了 **三阶段（P0/P1/P2）分级治理方案**，详细跟踪计划已同步至 [2026-09-14-security-remediation-execution-plan.md](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/audits/2026-09-14-security-remediation-execution-plan.md)：
+针对上述漏洞，制定了 **三阶段（P0/P1/P2）分级治理方案**，详细跟踪计划已同步至 [security-remediation-plan.md](../specs/engineering/security-remediation-plan.md)：
 
 1. **阻断高危破坏与沙箱逃逸 (P0)**：
    - 限制 `/api/docs/save` 强制仅能写入 `output/reports` 目录，禁止路径穿透与文件名包含路径分隔符。

@@ -2,7 +2,7 @@
 
 > **文档类别**：算法治理指南与规则 (Guidelines / Governance)  
 > **适用范围**：A-Stock Agents 44 项量化金融模型、技术指标、Alpha因子、选股策略、撮合引擎与风控算法全生命周期治理  
-> **实施进度看板**：[`docs/specs/algorithm/algo-lifecycle-and-governance-specification.md`](../../specs/algorithm/algo-lifecycle-and-governance-specification.md) (`SPEC-ALGO-001`)
+> **实施进度看板**：[`docs/specs/algorithm/algo-lifecycle-and-governance-plan.md`](../../specs/algorithm/algo-lifecycle-and-governance-plan.md) (`SPEC-ALGO-001`)
 
 ---
 
@@ -307,26 +307,4 @@ flowchart LR
 
 ## 五、 算法库构建与治理实施路线图 (Implementation Roadmap)
 
-为了系统性落地算法库与全生命周期治理体系，建议按三步走路线推进：
-
-### Phase 1: 算法注册体系升级与标准接口抽象 (基础设施层)
-1. **统一 Registry 2.0 (`core.models.registry`)**：
-   - 将注册范围从原有的 `ModelRegistry` 扩展为支持 7 大类别的 `UnifiedAlgoRegistry`；
-   - 纳入全部 44 项算法的元数据（名称、版本、作者、适用市场机制、基类契约）；
-   - 保留原有函数别名与调用入口，做到 100% 向下兼容。
-2. **定义统一算法基类规范 (`core.models.base_algorithm`)**：
-   - 制定 `BaseIndicator`、`BaseFactor`、`BaseStrategy`、`BaseRiskManager` 统一抽象契约；
-   - 统一输入格式为类型友好的 TypedDict / Pydantic 模型。
-
-### Phase 2: 全生命周期质量门禁与测试体系建立 (治理质控层)
-1. **建立算法合规审查与自动化门禁**：
-   - 编写无未来函数审查器（Lookahead Checker）；
-   - 编写 A 股制度合规测试用例集（T+1、涨跌停、停牌熔断）。
-2. **完善单调性与防过拟合检验工具**：
-   - 在 `core.models.strategy_evaluator` 中集成样本外衰减检验（OOS Decay）与夏普折损计算。
-
-### Phase 3: 算法监控、Alpha 衰减与智能调度平台 (生产运行层)
-1. **动态 IC 监控与 Alpha 衰减警报**：
-   - 在每日盘后自动化任务中，增加已上线因子有效性（Rank IC、IC_IR、单调性）日志记录；
-2. **市场状态与策略路由联动**：
-   - `MarketAssessor` 评估当前大盘处于 BULL / BEAR / OSCILLATION 时，自动在 `FactorSynthesizer` 与各个交易策略中动态加载适配权重，实现真正智能自适应的量化闭环。
+> 本章实施路线图与阶段交付节奏见实施看板：[`algo-lifecycle-and-governance-plan.md`](../../specs/algorithm/algo-lifecycle-and-governance-plan.md)。

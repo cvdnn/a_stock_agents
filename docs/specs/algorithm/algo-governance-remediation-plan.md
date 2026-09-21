@@ -1,5 +1,9 @@
 # 算法准入、执行门禁与退役实施计划
 
+> 关联规范编号：`SPEC-ALGO-001`（发现 G1）
+> 权威定义 (SSOT)：[`algorithm-governance.md`](../../guidelines/algorithm/algorithm-governance.md)
+> **实施状态**：规划中 (RFC) | 待执行，依赖 E1/E2；按 G1→G2→G3 顺序推进
+
 > **For agentic workers:** 使用 `executing-plans` 按 G1→G2→G3 执行；单元测试通过与算法生产准入分别记录。
 
 **Goal:** 让生命周期与质量证据真正约束生产调用，阻止未验收或已退役算法继续产生正式结果。

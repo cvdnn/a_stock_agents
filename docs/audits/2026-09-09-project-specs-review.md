@@ -38,71 +38,71 @@
 
 ### A1 · P1：ReAct 绕过技能治理执行门禁
 
-[react_runner.py:182](C:/Users/cvdnn/coding/a_stock_agents/scripts/server/agent/react_runner.py:182) 直接 `await execute_tool(...)`；[tools.py:513](C:/Users/cvdnn/coding/a_stock_agents/scripts/server/agent/tools.py:513) 通过 TOOL_MAP 调度。启停复核、确认、参数 Schema、超时与审计位于 [skill_registry.py:368](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/governance/skill_registry.py:368)，对话执行没有走这条路径。生成工具清单时过滤 enabled 不能替代执行端校验。需要以 API→ReAct→受控执行器的全过程证明禁用/未确认/非法参数调用被拒绝。
+[react_runner.py:182](../../scripts/server/agent/react_runner.py:182) 直接 `await execute_tool(...)`；[tools.py:513](../../scripts/server/agent/tools.py:513) 通过 TOOL_MAP 调度。启停复核、确认、参数 Schema、超时与审计位于 [skill_registry.py:368](../../scripts/core/governance/skill_registry.py:368)，对话执行没有走这条路径。生成工具清单时过滤 enabled 不能替代执行端校验。需要以 API→ReAct→受控执行器的全过程证明禁用/未确认/非法参数调用被拒绝。
 
 ### A2 · P1：多项技能返回占位成功
 
-[tools.py:410](C:/Users/cvdnn/coding/a_stock_agents/scripts/server/agent/tools.py:410) 的股池审查未读写股池就声称关键位已校准；:418 的归档无写文件动作却返回 archived；:447 的外部模型验证固定返回 passed 和 IC=0.065。辩论路径在 :363 附近失败后还会返回固定多空结论。这些结果没有 error 字段，因此被运行时当作成功发送给模型。必须连接真实执行结果，或明确返回尚未实现/失败。
+[tools.py:410](../../scripts/server/agent/tools.py:410) 的股池审查未读写股池就声称关键位已校准；:418 的归档无写文件动作却返回 archived；:447 的外部模型验证固定返回 passed 和 IC=0.065。辩论路径在 :363 附近失败后还会返回固定多空结论。这些结果没有 error 字段，因此被运行时当作成功发送给模型。必须连接真实执行结果，或明确返回尚未实现/失败。
 
 ### A3 · P1：工具调用轮次的 assistant 消息未落库
 
-[react_runner.py:149](C:/Users/cvdnn/coding/a_stock_agents/scripts/server/agent/react_runner.py:149) 只把带 tool_calls 的 assistant 消息加入内存；:153 仅在没有工具调用时写 assistant；:223 却总会写 tool 结果。下一轮回放会出现缺少对应 assistant tool_calls 的 tool 消息。应持久化完整调用轮次，并通过严格协议校验的第二轮测试验收。
+[react_runner.py:149](../../scripts/server/agent/react_runner.py:149) 只把带 tool_calls 的 assistant 消息加入内存；:153 仅在没有工具调用时写 assistant；:223 却总会写 tool 结果。下一轮回放会出现缺少对应 assistant tool_calls 的 tool 消息。应持久化完整调用轮次，并通过严格协议校验的第二轮测试验收。
 
 ### A4 · P1：超过 30 条消息后上下文丢失最新请求
 
-[react_runner.py:81](C:/Users/cvdnn/coding/a_stock_agents/scripts/server/agent/react_runner.py:81) 读取 limit=30；[db.py:358](C:/Users/cvdnn/coding/a_stock_agents/scripts/server/db.py:358) 使用 `ORDER BY id ASC LIMIT ?`，取最早 30 条。当前用户消息虽然先落库，但超限后不在提供给模型的历史中。应按最近的完整工具轮次截取，再按时间正序组织。
+[react_runner.py:81](../../scripts/server/agent/react_runner.py:81) 读取 limit=30；[db.py:358](../../scripts/server/db.py:358) 使用 `ORDER BY id ASC LIMIT ?`，取最早 30 条。当前用户消息虽然先落库，但超限后不在提供给模型的历史中。应按最近的完整工具轮次截取，再按时间正序组织。
 
 ### A5 · P1：角色配置未控制真实提供商选择
 
-[factory.py:36](C:/Users/cvdnn/coding/a_stock_agents/scripts/server/llm/factory.py:36) 有 role 解析能力，但 [react_runner.py:102](C:/Users/cvdnn/coding/a_stock_agents/scripts/server/agent/react_runner.py:102) 始终传非空 selected_model，scripts 范围未发现业务 `get_provider(role=...)` 调用。配置界面修改 debate/quant 角色不等于相关业务会采用该绑定。需要真实业务调用与模型选择断言。
+[factory.py:36](../../scripts/server/llm/factory.py:36) 有 role 解析能力，但 [react_runner.py:102](../../scripts/server/agent/react_runner.py:102) 始终传非空 selected_model，scripts 范围未发现业务 `get_provider(role=...)` 调用。配置界面修改 debate/quant 角色不等于相关业务会采用该绑定。需要真实业务调用与模型选择断言。
 
 ### U1 · P1：A2UI 把固定示例展示为已完成的个股分析
 
-[app.js:2925](C:/Users/cvdnn/coding/a_stock_agents/web/js/app.js:2925) 股票操作符直接进入 executeA2UITask 并返回；[app.js:2863](C:/Users/cvdnn/coding/a_stock_agents/web/js/app.js:2863) 用 setTimeout 注入固定指数；:2876 使用固定“多头排列、二次金叉确认、主力净流入”结论，未在这条路径调用真实后端。展开雷达和 K 线也在 [astock.js:49](C:/Users/cvdnn/coding/a_stock_agents/web/js/components/astock.js:49)、:144 写死价格或生成曲线。必须由实际数据/事件驱动，并明确标识演示模式。
+[app.js:2925](../../web/js/app.js:2925) 股票操作符直接进入 executeA2UITask 并返回；[app.js:2863](../../web/js/app.js:2863) 用 setTimeout 注入固定指数；:2876 使用固定“多头排列、二次金叉确认、主力净流入”结论，未在这条路径调用真实后端。展开雷达和 K 线也在 [astock.js:49](../../web/js/components/astock.js:49)、:144 写死价格或生成曲线。必须由实际数据/事件驱动，并明确标识演示模式。
 
 ### B1 · P1：模拟盘过户费与统一费率配置不一致
 
-[engine.py:87](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/paper_trading/engine.py:87) 仅为上海标的收过户费，使用 DEFAULT_TRANSFER_FEE_RATE；:105 的实际佣金计算依赖它。指南明确沪深双向收费，且过户费属于动态配置。修改配置不会改变这里的过户费，深圳标的直接返回 0，导致模拟成交成本与后端保本价口径不同。
+[engine.py:87](../../scripts/core/paper_trading/engine.py:87) 仅为上海标的收过户费，使用 DEFAULT_TRANSFER_FEE_RATE；:105 的实际佣金计算依赖它。指南明确沪深双向收费，且过户费属于动态配置。修改配置不会改变这里的过户费，深圳标的直接返回 0，导致模拟成交成本与后端保本价口径不同。
 
 ### B2 · P1：前端保本价另写公式，未使用统一精算与配置
 
-[astock.js:166](C:/Users/cvdnn/coding/a_stock_agents/web/js/components/astock.js:166) 写死最低 5 元、佣金、税率及过户费，并把两侧费用都按买入金额估计；过户费使用 `0.00002 * 2`，也不同于规范的单边 0.00001。后端 [execution_action_engine.py:286](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/strategy/execution_action_engine.py:286) 则按卖出净收入反解并支持 market_cfg。前端并非后端精算结果的展示端，免五/自定义费率不会生效。
+[astock.js:166](../../web/js/components/astock.js:166) 写死最低 5 元、佣金、税率及过户费，并把两侧费用都按买入金额估计；过户费使用 `0.00002 * 2`，也不同于规范的单边 0.00001。后端 [execution_action_engine.py:286](../../scripts/core/strategy/execution_action_engine.py:286) 则按卖出净收入反解并支持 market_cfg。前端并非后端精算结果的展示端，免五/自定义费率不会生效。
 
 ### B3 · P1：动作单没有兑现规定的三原则输出契约
 
-[strategy_cmds.py:219](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/commands/strategy_cmds.py:219) 将 generate_action 结果原样输出；[execution_action_engine.py:339](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/strategy/execution_action_engine.py:339) 的结构没有 `stop_loss`、`action_scenarios`。这与 BIZ-003 明确要求的 T0/T1/T2 和 open_surge/narrow_range/plunge 验收不一致。前端 [astock.js:189](C:/Users/cvdnn/coding/a_stock_agents/web/js/components/astock.js:189) 计算 T0 却未渲染，紧凑卡片也没有三场景。应先统一数据契约，再逐个验证 CLI、API、卡片和 HTML。
+[strategy_cmds.py:219](../../scripts/core/commands/strategy_cmds.py:219) 将 generate_action 结果原样输出；[execution_action_engine.py:339](../../scripts/core/strategy/execution_action_engine.py:339) 的结构没有 `stop_loss`、`action_scenarios`。这与 BIZ-003 明确要求的 T0/T1/T2 和 open_surge/narrow_range/plunge 验收不一致。前端 [astock.js:189](../../web/js/components/astock.js:189) 计算 T0 却未渲染，紧凑卡片也没有三场景。应先统一数据契约，再逐个验证 CLI、API、卡片和 HTML。
 
 ### G1 · P1：算法生命周期是元数据，未形成强制执行约束
 
-[registry.py:61](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/models/registry.py:61) 默认注册为 production；[registry.py:168](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/models/registry.py:168) 的 run_algo 不检查生命周期。现有 [monitor_governance.py:324](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/models/monitor_governance.py:324) 允许直接转换状态，退市熔断仅更新元数据；执行层仍可解析并执行 retired 算法。G1/G2 检查器和 G3/G4 监控类确实存在，不能说完全没有治理代码，但未见质量检查 audit_algorithm 的业务调用。应验证未验收算法不能晋级、退役算法不能进入生产调度。
+[registry.py:61](../../scripts/core/models/registry.py:61) 默认注册为 production；[registry.py:168](../../scripts/core/models/registry.py:168) 的 run_algo 不检查生命周期。现有 [monitor_governance.py:324](../../scripts/core/models/monitor_governance.py:324) 允许直接转换状态，退市熔断仅更新元数据；执行层仍可解析并执行 retired 算法。G1/G2 检查器和 G3/G4 监控类确实存在，不能说完全没有治理代码，但未见质量检查 audit_algorithm 的业务调用。应验证未验收算法不能晋级、退役算法不能进入生产调度。
 
 ### E1 · P1：安装器引用迁移前路径
 
-[install.sh:49](C:/Users/cvdnn/coding/a_stock_agents/install.sh:49)、[install.ps1:46](C:/Users/cvdnn/coding/a_stock_agents/install.ps1:46) 执行 `core/workspace.py`，该文件不存在，实际在 scripts/core。Unix 安装器启用 set -e，会在这里停止；PowerShell 未显式检查原生命令退出码，后续成功提示也不可靠。此次未安装依赖或修改环境，结论来自明确的文件路径核验。
+[install.sh:49](../../install.sh:49)、[install.ps1:46](../../install.ps1:46) 执行 `core/workspace.py`，该文件不存在，实际在 scripts/core。Unix 安装器启用 set -e，会在这里停止；PowerShell 未显式检查原生命令退出码，后续成功提示也不可靠。此次未安装依赖或修改环境，结论来自明确的文件路径核验。
 
 ### E2 · P1：打包转发器无声跳过整个打包流程
 
-[bin/pack.py:19](C:/Users/cvdnn/coding/a_stock_agents/bin/pack.py:19) 仅在被导入模块存在 main 时调用；[scripts/tools/pack.py:87](C:/Users/cvdnn/coding/a_stock_agents/scripts/tools/pack.py:87) 没有 main，参数解析和 package_project 调用仅位于自身 __main__ 块。转发导入不会执行该块，因此入口可退出成功却没有 ZIP。验收应检查实际产物而非仅检查退出码。
+[bin/pack.py:19](../../bin/pack.py:19) 仅在被导入模块存在 main 时调用；[scripts/tools/pack.py:87](../../scripts/tools/pack.py:87) 没有 main，参数解析和 package_project 调用仅位于自身 __main__ 块。转发导入不会执行该块，因此入口可退出成功却没有 ZIP。验收应检查实际产物而非仅检查退出码。
 
 ## 其他确定性差距
 
 | 编号 | 优先级 | 问题与证据 |
 |---|---|---|
-| U2 | P2 | [ui_engine.js:108](C:/Users/cvdnn/coding/a_stock_agents/web/js/ui_engine.js:108) 解析全名仅取前两段，`@a2ui/pack-astock/MarketRadar` 不能命中；:84 覆盖同名短名而非拒绝歧义；:166 的 catalog 缺 propsSchema/defaultTarget。实际 astock.js 注册 3 个组件，spec 验收却写 6 个。loadPack 有实现，但未知组件解析没有自动调用它。 |
-| U3 | P2 | [ui_engine.js:292](C:/Users/cvdnn/coding/a_stock_agents/web/js/ui_engine.js:292) 重写同一个投射内容节点；旧标签没有独立报告内容重建。未实际测量 CLS，不能认可 CLS=0 的生产验收结论。 |
-| E3 | P2 | [paper_trading_runtime.py:17](C:/Users/cvdnn/coding/a_stock_agents/scripts/core/paper_trading/paper_trading_runtime.py:17) 默认使用用户全局应用数据目录；独立 service/ctl 会调用该路径。部分监控模板仍写 `.AI-Platform`。`git ls-files cache` 仍列出 3 个测试 DB，忽略规则不能解除既有跟踪。没有读取这些数据库内容，也不能认定它们包含真实持仓。 |
-| T1 | P2 | 默认 pytest 收录 [test_live_server_e2e.py:6](C:/Users/cvdnn/coding/a_stock_agents/tests/test_live_server_e2e.py:6) 的固定 localhost:6300 测试；普通 server suite 也调用真实行情，且默认 DB 未被临时 fixture 全面替换。与 testing-guide 的本地 Mock、确定性、隔离要求不一致。 |
+| U2 | P2 | [ui_engine.js:108](../../web/js/ui_engine.js:108) 解析全名仅取前两段，`@a2ui/pack-astock/MarketRadar` 不能命中；:84 覆盖同名短名而非拒绝歧义；:166 的 catalog 缺 propsSchema/defaultTarget。实际 astock.js 注册 3 个组件，spec 验收却写 6 个。loadPack 有实现，但未知组件解析没有自动调用它。 |
+| U3 | P2 | [ui_engine.js:292](../../web/js/ui_engine.js:292) 重写同一个投射内容节点；旧标签没有独立报告内容重建。未实际测量 CLS，不能认可 CLS=0 的生产验收结论。 |
+| E3 | P2 | [paper_trading_runtime.py:17](../../scripts/core/paper_trading/paper_trading_runtime.py:17) 默认使用用户全局应用数据目录；独立 service/ctl 会调用该路径。部分监控模板仍写 `.AI-Platform`。`git ls-files cache` 仍列出 3 个测试 DB，忽略规则不能解除既有跟踪。没有读取这些数据库内容，也不能认定它们包含真实持仓。 |
+| T1 | P2 | 默认 pytest 收录 [test_live_server_e2e.py:6](../../tests/server/test_live_server_e2e.py:6) 的固定 localhost:6300 测试；普通 server suite 也调用真实行情，且默认 DB 未被临时 fixture 全面替换。与 testing-guide 的本地 Mock、确定性、隔离要求不一致。 |
 | D1 | P2 | specs 中 `scripts/core/reporting/html_reporter.py`、`scripts/core/models/five_dim_model.py`、`scripts/core/commands/cmd_backtest.py` 均不存在。ALGO 的 `quant pipeline --help` 只能证明解析帮助，不能证明算法流水线运行成功。 |
 | D2 | P2 | guidelines/code-review.md 实际是带历史问题和修复记录的审查报告，与索引描述的规范清单不同；SSE 路由/事件名也存在指南与源码漂移。应分离历史审计与现行验收契约。 |
 
 ## 验证记录与边界
 
-- Python 选定范围：**114 passed，1 failed**，运行耗时 80.40 秒。完整输出见 [pytest-results.txt](C:/Users/cvdnn/coding/a_stock_agents/output/audit-review/pytest-results.txt)。这是 115 项选定测试的结果，绝非全库通过率或规格完成率。
+- Python 选定范围：**114 passed，1 failed**，运行耗时 80.40 秒。完整输出见 `output/audit-review/pytest-results.txt`。这是 115 项选定测试的结果，绝非全库通过率或规格完成率。
 - 运行方式：项目 `.venv` Python，`pytest tests -q -p no:cacheprovider`，排除 test_live_server_e2e.py、test_server_suite.py、test_market_data_api.py、test_governance_suite.py，使用独立 basetemp；设置 A_STOCK_OUTPUT_DIR、A_STOCK_DB_PATH、A_SHARE_PAPER_TRADING_HOME 到审查目录。首次更宽范围执行已中断，不计为完成验证。
 - 失败用例为 `TestStockCodeDecoupling.test_action_plan_missing_code_defensive_behavior`。该用例未建立空持仓 fixture，实际读到持仓后进入行情分支；因此连收窄范围也不能称为完全无网络测试。应修正测试依赖隔离，再重新验收。原始失败结果保留，不通过临时改变条件把它记成套件全绿。
-- Node 的现有操作符套件通过；其中多数是源码字符串断言，另外有排序与 Mock DOM 退格断言，不能代替浏览器、真实 SSE、角色路由或风控契约集成测试。输出见 [node-results.txt](C:/Users/cvdnn/coding/a_stock_agents/output/audit-review/node-results.txt)。
+- Node 的现有操作符套件通过；其中多数是源码字符串断言，另外有排序与 Mock DOM 退格断言，不能代替浏览器、真实 SSE、角色路由或风控契约集成测试。输出见 `output/audit-review/node-results.txt`。
 - 独立复核的 Node VM 探针验证了逆序载入缓冲可用，同时复现完整组件名查询失败、短名覆盖及展开行情未采用传入数据。
-- 本地合成探针记录见 [probe-results.json](C:/Users/cvdnn/coding/a_stock_agents/output/audit-review/probe-results.json)。本次未运行外部 LLM 联调、真实浏览器 CLS 测量、完整安装/升级或生产部署。
+- 本地合成探针记录见 `output/audit-review/probe-results.json`。本次未运行外部 LLM 联调、真实浏览器 CLS 测量、完整安装/升级或生产部署。
 
 本地探针的确定结果如下（均为合成输入）：
 
@@ -119,7 +119,7 @@
 | A2UI 逆序载入 | 缓冲清空，3 个组件注册成功 |
 | A2UI 规范全名与冲突 | 规范全名查询失败，另一个包同名注册覆盖原短名 |
 
-前端探针完整结果见 [frontend-probe-results.json](C:/Users/cvdnn/coding/a_stock_agents/output/audit-review/frontend-probe-results.json)。临时 Python 探针源文件在验证后删除，仅保留结果。
+前端探针完整结果见 `output/audit-review/frontend-probe-results.json`。临时 Python 探针源文件在验证后删除，仅保留结果。
 
 ## 建议的验收顺序
 

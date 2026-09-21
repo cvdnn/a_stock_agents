@@ -135,8 +135,13 @@ sequenceDiagram
    - 物理文件名使用语义明确的英文 slug（如 `breakeven-rules.md`）；
    - 文档内第一行一级标题（`# Title`）采用清晰规范的中文原名，兼顾链接健壮性与中文母语阅读体验。
 3. **消除版本号与临时状态侵入**：
-   - 严禁出现 `_v1`, `_v2`, `_new`, `_final` 等临时后缀。
-   - 所有架构决策（ADR / RFC）、技术规格说明与业务算法规则统一归档于 `docs/specs/`，遵循下述 6 大分类与标准命名前缀规约。
+   - 严禁出现 `_v1`, `_v2`, `_new`, `_final` 等临时后缀；
+   - 严禁在正文头部写入 `文档版本 vX.Y.Z` 等版本号字段——版本溯源由 Git 唯一承担，规范生命周期状态统一由 `docs/specs/` 看板的 `**实施状态**` 字段承载。
+4. **定义与进度的归档去向分离（Definition vs Progress）**：
+   - **规范/指南/架构/规则（定义本身）** → `docs/guidelines/`（单一真理来源 SSOT）；
+   - **ADR / RFC / 实施计划 / 整改计划 / 验收看板（落地进度）** → `docs/specs/`；
+   - **不可变审查报告与历史审计留痕** → `docs/audits/`（只增不改）；
+   - **反镜像铁律 (Anti-Mirror)**：严禁同一份定义在两处并存，跨目录一律以**超链接**代替内容复制。
 
 ### 2. 知识库与实施看板双层架构 (Guidelines vs Specs Architecture)
 
@@ -150,17 +155,97 @@ sequenceDiagram
      - `-architecture.md`：系统架构设计（如 `web-aichat-architecture.md`、`llm-provider-architecture.md`、`token-security-architecture.md`、`a2ui-framework-architecture.md`）
      - `-rules.md`：量化数学与交易业务规则（如 `breakeven-calculation-rules.md`、`broker-commission-rules.md`、`trading-execution-rules.md`）
 
-2. **`docs/specs/`（规范与任务实施执行看板 - Execution Tracking Hub）**：
+2. **`docs/specs/`（任务实施与验收执行看板 - Execution Tracking Hub）**：
    - 作为工程落地、任务分解、执行状态与测试验证证据的看板中心。
    - 按 7 大领域子目录归档（`a2ui/`、`algorithm/`、`architecture/`、`business/`、`data/`、`engineering/`、`ui/`），统一采用 `SPEC-{CATEGORY}-{SEQ}` 编号。
-   - 文档内简要显示规范核心定位，并通过显式超链接直达 `docs/guidelines/` 详实内容，主体聚焦于**实施任务矩阵、里程碑推进、代码落地映射与回归测试证据**。
+   - **命名范式**：承载实施/整改/验收看板性质的文档，文件名必须以 **`-plan.md`** 结尾（如 `eng-remediation-plan.md`、`market-data-sync-implementation-plan.md`）。
+     - 严禁使用 `-specification.md` / `-rules.md` / `-design.md` / `-spec.md` 等**与看板性质名实不符**的后缀；此类后缀是 `docs/guidelines/` 的知识定义专属后缀。
+     - 历史遗留的**无后缀**看板文件（如 `eng-project-structure-and-workspace.md`）为兼容过渡形态，在每次实质修订时必须补全 `-plan.md` 后缀，渐进收敛。
+     - `archive/` 下的历史 ADR / RFC / 审计报告为不可变归档，豁免本规则并保留 `YYYY-MM-DD-*.md` 日期前缀。
+   - 文档主体聚焦于**实施任务矩阵、里程碑推进、代码落地映射与回归测试证据**，规范正文一律通过显式超链接直达 `docs/guidelines/`。
 
-### 3. 标准领域分层结构 (Standard Directory Taxonomy)
+### 3. 两范式文档编制模板 (Two-Paradigm Authoring Templates)
+
+`docs/` 下所有文档被严格二分为「**规范/指南范式**」与「**实施计划范式**」两种编制范式。每篇文档必须**完整且仅**采用其中一种范式，混编即为违规。
+
+#### 范式 A：规范/指南范式（`docs/guidelines/` 唯一适用）
+
+```markdown
+# <中文规范/指南全称>
+
+> 适用范围：<本规范约束的系统边界与对象>
+> 核心目标：<要消除的根本问题与治理目标>
+
+## 一、<定义 / 规则 / 契约>
+（完整正文：数学公式、费率数值、JSON Schema、架构图、参数表、代码契约）
+
+---
+## 附：关联索引
+- 实施进度看板：[`SPEC-XXX-001`](../../specs/<domain>/<slug>-plan.md)
+- 相关规范：[`<slug>.md`](./<slug>.md)
+```
+
+**硬性铁律**：
+* 只回答“**是什么 / 为什么 / 必须怎样**”，承载权威定义本身；
+* **严禁**出现：任务清单与勾选框、里程碑排期与日期、人日估算、`P0/P1/P2` 排期、验收证据与测试结果、变更日志；
+* **严禁**出现 `**实施状态**` 字段——状态属于 specs 看板；
+* 头部以「关联索引」**单向**指向对应 specs 看板，正文内不反向复述进度。
+
+#### 范式 B：实施计划范式（`docs/specs/` 唯一适用）
+
+```markdown
+# <中文看板全称>
+
+> 规范编号：`SPEC-<CATEGORY>-<SEQ>`
+> 权威定义 (SSOT)：[`<指南文件名>`](../../guidelines/<domain>/<slug>.md)
+> **实施状态**：<规划中 (RFC) | 实施中 | 正式基线 | 已废弃>
+
+## 一、规范核心定位摘要
+（1-3 条指针式摘要，严禁复制公式、费率数值或 Schema 全文）
+
+## 二、实施任务矩阵
+| 任务 | 关联代码路径 | 状态 |
+|:---|:---|:---:|
+
+## 三、里程碑推进
+```mermaid
+timeline
+```
+
+## 四、验收与验证证据
+| 断言 | 测试路径 | 结果 |
+|:---|:---|:---:|
+
+## 五、变更日志
+| 日期 | 变更摘要 |
+|:---|:---|
+```
+
+**硬性铁律**：
+* 头部三段字段为**强制必填**，且字面量固定为 `规范编号`（或 `关联规范编号`）、`权威定义 (SSOT)`、`**实施状态**`；严禁改写作 `**文档状态**`、`**状态：**`、`**执行状态：**` 等变体，或省略不写；
+* 任务要素**必填**：任务清单（任务矩阵表**或** `- [ ]` 分步复选框均可，二者至少其一）；
+* 验收要素**必填**：验收标准或验收证据（二者至少其一）；
+* 里程碑时间线与变更日志在**有阶段划分或多次修订时**必填；
+* **严禁**复述规范正文——公式、费率数值、Schema、契约一律以超链接指向 guidelines。
+
+#### 反混编判定红线 (Anti-Mixing Rule)
+
+| 内容判据 | 出现在 `guidelines/` | 出现在 `specs/` |
+|:---|:---|:---|
+| 任务矩阵 / 勾选清单 `- [ ]` | ❌ 违规 → 迁入 specs | ✅ 合规必需 |
+| 里程碑排期 / 人日估算 / `P0-P2` 路线图 | ❌ 违规 → 迁入 specs | ✅ 合规必需 |
+| 验收证据 / 测试断言结果 / 变更日志 | ❌ 违规 → 迁入 specs | ✅ 合规必需 |
+| `**实施状态**` 字段 | ❌ 违规 → 转为 specs 看板头部 | ✅ 强制必填 |
+| 数学公式 / 费率数值 / Schema 定义 / 架构契约 | ✅ 合规（SSOT 唯一定义处） | ❌ 违规 → 抽入 guidelines 并改为链接 |
+| 中文文件名 / 版本号后缀 | ❌ 违规（违反 kebab-case 铁律） | ❌ 违规（违反 kebab-case 铁律） |
+
+### 4. 标准领域分层结构 (Standard Directory Taxonomy)
 
 ```text
 docs/
 ├── index.md                      # [根级索引] 全景速查图谱与知识导航
 ├── quickstart.md                 # [根级入口] 快速上手与环境自检向导
+├── docker-deploy.md              # [根级部署] 容器化部署与运维操作指引
 ├── guidelines/                   # [权威知识库] 7 大领域规范、指南、架构与规则定义 (SSOT)
 │   ├── README.md                 # 知识导航中心与 7 大领域分类矩阵
 │   ├── a2ui/                     # [A2UI框架规范] a2ui-framework-architecture, a2ui-component-registry
@@ -172,16 +257,18 @@ docs/
 │   └── ui/                       # [界面设计规范] ui-design-guide, app-js-modularization-guide
 ├── specs/                        # [实施看板] 7 大领域实施与执行进度中心
 │   ├── README.md                 # 实施总览矩阵与进度追踪看板
-│   ├── a2ui/                     # [01.A2UI实施] a2ui-framework-engine, a2ui-component-registry
-│   ├── algorithm/                # [02.算法规则实施] algo-lifecycle-and-governance, configurable-funnel
+│   ├── a2ui/                     # [01.A2UI实施] a2ui-framework-engine-plan, a2ui-component-registry-plan
+│   ├── algorithm/                # [02.算法规则实施] algo-lifecycle-and-governance-plan, configurable-funnel-plan
 │   ├── architecture/             # [03.系统架构实施] arch-web-aichat, arch-llm-provider, arch-token-gateway
 │   ├── business/                 # [04.业务规则实施] biz-broker-commission, biz-breakeven, biz-trading-execution
 │   ├── data/                     # [05.数据架构实施] market-data-sync-implementation-plan (SPEC-DATA-001)
 │   ├── engineering/              # [06.工程结构实施] eng-project-structure-and-workspace (SPEC-ENG-001)
-│   └── ui/                       # [07.UI设计实施] ui-design-and-interaction (SPEC-UI-001)
-├── trading/                      # [量化实战] 实操手册与速查指引
-│   ├── execution-manual.md       # 实战交易反应动作与执行操作指引
-│   └── breakeven-rules.md        # 最低保本价精算数学公式速查
+│   ├── ui/                       # [07.UI设计实施] ui-design-and-interaction-plan (SPEC-UI-001)
+│   └── <domain>/archive/         # [不可变归档] 历史 ADR / RFC / 审计报告 (豁免 -plan.md 命名)
+├── trading/                      # [实战速查] 纯索引层，不承载规范正文 (SSOT 见 guidelines/business/)
+│   ├── execution-manual.md       # 实战交易反应动作速查索引
+│   └── breakeven-rules.md        # 最低保本价精算速查索引
+├── audits/                       # [审计归档] 不可变审查报告与历史审计留痕 (只增不改)
 └── images/                       # [静态资产] 架构全景图与流程示意图
     └── architecture.png
 ```

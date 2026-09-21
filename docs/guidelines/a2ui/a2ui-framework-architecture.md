@@ -2,7 +2,7 @@
 
 > **文档类别**：系统架构 (Architecture)  
 > **适用范围**：A-Stock Agents 独立 Web 投研前端、Desktop 客户端（Tauri/Electron）及跨端通用的 AI 动态驱动 UI 渲染中枢  
-> **实施进度看板**：[`docs/specs/a2ui/a2ui-framework-engine-specification.md`](../../specs/a2ui/a2ui-framework-engine-specification.md) (`SPEC-A2UI-001`)
+> **实施进度看板**：[`docs/specs/a2ui/a2ui-framework-engine-plan.md`](../../specs/a2ui/a2ui-framework-engine-plan.md) (`SPEC-A2UI-001`)
 
 ---
 

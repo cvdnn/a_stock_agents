@@ -1,7 +1,7 @@
 # A-Stock Agents 回归测试与质量保证指南
 
-> 版本：v3.0.0  
 > 适用：工程核心开发、代码贡献者、测试与持续集成（CI）
+> **实施进度看板**：[`eng-runtime-and-test-remediation-plan.md`](../../specs/engineering/eng-runtime-and-test-remediation-plan.md) (`SPEC-ENG-001`)
 
 ---
 
@@ -12,7 +12,7 @@ A-Stock Agents 作为涉及实盘模拟交易、选股量化与策略执行的�
 ### 1. 规约一：功能修改，测试先行（Regression-First / TDD）
 **每次功能修改、功能重构或新增特性前，必须先升级修改测试用例，用于项目功能回归测试。**
 
-- **测试先行**：修改已有接口或增加业务逻辑时，必须先在对应模块的领域回归测试套件（如 `tests/test_*_suite.py`）中更新预期输入输出断言与异常分支防护。
+- **测试先行**：修改已有接口或增加业务逻辑时，必须先在对应模块的领域回归测试套件（如 `tests/core/test_*_suite.py`）中更新预期输入输出断言与异常分支防护。
 - **红灯到绿灯**：先观察用例在旧逻辑下失败（Red），再实现新逻辑使测试全部通过（Green）。
 - **零回归交付**：任何 Git 提交（Commit）前，必须运行全量回归测试 `pytest`，确保 100% 通过且无警告。
 
@@ -63,25 +63,25 @@ pytest -x
 ### 2. 按领域模块运行
 ```bash
 # 验证数据桥与配置
-pytest tests/test_data_suite.py -v
+pytest tests/core/test_data_suite.py -v
 
 # 验证选股模型与多因子
-pytest tests/test_models_suite.py -v
+pytest tests/core/test_models_suite.py -v
 
 # 验证策略动作与风控
-pytest tests/test_strategy_suite.py -v
+pytest tests/core/test_strategy_suite.py -v
 
 # 验证模拟盘与回测引擎
-pytest tests/test_paper_trading_suite.py -v
+pytest tests/core/test_paper_trading_suite.py -v
 
 # 验证系统安全防护
-pytest tests/test_security_suite.py -v
+pytest tests/governance/test_security_suite.py -v
 ```
 
 ### 3. 前端交互与 DOM 回归测试
 ```bash
 # 执行前端 @操作符、富文本输入框、三大股池展示与工作台联动自动化回归测试 (Node.js)
-node tests/test_at_operator.js
+node tests/frontend/test_at_operator.js
 ```
 
 ---
@@ -89,7 +89,7 @@ node tests/test_at_operator.js
 ## 四、贡献代码检查清单（Checklist）
 
 在发起 PR 或推送提交前，请完成以下自检：
-- [ ] 是否在修改业务代码前，先行在对应的 `tests/test_*_suite.py` 中更新了测试用例？
+- [ ] 是否在修改业务代码前，先行在对应的 `tests/core/test_*_suite.py` 中更新了测试用例？
 - [ ] 是否未在 `tests/` 根目录残留任何针对单次优化的临时测试文件？
 - [ ] 本地运行 `pytest` 是否全绿通过（100% Passed）？
 - [ ] 新增的测试用例是否使用了本地 Mock 或合成数据，避免产生外部网络强依赖？

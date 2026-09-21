@@ -1,5 +1,9 @@
 # Agent 运行时与技能真实性实施计划
 
+> 关联规范编号：`SPEC-ARCH-001`（发现 A1-A4）、`SPEC-ARCH-002`（发现 A5）
+> 权威定义 (SSOT)：[`web-aichat-architecture.md`](../../guidelines/architecture/web-aichat-architecture.md)、[`llm-provider-architecture.md`](../../guidelines/architecture/llm-provider-architecture.md)
+> **实施状态**：规划中 (RFC) | 待执行，依赖工程计划 E1/E2 先完成；按 R1、R2a、R3、R4、R2b 顺序推进
+
 > **For agentic workers:** 使用 `executing-plans` 按 R1、R2a、R3、R4、R2b 执行；依赖与前端交接按总计划控制。
 
 **Goal:** 对话工具调用受治理约束，结果真实可追溯，多轮上下文完整，业务角色决定实际模型。
@@ -10,7 +14,7 @@
 
 ---
 
-依赖：[工程计划 E1/E2](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-runtime-and-test-remediation-plan.md) 先完成。所有 provider/行情测试使用合成响应。
+依赖：[工程计划 E1/E2](../engineering/eng-runtime-and-test-remediation-plan.md) 先完成。所有 provider/行情测试使用合成响应。
 
 ## R1：统一技能执行与确认续跑
 

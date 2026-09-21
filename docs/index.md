@@ -57,8 +57,8 @@ mindmap
       cache[本地计算缓存与盘中监控状态]
       backtest[策略回测日志与绩效报告]
     [测试与文档 tests & docs]
-      tests[10大领域回归测试套件·测试先行·即测即删]
-      docs[架构图·工程规范·设计方案·实战手册]
+      tests[四层分层回归测试套件 core/governance/server/frontend]
+      docs[导图·快速上手·容器部署·规范指南SSOT·实施看板·审查归档·实战速查]
 ```
 
 ---
@@ -101,25 +101,32 @@ a_stock_agents/
 │   ├── skills_manifest.json # 18 技能清单元数据与参数契约 (JSON)
 │   ├── skills_manifest.yaml # 18 技能清单元数据与参数契约 (YAML)
 │   └── stock_pools.yaml     # 预置关注池与基准测试对照股票池配置
-├── docs/                    # 项目分级技术文档体系 (kebab-case 规范)
+├── docs/                    # 项目分级技术文档体系 (kebab-case 规范，两范式严格二分)
 │   ├── index.md             # 全景知识库导图 (本文件)
 │   ├── quickstart.md        # 快速上手向导 (环境安装 / 自检 / CLI 与 Web 演示)
-│   ├── guidelines/          # 工程质量、代码审查与命名规范指南
-│   │   ├── algorithm-governance.md # 44项算法资产、四道门禁与ALCM生命周期
-│   │   ├── code-review.md         # 代码审查基准、红线清单与防御模式
-│   │   ├── naming-conventions.md  # 源码物理命名、模型演进四大范式规范
-│   │   └── testing-guide.md       # 回归测试架构、TDD规约与用例管理
-│   ├── specs/               # 6 大核心领域规范体系中心 (遵循统一命名规则)
-│   │   ├── README.md        # 规范总览与矩阵看板 (SPEC-INDEX)
-│   │   ├── engineering/     # [01.工程结构] eng-project-structure-and-workspace.md
-│   │   ├── ui/              # [02.UI设计] ui-design-and-interaction-specification.md
-│   │   ├── architecture/    # [03.系统架构] arch-web-aichat, arch-llm-provider, arch-token-gateway
-│   │   ├── a2ui/            # [04.A2UI框架] a2ui-framework-engine, a2ui-component-registry
-│   │   ├── business/        # [05.业务规则] biz-broker-commission, biz-breakeven, biz-trading-execution
-│   │   └── algorithm/       # [06.算法规则] algo-lifecycle-and-governance-specification.md
-│   ├── trading/             # 实战交易动作手册与数学计算规则
-│   │   ├── breakeven-rules.md     # 最低保本卖出价精算数学公式与向上进位规则
-│   │   └── execution-manual.md    # 六大实战反应动作、三场景决策单与挂单纪律
+│   ├── docker-deploy.md     # Docker 与 Compose 生产容器化部署运维指南
+│   ├── guidelines/          # ★ 权威知识定义库 (SSOT)：规范 / 指南 / 架构 / 规则
+│   │   ├── README.md        # 知识库 7 大领域分类矩阵导航
+│   │   ├── a2ui/            # A2UI 渲染引擎架构与组件库注册发现规范
+│   │   ├── algorithm/       # 算法治理、选股体系设计与漏斗规则
+│   │   ├── architecture/    # Web AIChat、LLM 双轨、Token 安全网关与生产级平台架构
+│   │   ├── business/        # 券商费率、保本价精算与实战交易风控规则 (SSOT)
+│   │   ├── data/            # 行情数据接口与本地同步机制规范
+│   │   ├── engineering/     # 工程结构、代码审查、命名范式、安全加固与测试规约
+│   │   └── ui/              # 界面设计、app.js 模块化与对话呈现指南
+│   ├── specs/               # ★ 实施进度看板中心 (SPEC-{CATEGORY}-{SEQ} 编号体系)
+│   │   ├── README.md        # 7 大领域实施矩阵总看板 (SPEC-INDEX)
+│   │   ├── a2ui/            # SPEC-A2UI-001/002 看板与运行时整改计划
+│   │   ├── algorithm/       # SPEC-ALGO-* 看板 + archive/ 历史 ADR 归档 (只增不改)
+│   │   ├── architecture/    # SPEC-ARCH-001~004 看板与技能能力验收台账
+│   │   ├── business/        # SPEC-BIZ-001~003 看板与费率风控整改计划
+│   │   ├── data/            # SPEC-DATA-001 行情同步实施计划与验收看板
+│   │   ├── engineering/     # SPEC-ENG-001 / SPEC-SEC-001 及整改总计划与验收台账
+│   │   └── ui/              # SPEC-UI-001/002 看板与前端整改计划
+│   ├── audits/              # 不可变审查报告归档区 (规格审查/代码审查/渗透测试，只增不改)
+│   ├── trading/             # 实战交易速查索引层 (纯索引，权威定义见 guidelines/)
+│   │   ├── breakeven-rules.md     # 保本价速查入口 (SSOT 指向 business/breakeven-calculation-rules.md)
+│   │   └── execution-manual.md    # 六大反应动作与三场景决策单速查入口
 │   └── images/              # 架构全景图等静态图片资源
 ├── output/                  # 用户专属数据目录 (★ 强制数据隔离，不随源码/安装包分发)
 │   ├── pools/               # 个人自选池、关注池、持仓池 CSV
@@ -224,17 +231,23 @@ a_stock_agents/
 │   └── js/
 │       ├── app.js           # 前端业务逻辑、会话管理、SSE 流式解析与工具交互
 │       └── charts.js        # K线图、雷达图与资金流向轻量可视化渲染
-├── tests/                   # 自动化测试套件 (10 大核心领域回归测试)
-│   ├── test_algo_registry.py / test_algo_monitoring.py # 算法中心与质量门禁测试
-│   ├── test_commands_suite.py     # CLI 全子命令自动化测试
-│   ├── test_custom_output.py      # 用户数据严格隔离验证
-│   ├── test_data_suite.py         # 4级降级数据桥接测试
-│   ├── test_decoupling_suite.py   # 全链路路径解耦与无软链接架构测试
-│   ├── test_governance_suite.py   # Skill 治理与 Schema 校验测试
-│   ├── test_paper_trading_suite.py# 模拟盘撮合与滑点模型测试
-│   ├── test_server_suite.py       # FastAPI 网关与 SSE 流式接口测试
-│   ├── test_strategy_suite.py     # 保本价精确进位与风控动作测试
-│   └── README.md                  # 测试套件运行指南与测试红线规范
+├── tests/                   # 自动化测试套件 (四层分层：core / governance / server / frontend)
+│   ├── conftest.py          # 全局测试夹具与数据隔离配置
+│   ├── README.md            # 测试套件运行指南与测试红线规范
+│   ├── core/                # 量化核心、数据与 CLI 领域回归测试
+│   │   ├── test_commands_suite.py / test_data_suite.py / test_indicators.py
+│   │   ├── test_models_suite.py / test_algo_registry.py / test_algo_monitoring.py
+│   │   ├── test_paper_trading_suite.py / test_strategy_suite.py / test_pool_schema.py
+│   │   └── test_dynamic_universe.py / test_monitor.py / test_data_sync.py 等
+│   ├── governance/          # 治理红线与文档护栏测试
+│   │   ├── test_docs_suite.py         # 文档范式、相对链接与状态声明护栏
+│   │   ├── test_governance_suite.py / test_security_suite.py / test_security_audit.py
+│   │   └── test_production_authenticity.py / test_capability_truthfulness.py 等
+│   ├── server/              # FastAPI 网关与 ReAct 运行时接口测试
+│   │   ├── test_server_suite.py / test_market_data_api.py / test_llm_readiness.py
+│   │   └── test_live_server_e2e.py / test_cors_security.py / test_session_memory.py 等
+│   └── frontend/            # 前端渲染与交互 Node 单测 (test_*.js)
+│       └── test_chat_presentation.js / test_markdown_render.js / test_at_operator.js 等
 ├── install.ps1 / install.sh # 跨平台一键环境安装脚本
 ├── update.ps1 / update.sh   # 跨平台热更新升级脚本
 ├── verify.py                # 平台就绪性 11 项全功能自动化自检脚本
@@ -459,38 +472,48 @@ flowchart TD
 7. **双模 Web 投研视口与现代金融美学**：
    - 遵循《Web UI 界面设计与交互规范》，打造浅色专业金融风格，采用三栏式 40/60 工作区，支持 AI 投研助手从左向右平滑展开与独立收起。
 8. **测试先行与即测即删铁律**：
-   - 严守「功能修改，测试先行」理念，维护 10 大核心领域标准回归测试套件。
+   - 严守「功能修改，测试先行」理念，维护四层分层标准回归测试套件（`core` / `governance` / `server` / `frontend`）。
    - 单次优化所编写的临时测试用例在验证完成后必须立即清理，通用断言沉淀至标准套件，确保基线测试 100% 幂等绿灯。
 
 ---
 
 ## 八、技术文档体系速查 (Documentation Index)
 
-### 1. 规范、指南、架构与规则知识库 (`docs/guidelines/` - SSOT)
-| 类别 | 文档路径 | 对应实施看板 | 核心内容与定位 |
+### 1. 规范、指南、架构与规则知识库 (`docs/guidelines/` - 权威定义 SSOT)
+| 领域 | 文档路径 | 对应实施看板 | 核心内容与定位 |
 |---|---|:---:|---|
-| **知识库总览** | [`guidelines/README.md`](guidelines/README.md) | [`specs/README.md`](specs/README.md) | 全景分类矩阵导航（规范·指南·架构·规则）与演进规范 |
+| **知识库总览** | [`guidelines/README.md`](guidelines/README.md) | [`specs/README.md`](specs/README.md) | 7 大领域全景分类矩阵导航（规范·指南·架构·规则）与文档编制范式 |
 | **工程规范** | [`guidelines/engineering/project-structure-specification.md`](guidelines/engineering/project-structure-specification.md) | [`SPEC-ENG-001`](specs/engineering/eng-project-structure-and-workspace.md) | 零全局污染、SSOT、跨平台 CLI 门面与用户私有数据物理隔离规范 |
-| **A2UI规范** | [`guidelines/a2ui/a2ui-component-registry-specification.md`](guidelines/a2ui/a2ui-component-registry-specification.md) | [`SPEC-A2UI-002`](specs/a2ui/a2ui-component-registry-specification.md) | A2UI 领域组件包契约、时序解耦未决缓冲池、命名空间隔离与自省清单规范 |
-| **界面指南** | [`guidelines/ui/ui-design-guide.md`](guidelines/ui/ui-design-guide.md) | [`SPEC-UI-001`](specs/ui/ui-design-and-interaction-specification.md) | 浅色金融风格、红涨绿跌、双模动态视口、长连通顶栏与卡片微边框指南 |
-| **算法治理** | [`guidelines/algorithm/algorithm-governance.md`](guidelines/algorithm/algorithm-governance.md) | [`SPEC-ALGO-001`](specs/algorithm/algo-lifecycle-and-governance-specification.md) | 44项算法资产全景清单、AlgoRegistry 2.0 统一抽象与 ALCM 四道门禁 |
-| **代码审查** | [`guidelines/engineering/code-review.md`](guidelines/engineering/code-review.md) | - | 代码质量基准、安全红线与审查报告标准 |
-| **测试规约** | [`guidelines/engineering/testing-guide.md`](guidelines/engineering/testing-guide.md) | - | 10 大核心领域回归测试架构、TDD 流程与临时用例即测即删铁律 |
-| **命名范式** | [`guidelines/engineering/naming-conventions.md`](guidelines/engineering/naming-conventions.md) | - | 消除文件名版本化侵入、四大演进范式与文档双语命名规约 (SSOT) |
+| **工程规范** | [`guidelines/engineering/code-review.md`](guidelines/engineering/code-review.md) | — | 代码质量基准、安全红线与审查报告标准、防御模式清单 |
+| **工程规范** | [`guidelines/engineering/naming-conventions.md`](guidelines/engineering/naming-conventions.md) | — | 文档两范式模板与反混编红线、源码物理命名与四大演进范式 (SSOT) |
+| **工程规范** | [`guidelines/engineering/testing-guide.md`](guidelines/engineering/testing-guide.md) | [`SPEC-ENG-001`](specs/engineering/eng-runtime-and-test-remediation-plan.md) | 四层分层回归测试架构、TDD 流程与临时用例即测即删铁律 |
+| **工程规范** | [`guidelines/engineering/security-hardening-guide.md`](guidelines/engineering/security-hardening-guide.md) | [`SPEC-SEC-001`](specs/engineering/security-remediation-plan.md) | 8 项渗透测试隐患的长效安全规约、编码防线与安全测试门禁 |
+| **界面指南** | [`guidelines/ui/ui-design-guide.md`](guidelines/ui/ui-design-guide.md) | [`SPEC-UI-001`](specs/ui/ui-design-and-interaction-plan.md) | 浅色金融风格、红涨绿跌、双模动态视口、长连通顶栏与卡片微边框指南 |
+| **界面指南** | [`guidelines/ui/app-js-modularization-guide.md`](guidelines/ui/app-js-modularization-guide.md) | [`SPEC-UI-002`](specs/ui/app-js-modularization-plan.md) | 前端巨石单体解耦为领域驱动模块、零构建工具依赖与兼容策略 |
+| **界面指南** | [`guidelines/ui/chat-response-presentation-guide.md`](guidelines/ui/chat-response-presentation-guide.md) | [`SPEC-UI-001`](specs/ui/chat-response-presentation-plan.md) | 对话回复卡片结构、执行时间线渲染契约与工作台投射规则 |
 | **系统架构** | [`guidelines/architecture/web-aichat-architecture.md`](guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 项技能治理系统架构 |
 | **系统架构** | [`guidelines/architecture/llm-provider-architecture.md`](guidelines/architecture/llm-provider-architecture.md) | [`SPEC-ARCH-002`](specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与 5 大业务场景角色绑定 (Roles) 架构 |
 | **系统架构** | [`guidelines/architecture/token-security-architecture.md`](guidelines/architecture/token-security-architecture.md) | [`SPEC-ARCH-003`](specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离、请求脱敏与指纹审计架构 |
-| **A2UI架构** | [`guidelines/a2ui/a2ui-framework-architecture.md`](guidelines/a2ui/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 前端渲染引擎、WebApp Shell 硬锁定、1:1 骨架与五阶段渐进水合 |
-| **业务规则** | [`guidelines/business/breakeven-calculation-rules.md`](guidelines/business/breakeven-calculation-rules.md) | [`SPEC-BIZ-002`](specs/business/biz-breakeven-price-calculation-rules.md) | 最低保本卖出价精算数学公式与向上精确进位至分位 (`math.ceil`) 规则 |
-| **业务规则** | [`guidelines/business/broker-commission-rules.md`](guidelines/business/broker-commission-rules.md) | [`SPEC-BIZ-001`](specs/business/biz-broker-commission-configurable-design.md) | 券商佣金及市场费率参数配置化、全局配置中心与未确认友好提醒规则 |
+| **系统架构** | [`guidelines/architecture/production-agent-platform-architecture.md`](guidelines/architecture/production-agent-platform-architecture.md) | [`SPEC-ARCH-004`](specs/architecture/production-agent-platform-plan.md) | 生产级 Agent 平台分层架构、可靠性保障与演进路线 |
+| **A2UI规范** | [`guidelines/a2ui/a2ui-framework-architecture.md`](guidelines/a2ui/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](specs/a2ui/a2ui-framework-engine-plan.md) | A2UI 前端渲染引擎、WebApp Shell 硬锁定、1:1 骨架与五阶段渐进水合 |
+| **A2UI规范** | [`guidelines/a2ui/a2ui-component-registry-specification.md`](guidelines/a2ui/a2ui-component-registry-specification.md) | [`SPEC-A2UI-002`](specs/a2ui/a2ui-component-registry-plan.md) | A2UI 领域组件包契约、时序解耦未决缓冲池、命名空间隔离与自省清单规范 |
+| **业务规则** | [`guidelines/business/broker-commission-rules.md`](guidelines/business/broker-commission-rules.md) | [`SPEC-BIZ-001`](specs/business/biz-broker-commission-configurable-plan.md) | 券商佣金及市场费率参数配置化、全局配置中心与未确认友好提醒规则 |
+| **业务规则** | [`guidelines/business/breakeven-calculation-rules.md`](guidelines/business/breakeven-calculation-rules.md) | [`SPEC-BIZ-002`](specs/business/biz-breakeven-price-calculation-plan.md) | 最低保本卖出价精算数学公式与向上精确进位至分位 (`math.ceil`) 规则 (SSOT) |
 | **业务规则** | [`guidelines/business/trading-execution-rules.md`](guidelines/business/trading-execution-rules.md) | [`SPEC-BIZ-003`](specs/business/biz-trading-execution-and-risk-control.md) | 实战交易三原则、六大交易反应动作与 T0/T1/T2 阶梯止损风控规则 |
+| **算法规则** | [`guidelines/algorithm/algorithm-governance.md`](guidelines/algorithm/algorithm-governance.md) | [`SPEC-ALGO-001`](specs/algorithm/algo-lifecycle-and-governance-plan.md) | 44 项算法资产全景清单、AlgoRegistry 2.0 统一抽象与 ALCM 四道门禁 |
+| **算法规则** | [`guidelines/algorithm/selection-system-specification.md`](guidelines/algorithm/selection-system-specification.md) | [`SPEC-ALGO-ISS-001`](specs/algorithm/selection-system-plan.md) | 智能选股系统功能建设规范：模型版本控制与层级漏斗引擎 |
+| **算法规则** | [`guidelines/algorithm/close-open-funnel-rules.md`](guidelines/algorithm/close-open-funnel-rules.md) | [`SPEC-ALGO-ISS-001`](specs/algorithm/selection-system-plan.md) | 收盘筛选与次日开盘执行两阶段衔接的漏斗口径与过滤硬约束 |
+| **算法规则** | [`guidelines/algorithm/selection-design-guide.md`](guidelines/algorithm/selection-design-guide.md) | [`SPEC-ALGO-002`](specs/algorithm/selection-design-plan.md) | 选股体系设计范式、分层架构与因子组织方式指南 |
+| **算法规则** | [`guidelines/algorithm/general-selection-and-turning-point-rules.md`](guidelines/algorithm/general-selection-and-turning-point-rules.md) | [`SPEC-ALGO-003`](specs/algorithm/general-selection-and-turning-point-plan.md) | 通用选股口径、拐点识别判据与仓位上限硬约束 |
+| **数据规范** | [`guidelines/data/market-data-api-specification.md`](guidelines/data/market-data-api-specification.md) | [`SPEC-DATA-001`](specs/data/market-data-sync-implementation-plan.md) | 4 级降级数据源规范、实时快照与全周期 K 线协议字典 |
+| **数据规范** | [`guidelines/data/market-data-sync-specification.md`](guidelines/data/market-data-sync-specification.md) | [`SPEC-DATA-001`](specs/data/market-data-sync-implementation-plan.md) | 交易日时钟驱动、完整性 Gap 探测自愈与 SQLite 嵌入式存储规范 |
 
 ### 2. 实施进度看板与实战操作
 | 分类 | 文档路径 | 核心内容与定位 |
 |---|---|---|
 | **快速入门** | [`quickstart.md`](quickstart.md) | 环境安装、依赖配置、一键自检与 CLI / Web 快速演示向导 |
 | **容器部署** | [`docker-deploy.md`](docker-deploy.md) | Docker 与 Docker Compose 生产容器化快速部署与运维指南 |
-| **实施总览** | [`specs/README.md`](specs/README.md) | 6 大领域规范实施落地进度追踪总看板 (SPEC-INDEX) |
-| **实战手册** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律手册 (操作指引) |
-| **保本速查** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价精算数学公式与向上进位至分位规则 (快速速查) |
+| **实施总览** | [`specs/README.md`](specs/README.md) | 7 大领域规范实施落地进度追踪总看板 (SPEC-INDEX) |
+| **实战速查** | [`trading/execution-manual.md`](trading/execution-manual.md) | 六大实战反应动作、三场景决策单与挂单纪律速查入口（权威定义见 [`guidelines/business/trading-execution-rules.md`](guidelines/business/trading-execution-rules.md)） |
+| **保本速查** | [`trading/breakeven-rules.md`](trading/breakeven-rules.md) | 最低保本卖出价速查入口（权威定义见 [`guidelines/business/breakeven-calculation-rules.md`](guidelines/business/breakeven-calculation-rules.md)） |
 | **架构图谱** | [`images/architecture.png`](images/architecture.png) | 系统架构全景图高清原图 |

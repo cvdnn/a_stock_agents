@@ -183,6 +183,6 @@ MOCK 分三层：① 后端 `market_data.py` 静态数据；② `api.js` 每个�
 
 ### 5. 契约漂移防护
 
-后端 Pydantic Schema（`market_data.py`）与 `api.js` 兜底形状、加载器读取字段三者必须一致；改动任何一处需同步另两处，并以 `tests/test_market_data_api.py` 作为契约回归基线。
+后端 Pydantic Schema（`market_data.py`）与 `api.js` 兜底形状、加载器读取字段三者必须一致；改动任何一处需同步另两处，并以 `tests/server/test_market_data_api.py` 作为契约回归基线。
 
 

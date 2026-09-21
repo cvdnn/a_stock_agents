@@ -32,7 +32,7 @@
 | **P1** | **CLI 门面与分发** | 接入 `astock data sync`，支持终端彩色报告与 `--json`<br>• [`scripts/core/cli.py`](../../../scripts/core/cli.py)<br>• [`scripts/core/commands/data_cmds.py`](../../../scripts/core/commands/data_cmds.py) | ✅ 完成 | 命令行参数完备，交互体验与文档契约一致 |
 | **P1** | **离线指标分析打通** | 优化 `DataBridge.get_kline_robust()`，优先命中本地数据库<br>• [`scripts/core/data/data_bridge.py`](../../../scripts/core/data/data_bridge.py) | ✅ 完成 | `astock data tech` 无需外网请求即可秒级计算指标 |
 | **P2** | **防泄漏与打包隔离** | 在版本控制与发布打包中彻底排除 `local/`<br>• [`.gitignore`](../../../.gitignore)<br>• [`.dockerignore`](../../../.dockerignore)<br>• [`scripts/tools/pack.py`](../../../scripts/tools/pack.py) | ✅ 完成 | Git 追踪纯净，打包工具排除 `local/` |
-| **P2** | **自动化测试验证** | 编写单元测试并运行全套回归套件<br>• [`tests/test_data_sync.py`](../../../tests/test_data_sync.py)<br>• [`verify.py`](../../../verify.py) | ✅ 完成 | 单元测试 3/3 通过，全自检 11/11 项全部通过 |
+| **P2** | **自动化测试验证** | 编写单元测试并运行全套回归套件<br>• [`tests/test_data_sync.py`](../../../tests/core/test_data_sync.py)<br>• [`verify.py`](../../../verify.py) | ✅ 完成 | 单元测试 3/3 通过，全自检 11/11 项全部通过 |
 
 ---
 

@@ -1,5 +1,9 @@
 # 审查整改实施总计划
 
+> 关联规范编号：10 项受审规格（`SPEC-ENG-001`、`SPEC-UI-001`、`SPEC-ARCH-001`、`SPEC-ARCH-002`、`SPEC-A2UI-001`、`SPEC-A2UI-002`、`SPEC-BIZ-001`、`SPEC-BIZ-002`、`SPEC-BIZ-003`、`SPEC-ALGO-001`），清单见 [`eng-remediation-acceptance.md`](eng-remediation-acceptance.md)
+> 权威定义 (SSOT)：[`project-structure-specification.md`](../../guidelines/engineering/project-structure-specification.md)、[`code-review.md`](../../guidelines/engineering/code-review.md)
+> **实施状态**：规划中 (RFC) | 待执行（审查基准 `88f1f71`）
+
 > **For agentic workers:** 使用 `executing-plans` 按任务执行；仅在获得并行执行授权后使用 `subagent-driven-development`。执行前读取对应技能。步骤以 `- [ ]` 跟踪，本文件与子计划均是待执行计划，不是完成记录。
 
 **Goal:** 修复审查报告中影响真实性、执行控制、资金计算与交付可靠性的缺陷，为 10 项已宣称完成的 specs 建立可复现的验收证据。
@@ -10,7 +14,7 @@
 
 ---
 
-制定日期：2026-09-09。审查基准：`88f1f71`。状态：待执行。源报告：[项目代码结构与规范审查](C:/Users/cvdnn/coding/a_stock_agents/output/audit-review/project-specs-review.md)。
+制定日期：2026-09-09。审查基准：`88f1f71`。状态：待执行。源报告：[项目代码结构与规范审查](../../audits/2026-09-09-project-specs-review.md)。
 
 本计划按项目 `docs/specs/` 六领域组织规则存放，覆盖审查的 18 个发现编号。先建立测试隔离，再封堵错误成功路径，随后完成业务接线，最后重新验收。所有时间为单名熟悉 Python/JS 的工程师有效工作量估算，不是日历承诺。
 
@@ -29,18 +33,18 @@
 5. 算法“解析用于研究”与“获准生产执行”分开；保留研究/回测能力，禁止 retired 算法通过生产入口执行。不能通过给全部内置算法补一个 production 常量绕过验收。
 6. A2UI 已有 3 个明确组件。本轮按这 3 个真实组件建立自省契约，修订无组件清单依据的“6 个”文字，并记录规格变更理由；不创建空组件凑数量。若后续提出另外 3 个独立业务组件，另列需求和验收。
 7. 不因工程收敛删除用户目录、持仓或数据库。解除 Git 跟踪保留工作区文件；不改写 Git 历史。旧路径读取/迁移必须显式启用。
-8. 已有 [前端接入计划](C:/Users/cvdnn/coding/a_stock_agents/docs/audits/frontend-api-integration-plan.md) 的已完成加载器保留，以契约测试复验；其中“离线自动生成分析模板”由本计划的显式演示规则替代。
+8. 已有 [前端接入计划](../ui/frontend-api-integration-plan.md) 的已完成加载器保留，以契约测试复验；其中“离线自动生成分析模板”由本计划的显式演示规则替代。
 
 ## 子计划与执行顺序
 
 | 里程碑 | 任务 | 子计划 | 主要交付 | 估算 |
 |---|---|---|---|---|
-| M0 测试和看板可相信 | E1、E2、D1 | [工程与验证](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-runtime-and-test-remediation-plan.md) | 测试输出/配置/DB隔离、默认无网络、真实状态台账 | 2–3 人日 |
-| M1 先阻断错误成功 | R1、R2a、F1 | [运行时](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/architecture/arch-agent-runtime-remediation-plan.md)、[A2UI](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/a2ui/a2ui-runtime-remediation-plan.md) | 统一治理、未实现返回错误、生产演示路径停用 | 2–3 人日 |
-| M2 核心业务契约成立 | R3、R4、B1–B3 | [运行时](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/architecture/arch-agent-runtime-remediation-plan.md)、[费用与风控](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/business/biz-fees-and-risk-remediation-plan.md) | 多轮历史、角色接线、统一费用和完整动作单 | 4–6 人日 |
-| M3 可见交付闭环 | R2b、F2–F4、E3 | [A2UI](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/a2ui/a2ui-runtime-remediation-plan.md)、[工程与验证](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-runtime-and-test-remediation-plan.md) | 真实技能产物、SSE渲染、正确投射、安装发布包 | 4–6 人日 |
-| M4 算法准入与退役生效 | G1–G3 | [算法治理](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/algorithm/algo-governance-remediation-plan.md) | 持久化门禁证据、受控晋级、真实运行熔断 | 3–5 人日 |
-| M5 重新验收与基线恢复 | E4、D2 | [工程与验证](C:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-runtime-and-test-remediation-plan.md) | 跨平台证据、清洁发布包、逐条规格验收记录 | 1–2 人日 |
+| M0 测试和看板可相信 | E1、E2、D1 | [工程与验证](eng-runtime-and-test-remediation-plan.md) | 测试输出/配置/DB隔离、默认无网络、真实状态台账 | 2–3 人日 |
+| M1 先阻断错误成功 | R1、R2a、F1 | [运行时](../architecture/arch-agent-runtime-remediation-plan.md)、[A2UI](../a2ui/a2ui-runtime-remediation-plan.md) | 统一治理、未实现返回错误、生产演示路径停用 | 2–3 人日 |
+| M2 核心业务契约成立 | R3、R4、B1–B3 | [运行时](../architecture/arch-agent-runtime-remediation-plan.md)、[费用与风控](../business/biz-fees-and-risk-remediation-plan.md) | 多轮历史、角色接线、统一费用和完整动作单 | 4–6 人日 |
+| M3 可见交付闭环 | R2b、F2–F4、E3 | [A2UI](../a2ui/a2ui-runtime-remediation-plan.md)、[工程与验证](eng-runtime-and-test-remediation-plan.md) | 真实技能产物、SSE渲染、正确投射、安装发布包 | 4–6 人日 |
+| M4 算法准入与退役生效 | G1–G3 | [算法治理](../algorithm/algo-governance-remediation-plan.md) | 持久化门禁证据、受控晋级、真实运行熔断 | 3–5 人日 |
+| M5 重新验收与基线恢复 | E4、D2 | [工程与验证](eng-runtime-and-test-remediation-plan.md) | 跨平台证据、清洁发布包、逐条规格验收记录 | 1–2 人日 |
 
 合计预估 **16–25 人日**。外部模型样本外验证、真实行情可用性和算法 G3 所需观察时长不包含在上述代码工作量内；这些依赖未满足时，对应子任务保持待验证，不以 Mock 测试代替生产证据。
 

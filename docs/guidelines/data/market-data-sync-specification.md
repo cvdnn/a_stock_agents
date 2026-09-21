@@ -2,7 +2,7 @@
 
 > **文档类别**：工程技术与系统架构规范 (Specification)  
 > **单一真理来源 (SSOT)**：`scripts/core/data/sync_engine.py` & `scripts/core/workspace.py`  
-> **对应实施看板**：[`SPEC-DATA-001`](../../specs/data/market-data-sync-implementation-plan.md)
+> **实施进度看板**：[`SPEC-DATA-001`](../../specs/data/market-data-sync-implementation-plan.md)
 
 ---
 

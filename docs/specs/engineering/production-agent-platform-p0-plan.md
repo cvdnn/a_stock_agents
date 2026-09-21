@@ -1,6 +1,8 @@
 # Production Agent Platform P0 Implementation Plan
 
-> **执行状态（2026-09-10）：已完成。** 原始步骤清单保留用于审计；实际证据见 `docs/specs/engineering/eng-remediation-acceptance.md` 及本轮六个提交。
+> 关联规范编号：`SPEC-ARCH-004`（P0 真实性与安全止血阶段子计划）
+> 权威定义 (SSOT)：[`production-agent-platform-architecture.md`](../../guidelines/architecture/production-agent-platform-architecture.md)
+> **实施状态**：已完成 (Completed) | 2026-09-10 完成，原始步骤清单保留用于审计；实际证据见 `docs/specs/engineering/eng-remediation-acceptance.md` 及本轮六个提交
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

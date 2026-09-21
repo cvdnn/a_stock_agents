@@ -1,6 +1,9 @@
 # 配置驱动的“收盘突破 → 次日早盘拐点”漏斗
 
-> 本漏斗是智能选股系统中的复杂模型示例。后续核心编码、调度和 Web 工作台建设统一以[《智能选股系统功能建设规范》](configurable-funnel-feature-build-spec.md)为实施依据。
+> 适用范围：智能选股系统中「收盘突破 → 次日早盘拐点」漏斗示例的阶段规则定义、四层漏斗阶段契约、输入数据契约与 CLI 用法。
+> 核心目标：以配置驱动方式定义 `post_close → market_gate → opening_gap → turning_point` 四层漏斗的选股口径与数据契约，明确“短线候选生成器”与“自动买入系统”的边界，并在盘口契约缺失时保持可预期的降级行为。
+
+> 本漏斗是智能选股系统中的复杂模型示例。后续核心编码、调度和 Web 工作台建设统一以[《智能选股系统功能建设规范》](selection-system-specification.md)为实施依据。
 
 ## 结论与规则评估
 
@@ -56,3 +59,8 @@
 阶段顺序、阶段/规则启停、`all/any` 组合逻辑、阈值与规则组合全部定义在 `config/funnel_strategy.yaml`。已有规则类型可以直接组合；新增复杂规则时，在 `build_stock_rule_registry()` 注册一个纯函数即可。执行引擎与数据获取解耦，因此同一漏斗可接问财导出、行情供应商或历史回测数据。
 
 正式使用前必须做滚动样本外验证，至少统计候选数、09:40 后收益分布、次日/3日胜率、最大不利变动和不同大盘状态下的分层表现；不能用同一段数据既调拐点参数又宣称有效。
+
+---
+## 附：关联索引
+- 实施进度看板：[`SPEC-ALGO-ISS-001`](../../specs/algorithm/selection-system-plan.md)
+- 系统建设规范：[`selection-system-specification.md`](./selection-system-specification.md)

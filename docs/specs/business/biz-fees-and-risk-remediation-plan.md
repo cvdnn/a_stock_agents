@@ -1,5 +1,9 @@
 # 费用精算与三原则动作单实施计划
 
+> 关联规范编号：`SPEC-BIZ-001`、`SPEC-BIZ-002`、`SPEC-BIZ-003`、`SPEC-UI-001`
+> 权威定义 (SSOT)：[`broker-commission-rules.md`](../../guidelines/business/broker-commission-rules.md)、[`breakeven-calculation-rules.md`](../../guidelines/business/breakeven-calculation-rules.md)、[`trading-execution-rules.md`](../../guidelines/business/trading-execution-rules.md)
+> **实施状态**：规划中 (RFC) | 待执行，依赖 E1/E2；按 B1→B2→B3 顺序落地
+
 > **For agentic workers:** 使用 `executing-plans` 按 B1→B2→B3 执行；先写领域断言，后接入 API/HTML/UI。
 
 **Goal:** 相同成本、数量和配置在 CLI、模拟盘、API、HTML、前端得到相同费用及最低保本价，并输出完整三原则。

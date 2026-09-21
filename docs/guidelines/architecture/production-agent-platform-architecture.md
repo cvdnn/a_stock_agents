@@ -1,10 +1,7 @@
 # A-Stock Agents 正式 Agent 平台与真实能力执行设计
 
-**状态：** 已批准设计基线  
-**日期：** 2026-09-10  
-**适用范围：** Web AIChat、统一 CLI、项目级 Skills、MCP 接入、任务执行、多智能体协作、真实数据投射与跨宿主运行
-
-**实施状态：** P0“真实性与安全止血”已完成并设回归门禁；P1–P7 仍待实施。本状态不代表整个平台已达到第 18 节正式运行标准。
+> 适用范围：Web AIChat、统一 CLI、项目级 Skills、MCP 接入、任务执行、多智能体协作、真实数据投射与跨宿主运行。
+> 核心目标：把现有项目能力升级为正式 Agent 平台，确保用户请求先经已配置模型完成意图理解与任务规划、所有量化能力统一经项目 Skills 执行、失败或旧数据不混入最终结论，并在正式路径上禁止 Mock、硬编码行情与静默伪造成功。
 
 ## 1. 背景与目标
 
@@ -213,67 +210,7 @@ Mock Provider、合成行情和固定报告仅保留在测试夹具或显式 tes
 - 写入、交易和外部传输能力继续执行 Human-in-the-loop 确认，并防止确认重放。
 - 用户持仓、会话、报告和审计记录继续限定在 `output/`。
 
-## 15. 优先级与依赖顺序
-
-### P0：真实性与安全止血
-
-禁用正式 Mock、移除静默回退和硬编码成功；增加模型门禁；修复供应商密钥返回、localStorage 和 CORS；校准失实的完成状态。该阶段完成后，系统可以“不好看地失败”，但不能继续伪造成功。
-
-实施结果（2026-09-10）：已完成。正式模式拒绝 Mock；模型门禁先于工具执行；供应商凭据不再经 API/浏览器存储返回；默认 CORS 为显式本地来源且不携带凭据；未接通的 Skill/REST/UI 路径返回 unavailable/error/empty；`tests/test_production_authenticity.py` 提供持续扫描。P1 的统一 Skill 执行契约及其后阶段不在本结论内。
-
-### P1：统一能力注册与 Skill 执行
-
-统一规范 ID、别名、Schema、权限、状态和审计；所有 Web 工具调用经过 SkillRegistry/SkillExecutor；建立 `ExecutionResult`。复用现有整改计划 R1 与 R2a。
-
-### P2：用户意图和任务规划
-
-建立模型驱动的意图分析、任务 DAG Schema、本地计划校验和关键性标记。没有通过模型门禁时不进入该阶段。
-
-### P3：任务执行系统
-
-扩展现有 TaskManager，支持 DAG、依赖调度、并发、取消、超时、安全重试、确认暂停、失败传播、SQLite 状态和 SSE 事件。
-
-### P4：MCP 接入与辅助数据
-
-建立 MCPManager、连接配置、健康检查、工具发现、权限、凭据引用和 MCPExecutor；先接入能补足新闻、政策、舆情和基本面的数据能力。MCP 故障按任务节点关键性处理。
-
-### P5：多智能体协作与角色模型
-
-把现有 7 角色分析迁移到结构化任务和证据输入，按角色解析实际模型；隔离上下文；建立风控与综合仲裁。复用现有整改计划 R3、R4 和可用的 `core/multi_agent` 资产。
-
-### P6：真实工作台与报告闭环
-
-把市场、股池、持仓、监控、分析和报告页面改为真实任务结果投射；逐项接通已有 Skill 后端；未实现能力保持 unavailable。复用 R2b 与 A2UI 整改任务。
-
-### P7：跨宿主与生产验收
-
-验证 Windows/Linux/macOS 的统一 CLI JSON 契约；在无 Web 服务情况下完成 Codex/Hermes 技能调用；验证 Web 与外部宿主使用同一输入时得到同构执行结果；完成生产模式无 Mock/硬编码扫描和端到端故障测试。
-
-## 16. 测试与验收策略
-
-实施必须采用测试先行。测试分为：
-
-1. **契约测试**：Skill/MCP 输入输出、错误状态、来源和时间字段。
-2. **模型门禁测试**：未配置、禁用、认证失败、超时、能力不足和成功路径。
-3. **任务 DAG 测试**：环检测、主任务失败、辅助任务遗漏、取消、超时和安全重试。
-4. **治理测试**：禁用技能、参数非法、确认重放、超时后无后台写入。
-5. **多智能体测试**：角色只接收成功证据；遗漏板块不参与结论；角色模型绑定生效。
-6. **安全测试**：API/SSE/日志无密钥；前端无凭据持久化；MCP 内容不能改变权限。
-7. **前端测试**：错误、空状态、遗漏提示和 SSE 状态准确，不显示伪成功。
-8. **跨宿主测试**：CLI、Web、Codex/Hermes 的 Skill 结果契约一致。
-9. **生产真实性测试**：扫描正式源码和构建产物，阻止 Mock 行情、固定账户、模板分析和 `model='mock'`。
-
-单元与集成测试使用显式合成数据和 Fake Provider，不访问付费模型或真实账户。生产联调单独运行并记录接口、时间和数据来源；合成测试通过不能替代生产真实性验收。
-
-## 17. 现有计划对齐
-
-本设计不废弃现有 `docs/specs/architecture/arch-agent-runtime-remediation-plan.md` 和 `docs/specs/engineering/eng-remediation-plan.md`：
-
-- R1、R2a 归入 P0/P1。
-- R3、R4 归入 P3/P5。
-- R2b 归入 P6。
-- 现有 A2UI、费用风控、算法治理和工程验证计划继续作为领域子计划。
-- 新增实施计划只补充模型门禁、能力统一契约、任务 DAG、MCPManager、多智能体证据隔离和跨宿主验收缺口。
+> 本架构的实施优先级、测试与验收策略、与既有计划的依赖关系见实施看板：[`production-agent-platform-plan.md`](../../specs/architecture/production-agent-platform-plan.md)。
 
 ## 18. 完成标准
 
@@ -288,3 +225,8 @@ Mock Provider、合成行情和固定报告仅保留在测试夹具或显式 tes
 - 工作台每个已启用板块都有真实能力来源与验收证据；其余板块明确 unavailable。
 - 在不启动 Web 的情况下，Codex/Hermes 仍能通过项目 Skills 和统一 CLI 完成受支持任务。
 - 全量离线回归、相关前端测试、生产配置联调和跨宿主验收均有可复现记录。
+
+---
+## 附：关联索引
+- 实施进度看板：[`production-agent-platform-plan.md`](../../specs/architecture/production-agent-platform-plan.md)
+- 既有看板：[`production-agent-platform-p0-plan.md`](../../specs/engineering/production-agent-platform-p0-plan.md)

@@ -2,7 +2,7 @@
 
 > **文档类别**：前端系统架构与工程重构实施指南 (Engineering & Architecture Guide)  
 > **适用范围**：A-Stock Agents 独立 Web 前端体系架构解耦、代码模块化拆分实施与后续长期功能扩展开发  
-> **关联源码**：[`web/js/app.js`](file:///Users/handy/workon/a_stock_agents/web/js/app.js) · [`web/index.html`](file:///Users/handy/workon/a_stock_agents/web/index.html) · [`web/js/`](file:///Users/handy/workon/a_stock_agents/web/js)  
+> **关联源码**：`web/js/app.js` · `web/index.html` · `web/js/`  
 > **单一真理来源 (SSOT)**：本文档作为前端 9,340 行巨石单体解耦、模块化演进与代码开发规范的唯一权威指导文件
 
 ---
@@ -10,7 +10,7 @@
 ## 一、 重构背景与核心工程诉求
 
 ### 1. 现状评估与痛点诊断 (Monolith Crisis)
-随着 A-Stock Agents 系统的快速迭代，前端核心控制文件 [web/js/app.js](file:///Users/handy/workon/a_stock_agents/web/js/app.js) 已膨胀至 **9,340 行**（约 400 KB），承担了全站 72.5% 的前端自定义逻辑。经深度语法与依赖审查，暴露出以下严重工程缺陷：
+随着 A-Stock Agents 系统的快速迭代，前端核心控制文件 `web/js/app.js` 已膨胀至 **9,340 行**（约 400 KB），承担了全站 72.5% 的前端自定义逻辑。经深度语法与依赖审查，暴露出以下严重工程缺陷：
 
 * **单一职责原则严重违背 (SRP Violation)**：
   单文件内混杂了数据通信（REST API/SSE 流）、Canvas 金融图表绘制、富文本输入控制（@操作符/#模型选择）、NLP 提问意图解析、任务分步执行树态导轨、Markdown/HTML 工作区双模渲染、大模型提供商密钥 CRUD，以及 18 项量化投研技能的在线沙箱调试控制台。
@@ -25,9 +25,9 @@
 实施源码拆分与模块化重构时，必须严格遵守以下两大底线原则：
 
 1. **零构建工具链依赖原则 (Zero Build Toolchain)**：
-   本项目坚持跨平台轻量部署，**不引入 Node.js / npm / Vite / Webpack 构建流水线**。系统由 Python FastAPI（[scripts/server/app.py](file:///Users/handy/workon/a_stock_agents/scripts/server/app.py)）与 Docker 直接进行静态资源托管。拆分后的代码必须能够在现代浏览器中原生直接运行，改动代码后按 F5 刷新即刻生效。
+   本项目坚持跨平台轻量部署，**不引入 Node.js / npm / Vite / Webpack 构建流水线**。系统由 Python FastAPI（`scripts/server/app.py`）与 Docker 直接进行静态资源托管。拆分后的代码必须能够在现代浏览器中原生直接运行，改动代码后按 F5 刷新即刻生效。
 2. **100% 向后兼容性契约 (Zero Regression Contract)**：
-   [web/index.html](file:///Users/handy/workon/a_stock_agents/web/index.html) 中存在 **215 处内联 DOM 事件监听器**（如 `onclick="switchRightTab('market')"`、`oninput="AtOperatorController.handleSearch()"` 等），直接依赖了 `app.js` 中的 **93 个全局函数与对象方法**。拆分方案必须采用“**命名空间封装 + 全局门面导出**”模式，确保所有现有 HTML 事件 100% 正常调用，杜绝发生 `ReferenceError` 运行时异常。
+   `web/index.html` 中存在 **215 处内联 DOM 事件监听器**（如 `onclick="switchRightTab('market')"`、`oninput="AtOperatorController.handleSearch()"` 等），直接依赖了 `app.js` 中的 **93 个全局函数与对象方法**。拆分方案必须采用“**命名空间封装 + 全局门面导出**”模式，确保所有现有 HTML 事件 100% 正常调用，杜绝发生 `ReferenceError` 运行时异常。
 
 ---
 
@@ -197,7 +197,7 @@ AppState.set('activeRightTab', 'market');
 ```
 
 ### 3. 单向拓扑无环脚本加载编排 (Topological Script Ordering)
-在 [web/index.html](file:///Users/handy/workon/a_stock_agents/web/index.html) 底部，各模块按照**基础底层 $\to$ 状态层 $\to$ 外壳导航 $\to$ 业务视图 $\to$ 治理与中枢 $\to$ 启动入口**的拓扑次序严格加载：
+在 `web/index.html` 底部，各模块按照**基础底层 $\to$ 状态层 $\to$ 外壳导航 $\to$ 业务视图 $\to$ 治理与中枢 $\to$ 启动入口**的拓扑次序严格加载：
 
 ```html
   <!-- 1. 基础第三方纯净库与底层通信/展示引擎 -->
@@ -250,72 +250,7 @@ AppState.set('activeRightTab', 'market');
 
 ## 五、 分阶段实施演进路线图 (Phase-by-Phase Roadmap)
 
-为确保系统在拆分过程中的持续可用性，推荐遵循以下 7 个阶段逐步演进实施：
-
-```mermaid
-flowchart TD
-    P1["阶段 1: 创建目录骨架，抽离 Core 与 Layout (基础底座)"] --> P2["阶段 2: 抽离 Views 五大业务工作台视图 (业务数据解耦)"]
-    P2 --> P3["阶段 3: 抽离 Settings 设置与 Skills 技能治理 (治理平面解耦)"]
-    P3 --> P4["阶段 4: 抽离 Workbench 文档渲染与交付物中心 (工作区解耦)"]
-    P4 --> P5["阶段 5: 抽离 Chat 输入适配器、@操作符与流式引擎 (对话中枢解耦)"]
-    P5 --> P6["阶段 6: 瘦身 app.js 主入口并更新 index.html 引用 (引导重构)"]
-    P6 --> P7["阶段 7: 全量语法校验与 DOM 内联事件回归测试 (质量验收)"]
-```
-
-### 阶段 1：创建目录骨架，抽离 Core 与 Layout
-* **目标**：建立 `web/js/core/` 与 `web/js/layout/`。
-* **动作**：
-  1. 提取 `AppState` 到 `core/state.js`，注入发布订阅事件总线；
-  2. 提取 `HistoricalSessions`、`SessionStore`、会话列表渲染与删除重命名到 `core/session_store.js`；
-  3. 提取侧边栏导航、单双栏切换及 `showToast` 到 `layout/navigation.js`；
-  4. 提取多 Tab 路由与窗口投射到 `layout/workbench_tabs.js`。
-* **验收标准**：刷新页面，左侧会话历史可正常显示、删除与点击切换。
-
-### 阶段 2：抽离 Views 五大业务工作台视图
-* **目标**：建立 `web/js/views/` 目录，彻底隔离四大业务 Tab 渲染逻辑。
-* **动作**：
-  1. 将测算器与向上进位逻辑独立至 `views/projected_action.js`；
-  2. 拆解盘面、行情全景、自选股列表、收益分析至各自独立文件；
-  3. 建立 `views/common_views.js`，统一收敛 `loadAllBackendData()` 与 `renderTabCharts()`。
-* **验收标准**：切换顶部四大 Tab，各面板数据加载与 Canvas 走势图重绘丝滑流畅。
-
-### 阶段 3：抽离 Settings 设置与 Skills 技能治理
-* **目标**：建立 `web/js/settings/` 与 `web/js/skills/` 目录。
-* **动作**：
-  1. 剥离 18 项量化技能 Manifest 静态配置字典至 `skills/skills_manifest.js`（彻底精简 350 行静态数据）；
-  2. 提取技能卡片渲染与启闭逻辑至 `skills/skills_governance.js`，沙箱执行至 `skills/skills_debugger.js`；
-  3. 提取服务商管理与测试至 `settings/providers_manager.js`，角色矩阵映射至 `settings/model_roles.js`。
-* **验收标准**：打开模型设置与技能治理弹窗，连接测试与沙箱执行结果正常返回。
-
-### 阶段 4：抽离 Workbench 文档渲染与交付物中心
-* **目标**：建立 `web/js/workbench/` 目录。
-* **动作**：
-  1. 将 500 行用户指南与双模渲染器抽离至 `workbench/doc_renderer.js`；
-  2. 将交付物本地持久化、独立窗口导出与下载抽离至 `workbench/deliverable_sync.js`。
-* **验收标准**：投研助手主工作区 Markdown 操作手册与目录树导航渲染正常，交付物导出无异常。
-
-### 阶段 5：抽离 Chat 输入适配器、@操作符与流式引擎
-* **目标**：建立 `web/js/chat/` 目录。
-* **动作**：
-  1. 提取输入框兼容层与退格原子删除至 `chat/input_adapter.js`；
-  2. 提取 `@操作符` 注册中心与浮窗至 `chat/at_operator.js`，`#模型` 弹窗至 `chat/model_popup.js`；
-  3. 提取任务执行树抽屉与二次确认拦截至 `chat/task_timeline.js`；
-  4. 提取意图解析与 SSE 打字机流式输出至 `chat/chat_engine.js`。
-* **验收标准**：输入框键入 `@` 或 `#` 浮窗精准定位，发送提问后打字机流式输出与任务折叠卡片正常展开。
-
-### 阶段 6：瘦身 app.js 主入口并更新 index.html 引用
-* **目标**：将 `app.js` 从 9,340 行精简至 84 行纯生命周期引导器。
-* **动作**：
-  1. 在 `app.js` 中仅保留 `DOMContentLoaded` 启动顺序编排与 Resize 防抖监听；
-  2. 按照第四节的单向无环加载拓扑次序更新 `web/index.html` 的 `<script>` 标签列表。
-* **验收标准**：控制台无任何加载错误或时序竞态警告。
-
-### 阶段 7：全量语法校验与 DOM 内联事件回归测试
-* **目标**：全方位质量验收与风险防范。
-* **动作**：
-  1. 执行 `node -c web/js/**/*.js` 静态语法检查；
-  2. 运行自动化扫描脚本，核验 `index.html` 中 215 处内联调用符号的 100% 绑定率；
-  3. 将原版单体文件备份保存至 `web/backup/app.js.bak`。
+> 本章分阶段实施演进路线图与阶段交付节奏见实施看板：[`app-js-modularization-plan.md`](../../specs/ui/app-js-modularization-plan.md)。
 
 ---
 

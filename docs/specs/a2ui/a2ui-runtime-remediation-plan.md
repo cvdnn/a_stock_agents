@@ -1,5 +1,9 @@
 # A2UI真实事件、组件注册与报告投射实施计划
 
+> 关联规范编号：`SPEC-UI-001`、`SPEC-A2UI-001`、`SPEC-A2UI-002`
+> 权威定义 (SSOT)：[`a2ui-framework-architecture.md`](../../guidelines/a2ui/a2ui-framework-architecture.md)、[`a2ui-component-registry-specification.md`](../../guidelines/a2ui/a2ui-component-registry-specification.md)、[`ui-design-guide.md`](../../guidelines/ui/ui-design-guide.md)
+> **实施状态**：规划中 (RFC) | 待执行；F1 先交付生产错误语义，F2 依赖 R/B 协议，F3/F4 在协议稳定后实施
+
 > **For agentic workers:** 使用 `executing-plans`。F1先交付生产错误语义，F2依赖R/B协议，F3与F4在协议稳定后实施。
 
 **Goal:** 所有正式分析显示真实事件结果，组件寻址/发现有确定语义，历史报告投射互不覆盖。
@@ -10,7 +14,7 @@
 
 ---
 
-覆盖 U1/U2/U3及UI、A2UI两项spec；复用 [既有前端API接入计划](C:/Users/cvdnn/coding/a_stock_agents/docs/audits/frontend-api-integration-plan.md)，不重做已正确接线的四个加载器。
+覆盖 U1/U2/U3及UI、A2UI两项spec；复用 [既有前端API接入计划](../ui/frontend-api-integration-plan.md)，不重做已正确接线的四个加载器。
 
 ## F1：分离生产结果与显式演示
 

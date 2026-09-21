@@ -1,11 +1,13 @@
 # A-Stock Agents 生产安全漏洞整改实施执行计划
 
-> **规范指引**：本计划基于 [2026-09-14 渗透测试与安全审计报告](2026-09-14-penetration-testing-report.md) 制定，覆盖目标系统（`http://127.0.0.1:6300/`）中的全部高、中、低危安全隐患。分阶段实施、步骤以 `- [ ]` 跟踪，保证每个阶段可独立构建、独立测试与验证。
+> 规范编号：`SPEC-SEC-001`
+> 权威定义 (SSOT)：[`security-hardening-guide.md`](../../guidelines/engineering/security-hardening-guide.md)
+> **实施状态**：已完成 (Completed & Verified)
+
+> **规范指引**：本计划基于 [2026-09-14 渗透测试与安全审计报告](../../audits/2026-09-14-penetration-testing-report.md) 制定，覆盖目标系统（`http://127.0.0.1:6300/`）中的全部高、中、低危安全隐患。分阶段实施、步骤以 `- [ ]` 跟踪，保证每个阶段可独立构建、独立测试与验证。
 
 - **制定日期**：2026-09-14
-- **基准版本**：生产当前分支
-- **关联审计报告**：[2026-09-14 渗透测试与安全审计报告](2026-09-14-penetration-testing-report.md)
-- **状态**：实施完成并通过全量验证 (Completed & Verified)
+- **关联审计报告**：[2026-09-14 渗透测试与安全审计报告](../../audits/2026-09-14-penetration-testing-report.md)
 
 ---
 
@@ -113,3 +115,21 @@
 3. **前端交互与报告体验无衰减**：
    - 研报渲染与 ECharts 图表在无 `allow-same-origin` 沙箱下正常展示。
    - 对话流式推送与操作单响应时间不受影响。
+
+---
+
+## 四、 分级实施与整改验证矩阵 (Remediation Milestones)
+
+系统安全整改采取三阶段递进策略，确保每个阶段目标明确且具备独立验证能力：
+
+| 阶段 | 治理代号 | 核心目标 | 覆盖漏洞 | 交付文件与组件 |
+| :--- | :---: | :--- | :--- | :--- |
+| **P0 阶段** | 阻断破坏与逃逸 | 消除任意文件篡改、iframe 逃逸、XSS 事件注入与源码脱裤 | SEC-01, SEC-03, SEC-04, SEC-06, SEC-08 | `scripts/server/app.py`<br>`web/index.html`<br>`web/js/chat_presentation.js`<br>`scripts/core/reporting/report_generator.py` |
+| **P1 阶段** | 边界收敛与加固 | 收敛 Docker 网络监听至本地，构建 API Token 鉴权中间件，实现 DNS 级防 SSRF 校验 | SEC-02, SEC-05 | `docker-compose.yml`<br>`scripts/server/config.py`<br>`scripts/server/api/models_mgmt.py` |
+| **P2 阶段** | 凭据加密与测试常态化 | SQLite 凭据落盘加密，建设完整的安全自动化防退化测试套件 | SEC-07, TEST | `scripts/server/db.py`<br>`tests/test_security_audit.py` |
+
+---
+
+## 五、 变更日志
+
+- **2026-09-20**：由 `docs/guidelines/engineering/security-hardening-guide.md` §三 迁入 P0/P1/P2 分级实施与整改验证里程碑矩阵（逐字保留）。

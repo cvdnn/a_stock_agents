@@ -1,9 +1,13 @@
 # 未完成项整理（HFE 整改待办清单）
 
+> 关联规范编号：`SPEC-ALGO-ISS-001`
+> 权威定义 (SSOT)：[`selection-system-specification.md`](../../guidelines/algorithm/selection-system-specification.md)、[`algorithm-governance.md`](../../guidelines/algorithm/algorithm-governance.md)
+> **实施状态**：规划中 (RFC) | 待办登记，全部条目未开始（整理日期 2026-09-20）
+
 整理日期：2026-09-20。
 
 范围：可配置漏斗选股系统（HFE）规范-代码整改过程中产生、截至本次整理**仍未完成**的全部事项。
-依据：`docs/specs/algorithm/configurable-funnel-feature-build-spec.md` §26「待产品确认事项」、`AGENTS.md` 与两处技能清单实测结果。
+依据：`docs/specs/algorithm/selection-system-plan.md` §26「待产品确认事项」、`AGENTS.md` 与两处技能清单实测结果。
 本文只做工程待办登记，不构成个股投资建议。
 
 ## 状态总览
