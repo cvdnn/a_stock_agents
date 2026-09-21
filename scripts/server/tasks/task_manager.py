@@ -275,6 +275,37 @@ class TaskManager:
             res = await loop.run_in_executor(None, lambda: _sync_astock_quant_engine(action=action, code=code))
             return res
 
+        elif task_type in ("data_sync", "sync"):
+            update_task_record(task_id=task_id, progress=0.2, status_message="Initializing data sync engine")
+            from core.data.sync_engine import DataSyncEngine
+            engine = DataSyncEngine()
+            raw_codes = params.get("codes") or ([params["code"]] if "code" in params else None)
+            codes = []
+            if raw_codes:
+                if isinstance(raw_codes, list):
+                    codes = raw_codes
+                else:
+                    codes = [c.strip() for c in str(raw_codes).split(",") if c.strip()]
+            pool = params.get("pool")
+            indices = params.get("indices", False)
+            all_pool = params.get("all", False)
+            mode = params.get("mode", "incremental")
+            count = params.get("count", 250)
+            start_date = params.get("start")
+            end_date = params.get("end")
+
+            symbols = engine.resolve_symbols(
+                codes=codes, pool=pool, include_indices=indices, all_pool=all_pool
+            )
+            update_task_record(task_id=task_id, progress=0.5, status_message=f"Syncing market data for {len(symbols)} symbols ({mode})")
+            workers = int(params.get("workers") or params.get("concurrency") or 4)
+            res = await loop.run_in_executor(
+                None,
+                lambda: engine.sync_batch(symbols, mode=mode, count=count, start_date=start_date, end_date=end_date, max_workers=workers)
+            )
+            update_task_record(task_id=task_id, progress=0.9, status_message="Finishing sync and updating metadata")
+            return res
+
         elif task_type in ("backtest", "combo_backtest"):
             return {
                 "status": "unavailable",

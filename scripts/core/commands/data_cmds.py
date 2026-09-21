@@ -189,6 +189,10 @@ def cmd_market(args):
 
 def cmd_data_sync(args):
     """行情与K线数据同步命令"""
+    if getattr(args, 'daemon', False):
+        cmd_data_daemon(args)
+        return
+
     from core.data.sync_engine import DataSyncEngine
 
     engine = DataSyncEngine()
@@ -221,12 +225,14 @@ def cmd_data_sync(args):
             print(json.dumps(res, ensure_ascii=False, indent=2))
         else:
             print(f"=== 行情数据完整性校验报告 (共 {len(symbols)} 只标的) ===")
-            print(f"{'代码':<10} {'状态':<8} {'在库条数':<8} {'时间范围':<23} {'缺漏数':<8} {'坏点数':<8}")
-            print('-' * 75)
+            print(f"{'代码':<10} {'状态':<8} {'在库条数':<8} {'时间范围':<23} {'缺漏数':<8} {'停牌数':<8} {'坏点数':<8}")
+            print('-' * 82)
             for r in res:
                 st_icon = '🟢' if r['status'] == 'healthy' else ('⚪' if r['status'] == 'empty' else '🔴')
                 date_range = f"{r.get('min_date', '')} ~ {r.get('max_date', '')}" if r.get('min_date') else '无'
-                print(f"{r['symbol']:<10} {st_icon} {r['status']:<6} {r['row_count']:<8} {date_range:<23} {r.get('missing_count', 0):<8} {r.get('bad_count', 0):<8}")
+                print(f"{r['symbol']:<10} {st_icon} {r['status']:<6} {r['row_count']:<8} {date_range:<23} {r.get('missing_count', 0):<8} {r.get('suspended_count', 0):<8} {r.get('bad_count', 0):<8}")
+                if r.get('suspended_days'):
+                    print(f"   ├─ 合规停牌切片: {', '.join(r['suspended_days'])}")
                 if r.get('missing_days'):
                     print(f"   └─ 缺漏日期切片: {', '.join(r['missing_days'])}")
         return
@@ -249,11 +255,16 @@ def cmd_data_sync(args):
         if is_json:
             print(json.dumps(res, ensure_ascii=False, indent=2))
         else:
-            print(f"=== 当日行情快照同步完成 ===")
-            print(f"日期: {res.get('date')} | 更新条数: {res.get('updated_count')}/{res.get('total_requested')}")
+            print(f"=== 当日行情快照同步 ===")
+            st = res.get("status", "")
+            if st == "skipped":
+                print(f"ℹ️ {res.get('message', '非交易日跳过')}")
+            else:
+                settled_str = "已定盘" if res.get("is_settled") else f"未定盘 ({res.get('phase_label', '盘中')})"
+                print(f"日期: {res.get('date')} | 更新条数: {res.get('updated_count')}/{res.get('total_requested')} | 状态: {settled_str}")
         return
 
-    # 4. 常规增量/全量同步
+    # 4. 常规增量/全量/实时同步
     mode = getattr(args, 'mode', 'incremental') or 'incremental'
     days = getattr(args, 'days', None)
     start_date = getattr(args, 'start', None)
@@ -262,18 +273,63 @@ def cmd_data_sync(args):
     if days and days > 0:
         count = days
 
+    workers = getattr(args, 'workers', 4) or 4
     res = engine.sync_batch(
-        symbols, mode=mode, count=count, start_date=start_date, end_date=end_date
+        symbols, mode=mode, count=count, start_date=start_date, end_date=end_date, max_workers=workers
     )
 
     if is_json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
     else:
-        print(f"=== A-Stock 数据同步完成 ({mode}) ===")
-        print(f"耗时: {res['elapsed_seconds']}s | 成功: {res['success_count']}/{res['total_requested']} | 失败: {res['failed_count']}")
-        print(f"{'代码':<10} {'状态':<12} {'本次拉取':<10} {'在库总数':<10} {'最新在库日期':<12}")
-        print('-' * 65)
+        phase_label = res.get('phase_label', '实时时段')
+        settled_desc = "已定盘" if res.get('is_settled') else f"未定盘 ({phase_label})"
+        print(f"=== A-Stock 数据同步完成 ({mode} · {settled_desc}) ===")
+        print(f"耗时: {res['elapsed_seconds']}s | 并发: {res.get('workers', workers)} | 成功: {res['success_count']}/{res['total_requested']} | 失败: {res['failed_count']} | 快照时间: {res.get('snapshot_time', '')}")
+        print(f"{'代码':<10} {'状态':<10} {'时段标记':<16} {'定盘状态':<10} {'本次拉取':<8} {'在库总数':<8} {'最新日期':<12}")
+        print('-' * 80)
+        has_unsettled = False
         for d in res['details']:
             st = d.get('status', '')
             icon = '✅' if st in ['success', 'up_to_date'] else '❌'
-            print(f"{d['symbol']:<10} {icon} {st:<10} {d.get('synced_count', 0):<10} {d.get('total_count', 0):<10} {d.get('last_date', ''):<12}")
+            is_set = d.get('is_settled', True)
+            set_str = '🟢 已定盘' if is_set else '⏳ 未定盘'
+            phase_disp = d.get('phase_label') or d.get('sync_phase') or '-'
+            if not is_set:
+                has_unsettled = True
+            print(f"{d['symbol']:<10} {icon} {st:<8} {phase_disp:<16} {set_str:<10} {d.get('synced_count', 0):<8} {d.get('total_count', 0):<8} {d.get('last_date', ''):<12}")
+            if st in ['failed', 'error'] and d.get('error'):
+                print(f"   └─ 失败原因: {d.get('error')}")
+
+        if has_unsettled:
+            print('-' * 80)
+            print("💡 提示: 本次同步包含未定盘实时切片（如盘中/午间行情），供盘中/午后策略评估使用；盘后 15:35 定盘后可重新增量同步以固化最终收盘数据。")
+
+
+
+def cmd_data_daemon(args):
+    """本地行情定时同步守护进程命令"""
+    from core.data.sync_daemon import DataSyncDaemon
+
+    pool = getattr(args, "pool", None)
+    pools = [pool] if pool and pool != "all" else None
+    interval = getattr(args, "interval", 60) or 60
+    workers = getattr(args, "workers", 4) or 4
+
+    daemon = DataSyncDaemon(pools=pools, check_interval=interval, max_workers=workers)
+    is_json = getattr(args, "json", False) or getattr(args, "output", "") == "json"
+
+    if getattr(args, "once", False):
+        res = daemon.run_once()
+        if is_json:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+        else:
+            st = res.get("status")
+            icon = "✅" if st in ["executed", "up_to_date"] else ("ℹ️" if st == "skipped" else "⏳")
+            print(f"{icon} [定时守护单次检测] 状态: {st} | 消息: {res.get('message', '执行完毕')}")
+            if res.get("executed_pools"):
+                print(f"   └─ 已同步标的池: {', '.join(res['executed_pools'])}")
+    else:
+        if not is_json:
+            print(f"🚀 正在启动 A-Stock 数据同步守护进程 (轮询间隔: {interval}s, 并发: {workers})...")
+            print("💡 按 Ctrl+C 可安全优雅停机。日志沉淀在: log/sync_daemon.log")
+        daemon.run_forever()

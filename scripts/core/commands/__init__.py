@@ -10,6 +10,7 @@ from core.commands.data_cmds import (
     cmd_data_quote,
     cmd_data_technical,
     cmd_data_sync,
+    cmd_data_daemon,
     cmd_events,
     cmd_market,
 )
@@ -61,6 +62,7 @@ __all__ = [
     "cmd_data_quote",
     "cmd_data_technical",
     "cmd_data_sync",
+    "cmd_data_daemon",
     "cmd_batch",
     "cmd_events",
     "cmd_cyq",

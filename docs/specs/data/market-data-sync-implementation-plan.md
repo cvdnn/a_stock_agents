@@ -32,7 +32,11 @@
 | **P1** | **CLI 门面与分发** | 接入 `astock data sync`，支持终端彩色报告与 `--json`<br>• [`scripts/core/cli.py`](../../../scripts/core/cli.py)<br>• [`scripts/core/commands/data_cmds.py`](../../../scripts/core/commands/data_cmds.py) | ✅ 完成 | 命令行参数完备，交互体验与文档契约一致 |
 | **P1** | **离线指标分析打通** | 优化 `DataBridge.get_kline_robust()`，优先命中本地数据库<br>• [`scripts/core/data/data_bridge.py`](../../../scripts/core/data/data_bridge.py) | ✅ 完成 | `astock data tech` 无需外网请求即可秒级计算指标 |
 | **P2** | **防泄漏与打包隔离** | 在版本控制与发布打包中彻底排除 `local/`<br>• [`.gitignore`](../../../.gitignore)<br>• [`.dockerignore`](../../../.dockerignore)<br>• [`scripts/tools/pack.py`](../../../scripts/tools/pack.py) | ✅ 完成 | Git 追踪纯净，打包工具排除 `local/` |
-| **P2** | **自动化测试验证** | 编写单元测试并运行全套回归套件<br>• [`tests/test_data_sync.py`](../../../tests/core/test_data_sync.py)<br>• [`verify.py`](../../../verify.py) | ✅ 完成 | 单元测试 3/3 通过，全自检 11/11 项全部通过 |
+| **P2** | **自动化测试验证** | 编写单元测试并运行全套回归套件<br>• [`tests/test_data_sync.py`](../../../tests/core/test_data_sync.py)<br>• [`verify.py`](../../../verify.py) | ✅ 完成 | 单元测试 16/16 通过，核心测试全部通过 |
+| **P3** | **批量并发加速** | 引入 ThreadPoolExecutor 支持 --workers 多线程并发与保序<br>• [`scripts/core/data/sync_engine.py`](../../../scripts/core/data/sync_engine.py)<br>• [`scripts/core/commands/data_cmds.py`](../../../scripts/core/commands/data_cmds.py) | ✅ 完成 | 批量同步吞吐量倍增，SQLite WAL 模式并发安全 |
+| **P3** | **停牌与假阳性消解** | 区分合法停牌与真实断点，在 sync_meta 登记停牌切片避免误报<br>• [`scripts/core/data/sync_engine.py`](../../../scripts/core/data/sync_engine.py) | ✅ 完成 | 消除停牌股与次新股误报，校验列新增“停牌数” |
+| **P3** | **常驻自动化定时守护** | 新建 DataSyncDaemon，依据 15:35 / 15:40 时钟状态机自动定盘同步<br>• [`scripts/core/data/sync_daemon.py`](../../../scripts/core/data/sync_daemon.py)<br>• [`scripts/core/cli.py`](../../../scripts/core/cli.py) | ✅ 完成 | 支持 CLI 独立守护与单次检测，日志沉淀至 log/ |
+| **P3** | **交易日历动态真值延伸** | 支持超出已知年份时从本地基准指数历史时序动态推导真值<br>• [`scripts/core/data/sync_engine.py`](../../../scripts/core/data/sync_engine.py) | ✅ 完成 | 摆脱静态硬编码年份限制，实现日历自愈 |
 
 ---
 
@@ -48,6 +52,9 @@
 | **完整性校验** | `./bin/astock data sync --code 600519 --check` | 检查本地数据是否存在断点、缺失交易日或坏点 |
 | **缺漏自愈修复** | `./bin/astock data sync --code 600519 --repair` | 定向回补缺失切片，恢复数据健康完整状态 |
 | **离线技术分析** | `./bin/astock data tech 600519` | 秒级就地计算 MA/MACD/KDJ/BOLL/二次金叉/缺口 |
+| **多线程并发同步** | `./bin/astock data sync --codes 600519,000001,300750 -w 4` | 4 线程并发加速拉取，大幅提升批量吞吐量 |
+| **定时守护单次检测** | `./bin/astock data daemon --once` | 检查当前时钟是否进入盘后定盘窗口并执行到期同步 |
+| **启动常驻同步守护** | `./bin/astock data daemon --interval 60 -w 4` | 常驻后台，15:35 自动同步持仓，15:40 自动同步自选 |
 
 ---
 

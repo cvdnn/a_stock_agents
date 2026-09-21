@@ -53,6 +53,7 @@ from core.commands import (
     cmd_data_quote,
     cmd_data_technical,
     cmd_data_sync,
+    cmd_data_daemon,
     cmd_deploy_monitor,
     cmd_downside,
     cmd_evaluate,
@@ -396,6 +397,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_data_s.add_argument("--mode", choices=["incremental", "full"], default="incremental", help="增量或全量同步模式")
     p_data_s.add_argument("--check", action="store_true", help="校验本地数据完整性与断点")
     p_data_s.add_argument("--repair", action="store_true", help="自动靶向修复并回补缺漏数据")
+    p_data_s.add_argument("-w", "--workers", type=int, default=4, help="并发线程数 (默认: 4, 范围: 1-16)")
+    p_data_s.add_argument("--daemon", action="store_true", help="启动定时守护进程模式")
+
+    p_data_d = data_sub.add_parser("daemon", help="启动本地行情定时同步守护进程", parents=[common_parser])
+    p_data_d.add_argument("--interval", type=int, default=60, help="轮询检测间隔秒数 (默认: 60)")
+    p_data_d.add_argument("--pool", choices=["holdings", "watchlist", "focus", "all"], default="all", help="指定定时同步的标的池")
+    p_data_d.add_argument("-w", "--workers", type=int, default=4, help="并发线程数 (默认: 4)")
+    p_data_d.add_argument("--once", action="store_true", help="单次检测运行并退出 (不常驻)")
 
     # skill
     p_skill = subparsers.add_parser("skill", help="查看已注册技能模块", parents=[common_parser])
@@ -622,6 +631,8 @@ def main():
             cmd_data_technical(args)
         elif data_cmd == "sync":
             cmd_data_sync(args)
+        elif data_cmd == "daemon":
+            cmd_data_daemon(args)
         else:
             parser.print_help()
     elif cmd == "skill":
