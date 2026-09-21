@@ -24,7 +24,7 @@
 - 模型管理 API：`scripts/server/api/models_mgmt.py`
 - Web API 客户端：`web/js/api.js`
 - Web 应用入口：`web/js/app.js`
-- 服务端回归：`tests/test_server_suite.py`
+- 服务端回归：`tests/server/test_server_suite.py`
 
 ## 未完成边界
 
