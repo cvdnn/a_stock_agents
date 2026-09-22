@@ -320,13 +320,62 @@ class DataBridge:
         return []
 
     @classmethod
+    def fetch_remote_kline_strictly(cls, code: str, count: int = 120) -> List[List]:
+        """严格从远程外部数据源获取真实日K线数据，专供数据同步底座使用。
+
+        遵循零虚假数据原则：
+        1. 腾讯直连接口（多域名备选）
+        2. 新浪日K线接口降级
+        3. Ashare/本地脚本历史数据
+        【铁律】：严禁从本地 SQLite 数据库回读（防止同步自旋死循环），严禁合成任何伪造假数据！
+        若外部数据源均不可用，记录告警并直接返回空列表 []。
+        """
+        clean_code = str(code).strip()
+        norm = cls.normalize_symbol(clean_code)
+
+        # Step 1: 腾讯接口
+        res = cls.tencent_kline(clean_code, count=count)
+        if res and len(res) >= 1:
+            return res
+
+        # Step 2: 新浪接口降级
+        res_sina = cls.sina_kline(clean_code, count=count)
+        if res_sina and len(res_sina) >= 1:
+            return res_sina
+
+        # Step 3: Ashare 降级
+        try:
+            from .Ashare import get_price
+            df = get_price(norm, count=count, frequency='1d')
+            if df is not None and not df.empty and len(df) >= 1:
+                res_ashare = []
+                for idx, row in df.iterrows():
+                    d_str = idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx).split()[0]
+                    res_ashare.append([
+                        d_str,
+                        str(row.get("open", 0)),
+                        str(row.get("close", 0)),
+                        str(row.get("high", 0)),
+                        str(row.get("low", 0)),
+                        str(row.get("volume", 0)),
+                    ])
+                if len(res_ashare) >= 1:
+                    return res_ashare
+        except Exception as e:
+            logger.debug(f"[RemoteStrict] Ashare 降级读取失败: {e}")
+
+        logger.warning(f"[RemoteStrict] 标的 {clean_code} 外部数据源均无法访问或无数据，返回空切片（严禁伪造数据）")
+        return []
+
+    @classmethod
     def get_kline_robust(cls, code: str, count: int = 120, quote: Optional[Dict] = None) -> List[List]:
-        """4级降级坚固日K线获取管道：
+        """多级降级坚固日K线获取管道：
         0. 进程内 10 分钟 TTL 内存缓存
         1. 腾讯直连接口（多域名备选）
         2. 新浪日K线接口降级
         3. Ashare/本地脚本历史数据
-        4. 基于行情快照 quote 与基准特征自适应合成保底 K 线
+        3.5 本地 SQLite 同步库真实历史数据降级
+        【零虚假数据原则】：严禁伪造任何数学正弦波或合成走势！全不可用时返回空列表 []
         """
         clean_code = str(code).strip()
         norm = cls.normalize_symbol(clean_code)
@@ -390,39 +439,9 @@ class DataBridge:
         if cached and cached.get("data"):
             return cached["data"][-count:]
 
-        # Step 4: 极端兜底（基于当前行情快照合成连续 30 交易日走势，保障下游指标打分与研报渲染不崩溃）
-        q = quote or cls().tencent_quote([norm]).get(norm) or {}
-        curr_price = float(q.get("price") or q.get("close") or 10.0)
-        prev_close = float(q.get("prev_close") or curr_price)
-        high = float(q.get("high") or curr_price)
-        low = float(q.get("low") or curr_price)
-        vol = float(q.get("volume") or 1000000)
-
-        synth_klines = []
-        base_date = datetime.now()
-        for i in range(max(count, 35), 0, -1):
-            day_offset = i
-            d = (base_date - timedelta(days=day_offset)).strftime("%Y-%m-%d")
-            ratio = 1.0 - (i * 0.001)
-            c = round(curr_price * ratio, 2)
-            o = round(c * 0.998, 2)
-            h = round(max(c, o) * 1.005, 2)
-            l = round(min(c, o) * 0.995, 2)
-            v = int(vol * 0.8)
-            synth_klines.append([d, str(o), str(c), str(h), str(l), str(v)])
-        
-        # 今日收盘
-        today_str = base_date.strftime("%Y-%m-%d")
-        synth_klines.append([
-            today_str,
-            str(q.get("open") or prev_close),
-            str(curr_price),
-            str(high),
-            str(low),
-            str(int(vol)),
-        ])
-        cls._KLINE_CACHE[norm] = {"ts": now_ts, "data": synth_klines}
-        return synth_klines
+        # 【零虚假数据原则】：外部数据源均不可用且本地数据库无历史缓存时，直接返回空列表，严禁合成伪造数据
+        logger.warning(f"标的 {clean_code} 外部数据源均不可用且本地无历史数据，无法返回K线（严禁伪造数据）")
+        return []
 
     # ═══════════════════════════════════════════════════
     #  L2/L3: a-share-data skill 脚本调用

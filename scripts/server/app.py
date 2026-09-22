@@ -34,9 +34,40 @@ from server.port_utils import remove_server_lockfile
 logger = get_logger("server.app")
 
 
+async def _market_post_settle_cron() -> None:
+    """盘后定盘定时巡检协程：在交易日 15:35 自动触发 P0 持仓池与 P2 核心大盘指数增量定盘同步"""
+    import asyncio
+    from datetime import datetime, time as dt_time
+    last_executed_date = ""
+
+    while True:
+        try:
+            await asyncio.sleep(60)  # 每分钟轮询一次时钟状态
+            now = datetime.now()
+            today_str = now.strftime("%Y-%m-%d")
+
+            if last_executed_date == today_str:
+                continue
+
+            from core.data.sync_engine import TradeCalendar, DataSyncEngine
+            if TradeCalendar.is_trading_day(now) and now.time() >= dt_time(15, 35):
+                logger.info(f"[Cron] 触发交易日 ({today_str}) 15:35 盘后定盘自动同步...")
+                engine = DataSyncEngine()
+                symbols = engine.resolve_symbols(include_indices=True)
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, lambda: engine.sync_batch(symbols, mode="incremental"))
+                last_executed_date = today_str
+                logger.info(f"[Cron] 交易日 ({today_str}) 盘后定盘自动同步完成！")
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.debug(f"[Cron] 盘后定时同步巡检异常: {exc}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan: initialize database schemas on startup, cleanup on shutdown."""
+    import asyncio
     logger.info("Initializing A-Stock Agents server database...")
     init_db(server_settings.db_path)
     # Defensive: ensure the locally configured super admin is persisted to the DB on every boot.
@@ -45,8 +76,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         logger.warning(f"sync_super_admin_from_config failed: {exc}")
     logger.info(f"Database ready at: {server_settings.db_path}")
+
+    # 启动盘后 15:35 自动定盘巡检后台协程
+    cron_task = asyncio.create_task(_market_post_settle_cron())
+
     yield
+
     logger.info("A-Stock Agents server shutting down.")
+    cron_task.cancel()
     remove_server_lockfile()
 
 

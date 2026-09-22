@@ -296,29 +296,47 @@ async def get_market_kline(
     except Exception:
         pass
 
-    if not klines:
-        # 降级基准序列
-        import math
-        base = 3400.0 if "000001" in normalized else 300.0
-        now_ts = datetime.now()
-        for i in range(35):
-            d_str = (now_ts.replace(day=max(1, (now_ts.day - 35 + i) % 28 + 1))).strftime("%Y-%m-%d")
-            c = round(base + 50 * math.sin(i * 0.3) + i * 2, 2)
-            o = round(c - 5 + (i % 3) * 3, 2)
-            h = round(max(o, c) + 8, 2)
-            l = round(min(o, c) - 6, 2)
-            v = int(250000 + i * 1500)
-            klines.append([d_str, o, c, h, l, v])
+    source = "data_bridge.tencent_kline" if klines else ""
 
-    # 计算均线
+    # 若外网不可用，优先无缝切换至本地已同步的 SQLite 真实历史库
+    if not klines:
+        try:
+            from core.data.sync_engine import MarketDataStore
+            store = MarketDataStore()
+            local_klines = store.get_klines(normalized, count=35)
+            if local_klines and len(local_klines) >= 1:
+                klines = [
+                    [k["date"], k["open"], k["close"], k["high"], k["low"], k["volume"]]
+                    for k in local_klines
+                ]
+                source = "local.market_data_store"
+        except Exception:
+            pass
+
+    # 【零虚假数据原则】：本地库与网络均无数据时，直接返回空切片与明确提示，严禁合成伪造假数据
+    if not klines:
+        return {
+            "status": "warning",
+            "source": "empty",
+            "message": "网络不可用且本地数据库暂无该标的历史K线数据，无法展示走势（系统已彻底禁用合成虚拟数据）",
+            "as_of": _as_of(),
+            "code": code,
+            "period": period,
+            "klines": [],
+            "ma5": 0.0,
+            "ma10": 0.0,
+            "ma20": 0.0,
+        }
+
+    # 计算真实均线
     closes = [float(k[2]) for k in klines]
-    ma5 = round(sum(closes[-5:]) / min(5, len(closes)), 2)
-    ma10 = round(sum(closes[-10:]) / min(10, len(closes)), 2)
-    ma20 = round(sum(closes[-20:]) / min(20, len(closes)), 2)
+    ma5 = round(sum(closes[-5:]) / min(5, len(closes)), 2) if closes else 0.0
+    ma10 = round(sum(closes[-10:]) / min(10, len(closes)), 2) if closes else 0.0
+    ma20 = round(sum(closes[-20:]) / min(20, len(closes)), 2) if closes else 0.0
 
     return {
         "status": "success",
-        "source": "data_bridge.tencent_kline",
+        "source": source,
         "as_of": _as_of(),
         "code": code,
         "period": period,
