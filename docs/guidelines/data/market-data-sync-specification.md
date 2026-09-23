@@ -1,8 +1,9 @@
-# A-Stock 本地行情数据同步与安全隔离规范 (market-data-sync-specification)
+# A-Stock 行情数据 · 本地同步与安全隔离规范 (Market Data Sync & Isolation Specification)
 
 > **文档类别**：工程技术与系统架构规范 (Specification)  
 > **单一真理来源 (SSOT)**：`scripts/core/data/sync_engine.py` & `scripts/core/workspace.py`  
-> **实施进度看板**：[`SPEC-DATA-001`](../../specs/data/market-data-sync-implementation-plan.md)
+> **实施进度看板**：[`SPEC-DATA-001`](../../specs/data/market-data-sync-implementation-plan.md)  
+> **所属文档簇**：`A-Stock 行情数据`（中枢：[`market-data-api-specification.md`](./market-data-api-specification.md)，`SPEC-DATA-001`）
 
 ---
 

@@ -3,8 +3,8 @@
 > **规范编号**：`SPEC-DATA-001`  
 > **实施状态**：✅ **正式基线 (Production Baseline, 100% 交付)**  
 > **关联权威规范 (SSOT)**：  
-> - [`market-data-api-specification.md`](../../guidelines/data/market-data-api-specification.md)（行情数据接口与指标规范）  
-> - [`market-data-sync-specification.md`](../../guidelines/data/market-data-sync-specification.md)（数据同步与安全隔离规范）
+> - [`market-data-api-specification.md`](../../guidelines/data/market-data-api-specification.md)（A-Stock 行情数据 · 接口与全周期技术指标规范）  
+> - [`market-data-sync-specification.md`](../../guidelines/data/market-data-sync-specification.md)（A-Stock 行情数据 · 本地同步与安全隔离规范）
 
 ---
 

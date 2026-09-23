@@ -31,18 +31,19 @@ docs/guidelines/
 
 | 规范名称 | 类别 | 物理路径 | 对应实施看板 | 核心内容概述 |
 |:---|:---:|:---|:---:|:---|
-| **Agent2UI (A2UI) 前端渲染引擎框架架构** | 架构 | [`a2ui/a2ui-framework-architecture.md`](a2ui/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](../specs/a2ui/a2ui-framework-engine-plan.md) | 静态 WebApp Shell 容器硬锁定、1:1 骨架预占位 (CLS=0)、五阶段渐进式水合流水线 |
-| **A2UI 组件库拆解与模块化注册发现机制规范** | 规范 | [`a2ui/a2ui-component-registry-specification.md`](a2ui/a2ui-component-registry-specification.md) | [`SPEC-A2UI-002`](../specs/a2ui/a2ui-component-registry-plan.md) | 领域组件包规范 (`@a2ui/pack-astock`)、未决缓冲队列时序解耦、命名空间隔离与自省清单 |
+| **Agent2UI (A2UI) · 前端渲染引擎框架架构设计** | 架构 | [`a2ui/a2ui-framework-architecture.md`](a2ui/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](../specs/a2ui/a2ui-framework-engine-plan.md) | 静态 WebApp Shell 容器硬锁定、1:1 骨架预占位 (CLS=0)、五阶段渐进式水合流水线 |
+| **Agent2UI (A2UI) · 组件库拆解与模块化注册发现机制规范** | 规范 | [`a2ui/a2ui-component-registry-specification.md`](a2ui/a2ui-component-registry-specification.md) | [`SPEC-A2UI-002`](../specs/a2ui/a2ui-component-registry-plan.md) | 领域组件包规范 (`@a2ui/pack-astock`)、未决缓冲队列时序解耦、命名空间隔离与自省清单 |
 
 ### 2. 算法模型与生命周期治理 (`algorithm/`)
 
 | 规范名称 | 类别 | 物理路径 | 对应实施看板 | 核心内容概述 |
 |:---|:---:|:---|:---:|:---|
 | **算法审查与全生命周期治理指南** | 治理 | [`algorithm/algorithm-governance.md`](algorithm/algorithm-governance.md) | [`SPEC-ALGO-001`](../specs/algorithm/algo-lifecycle-and-governance-plan.md) | 44 项量化算法全景清单、AlgoRegistry 2.0 统一纳管抽象、ALCM 四道质量门禁 |
-| **智能选股系统功能规格** | 规范 | [`algorithm/selection-system-specification.md`](algorithm/selection-system-specification.md) | [`SPEC-ALGO-ISS-001`](../specs/algorithm/selection-system-plan.md) | 选股模型版本控制、层级漏斗引擎、多次运行记录、本地数据装配与结果研究 |
-| **收盘→开盘漏斗规则** | 规则 | [`algorithm/close-open-funnel-rules.md`](algorithm/close-open-funnel-rules.md) | [`SPEC-ALGO-ISS-001`](../specs/algorithm/selection-system-plan.md) | 收盘后筛选与次日开盘执行两阶段衔接的漏斗口径与过滤硬约束 |
-| **选股体系设计指南** | 指南 | [`algorithm/selection-design-guide.md`](algorithm/selection-design-guide.md) | [`SPEC-ALGO-002`](../specs/algorithm/selection-design-plan.md) | 选股设计范式、分层架构与因子组织方式 |
-| **通用选股与拐点判定规则** | 规则 | [`algorithm/general-selection-and-turning-point-rules.md`](algorithm/general-selection-and-turning-point-rules.md) | [`SPEC-ALGO-003`](../specs/algorithm/general-selection-and-turning-point-plan.md) | 通用选股口径、拐点识别判据与仓位上限硬约束 |
+| **智能选股系统 · 功能建设规范** | 规范 | [`algorithm/selection-system-specification.md`](algorithm/selection-system-specification.md) | [`SPEC-ALGO-ISS-001`](../specs/algorithm/selection-system-plan.md) | 选股模型版本控制、层级漏斗引擎、多次运行记录、本地数据装配与结果研究 |
+| **智能选股系统 · 模型类型设计规范** | 规范 | [`algorithm/selection-model-types-specification.md`](algorithm/selection-model-types-specification.md) | [`SPEC-ALGO-ISS-MT-001`](../specs/algorithm/selection-system-plan.md) | 模型类型注册中心与 `condition_tree`/`funnel`/`scoring_rank`/`composite` 类型级设计、统一编译契约 |
+| **智能选股系统 · 选股模型通用设计规范** | 规范 | [`algorithm/selection-model-general-specification.md`](algorithm/selection-model-general-specification.md) | [`SPEC-ALGO-003`](../specs/algorithm/general-selection-and-turning-point-plan.md) | 模型家族通用维度：通用选股 SFTC 阶段流水线、条件谓词模型、时点契约与拐点评分/回测治理口径（具体阈值均为示例口径） |
+| **智能选股系统 · 研究治理规则** | 治理 | [`algorithm/selection-research-governance.md`](algorithm/selection-research-governance.md) | [`SPEC-ALGO-ISS-001`](../specs/algorithm/selection-system-plan.md) | 模型评价触发阈值与优化建议闭环（建议不得自动改版） |
+| **智能选股系统 · 选股漏斗示例 1**（唯一示例） | 示例 | [`algorithm/selection-funnel-example-1.md`](algorithm/selection-funnel-example-1.md) | [`SPEC-ALGO-ISS-001`](../specs/algorithm/selection-system-plan.md) | 漏斗模型唯一示例（案例说明，非规范）：业务叙事与问财语句、配置驱动的“收盘突破 → 次日早盘拐点”四层漏斗口径、数据契约与参数化评估 |
 
 ### 3. 系统核心架构设计 (`architecture/`)
 
@@ -65,8 +66,8 @@ docs/guidelines/
 
 | 规范名称 | 类别 | 物理路径 | 对应实施看板 | 核心内容概述 |
 |:---|:---:|:---|:---:|:---|
-| **A-Stock 行情数据接口与全周期技术指标规范** | 规范 | [`data/market-data-api-specification.md`](data/market-data-api-specification.md) | [`SPEC-DATA-001`](../specs/data/market-data-sync-implementation-plan.md) | 4级降级数据源规范、实时快照与全周期K线协议字典、本地闭环技术指标计算标准、调用量级容量模型 |
-| **A-Stock 本地行情数据同步与安全隔离规范** | 规范 | [`data/market-data-sync-specification.md`](data/market-data-sync-specification.md) | [`SPEC-DATA-001`](../specs/data/market-data-sync-implementation-plan.md) | 交易日时钟驱动策略、完整性Gap探测自愈算法、SQLite嵌入式存储设计、`local/` 700权限物理阻断规范 |
+| **A-Stock 行情数据 · 接口与全周期技术指标规范** | 规范 | [`data/market-data-api-specification.md`](data/market-data-api-specification.md) | [`SPEC-DATA-001`](../specs/data/market-data-sync-implementation-plan.md) | 4级降级数据源规范、实时快照与全周期K线协议字典、本地闭环技术指标计算标准、调用量级容量模型 |
+| **A-Stock 行情数据 · 本地同步与安全隔离规范** | 规范 | [`data/market-data-sync-specification.md`](data/market-data-sync-specification.md) | [`SPEC-DATA-001`](../specs/data/market-data-sync-implementation-plan.md) | 交易日时钟驱动策略、完整性Gap探测自愈算法、SQLite嵌入式存储设计、`local/` 700权限物理阻断规范 |
 
 ### 6. 工程质量与安全规范 (`engineering/`)
 
@@ -102,10 +103,12 @@ docs/guidelines/{domain}/{domain_slug}-{category_suffix}.md
   - `-specification.md`：工程技术规格、结构与接口标准；
   - `-guide.md` / `-governance.md`：开发、交互与治理指引；
   - `-architecture.md`：系统拓扑与核心子系统架构设计；
-  - `-rules.md`：量化数学公式、交易纪律与业务硬约束。
+  - `-rules.md`：量化数学公式、交易纪律与业务硬约束；
+  - `-example-N.md`：文档簇内案例说明（非规范），`N` 为簇内示例序号。
+- **文档簇 (Doc Cluster)**：同一业务能力的多篇文档须由**唯一中枢**声明，并统一采用 `{簇标题} · {文档标题}` 标题格式与「文档导航」成员表（如 `智能选股系统`、`Agent2UI (A2UI)`、`A-Stock 行情数据` 三簇）。
 - **不可变性与单一真理来源**：物理文件名禁止版本化与时间戳侵入，持续演进保持最新。
 
-> 📌 上述命名规则、两范式编制模板、反混编判定红线与标准目录分层的**唯一权威定义**见 [`naming-conventions.md` §四 `标准领域分层结构`](engineering/naming-conventions.md)，本处仅为导航摘要，不得作为判据引用。
+> 📌 上述命名规则、两范式编制模板、反混编判定红线、标准目录分层与**文档簇编排规范**的**唯一权威定义**见 [`naming-conventions.md` §四](engineering/naming-conventions.md)，本处仅为导航摘要，不得作为判据引用。
 
 ---
 

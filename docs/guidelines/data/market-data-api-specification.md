@@ -1,8 +1,15 @@
-# A-Stock 行情数据接口与全周期技术指标规范 (market-data-api-specification)
+# A-Stock 行情数据 · 接口与全周期技术指标规范 (Market Data API & Technical Indicators Specification)
 
 > **文档类别**：工程技术与数据接口规范 (Specification)  
 > **单一真理来源 (SSOT)**：`scripts/core/data/data_bridge.py` & `scripts/core/indicators/technical_indicators.py`  
 > **实施进度看板**：[`SPEC-DATA-001`](../../specs/data/market-data-sync-implementation-plan.md)
+
+### 文档导航（簇成员）
+
+| 层级 | 文档 | 职责 |
+|---|---|---|
+| 中枢（接口与指标规范） | **本文**（`SPEC-DATA-001`） | 4 级容灾数据源分层、实时行情快照与全周期 K 线接口协议字典、本地闭环技术指标计算标准与调用量级容量模型 |
+| 成员（同步与隔离规范） | [`market-data-sync-specification.md`](./market-data-sync-specification.md)（`SPEC-DATA-001`） | 交易日时钟驱动同步调度、完整性 Gap 探测自愈、SQLite 嵌入式存储与 `local/` 700 权限物理隔离 |
 
 ---
 

@@ -9,13 +9,13 @@
 
 > 🔗 **权威规范与架构定义直达**：  
 > 本文件为 **A2UI 组件库模块化拆解与动态发现机制实施落地跟踪看板**。关于未决缓冲池时序解耦原理、命名空间隔离、约定式动态发现契约与自省清单 Schema 等完整规范，请查阅权威指南：  
-> 👉 [**《A2UI 组件库拆解与模块化注册发现机制规范》(a2ui-component-registry-specification.md)**](../../guidelines/a2ui/a2ui-component-registry-specification.md)
+> 👉 [**《Agent2UI (A2UI) · 组件库拆解与模块化注册发现机制规范》(a2ui-component-registry-specification.md)**](../../guidelines/a2ui/a2ui-component-registry-specification.md)
 
 ---
 
 ## 一、 规范简要名称与核心要点
 
-- **规范名称**：A2UI 组件库模块化拆解与时序解耦发现机制规范
+- **规范名称**：Agent2UI (A2UI) · 组件库拆解与模块化注册发现机制规范
 - **核心定位**：彻底解决前端多领域组件包命名冲突、脚本载入时序耦合竞态与组件自省清单缺失痛点。
 - **关键设计要点**：
   1. [时序解耦未决缓冲池 (`__A2UI_PENDING_PACKS__`)](../../guidelines/a2ui/a2ui-component-registry-specification.md#1-时序解耦与未决缓冲队列-temporal-decoupling)：通过全局 `defineA2UIPack` 打破脚本同步加载强依赖，彻底杜绝 `UIEngine is undefined`；

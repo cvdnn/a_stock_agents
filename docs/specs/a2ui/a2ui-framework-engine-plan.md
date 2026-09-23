@@ -9,13 +9,13 @@
 
 > 🔗 **权威规范与架构定义直达**：  
 > 本文件为 **A2UI 前端渲染引擎框架实施落地与任务执行跟踪看板**。关于 WebApp Shell 容器硬锁定、1:1 骨架屏预占位、五阶段渐进式水合流水线等完整架构设计，请查阅权威指南：  
-> 👉 [**《Agent2UI (A2UI) 前端渲染引擎框架架构设计》(a2ui-framework-architecture.md)**](../../guidelines/a2ui/a2ui-framework-architecture.md)
+> 👉 [**《Agent2UI (A2UI) · 前端渲染引擎框架架构设计》(a2ui-framework-architecture.md)**](../../guidelines/a2ui/a2ui-framework-architecture.md)
 
 ---
 
 ## 一、 规范简要名称与核心要点
 
-- **规范名称**：Agent2UI (A2UI) 前端引擎框架设计与架构规范
+- **规范名称**：Agent2UI (A2UI) · 前端渲染引擎框架架构设计
 - **核心定位**：将 AI 的复杂链式推理（COT）毫秒级转化为直观结构化的金融级交互界面的动态编排引擎。
 - **关键设计要点**：
   1. [WebApp Shell 应用外壳硬锁定](../../guidelines/a2ui/a2ui-framework-architecture.md#一-概述与核心设计基石-the-trinity-of-ux)：视口锁定在 `calc(100vh - 50px)`，杜绝整页滚动，支持双模视口插槽；

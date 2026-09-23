@@ -47,8 +47,8 @@
 
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 (SSOT) | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
-| `SPEC-A2UI-001` | Agent2UI (A2UI) 前端引擎框架架构规范 | [`a2ui/a2ui-framework-engine-plan.md`](a2ui/a2ui-framework-engine-plan.md) | [`a2ui-framework-architecture.md`](../guidelines/a2ui/a2ui-framework-architecture.md) | 🚧 实施中 | 原基线声明待整改验收；WebApp Shell 硬锁定、1:1 骨架预占位 (CLS=0)、五阶段水合流水线 |
-| `SPEC-A2UI-002` | A2UI 组件库模块化拆解与动态发现机制规范 | [`a2ui/a2ui-component-registry-plan.md`](a2ui/a2ui-component-registry-plan.md) | [`a2ui-component-registry-specification.md`](../guidelines/a2ui/a2ui-component-registry-specification.md) | 🚧 实施中 | 原基线声明待整改验收；未决缓冲队列时序解耦、命名空间隔离与自省清单 |
+| `SPEC-A2UI-001` | Agent2UI (A2UI) · 前端渲染引擎框架架构设计 | [`a2ui/a2ui-framework-engine-plan.md`](a2ui/a2ui-framework-engine-plan.md) | [`a2ui-framework-architecture.md`](../guidelines/a2ui/a2ui-framework-architecture.md) | 🚧 实施中 | 原基线声明待整改验收；WebApp Shell 硬锁定、1:1 骨架预占位 (CLS=0)、五阶段水合流水线 |
+| `SPEC-A2UI-002` | Agent2UI (A2UI) · 组件库拆解与模块化注册发现机制规范 | [`a2ui/a2ui-component-registry-plan.md`](a2ui/a2ui-component-registry-plan.md) | [`a2ui-component-registry-specification.md`](../guidelines/a2ui/a2ui-component-registry-specification.md) | 🚧 实施中 | 原基线声明待整改验收；未决缓冲队列时序解耦、命名空间隔离与自省清单 |
 | — | A2UI 运行时整改计划 | [`a2ui/a2ui-runtime-remediation-plan.md`](a2ui/a2ui-runtime-remediation-plan.md) | [`a2ui-framework-architecture.md`](../guidelines/a2ui/a2ui-framework-architecture.md) | 📋 规划中 (RFC) | 归属 `SPEC-UI-001` / `SPEC-A2UI-001` / `SPEC-A2UI-002`；按 F1→F4 推进 |
 
 ### 5. 业务规则设计 (`business/`)
@@ -65,9 +65,9 @@
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 (SSOT) | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
 | `SPEC-ALGO-001` | 算法资产审查、架构评估与全生命周期治理规范 | [`algorithm/algo-lifecycle-and-governance-plan.md`](algorithm/algo-lifecycle-and-governance-plan.md) | [`algorithm-governance.md`](../guidelines/algorithm/algorithm-governance.md) | 🚧 实施中 | 原基线声明待整改验收；44 项算法全景清单、AlgoRegistry 2.0 与 ALCM 四道门禁 |
-| `SPEC-ALGO-ISS-001` | 智能选股系统功能建设规范 | [`algorithm/selection-system-plan.md`](algorithm/selection-system-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 方案待产品评审；选股模型版本控制、层级漏斗引擎、多次运行记录与结果研究 |
-| `SPEC-ALGO-002` | 选股体系设计规范 | [`algorithm/selection-design-plan.md`](algorithm/selection-design-plan.md) | [`selection-design-guide.md`](../guidelines/algorithm/selection-design-guide.md) | 📋 规划中 (RFC) | 待执行；选股设计范式与分层架构落地 |
-| `SPEC-ALGO-003` | 通用选股与拐点判定规则 | [`algorithm/general-selection-and-turning-point-plan.md`](algorithm/general-selection-and-turning-point-plan.md) | [`general-selection-and-turning-point-rules.md`](../guidelines/algorithm/general-selection-and-turning-point-rules.md) | 📋 规划中 (RFC) | 待执行；通用选股与转折点识别规则的工程化落地 |
+| `SPEC-ALGO-ISS-001` | 智能选股系统 · 功能建设规范 | [`algorithm/selection-system-plan.md`](algorithm/selection-system-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 方案待产品评审；选股模型版本控制、层级漏斗引擎、多次运行记录与结果研究 |
+| `SPEC-ALGO-ISS-MT-001` | 智能选股系统 · 模型类型设计规范 | [`algorithm/selection-system-plan.md`](algorithm/selection-system-plan.md) | [`selection-model-types-specification.md`](../guidelines/algorithm/selection-model-types-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`；条件树/漏斗/评分排序/组合 4 类型注册中心、统一编译契约与 CompiledSelectionPlan |
+| `SPEC-ALGO-003` | 智能选股系统 · 选股模型通用设计规范 | [`algorithm/general-selection-and-turning-point-plan.md`](algorithm/general-selection-and-turning-point-plan.md) | [`selection-model-general-specification.md`](../guidelines/algorithm/selection-model-general-specification.md) | 📋 规划中 (RFC) | 待执行；选股模型通用规则与转折点识别规则的工程化落地；规范层与唯一示例（[`selection-funnel-example-1.md`](../guidelines/algorithm/selection-funnel-example-1.md)）+ `config/funnel_strategy.yaml` 分离 |
 | — | 算法治理整改计划 | [`algorithm/algo-governance-remediation-plan.md`](algorithm/algo-governance-remediation-plan.md) | [`algorithm-governance.md`](../guidelines/algorithm/algorithm-governance.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-001`（发现 G1）；按 G1→G3 顺序推进 |
 | — | 待办积压登记看板 | [`algorithm/pending-backlog-plan.md`](algorithm/pending-backlog-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`；全部条目未开始（整理日期 2026-09-20） |
 | 🗄️ 归档 | 历史 ADR / RFC / 审计报告（6 篇，不可变） | [`algorithm/archive/`](algorithm/archive/) | — | 🔒 已归档 | 保留 `YYYY-MM-DD-*.md` 日期前缀，豁免 `-plan.md` 命名规则，只增不改 |
