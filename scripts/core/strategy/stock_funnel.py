@@ -134,6 +134,34 @@ def rule_series_compare(record: Mapping[str, Any], spec: Mapping[str, Any], _: M
     return RuleResult.two_state("", passed, reason=f"序列比较: {left} vs {right}", observed=left, expected=right)
 
 
+def rule_volume_sustained_expansion(record: Mapping[str, Any], spec: Mapping[str, Any], _: Mapping[str, Any]) -> RuleResult:
+    """量能持续放大：近 N 日均量相对前 M 日均量的放大倍数。
+
+    与单日放量 `series_compare` 区分：本规则判定的是"一段时间重心上移"，
+    而非仅"今日量 > 昨日量"。`window` / `baseline_window` / `min_ratio`
+    全部参数化，可在可视化配置中微调。
+    """
+    series = _numbers(_path_get(record, str(spec.get("field", "volumes"))))
+    window = int(spec.get("window", 3))
+    baseline_window = int(spec.get("baseline_window", 5))
+    min_ratio = float(spec.get("min_ratio", 1.0))
+    if window < 1 or baseline_window < 1:
+        raise ValueError("window 与 baseline_window 必须为正整数")
+    if len(series) < window + baseline_window:
+        raise ValueError(f"至少需要 {window + baseline_window} 个数据点")
+    recent = mean(series[-window:])
+    baseline = mean(series[-window - baseline_window:-window])
+    ratio = recent / baseline if baseline else float("inf")
+    passed = ratio > min_ratio if bool(spec.get("strict", True)) else ratio >= min_ratio
+    return RuleResult.two_state(
+        "",
+        passed,
+        reason=f"近{window}日均量/前{baseline_window}日均量={ratio:.4f}",
+        observed=ratio,
+        expected=min_ratio,
+    )
+
+
 def rule_range(record: Mapping[str, Any], spec: Mapping[str, Any], _: Mapping[str, Any]) -> RuleResult:
     field = str(spec["field"])
     value = float(_path_get(record, field))
@@ -470,6 +498,7 @@ def build_stock_rule_registry() -> RuleRegistry:
         "above_sma": rule_above_sma,
         "sma_slope": rule_sma_slope,
         "series_compare": rule_series_compare,
+        "volume_sustained_expansion": rule_volume_sustained_expansion,
         "range": rule_range,
         "market_above_sma": rule_market_above_sma,
         "intraday_turning_point": rule_intraday_turning_point,

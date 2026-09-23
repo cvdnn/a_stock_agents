@@ -6,6 +6,7 @@ strategy:
   notes:
     - 默认按公式原文使用20日新高；将 breakout_high.lookback 改为60即可切换。
     - 默认高开区间为1%至2%；若“只要高开”则将 min 改为0且 max改为null。
+    - 量能口径：默认沿用公式原文的单日放量（今日量>昨日量）；如需“量能持续放大”，启用 volume_sustained_expansion（近N日均量/前M日均量，参数 window/baseline_window/min_ratio 可微调）。
     - 收盘初筛最早15:35，须等 UniverseWatermark 达标后执行；15:05-15:30 为交易所清算期，禁止使用未定盘数据。
     - main_fund_inflow 已设 enabled=false：主力资金流契约本期未建立，规则参数保留，契约落地后改回 true 即生效。
     - 拐点双轨：本期无主动买卖量与盘口契约，sell_exhaustion/buy_strengthening/book_support 仅作预留，故 min_confirmations 设为0（形态版）。
@@ -59,6 +60,14 @@ stages:
         left_offset: -1
         right_offset: -2
         op: gt
+      - id: volume_sustained_expansion
+        enabled: false   # 与单日放量并存；改为 true 即启用“量能持续放大”口径，并按需调参
+        type: volume_sustained_expansion
+        field: volumes
+        window: 3
+        baseline_window: 5
+        min_ratio: 1.0
+        strict: true
       - id: main_fund_inflow
         enabled: false
         type: field_compare
@@ -115,3 +124,43 @@ stages:
         min_confirmations: 0
         output_policy: converge_at_window_end
         metric_policy: real_only_for_signal
+
+# --- 声明态参数块（status: declared）---------------------------------------------
+# 与 stages 同级，不进入 stages 列表：FunnelEngine 仅支持 candidate_filter 与
+# universe_gate 两种 scope，且 validate_stage 要求每个 stage 必须有非空 rules。
+# 下列两块参数已冻结（可视化配置可展示与校验），但引擎尚未实现 Stage 1.5 / Stage 4，
+# 因此不参与执行；引擎落地后改为 active 并同构迁移，参数值不变。
+# 参数蓝本：selection-model-general-specification.md §9。
+ranking:
+  status: declared
+  name: 盘后候选排序截断
+  stage: stage1_5_rank
+  top_n: 20                 # “选择项很多”时的截断阈值
+  persist_to: output/pools/watch_opening_reversal.csv
+  factors:
+    - {id: breakout_strength, weight: 0.20}
+    - {id: ma60_slope_norm,   weight: 0.20}
+    - {id: volume_quality,    weight: 0.15}
+    - {id: inflow_intensity,  weight: 0.20}
+    - {id: change_pct_sweet,  weight: 0.15, params: {lo: 3.0, hi: 6.0}}
+    - {id: float_cap_score,   weight: 0.10, params: {lo: 3.0e9, hi: 3.0e10}}
+
+risk_exit:
+  status: declared
+  name: 持仓风控离场
+  stage: stage4_exit
+  order_window: {start: "09:40:00"}   # 09:40 收敛后才可下单
+  t1_constraint: true                 # ★ 本策略受 T+1 约束
+  intraday_controls:
+    single_position_max_pct: 20
+    daily_total_max_pct: 40
+    max_concurrent_holdings: 3
+    weak_market_halve_below: 60       # 五维健康度低于 60 则减半
+    gap_inverse_sizing: true
+  stop_ladder:
+    - {level: T0, drawdown_pct: -3, action: alert}
+    - {level: T1, drawdown_pct: -5, action: reduce_50, exec: next_open}
+    - {level: T2, drawdown_pct: -8, action: clear,     exec: next_open}
+    - {level: T_GAP,  condition: open_below_stop,        action: clear_at_open, exec: next_open_immediate}
+    - {level: T_TIME, condition: not_profitable_by_close, action: clear,        exec: t2_1450}
+  breakeven: {skill: astock-action-execution, round: ceil_to_cent}   # 保本价向上进位至分
