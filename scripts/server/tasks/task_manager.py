@@ -297,8 +297,64 @@ class TaskManager:
             symbols = engine.resolve_symbols(
                 codes=codes, pool=pool, include_indices=indices, all_pool=all_pool
             )
-            update_task_record(task_id=task_id, progress=0.5, status_message=f"Syncing market data for {len(symbols)} symbols ({mode})")
             workers = int(params.get("workers") or params.get("concurrency") or 4)
+
+            # 1. 数据完整性体检
+            if params.get("check"):
+                update_task_record(task_id=task_id, progress=0.5, status_message=f"Auditing data integrity for {len(symbols)} symbols")
+                res = await loop.run_in_executor(
+                    None,
+                    lambda: engine.audit_integrity(symbols, start_date=start_date, end_date=end_date)
+                )
+                update_task_record(task_id=task_id, progress=1.0, status_message="Integrity audit completed")
+                healthy_count = sum(1 for r in res if r.get("status") == "healthy")
+                missing_total = sum(r.get("missing_count", 0) for r in res)
+                suspended_total = sum(r.get("suspended_count", 0) for r in res)
+                return {
+                    "status": "success",
+                    "action": "check",
+                    "total_codes": len(symbols),
+                    "healthy_codes": healthy_count,
+                    "degraded_codes": len(symbols) - healthy_count,
+                    "missing_gaps": missing_total,
+                    "suspended_gaps": suspended_total,
+                    "health_rate": round(healthy_count / len(symbols) * 100, 1) if symbols else 100.0,
+                    "audit_results": res,
+                }
+
+            # 2. 缺漏数据靶向自愈回补
+            if params.get("repair"):
+                update_task_record(task_id=task_id, progress=0.5, status_message=f"Repairing data gaps for {len(symbols)} symbols")
+                res = await loop.run_in_executor(
+                    None,
+                    lambda: engine.repair_gaps(symbols)
+                )
+                update_task_record(task_id=task_id, progress=1.0, status_message="Data repair completed")
+                repaired_count = sum(1 for r in res if r.get("repaired"))
+                return {
+                    "status": "success",
+                    "action": "repair",
+                    "total_codes": len(symbols),
+                    "repaired_count": repaired_count,
+                    "repair_results": res,
+                }
+
+            # 3. 当日行情快照落盘
+            if params.get("today"):
+                update_task_record(task_id=task_id, progress=0.5, status_message=f"Syncing today snapshot for {len(symbols)} symbols")
+                res = await loop.run_in_executor(
+                    None,
+                    lambda: engine.sync_today_snapshot(symbols)
+                )
+                update_task_record(task_id=task_id, progress=1.0, status_message="Today snapshot synced")
+                return {
+                    "status": "success",
+                    "action": "today_snapshot",
+                    **res,
+                }
+
+            # 4. 常规增量/全量批量同步
+            update_task_record(task_id=task_id, progress=0.5, status_message=f"Syncing market data for {len(symbols)} symbols ({mode})")
             res = await loop.run_in_executor(
                 None,
                 lambda: engine.sync_batch(symbols, mode=mode, count=count, start_date=start_date, end_date=end_date, max_workers=workers)

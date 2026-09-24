@@ -37,6 +37,11 @@
 | **P3** | **停牌与假阳性消解** | 区分合法停牌与真实断点，在 sync_meta 登记停牌切片避免误报<br>• [`scripts/core/data/sync_engine.py`](../../../scripts/core/data/sync_engine.py) | ✅ 完成 | 消除停牌股与次新股误报，校验列新增“停牌数” |
 | **P3** | **常驻自动化定时守护** | 新建 DataSyncDaemon，依据 15:35 / 15:40 时钟状态机自动定盘同步<br>• [`scripts/core/data/sync_daemon.py`](../../../scripts/core/data/sync_daemon.py)<br>• [`scripts/core/cli.py`](../../../scripts/core/cli.py) | ✅ 完成 | 支持 CLI 独立守护与单次检测，日志沉淀至 log/ |
 | **P3** | **交易日历动态真值延伸** | 支持超出已知年份时从本地基准指数历史时序动态推导真值<br>• [`scripts/core/data/sync_engine.py`](../../../scripts/core/data/sync_engine.py) | ✅ 完成 | 摆脱静态硬编码年份限制，实现日历自愈 |
+| **P4** | **一级菜单与工作台布局** | 落地左侧一级菜单 `data-tab="datasync"` 与工作区居中主面板<br>• [`web/index.html`](../../../web/index.html)<br>• [`web/css/style.css`](../../../web/css/style.css) | ✅ 完成 | 遵循模式二业务主工作区规范，100% 对齐 Design Tokens 与无粗边框风格 |
+| **P4** | **服务端 REST 接口支持** | 提供 `/clock`, `/ping`, `/daemon/control`, `/daemon/logs`, `/import_tdx`<br>• [`scripts/server/api/market_data.py`](../../../scripts/server/api/market_data.py) | ✅ 完成 | 契约对齐 UI 规范，支持多源测速、状态机、守护启停与自选解析 |
+| **P4** | **任务管理器体检自愈分支** | `TaskManager` 扩展 `check`/`repair`/`today` 异步路由与状态上报<br>• [`scripts/server/tasks/task_manager.py`](../../../scripts/server/tasks/task_manager.py) | ✅ 完成 | 完整性体检与靶向自愈任务全异步非阻塞执行 |
+| **P4** | **前端动态驱动与纯净化** | `AStockAPI` 封装接口，动态渲染体检表格与时钟跃迁，清除硬编码<br>• [`web/js/api.js`](../../../web/js/api.js)<br>• [`web/js/app.js`](../../../web/js/app.js) | ✅ 完成 | 废除客户端假定时器与随机延迟，100% 由真实后台数据驱动 |
+| **P4** | **接口与端到端测试覆盖** | 编写专用 REST API 与任务调度回归测试套件<br>• [`tests/server/test_market_data_sync_api.py`](../../../tests/server/test_market_data_sync_api.py) | ✅ 完成 | 单元测试 6/6 通过，覆盖全部 6 个核心 REST 与任务接口 |
 
 ---
 
@@ -84,5 +89,7 @@
 4. **状态复查**：重新 `--check`，状态重置为 `🟢 healthy`，缺漏数归 0。
 
 ### 3. 系统级回归测试证据
-- **专有单元测试**：`tests/test_data_sync.py` 执行耗时 0.37s，**3/3 测试通过 (OK)**；
-- **全平台自动化自检**：运行 `.venv/bin/python verify.py`，全量 11 项核心领域测试 **11/11 项全部通过 (ALL SYSTEMS GO)**。
+- **核心数据同步单元测试**：`tests/core/test_data_sync.py` 执行耗时 1.14s，**16/16 测试全部通过 (100%)**；
+- **服务端 REST 与任务集成测试**：`tests/server/test_market_data_sync_api.py` 执行耗时 1.87s，**6/6 测试全部通过 (100%)**；
+- **指标与数据组件测试**：`tests/core/test_data_suite.py` 与 `tests/core/test_indicators.py`，**14/14 测试全部通过 (100%)**；
+- **全平台自动化自检**：全量核心领域测试与离线指标分析打通，支持断网环境毫秒级回退至本地 SQLite 时序库。

@@ -71,7 +71,7 @@ def cmd_data_technical(args):
 
     bridge = DataBridge()
     count = getattr(args, "count", 120)
-    klines = bridge.tencent_kline(args.code, count=count)
+    klines = bridge.get_kline_robust(args.code, count=count)
     if not klines or len(klines) < 20:
         err = {"error": f"标的 {args.code} K线数据不足 ({len(klines) if klines else 0}根)"}
         print(json.dumps(err, ensure_ascii=False) if getattr(args, "json", False) else err["error"])

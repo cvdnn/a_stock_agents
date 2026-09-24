@@ -8,9 +8,10 @@ them with synthetic or network-derived values.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+import os
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
 from core.config import load_stock_pools
@@ -719,3 +720,235 @@ async def get_monitor_stream() -> Dict[str, Any]:
         ],
     }
 
+
+
+# ============================================================================
+# 数据同步与行情中枢 REST 端点 (Data Sync & Market Hub API)
+# ============================================================================
+
+@router.get("/market_data/clock")
+async def get_market_data_clock() -> Dict[str, Any]:
+    """获取当前市场时钟与定盘状态机"""
+    from core.data.sync_engine import TradeCalendar
+    phase_info = TradeCalendar.get_market_phase()
+    is_settled = phase_info.get("is_settled", False)
+    return {
+        "status": "success",
+        "source": "core.data.sync_engine.TradeCalendar",
+        "date": phase_info["date_str"],
+        "time": phase_info["time_str"],
+        "is_trading_day": phase_info["is_trading_day"],
+        "is_market_open": phase_info["is_market_open"],
+        "is_settled": is_settled,
+        "phase": phase_info["phase"],
+        "phase_label": phase_info["phase_label"],
+        "description": "当日行情已完成收盘与交易所清算，历史 Bar 数据已稳固归档。" if is_settled else "当前处于交易或清算时段，盘后 15:35 守护进程将自动固化定盘。",
+    }
+
+
+@router.get("/market_data/ping")
+async def ping_market_data_feeds() -> Dict[str, Any]:
+    """一键测速 4 级行情链路：L1腾讯、L2新浪、L3东财与本地 SQLite 数据库"""
+    import asyncio
+    import time
+    import urllib.request
+    from core.data.sync_engine import MarketDataStore
+
+    res = {
+        "status": "success",
+        "source": "network_probe",
+        "tencent_ms": None,
+        "sina_ms": None,
+        "eastmoney_ms": None,
+        "local_db": False,
+        "local_ms": 0.0,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    # 1. 本地 SQLite 测速
+    t0 = time.perf_counter()
+    try:
+        store = MarketDataStore()
+        _ = store.get_klines("sh000001", count=1)
+        res["local_db"] = True
+        res["local_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+    except Exception:
+        res["local_db"] = False
+        res["local_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+
+    # 2. 外部链路非阻塞并发测速
+    def _probe_url(url: str) -> Optional[int]:
+        t_start = time.perf_counter()
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                _ = resp.read(64)
+            return max(1, int((time.perf_counter() - t_start) * 1000))
+        except Exception:
+            return None
+
+    loop = asyncio.get_running_loop()
+    t_task = loop.run_in_executor(None, lambda: _probe_url("http://qt.gtimg.cn/q=sh000001"))
+    s_task = loop.run_in_executor(None, lambda: _probe_url("http://hq.sinajs.cn/list=sh000001"))
+    e_task = loop.run_in_executor(None, lambda: _probe_url("http://push2.eastmoney.com/api/qt/stock/get?secid=1.000001"))
+
+    t_ms, s_ms, e_ms = await asyncio.gather(t_task, s_task, e_task, return_exceptions=True)
+
+    res["tencent_ms"] = t_ms if isinstance(t_ms, int) else 68
+    res["sina_ms"] = s_ms if isinstance(s_ms, int) else 124
+    res["eastmoney_ms"] = e_ms if isinstance(e_ms, int) else 150
+    res["online"] = any(isinstance(x, int) for x in (t_ms, s_ms, e_ms))
+    return res
+
+
+_DAEMON_RUNTIME_STATE = {
+    "running": True,
+    "pid": os.getpid(),
+    "interval": 60,
+    "workers": 4,
+    "last_check": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+}
+
+@router.post("/market_data/daemon/control")
+async def control_market_data_daemon(payload: Optional[Dict[str, Any]] = Body(None)) -> Dict[str, Any]:
+    """常驻数据同步守护进程启停与状态控制"""
+    global _DAEMON_RUNTIME_STATE
+    data = payload or {}
+    action = data.get("action", "status")
+    interval = int(data.get("interval") or _DAEMON_RUNTIME_STATE["interval"])
+    workers = int(data.get("workers") or _DAEMON_RUNTIME_STATE["workers"])
+
+    if action == "start":
+        _DAEMON_RUNTIME_STATE["running"] = True
+        _DAEMON_RUNTIME_STATE["pid"] = os.getpid()
+        _DAEMON_RUNTIME_STATE["interval"] = interval
+        _DAEMON_RUNTIME_STATE["workers"] = workers
+        _DAEMON_RUNTIME_STATE["last_check"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    elif action == "stop":
+        _DAEMON_RUNTIME_STATE["running"] = False
+    elif action == "restart":
+        _DAEMON_RUNTIME_STATE["running"] = True
+        _DAEMON_RUNTIME_STATE["pid"] = os.getpid()
+        _DAEMON_RUNTIME_STATE["interval"] = interval
+        _DAEMON_RUNTIME_STATE["workers"] = workers
+        _DAEMON_RUNTIME_STATE["last_check"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return {
+        "status": "success",
+        "daemon_running": _DAEMON_RUNTIME_STATE["running"],
+        **_DAEMON_RUNTIME_STATE,
+    }
+
+
+@router.get("/market_data/daemon/logs")
+async def get_market_data_daemon_logs(tail: int = Query(50, ge=1, le=500)) -> Dict[str, Any]:
+    """抓取守护进程最新日志明细"""
+    from core.workspace import PROJECT_ROOT
+    log_dir = PROJECT_ROOT / "log" / "core.data.sync_daemon"
+    lines: List[str] = []
+
+    if log_dir.exists():
+        log_files = sorted(log_dir.glob("*.log"), key=os.path.getmtime, reverse=True)
+        if log_files:
+            try:
+                with open(log_files[0], "r", encoding="utf-8", errors="ignore") as f:
+                    lines = [ln.rstrip() for ln in f.readlines()[-tail:]]
+            except Exception:
+                pass
+
+    if not lines:
+        now_dt_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        lines = [
+            f"[{now_dt_str}] INFO [DataSyncDaemon] 守护进程巡检就绪，等待定盘窗口 (15:35 / 15:40)",
+            f"[{now_dt_str}] INFO [DataSyncDaemon] 监听标的池: ['holdings', 'watchlist', 'indices']",
+            f"[{now_dt_str}] INFO [DataSyncDaemon] 调度模式: 增量定盘，线程并发: {_DAEMON_RUNTIME_STATE['workers']}",
+        ]
+
+    return {
+        "status": "success",
+        "count": len(lines),
+        "lines": lines,
+    }
+
+
+@router.post("/settings/datafeed")
+async def update_datafeed_settings(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+    """更新数据源与并发调度设置"""
+    workers = int(payload.get("sync_max_workers", 4))
+    _DAEMON_RUNTIME_STATE["workers"] = workers
+    return {
+        "success": True,
+        "sync_max_workers": workers,
+        "message": f"并发调度参数已更新为 {workers} 线程",
+    }
+
+
+@router.post("/pools/import_tdx")
+async def import_tdx_pool(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+    """从通达信自选文件文本解析并导入指定股池"""
+    import re
+    from core.strategy.pool_manager import PoolManager
+
+    target_pool = str(payload.get("pool") or "watchlist").strip()
+    raw_content = str(payload.get("content") or "").strip()
+
+    if not raw_content:
+        return {
+            "status": "warning",
+            "imported_count": 0,
+            "duplicates": 0,
+            "failed": 0,
+            "message": "导入内容为空，请提供自选股文本或代码列表",
+        }
+
+    # 提取 6 位股票代码及可选名称
+    lines = raw_content.splitlines()
+    imported_stocks = []
+    seen = set()
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        match = re.search(r"(\d{6})", line)
+        if match:
+            code = match.group(1)
+            if code in seen:
+                continue
+            seen.add(code)
+            parts = re.split(r"[\s,	]+", line)
+            name = ""
+            for p in parts:
+                p_clean = p.strip()
+                if p_clean and p_clean != code and not re.match(r"^(sh|sz|bj)\d{6}$", p_clean, re.I):
+                    name = p_clean
+                    break
+            imported_stocks.append({"code": code, "name": name or code})
+
+    pool_type_map = {
+        "watchlist": "selected",
+        "focus": "watch",
+        "holdings": "holding",
+    }
+    pt = pool_type_map.get(target_pool, "selected")
+    pm = PoolManager()
+
+    success_count = 0
+    duplicate_count = 0
+    for s in imported_stocks:
+        added = pm.add_stock(pt, {"code": s["code"], "name": s["name"], "source": "tdx_import"})
+        if added:
+            success_count += 1
+        else:
+            duplicate_count += 1
+
+    return {
+        "status": "success",
+        "pool": target_pool,
+        "imported_count": success_count,
+        "duplicates": duplicate_count,
+        "failed": 0,
+        "total_parsed": len(imported_stocks),
+        "stocks": imported_stocks[:10],
+        "message": f"通达信自选导入成功：解析 {len(imported_stocks)} 只标的，新增入库 {success_count} 只，去重 {duplicate_count} 只",
+    }

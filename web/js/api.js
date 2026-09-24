@@ -48,6 +48,40 @@ const AStockAPI = {
   },
   getMonitorStream() { return this._fetchJSON('/api/monitor/stream'); },
 
+  // Data Sync & Market Data Hub APIs
+  getMarketClock() { return this._fetchJSON('/api/market_data/clock'); },
+  pingMarketFeeds() { return this._fetchJSON('/api/market_data/ping'); },
+  controlSyncDaemon(action = 'status', interval = 60, workers = 4) {
+    return this._fetchJSON('/api/market_data/daemon/control', {
+      method: 'POST',
+      body: JSON.stringify({ action, interval, workers })
+    });
+  },
+  getSyncDaemonLogs(tail = 50) {
+    return this._fetchJSON(`/api/market_data/daemon/logs?tail=${tail}`);
+  },
+  updateDatafeedSettings(workers = 4) {
+    return this._fetchJSON('/api/settings/datafeed', {
+      method: 'POST',
+      body: JSON.stringify({ sync_max_workers: workers })
+    });
+  },
+  importTdxPool(pool = 'watchlist', content = '') {
+    return this._fetchJSON('/api/pools/import_tdx', {
+      method: 'POST',
+      body: JSON.stringify({ pool, content })
+    });
+  },
+  createTask(taskType, params = {}) {
+    return this._fetchJSON('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify({ task_type: taskType, params })
+    });
+  },
+  getTaskStatus(taskId) {
+    return this._fetchJSON(`/api/tasks/${encodeURIComponent(taskId)}`);
+  },
+
   async listSessions(limit = 30, offset = 0) {
     const data = await this._fetchJSON(`/api/chat/sessions?limit=${limit}&offset=${offset}`);
     return Array.isArray(data.sessions) ? data.sessions : [];
