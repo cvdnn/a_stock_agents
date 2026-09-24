@@ -491,7 +491,7 @@ flowchart TD
 | **界面指南** | [`guidelines/ui/ui-design-guide.md`](guidelines/ui/ui-design-guide.md) | [`SPEC-UI-001`](specs/ui/ui-design-and-interaction-plan.md) | 浅色金融风格、红涨绿跌、双模动态视口、长连通顶栏与卡片微边框指南 |
 | **界面指南** | [`guidelines/ui/app-js-modularization-guide.md`](guidelines/ui/app-js-modularization-guide.md) | [`SPEC-UI-002`](specs/ui/app-js-modularization-plan.md) | 前端巨石单体解耦为领域驱动模块、零构建工具依赖与兼容策略 |
 | **界面指南** | [`guidelines/ui/chat-response-presentation-guide.md`](guidelines/ui/chat-response-presentation-guide.md) | [`SPEC-UI-001`](specs/ui/chat-response-presentation-plan.md) | 对话回复卡片结构、执行时间线渲染契约与工作台投射规则 |
-| **界面指南** | [`guidelines/ui/data-sync-control-console-specification.md`](guidelines/ui/data-sync-control-console-specification.md) | [`SPEC-UI-003`](specs/ui/data-sync-control-console-plan.md) | 一级菜单【数据同步】的运行控制、任务记录与高级设置三页架构，现有系统视觉复用、真实任务状态与无 AI 助手隔离契约 |
+| **界面指南** | [`guidelines/ui/market-data-sync-control-console-specification.md`](guidelines/ui/market-data-sync-control-console-specification.md) | [`SPEC-UI-003`](specs/ui/market-data-sync-control-console-plan.md) | 行情数据同步系统的跨域控制面；覆盖运行控制、任务记录、高级设置、P3 定时增量与手动范围选择，并保持无 AI 助手隔离 |
 | **系统架构** | [`guidelines/architecture/web-aichat-architecture.md`](guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 项技能治理系统架构 |
 | **系统架构** | [`guidelines/architecture/llm-provider-architecture.md`](guidelines/architecture/llm-provider-architecture.md) | [`SPEC-ARCH-002`](specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与 5 大业务场景角色绑定 (Roles) 架构 |
 | **系统架构** | [`guidelines/architecture/token-security-architecture.md`](guidelines/architecture/token-security-architecture.md) | [`SPEC-ARCH-003`](specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离、请求脱敏与指纹审计架构 |
@@ -514,6 +514,7 @@ flowchart TD
 > - **智能选股系统**（`algorithm/`，前缀 `selection-*`）中枢：[`selection-system-specification.md`](guidelines/algorithm/selection-system-specification.md) ｜ 成员：[`selection-model-types-specification.md`](guidelines/algorithm/selection-model-types-specification.md)、[`selection-model-general-specification.md`](guidelines/algorithm/selection-model-general-specification.md)、[`selection-research-governance.md`](guidelines/algorithm/selection-research-governance.md)、[`selection-funnel-example-1.md`](guidelines/algorithm/selection-funnel-example-1.md)（唯一示例）
 > - **Agent2UI (A2UI)**（`a2ui/`，前缀 `a2ui-*`）中枢：[`a2ui-framework-architecture.md`](guidelines/a2ui/a2ui-framework-architecture.md) ｜ 成员：[`a2ui-component-registry-specification.md`](guidelines/a2ui/a2ui-component-registry-specification.md)
 > - **A-Stock 行情数据**（`data/`，前缀 `market-data-*`）中枢：[`market-data-api-specification.md`](guidelines/data/market-data-api-specification.md) ｜ 成员：[`market-data-sync-specification.md`](guidelines/data/market-data-sync-specification.md)
+> - **跨域控制面**（`ui/`）：[`market-data-sync-control-console-specification.md`](guidelines/ui/market-data-sync-control-console-specification.md)（`SPEC-UI-003`），消费 `SPEC-DATA-001` 数据能力，但不计入 `data/` 文档簇成员。
 
 ### 2. 实施进度看板与实战操作
 | 分类 | 文档路径 | 核心内容与定位 |

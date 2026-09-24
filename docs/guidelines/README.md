@@ -86,7 +86,7 @@ docs/guidelines/
 | **Web UI 界面设计与交互指南** | 指南 | [`ui/ui-design-guide.md`](ui/ui-design-guide.md) | [`SPEC-UI-001`](../specs/ui/ui-design-and-interaction-plan.md) | 浅色金融风格、红涨绿跌、双模动态视口（40/60 投研助手 vs 业务主工作区）、卡片微边框 |
 | **前端架构重构与开发指南：app.js 源码拆分与模块化规范** | 指南 | [`ui/app-js-modularization-guide.md`](ui/app-js-modularization-guide.md) | [`SPEC-UI-002`](../specs/ui/app-js-modularization-plan.md) | 巨石单体解耦为领域驱动模块、零构建工具依赖、100% 兼容 HTML 内联事件与后续开发规范 |
 | **对话响应呈现指南（回复卡片·执行时间线·工作台投射）** | 指南 | [`ui/chat-response-presentation-guide.md`](ui/chat-response-presentation-guide.md) | [`chat-response-presentation-plan.md`](../specs/ui/chat-response-presentation-plan.md) | 对话回复卡片结构、执行时间线渲染契约与工作台投射规则 |
-| **数据同步一级菜单三页控制台交互规范** | 规范 | [`ui/data-sync-control-console-specification.md`](ui/data-sync-control-console-specification.md) | [`SPEC-UI-003`](../specs/ui/data-sync-control-console-plan.md) | 一级菜单下的运行控制、任务记录与高级设置三页架构，现有系统视觉复用、真实任务状态与无 AI 助手隔离契约 |
+| **行情数据同步控制台交互规范** | 规范 | [`ui/market-data-sync-control-console-specification.md`](ui/market-data-sync-control-console-specification.md) | [`SPEC-UI-003`](../specs/ui/market-data-sync-control-console-plan.md) | `SPEC-DATA-001` 的跨域 Web 控制面；运行控制、任务记录、高级设置、P3 定时增量与手动范围选择、无 AI 助手隔离 |
 
 ---
 

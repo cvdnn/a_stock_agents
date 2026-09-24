@@ -29,7 +29,7 @@
 |:---:|:---|:---|:---|:---:|:---|
 | `SPEC-UI-001` | Web UI 界面设计与交互规范 | [`ui/ui-design-and-interaction-plan.md`](ui/ui-design-and-interaction-plan.md) | [`ui-design-guide.md`](../guidelines/ui/ui-design-guide.md) | 🚧 实施中 | 原基线声明待整改验收；双模动态视口、红涨绿跌色系与 @操作符浮窗 |
 | `SPEC-UI-002` | 前端 `app.js` 源码拆分与模块化规范 | [`ui/app-js-modularization-plan.md`](ui/app-js-modularization-plan.md) | [`app-js-modularization-guide.md`](../guidelines/ui/app-js-modularization-guide.md) | 🚧 实施中 | 巨石单体解耦为领域驱动模块、零构建工具依赖、HTML 内联事件兼容 |
-| `SPEC-UI-003` | 数据同步一级菜单三页控制台交互规范 | [`ui/data-sync-control-console-plan.md`](ui/data-sync-control-console-plan.md) | [`data-sync-control-console-specification.md`](../guidelines/ui/data-sync-control-console-specification.md) | 📋 规划中 (RFC) | 运行控制、任务记录、高级设置三页控制台；真实任务接口、配置持久化与无 AI 助手隔离 |
+| `SPEC-UI-003` | 行情数据同步控制台交互规范 | [`ui/market-data-sync-control-console-plan.md`](ui/market-data-sync-control-console-plan.md) | [`market-data-sync-control-console-specification.md`](../guidelines/ui/market-data-sync-control-console-specification.md) | 📋 规划中 (RFC) | `SPEC-DATA-001` 的跨域控制面；P3 定时增量与手动范围选择、真实任务接口、配置持久化与无 AI 助手隔离 |
 | — | 对话响应呈现（回复卡片 / 执行时间线 / 工作台投射） | [`ui/chat-response-presentation-plan.md`](ui/chat-response-presentation-plan.md) | [`chat-response-presentation-guide.md`](../guidelines/ui/chat-response-presentation-guide.md) | 🚧 实施中 | 归属 `SPEC-UI-001`；纯渲染模块与 Node 单测已落地 |
 | — | 前端数据契约与 MOCK 兜底接入 | [`ui/frontend-api-integration-plan.md`](ui/frontend-api-integration-plan.md) | [`web-aichat-architecture.md`](../guidelines/architecture/web-aichat-architecture.md) | ✅ 已完成 (Completed) | 归属 `SPEC-UI-001` / `SPEC-ARCH-001`；P0–P3 与里程碑 M0–M3 全部达成 |
 
