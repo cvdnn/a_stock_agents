@@ -122,7 +122,7 @@ a_stock_agents/
 │   │   ├── business/        # SPEC-BIZ-001~003 看板与费率风控整改计划
 │   │   ├── data/            # SPEC-DATA-001 行情同步实施计划与验收看板
 │   │   ├── engineering/     # SPEC-ENG-001 / SPEC-SEC-001 及整改总计划与验收台账
-│   │   └── ui/              # SPEC-UI-001/002 看板与前端整改计划
+│   │   └── ui/              # SPEC-UI-001/002/003 看板与前端整改计划
 │   ├── audits/              # 不可变审查报告归档区 (规格审查/代码审查/渗透测试，只增不改)
 │   ├── trading/             # 实战交易速查索引层 (纯索引，权威定义见 guidelines/)
 │   │   ├── breakeven-rules.md     # 保本价速查入口 (SSOT 指向 business/breakeven-calculation-rules.md)
@@ -491,7 +491,7 @@ flowchart TD
 | **界面指南** | [`guidelines/ui/ui-design-guide.md`](guidelines/ui/ui-design-guide.md) | [`SPEC-UI-001`](specs/ui/ui-design-and-interaction-plan.md) | 浅色金融风格、红涨绿跌、双模动态视口、长连通顶栏与卡片微边框指南 |
 | **界面指南** | [`guidelines/ui/app-js-modularization-guide.md`](guidelines/ui/app-js-modularization-guide.md) | [`SPEC-UI-002`](specs/ui/app-js-modularization-plan.md) | 前端巨石单体解耦为领域驱动模块、零构建工具依赖与兼容策略 |
 | **界面指南** | [`guidelines/ui/chat-response-presentation-guide.md`](guidelines/ui/chat-response-presentation-guide.md) | [`SPEC-UI-001`](specs/ui/chat-response-presentation-plan.md) | 对话回复卡片结构、执行时间线渲染契约与工作台投射规则 |
-| **界面指南** | [`guidelines/ui/data-sync-settings-ui-specification.md`](guidelines/ui/data-sync-settings-ui-specification.md) | [`SPEC-DATA-001`](specs/data/market-data-sync-implementation-plan.md) | 一级功能导航【数据同步】与工作台交互规范、市场时钟仪表盘、多源链路测速、分级标的池并发调度、完整性自愈与常驻守护控制台 |
+| **界面指南** | [`guidelines/ui/data-sync-control-console-specification.md`](guidelines/ui/data-sync-control-console-specification.md) | [`SPEC-UI-003`](specs/ui/data-sync-control-console-plan.md) | 一级菜单【数据同步】的运行控制、任务记录与高级设置三页架构，现有系统视觉复用、真实任务状态与无 AI 助手隔离契约 |
 | **系统架构** | [`guidelines/architecture/web-aichat-architecture.md`](guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 项技能治理系统架构 |
 | **系统架构** | [`guidelines/architecture/llm-provider-architecture.md`](guidelines/architecture/llm-provider-architecture.md) | [`SPEC-ARCH-002`](specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与 5 大业务场景角色绑定 (Roles) 架构 |
 | **系统架构** | [`guidelines/architecture/token-security-architecture.md`](guidelines/architecture/token-security-architecture.md) | [`SPEC-ARCH-003`](specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离、请求脱敏与指纹审计架构 |
