@@ -11484,3 +11484,554 @@ body.dark-mode .chat-md-chip:hover {
   justify-content: space-between;
 }
 
+/* Data sync control console: tabs, P3 progress, task history and settings. */
+.datasync-console {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  color: var(--text-primary);
+}
+
+.datasync-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.datasync-tab {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.datasync-tab:hover {
+  color: var(--primary);
+  background: #F5F9FF;
+}
+
+.datasync-tab.active,
+.datasync-tab[aria-selected="true"] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.datasync-tab:focus-visible,
+.datasync-task-table button:focus-visible,
+.datasync-console button:focus-visible,
+.datasync-console select:focus-visible,
+.datasync-console input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.datasync-tab-panel {
+  display: none;
+  min-width: 0;
+  padding: 14px;
+}
+
+.datasync-tab-panel.active {
+  display: block;
+}
+
+.datasync-tab-panel[hidden] {
+  display: none !important;
+}
+
+.datasync-run-layout,
+.datasync-task-layout,
+.datasync-settings-layout {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.datasync-run-layout.active {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 12px;
+  align-items: start;
+}
+
+.datasync-run-layout > .sync-clock-hero,
+.datasync-run-layout > .datasync-status-grid {
+  grid-column: 1 / -1;
+}
+
+.datasync-run-layout > .datasync-pools-section,
+.datasync-run-layout > .datasync-integrity-card {
+  grid-column: 1;
+}
+
+.datasync-run-layout > .datasync-feed-card,
+.datasync-run-layout > .daemon-card,
+.datasync-run-layout > .datasync-tdx-card {
+  grid-column: 2;
+}
+
+.datasync-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.datasync-status-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 14px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.datasync-status-card span,
+.datasync-status-card small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.datasync-status-card strong {
+  color: var(--text-title);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.datasync-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.datasync-p3-card {
+  margin-top: 12px;
+}
+
+.datasync-p3-controls,
+.datasync-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.datasync-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.datasync-p3-actions,
+.datasync-settings-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.datasync-p3-actions .btn-primary,
+.datasync-task-toolbar .btn-secondary,
+.datasync-settings-actions .btn-primary {
+  min-height: 36px;
+}
+
+.datasync-progress {
+  margin-top: 14px;
+  padding: 12px;
+  background: #F8FAFD;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.datasync-progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: #E8EEF7;
+  border-radius: 999px;
+}
+
+.datasync-progress-track > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--primary);
+  border-radius: inherit;
+  transition: width 220ms ease;
+}
+
+.datasync-progress-task {
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.datasync-progress-task strong {
+  color: var(--text-title);
+}
+
+.datasync-progress-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(90px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.datasync-progress-metrics > span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.datasync-progress-metrics > span strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-title);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.datasync-task-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.datasync-task-stats > span {
+  padding: 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.datasync-task-stats strong {
+  float: right;
+  color: var(--text-title);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.datasync-task-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(200px, 1.4fr) auto;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.datasync-task-summary {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.datasync-task-content {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.datasync-table-wrap,
+.datasync-task-detail,
+.datasync-settings-card {
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.datasync-table-wrap {
+  position: relative;
+  overflow-x: auto;
+}
+
+.datasync-task-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.datasync-task-table th,
+.datasync-task-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.datasync-task-table th {
+  background: #F8FAFD;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.datasync-task-row {
+  cursor: pointer;
+}
+
+.datasync-task-row:hover,
+.datasync-task-row.selected {
+  background: #F2F7FF;
+}
+
+.datasync-task-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #F2F3F5;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.datasync-task-status.is-running,
+.datasync-task-status.is-pending { background: #EAF3FF; color: #1668DC; }
+.datasync-task-status.is-completed { background: #EAF8E4; color: #237804; }
+.datasync-task-status.is-failed,
+.datasync-task-status.is-timed_out { background: #FFF1F0; color: #CF1322; }
+.datasync-task-status.is-degraded,
+.datasync-task-status.is-cancel_requested { background: #FFF7E6; color: #AD6800; }
+.datasync-task-status.is-cancelled { background: #FFF7E6; color: #AD6800; }
+
+.datasync-task-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.datasync-task-actions button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.datasync-task-detail {
+  position: sticky;
+  top: 62px;
+  min-height: 220px;
+  padding: 14px;
+  overflow-wrap: anywhere;
+}
+
+.datasync-detail-placeholder,
+.datasync-empty-state {
+  padding: 32px 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.datasync-empty-state[hidden] {
+  display: none;
+}
+
+.datasync-detail-grid {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 8px 10px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.datasync-detail-grid dt { color: var(--text-muted); }
+.datasync-detail-grid dd { margin: 0; color: var(--text-title); }
+
+.datasync-detail-json {
+  max-height: 220px;
+  margin-top: 12px;
+  padding: 10px;
+  overflow: auto;
+  background: #F8FAFD;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font: 11px/1.55 var(--font-mono);
+  white-space: pre-wrap;
+}
+
+.datasync-settings-card {
+  min-width: 0;
+  max-width: none;
+  padding: 16px;
+}
+
+.datasync-settings-layout.active {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.datasync-settings-domains {
+  position: sticky;
+  top: 62px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.datasync-settings-domains a {
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.datasync-settings-domains a:hover,
+.datasync-settings-domains a:focus-visible {
+  background: #F2F7FF;
+  color: var(--primary);
+}
+
+.datasync-setting-domain {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-light);
+  scroll-margin-top: 70px;
+}
+
+.datasync-setting-domain h3 {
+  margin: 0 0 6px;
+  color: var(--text-title);
+  font-size: 13px;
+}
+
+.datasync-setting-domain p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.datasync-settings-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.datasync-no-copilot .main-workspace,
+.datasync-no-copilot .right-workspace {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 980px) {
+  .datasync-run-layout,
+  .datasync-task-layout,
+  .datasync-settings-layout {
+    padding: 10px;
+  }
+
+  .datasync-run-layout.active,
+  .datasync-settings-layout.active {
+    grid-template-columns: 1fr;
+  }
+
+  .datasync-run-layout > .sync-clock-hero,
+  .datasync-run-layout > .datasync-status-grid,
+  .datasync-run-layout > .datasync-pools-section,
+  .datasync-run-layout > .datasync-integrity-card,
+  .datasync-run-layout > .datasync-feed-card,
+  .datasync-run-layout > .daemon-card,
+  .datasync-run-layout > .datasync-tdx-card {
+    grid-column: 1;
+  }
+
+  .datasync-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .datasync-settings-domains {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .datasync-p3-controls,
+  .datasync-settings-grid,
+  .datasync-progress-metrics,
+  .datasync-task-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .datasync-task-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .datasync-task-content {
+    grid-template-columns: 1fr;
+  }
+
+  .datasync-task-detail {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .datasync-tabs {
+    overflow-x: auto;
+  }
+
+  .datasync-tab {
+    flex: 0 0 auto;
+  }
+
+  .datasync-task-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .datasync-task-summary {
+    grid-column: auto;
+  }
+
+  .datasync-p3-controls,
+  .datasync-settings-grid,
+  .datasync-progress-metrics,
+  .datasync-task-stats,
+  .datasync-status-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .datasync-tab,
+  .datasync-progress-track > span {
+    transition: none;
+  }
+}
+

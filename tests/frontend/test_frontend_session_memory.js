@@ -39,7 +39,11 @@ assert.ok(
 console.log('✅ PASS [Bug 1 修复验证]: 提示词提交后，会话记录中立即新增一条会话记录');
 
 // 2.4 Bug 2 验证：点击会话记录中 item，右侧区域联动并展示相应信息
-assert.ok(appSource.includes('selectSession(id)'), 'app.js 必须具备 selectSession 函数');
+assert.match(
+  appSource,
+  /async function selectSession\s*\(\s*id(?:\s*,|\s*\))/,
+  'app.js 必须具备以 id 为首个参数的 selectSession 函数'
+);
 assert.ok(appSource.includes('renderFallbackSessionContent'), 'selectSession 必须具备 renderFallbackSessionContent 兜底丰富内容，绝不退回欢迎页');
 assert.ok(appSource.includes('switchRightTab(session.tab)'), 'selectSession 必须联动右侧工作台面板展示对应信息');
 assert.ok(appSource.includes('SessionStore'), 'selectSession 必须支持无损会话快照缓存与一致性回显');

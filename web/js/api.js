@@ -76,6 +76,28 @@ const AStockAPI = {
     return this._fetchJSON(`/api/chat/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
   },
 
+  createTask(payload) {
+    return this._fetchJSON('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  listTasks({ status = '', limit = 50 } = {}) {
+    const safeLimit = Math.min(200, Math.max(1, Number(limit) || 50));
+    const query = [`limit=${safeLimit}`];
+    if (status) query.push(`status=${encodeURIComponent(status)}`);
+    return this._fetchJSON(`/api/tasks?${query.join('&')}`);
+  },
+
+  getTask(taskId) {
+    return this._fetchJSON(`/api/tasks/${encodeURIComponent(taskId)}`);
+  },
+
+  cancelTask(taskId) {
+    return this._fetchJSON(`/api/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+  },
+
   async streamChatCompletions(message, sessionId, model = null, callbacks = {}) {
     const {
       onStart = () => {}, onThought = () => {}, onToolStart = () => {},
