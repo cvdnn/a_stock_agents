@@ -1330,6 +1330,7 @@ def _seed_user_system(conn: sqlite3.Connection) -> None:
             {"code": "dashboard",    "name": "投研助手",   "path": "dashboard",    "icon": "🤖", "parent_id": 0, "sort_order": 10},
             {"code": "watchlist",    "name": "自选个股",   "path": "watchlist",    "icon": "⭐", "parent_id": 0, "sort_order": 20},
             {"code": "returns",      "name": "收益分析",   "path": "returns",      "icon": "📈", "parent_id": 0, "sort_order": 30},
+            {"code": "datasync",     "name": "数据同步",   "path": "datasync",     "icon": "🔄", "parent_id": 0, "sort_order": 35},
             {"code": "skills",       "name": "技能治理",   "path": "skills",       "icon": "🧩", "parent_id": 0, "sort_order": 40},
             {"code": "system",       "name": "系统管理",   "path": "system",       "icon": "⚙️", "parent_id": 0, "sort_order": 50},
             # 系统管理下的二级页面

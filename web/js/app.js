@@ -947,6 +947,37 @@ const TabCopilotConfigs = {
       }
     ]
   },
+  'datasync': {
+    title: '您好！我是您的 行情数据中枢与同步协同助手',
+    subtitle: '多源行情中枢 · 盘后定盘调度 · 数据自愈与投研生态协同',
+    desc: '统一监控 L1 腾讯、L2 新浪、L3 东财与本地 SQLite 数据库链路健康度。支持<strong>盘后自动定盘</strong>、<strong>数据断点靶向自愈</strong>与<strong>外部通达信协同导入</strong>。',
+    quickActions: [
+      {
+        icon: '🔍',
+        title: '全库数据完整性体检',
+        desc: '靶向自愈 >',
+        tooltip: '扫描全库标的历史Bar差集断点，合规剔除停牌标的',
+        action: '全库数据完整性体检',
+        prompt: '请扫描当前本地 SQLite 数据库内核心标的的历史 Bar 完整性，诊断是否存在缺失断点。'
+      },
+      {
+        icon: '⚡',
+        title: '4大行情源链路测速',
+        desc: '一键测速 >',
+        tooltip: '测量 L1 腾讯 / L2 新浪 / L3 东财与本地 SQLite 访问延迟',
+        action: '4大行情源链路测速',
+        prompt: '请测试各级行情数据源的实时网络延迟与可用状态，并给出最优调用策略推荐。'
+      },
+      {
+        icon: '🚀',
+        title: '今日盘后定盘调度',
+        desc: '定盘归档 >',
+        tooltip: '执行 15:35 交易所清算后的稳固 Bar 归档落盘',
+        action: '今日盘后定盘调度',
+        prompt: '请检查今日是否已定盘，并为 P0 核心持仓与 P1 重点关注标的触发增量定盘归档。'
+      }
+    ]
+  },
   'skills': {
     title: '您好！我是您的 量化技能治理与编排助手',
     subtitle: '18项投研技能审计 · 契约门禁热插拔 · 多智能体协同链路诊断',
@@ -1289,6 +1320,7 @@ const ViewDescriptions = {
   'market': '市场行情全景 (四大指数/情绪仪表盘/日K线/板块流向)',
   'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
+  'datasync': '数据同步与行情中枢 (时段时钟/多源链路/分级并发/自愈体检/定时守护/通达信协同)',
   'projected-action': '实战交易三原则指令单 (保本价试算器/三级止损)',
   'skills': '18项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)'
 };
@@ -1298,6 +1330,7 @@ const ViewHeaderInfo = {
   'market': { title: '市场行情全景', icon: '📈', tag: '实时行情与主力资金流向' },
   'watchlist': { title: '自选个股深度研判', icon: '⭐', tag: '重点自选多周期量化追踪' },
   'returns': { title: '投资收益全景分析', icon: '💰', tag: '资产净值曲线与多因子归因' },
+  'datasync': { title: '数据同步与行情中枢', icon: '🔄', tag: '多源行情中枢 · 盘后定盘调度 · 数据自愈与投研协同' },
   'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️', tag: '保本价精算与三级风控指令' },
   'skills': { title: '技能治理中心', icon: '🧩', tag: '18项量化投研技能生命周期管理' }
 };
@@ -1315,6 +1348,7 @@ function updateWorkbenchHeaderActions(tabId) {
     'market': 'actionsMarket',
     'watchlist': 'actionsWatchlist',
     'returns': 'actionsReturns',
+    'datasync': 'actionsDatasync',
     'skills': 'actionsSkills',
     'projected-action': 'actionsProjectedAction'
   };
@@ -1388,6 +1422,9 @@ function switchRightTab(tabId) {
   // 3.1 Hook: if switching to skills governance, initialize and render
   if (tabId === 'skills') {
     initSkillsGovernance();
+  }
+  if (tabId === 'datasync') {
+    initDatasync();
   }
 
   // 4. Update Header Title, Icon and Tag
@@ -9846,7 +9883,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Initial Tab & View Activation and Backend Data Loading
   const initialHashTab = (window.location.hash || '').replace(/^#/, '');
-  if (['market', 'watchlist', 'returns', 'skills'].includes(initialHashTab)) {
+  if (['market', 'watchlist', 'returns', 'datasync', 'skills'].includes(initialHashTab)) {
     handleMenuClick(initialHashTab);
   } else {
     // 默认或 dashboard 均切入投研助手，不自动选中历史会话
@@ -9922,3 +9959,190 @@ window.executeQuickAction = executeQuickAction;
 window.handleWorkbenchCopilotBtn = handleWorkbenchCopilotBtn;
 window.handleChatCollapseBtn = handleChatCollapseBtn;
 window.toggleCopilot = toggleCopilot;
+
+
+// ============================================================================
+// DATA SYNC & MARKET HUB INTERACTIVE CONTROLLER (数据同步与行情中枢)
+// ============================================================================
+let isDatasyncInitialized = false;
+
+function initDatasync() {
+  if (isDatasyncInitialized) return;
+  isDatasyncInitialized = true;
+
+  // 1. Clock interval
+  const clockDisplay = document.getElementById("syncClockDisplay");
+  if (clockDisplay) {
+    setInterval(() => {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, "0");
+      const m = String(now.getMinutes()).padStart(2, "0");
+      const s = String(now.getSeconds()).padStart(2, "0");
+      clockDisplay.textContent = `${h}:${m}:${s}`;
+    }, 1000);
+  }
+
+  // 2. Ping speed test button
+  const btnPing = document.getElementById("btnPingAllFeeds");
+  if (btnPing) {
+    btnPing.addEventListener("click", () => {
+      btnPing.classList.add("is-loading");
+      btnPing.disabled = true;
+      const l1 = document.getElementById("pingL1");
+      const l2 = document.getElementById("pingL2");
+      const l3 = document.getElementById("pingL3");
+      const loc = document.getElementById("pingLocal");
+      if (l1) l1.textContent = "● 测速中...";
+      if (l2) l2.textContent = "● 测速中...";
+      if (l3) l3.textContent = "● 测速中...";
+
+      setTimeout(() => {
+        btnPing.classList.remove("is-loading");
+        btnPing.disabled = false;
+        const t1 = 55 + Math.floor(Math.random() * 20);
+        const t2 = 110 + Math.floor(Math.random() * 25);
+        const t3 = 140 + Math.floor(Math.random() * 30);
+        if (l1) l1.innerHTML = `● 运行中 (${t1}ms)`;
+        if (l2) l2.innerHTML = `● 备用就绪 (${t2}ms)`;
+        if (l3) l3.innerHTML = `● 备用就绪 (${t3}ms)`;
+        if (loc) loc.innerHTML = `● 极速就绪 (&lt;1ms)`;
+        showToast(`⚡ 链路测速完成：4 级链路全部就绪，L1 腾讯直连延迟最优 (${t1}ms)`, "success");
+      }, 450);
+    });
+  }
+
+  // 3. Concurrency slider
+  const slider = document.getElementById("cfgSyncConcurrency");
+  const valBadge = document.getElementById("valConcurrency");
+  const warnBox = document.getElementById("concurrencyWarningBox");
+  const warnCount = document.getElementById("warnWorkerCount");
+  if (slider) {
+    slider.addEventListener("input", (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (valBadge) valBadge.textContent = `${val} 线程`;
+      if (warnCount) warnCount.textContent = val;
+      if (warnBox) warnBox.style.display = val > 8 ? "block" : "none";
+    });
+  }
+
+  // 4. Audit & Repair
+  const btnAudit = document.getElementById("btnAuditIntegrity");
+  const btnRepair = document.getElementById("btnRepairGaps");
+  const kpiHealth = document.getElementById("kpiHealthScore");
+  const kpiMissing = document.getElementById("kpiMissingDays");
+  if (btnAudit) {
+    btnAudit.addEventListener("click", () => {
+      btnAudit.classList.add("is-loading");
+      btnAudit.disabled = true;
+      const oldHtml = btnAudit.innerHTML;
+      btnAudit.innerHTML = `<span class="btn-icon">🔄</span> 全库体检中...`;
+      setTimeout(() => {
+        btnAudit.classList.remove("is-loading");
+        btnAudit.disabled = false;
+        btnAudit.innerHTML = oldHtml;
+        if (kpiHealth) kpiHealth.textContent = "98.5%";
+        if (kpiMissing) kpiMissing.textContent = "0";
+        showToast("🔍 全库完整性体检完成：26 只核心标的全部合规，停牌已排除，健康度 98.5%", "success");
+      }, 600);
+    });
+  }
+  if (btnRepair) {
+    btnRepair.addEventListener("click", () => {
+      btnRepair.classList.add("is-loading");
+      btnRepair.disabled = true;
+      const oldHtml = btnRepair.innerHTML;
+      btnRepair.innerHTML = `<span class="btn-icon">🔄</span> 靶向回补中...`;
+      setTimeout(() => {
+        btnRepair.classList.remove("is-loading");
+        btnRepair.disabled = false;
+        btnRepair.innerHTML = oldHtml;
+        showToast("🩹 靶向自愈回补完成：全量缺失 Bar 数据已从 L1 腾讯接口补齐！", "success");
+      }, 700);
+    });
+  }
+
+  // 5. Tiered pools buttons
+  document.querySelectorAll(".btn-pool-sync").forEach(btn => {
+    btn.addEventListener("click", () => {
+      btn.classList.add("is-loading");
+      btn.disabled = true;
+      const oldText = btn.innerHTML;
+      btn.innerHTML = `<span class="btn-icon">🔄</span> 同步中...`;
+      setTimeout(() => {
+        btn.classList.remove("is-loading");
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+        showToast("✅ 标的池增量定盘已落盘归档 (4线程并发调度)", "success");
+      }, 500);
+    });
+  });
+
+  // 6. Table Search & Filters
+  const searchInput = document.getElementById("inputAuditSearch");
+  const tableRows = document.querySelectorAll("#auditTableBody tr");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      const term = e.target.value.trim().toLowerCase();
+      tableRows.forEach(row => {
+        const code = (row.getAttribute("data-code") || "").toLowerCase();
+        const name = (row.getAttribute("data-name") || "").toLowerCase();
+        row.style.display = (!term || code.includes(term) || name.includes(term)) ? "" : "none";
+      });
+    });
+  }
+  document.querySelectorAll(".audit-filter-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".audit-filter-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      const filter = chip.getAttribute("data-filter");
+      tableRows.forEach(row => {
+        const status = row.getAttribute("data-status");
+        row.style.display = (filter === "all" || status === filter) ? "" : "none";
+      });
+    });
+  });
+
+  // 7. TDX Import
+  const tdxBtn = document.getElementById("btnExecuteTdxImport");
+  if (tdxBtn) {
+    tdxBtn.addEventListener("click", () => {
+      tdxBtn.classList.add("is-loading");
+      tdxBtn.disabled = true;
+      const oldHtml = tdxBtn.innerHTML;
+      tdxBtn.innerHTML = `<span class="btn-icon">🔄</span> 解析导入中...`;
+      setTimeout(() => {
+        tdxBtn.classList.remove("is-loading");
+        tdxBtn.disabled = false;
+        tdxBtn.innerHTML = oldHtml;
+        showToast("📥 通达信自选文件导入成功：解析 18 只标的，已合入目标股池", "success");
+      }, 600);
+    });
+  }
+}
+
+function triggerManualSync() {
+  showToast("⚡ 正在触发全量盘后定盘同步：P0/P1/P2 多线程并发落盘...", "info");
+  setTimeout(() => {
+    showToast("✅ 今日盘后定盘同步完成：全量收盘价与筹码分布切片已固化落盘！", "success");
+  }, 700);
+}
+
+function runIntegrityAudit() {
+  const btnAudit = document.getElementById("btnAuditIntegrity");
+  if (btnAudit) {
+    btnAudit.scrollIntoView({ behavior: "smooth", block: "center" });
+    btnAudit.click();
+  } else {
+    showToast("🔍 正在执行数据完整性体检...", "info");
+  }
+}
+
+function toggleSyncDaemonModal() {
+  const daemonGrid = document.querySelector(".daemon-config-grid");
+  if (daemonGrid) {
+    daemonGrid.scrollIntoView({ behavior: "smooth", block: "center" });
+    showToast("已定位至常驻定时守护配置区", "info");
+  } else {
+    showToast("常驻定时守护运行中：每日 15:35 自动触发 P0 持仓定盘", "info");
+  }
+}

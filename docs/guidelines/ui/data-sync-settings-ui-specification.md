@@ -1,7 +1,7 @@
-# A-Stock 数据同步与行情中枢系统设置 UI 交互功能说明与设计清单 (data-sync-settings-ui-specification)
+# A-Stock 数据同步与行情中枢一级功能菜单与工作台 UI 交互规范 (data-sync-ui-specification)
 
 > **文档类别**：UI/UX 交互功能规范与设计清单 (Specification & Checklist)  
-> **适用范围**：A-Stock Agents Web 投研端系统设置弹窗（Settings Modal）中的【数据同步与行情中枢】模块  
+> **适用范围**：A-Stock Agents Web 投研端一级功能导航【数据同步】与综合工作台 (#pane-datasync)  
 > **归属规范体系**：
 > - 权威设计指南：[`docs/guidelines/ui/ui-design-guide.md`](ui-design-guide.md) (`SPEC-UI-001`)
 > - 前端样式源码：[`web/css/style.css`](../../../web/css/style.css) 与 [`web/index.html`](../../../web/index.html)
@@ -13,25 +13,32 @@
 
 ## 一、 模块定位与交互架构原则
 
-在 A-Stock Agents 的【系统设置】弹窗（`#settingsModal`）中，原有的静态第 3 栏【📶 行情数据源降级】正式升级扩建为 **【📶 数据同步与行情中枢】(Data Sync & Market Data Hub)**。该模块不仅展示网络链路状态，更为投研人员和量化交易员提供对**本地时序时钟、盘后定盘状态机、分级标的池并发调度、完整性自愈及常驻定时守护**的全面可视化管理界面。
+在 A-Stock Agents 的导航体系中，【数据同步】正式升级为**左侧边栏一级独立功能菜单项**（`data-tab="datasync"`，与【投研助手】、【市场行情】、【自选个股】等同级并列）。根据 Web UI 设计指南（`SPEC-UI-001`），该模块严格遵循 **模式二【业务主工作区模式】(Workspace-Centric Copilot Mode)**：
+1. **主工作区居中**：提供长条连通标题栏（`🔄 数据同步与行情中枢`）、状态机胶囊及顶部专属操作工具条（`⚡ 立即定盘同步`、`🩹 完整性体检`、`⚙️ 守护配置`、`📋 调度日志`）；
+2. **伴随式 AI 助手 (Copilot)**：右侧提供 390px 弹性抽屉，支持随数据同步盘面联动问答（如“体检断点标的并自动回补”、“测试行情源延迟”等）；
+3. **6 大核心交互矩阵**：为主机投研与量化交易提供时钟状态机、4 级链路测速降级、P0/P1/P2 标的分级并发落盘、全库完整性体检靶向回补、常驻定时守护配置与通达信外部生态协同。
 
 ```mermaid
 graph TD
-    Settings[系统设置弹窗 Settings Modal #settingsModal] --> Tab1[🔌 模型接入 providers]
-    Settings --> Tab2[🎯 模型分配 roles]
-    Settings --> Tab3[📶 数据同步与行情中枢 datafeed]
-    Settings --> Tab4[🛡️ 实战三原则风控 risk]
+    Sidebar[左侧边栏导航 app-sidebar] --> Menu1["🤖 投研助手 (dashboard)"]
+    Sidebar --> Menu2["📊 市场行情 (market)"]
+    Sidebar --> Menu3["⭐ 自选个股 (watchlist)"]
+    Sidebar --> Menu4["📈 收益分析 (returns)"]
+    Sidebar --> Menu5["🔄 数据同步 (datasync - 一级核心菜单)"]
+    Sidebar --> Menu6["🧩 技能治理 (skills)"]
 
-    subgraph Tab3_Content["数据同步与行情中枢 UI 交互矩阵 (#sec-datafeed)"]
+    Menu5 --> DataSyncWorkspace["数据同步与行情中枢工作区 (#pane-datasync)"]
+
+    subgraph DataSyncWorkspace_Layout["数据同步与行情中枢 UI 交互矩阵"]
         M1["模块 1: 市场时钟与定盘仪表盘<br>(时段状态机 / 定盘跃迁 / 即时快照)"]
         M2["模块 2: 多源网络链路与降级监控<br>(L1腾讯 / L2新浪 / L3东财 / 本地SQLite)"]
         M3["模块 3: 分级标的池与并发调度<br>(P0持仓 / P1自选关注 / P2指数 / 线程滑块)"]
         M4["模块 4: 数据完整性体检与自愈<br>(差集断点检测 / 合规停牌识别 / 靶向回补)"]
-        M5["模块 5: 常驻定时同步守护配置<br>(15:35/15:40自动驱动 / 轮询间隔 / 日志抽屉)"]
-        M6["模块 6: 外部生态协同 (通达信)<br>(pytdx连通性 / CSV自选导入 / T0002目录)"]
+        M5["模块 5: 常驻定时同步守护配置<br>(15:35/15:40自动驱动 / 轮询间隔 / 实时终端)"]
+        M6["模块 6: 外部生态协同 (通达信)<br>(pytdx连通性 / CSV自选导入 / 路径配置)"]
     end
 
-    Tab3 --> Tab3_Content
+    DataSyncWorkspace --> DataSyncWorkspace_Layout
 ```
 
 ---

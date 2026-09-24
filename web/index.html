@@ -71,6 +71,10 @@
           <span class="nav-icon">📈</span>
           <span>收益分析</span>
         </div>
+        <div class="nav-item" data-tab="datasync" onclick="handleMenuClick('datasync')">
+          <span class="nav-icon">🔄</span>
+          <span>数据同步</span>
+        </div>
         <div class="nav-item" data-tab="skills" onclick="handleMenuClick('skills')">
           <span class="nav-icon">🧩</span>
           <span>技能治理</span>
@@ -478,6 +482,19 @@
             <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="askAboutRightContent()" title="针对动作单向 AI 提问">
               <span class="meta-action-icon">💬</span>
               <span class="meta-action-text">风控复核</span>
+            </button>
+          </div>
+
+          <!-- 6.1 数据同步专属功能按钮组 (仅在【数据同步】显示) -->
+          <div class="header-action-group tab-actions-datasync" id="actionsDatasync" style="display: none; align-items: center; gap: 8px;">
+            <button type="button" class="btn-workbench-action btn-primary" onclick="triggerManualSync()" title="立即执行盘后定盘同步">
+              <span>⚡</span> 立即定盘同步
+            </button>
+            <button type="button" class="btn-workbench-action" onclick="runIntegrityAudit()" title="执行全量数据完整性自愈体检">
+              <span>🩹</span> 完整性体检
+            </button>
+            <button type="button" class="btn-workbench-action" onclick="toggleSyncDaemonModal()" title="常驻守护配置">
+              <span>⚙️</span> 守护配置
             </button>
           </div>
 
@@ -901,6 +918,435 @@
             </div>
 
           </div>
+        </div>
+
+        <!-- View Pane 6: 数据同步与行情中枢工作区 (多源行情/定盘时钟/分级并发/自愈体检/定时守护/通达信协同) -->
+        <div class="right-pane" id="pane-datasync" style="display: none;">
+<!-- 模块 1: 市场时钟与定盘态仪表盘 -->
+          <div class="role-config-card sync-clock-hero">
+            <div class="sync-clock-main">
+              <div class="sync-clock-time tabular-nums" id="syncClockDisplay">15:42:18</div>
+              <div class="sync-clock-meta">
+                <div class="sync-clock-tags">
+                  <span class="badge-tag-green" id="syncTradingDayBadge">🟢 交易日</span>
+                  <span class="status-capsule capsule-settled" id="syncSettleBadge">● 盘后已定盘 (SETTLED)</span>
+                </div>
+                <div class="sync-clock-desc" id="syncPhaseDesc">
+                  当日行情已完成收盘与交易所清算，历史 Bar 数据已稳固归档。
+                </div>
+              </div>
+            </div>
+            <div class="sync-clock-actions">
+              <button type="button" class="btn-secondary" id="btnSyncTodaySnapshot">
+                <span class="btn-icon">⚡</span> 立即同步今日快照
+              </button>
+            </div>
+          </div>
+
+          <!-- 模块 2: 多源链路与降级监控 -->
+          <div class="form-group" style="margin-top: 16px;">
+            <div class="sync-sec-header">
+              <label class="form-label" style="margin-bottom: 0;">4 级高可用行情源链路降级体系</label>
+              <button type="button" class="btn-text-action" id="btnPingAllFeeds">
+                <span class="btn-icon">🔄</span> 一键链路测速
+              </button>
+            </div>
+            <div class="form-hint" style="margin-bottom: 8px;">
+              主力数据源失败或限频时自动毫秒级平滑下切，保障分析流程不中断。
+            </div>
+
+            <div class="datafeed-list">
+              <!-- L1 主力源 -->
+              <div class="datafeed-item">
+                <div class="datafeed-tier"><span class="badge-tier tier-l1">L1 首选</span></div>
+                <div class="datafeed-info">
+                  <div class="datafeed-name">腾讯财经高速直连 (Tencent)</div>
+                  <div class="datafeed-sub">qt.gtimg.cn · 零依赖 / 无反爬拦截 / 全周期日K与实时盘口</div>
+                </div>
+                <div class="datafeed-status">
+                  <span class="status-online tabular-nums" id="pingL1">● 运行中 (68ms)</span>
+                </div>
+              </div>
+
+              <!-- L2 备用源 -->
+              <div class="datafeed-item">
+                <div class="datafeed-tier"><span class="badge-tier tier-l2">L2 备用</span></div>
+                <div class="datafeed-info">
+                  <div class="datafeed-name">新浪财经实时行情 (Sina)</div>
+                  <div class="datafeed-sub">hq.sinajs.cn · 零依赖 / 实时快照与分时降级备用</div>
+                </div>
+                <div class="datafeed-status">
+                  <span class="status-standby tabular-nums" id="pingL2">● 备用就绪 (124ms)</span>
+                </div>
+              </div>
+
+              <!-- L3 配额源 -->
+              <div class="datafeed-item">
+                <div class="datafeed-tier"><span class="badge-tier tier-l3">L3 代理</span></div>
+                <div class="datafeed-info">
+                  <div class="datafeed-name">东方财富 / AkShare (Eastmoney)</div>
+                  <div class="datafeed-sub">push2/datacenter · CYQ筹码分布 / 资金流向 (配额代理)</div>
+                </div>
+                <div class="datafeed-status">
+                  <span class="status-standby tabular-nums" id="pingL3">● 备用就绪 (150ms)</span>
+                </div>
+              </div>
+
+              <!-- 本地数据库 -->
+              <div class="datafeed-item">
+                <div class="datafeed-tier"><span class="badge-tier tier-local">本地</span></div>
+                <div class="datafeed-info">
+                  <div class="datafeed-name">本地 SQLite 时序数据库 (Local Engine)</div>
+                  <div class="datafeed-sub">local/market_data/astock_data.db · WAL并发读写 / 指标原地自算</div>
+                </div>
+                <div class="datafeed-status">
+                  <span class="status-online tabular-nums" id="pingLocal">● 极速就绪 (&lt;1ms)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 模块 3: 分级标的池与并发调度 -->
+          <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">分级标的池增量同步</label>
+            
+            <div class="pool-grid">
+              <!-- P0 核心持仓卡片 -->
+              <div class="role-config-card pool-card">
+                <div class="pool-card-header">
+                  <div class="pool-card-title">
+                    <span class="badge-risk-readonly">P0 核心</span>
+                    <strong>持仓池 (Holdings)</strong>
+                  </div>
+                  <span class="pool-count tabular-nums" id="countHoldings">3 只标的</span>
+                </div>
+                <div class="pool-card-body">
+                  <div class="pool-meta tabular-nums" id="metaHoldingsSync">最新已同步: 2026-09-21</div>
+                  <div class="pool-status-text text-muted">定盘窗口: 每日 15:35 优先同步</div>
+                </div>
+                <div class="pool-card-footer">
+                  <button type="button" class="btn-secondary btn-sm btn-pool-sync" data-pool="holdings">
+                    <span class="btn-icon">⚡</span> 增量同步
+                  </button>
+                </div>
+              </div>
+
+              <!-- P1 自选关注卡片 -->
+              <div class="role-config-card pool-card">
+                <div class="pool-card-header">
+                  <div class="pool-card-title">
+                    <span class="badge-tier tier-l2">P1 重点</span>
+                    <strong>自选与关注池</strong>
+                  </div>
+                  <span class="pool-count tabular-nums" id="countWatchlist">18 只标的</span>
+                </div>
+                <div class="pool-card-body">
+                  <div class="pool-meta tabular-nums" id="metaWatchlistSync">最新已同步: 2026-09-21</div>
+                  <div class="pool-status-text text-muted">定盘窗口: 每日 15:40 准时同步</div>
+                </div>
+                <div class="pool-card-footer">
+                  <button type="button" class="btn-secondary btn-sm btn-pool-sync" data-pool="watchlist">
+                    <span class="btn-icon">⚡</span> 增量同步
+                  </button>
+                </div>
+              </div>
+
+              <!-- P2 指数与全市场 -->
+              <div class="role-config-card pool-card">
+                <div class="pool-card-header">
+                  <div class="pool-card-title">
+                    <span class="badge-tier tier-l3">P2 宏观</span>
+                    <strong>五大核心指数</strong>
+                  </div>
+                  <span class="pool-count tabular-nums" id="countIndices">5 只指数</span>
+                </div>
+                <div class="pool-card-body">
+                  <div class="pool-meta tabular-nums" id="metaIndicesSync">上证/深成/创业/科创/中证</div>
+                  <div class="pool-status-text text-muted">包含多周期完整技术均线</div>
+                </div>
+                <div class="pool-card-footer">
+                  <button type="button" class="btn-secondary btn-sm btn-pool-sync" data-pool="indices">
+                    <span class="btn-icon">⚡</span> 增量同步
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 并发度调节滑块 -->
+            <div class="concurrency-control-box">
+              <div class="concurrency-slider-header">
+                <label class="form-label" style="margin-bottom: 0;">多线程下载并发度 (ThreadPool max_workers)</label>
+                <span class="concurrency-value-badge tabular-nums" id="valConcurrency">4 线程</span>
+              </div>
+              <div class="concurrency-slider-wrapper">
+                <input type="range" class="form-slider" id="cfgSyncConcurrency" min="1" max="16" step="1" value="4">
+                <div class="slider-marks tabular-nums">
+                  <span>1 (低负载)</span>
+                  <span>4 (推荐)</span>
+                  <span>8 (高速)</span>
+                  <span>16 (极限)</span>
+                </div>
+              </div>
+              <div class="concurrency-warning" id="concurrencyWarningBox">
+                ⚠️ 并发线程数已设为 <strong id="warnWorkerCount">9</strong>（超过 8 线程），请注意可能触发上游公共接口 IP 频控或临时阻断。量化生产环境建议设为 4~8 线程。
+              </div>
+              <div class="form-hint" style="margin-top: 6px;">
+                并发拉取能大幅缩短大批量同步耗时（100只标的自选约 1.8s）。建议设为 4~8 线程，避免触发上游 IP 频控。
+              </div>
+            </div>
+          </div>
+
+          <!-- 模块 4: 数据完整性体检与断点自愈 -->
+          <div class="form-group" style="margin-top: 16px;">
+            <div class="sync-sec-header">
+              <label class="form-label" style="margin-bottom: 0;">数据连续性体检与智能自愈 (Smart Healing)</label>
+              <div class="sync-actions-group" style="display:flex; gap:8px;">
+                <button type="button" class="btn-secondary btn-sm" id="btnAuditIntegrity">
+                  <span class="btn-icon">🔍</span> 全库体检
+                </button>
+                <button type="button" class="btn-primary btn-sm" id="btnRepairGaps">
+                  <span class="btn-icon">🩹</span> 靶向自愈回补
+                </button>
+              </div>
+            </div>
+
+            <!-- 体检概览指标条 (KPI Bar) -->
+            <div class="audit-kpi-bar">
+              <div class="kpi-item">
+                <span class="kpi-label">已审计标的</span>
+                <strong class="kpi-value tabular-nums" id="kpiAuditedCodes">26</strong>
+              </div>
+              <div class="kpi-item">
+                <span class="kpi-label">健康度评分</span>
+                <strong class="kpi-value text-green tabular-nums" id="kpiHealthScore">98.5%</strong>
+              </div>
+              <div class="kpi-item">
+                <span class="kpi-label">真实缺漏切片</span>
+                <strong class="kpi-value text-red tabular-nums" id="kpiMissingDays">0</strong>
+              </div>
+              <div class="kpi-item">
+                <span class="kpi-label">已核准合规停牌</span>
+                <strong class="kpi-value text-warn tabular-nums" id="kpiSuspendedDays">3</strong>
+              </div>
+            </div>
+
+            <!-- 搜索与状态过滤工具栏 -->
+            <div class="audit-toolbar">
+              <div class="audit-filters">
+                <button type="button" class="audit-filter-chip active" data-filter="all">全部 (26)</button>
+                <button type="button" class="audit-filter-chip" data-filter="healthy">🟢 完整 (23)</button>
+                <button type="button" class="audit-filter-chip" data-filter="suspended">🟡 停牌 (3)</button>
+                <button type="button" class="audit-filter-chip" data-filter="missing">🔴 缺漏 (<span id="filterMissingCount">0</span>)</button>
+              </div>
+              <input type="text" class="audit-search-input" id="inputAuditSearch" placeholder="搜索代码或名称...">
+            </div>
+
+            <!-- 体检结果明细表格 (折叠抽屉) -->
+            <div class="audit-table-wrapper" id="auditTableDrawer">
+              <table class="audit-table">
+                <thead>
+                  <tr>
+                    <th>标的代码</th>
+                    <th>标的名称</th>
+                    <th>理论天数</th>
+                    <th>实际落盘</th>
+                    <th>合规停牌</th>
+                    <th>异常缺漏</th>
+                    <th>状态判断</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="auditTableBody">
+                  <tr data-status="healthy" data-code="000001" data-name="平安银行">
+                    <td class="tabular-nums font-mono">000001</td>
+                    <td>平安银行</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td><span class="badge-tag-green">🟢 完整</span></td>
+                    <td><button type="button" class="btn-text-action btn-row-recheck">复查</button></td>
+                  </tr>
+                  <tr data-status="suspended" data-code="600519" data-name="贵州茅台">
+                    <td class="tabular-nums font-mono">600519</td>
+                    <td>贵州茅台</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums">241</td>
+                    <td class="tabular-nums text-warn">1 (临时停牌)</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td><span class="badge-tag-warn">🟡 停牌排除</span></td>
+                    <td><span class="text-subtle">已核准</span></td>
+                  </tr>
+                  <tr data-status="healthy" data-code="000858" data-name="五粮液">
+                    <td class="tabular-nums font-mono">000858</td>
+                    <td>五粮液</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td><span class="badge-tag-green">🟢 完整</span></td>
+                    <td><button type="button" class="btn-text-action btn-row-recheck">复查</button></td>
+                  </tr>
+                  <tr data-status="healthy" data-code="300750" data-name="宁德时代">
+                    <td class="tabular-nums font-mono">300750</td>
+                    <td>宁德时代</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td><span class="badge-tag-green">🟢 完整</span></td>
+                    <td><button type="button" class="btn-text-action btn-row-recheck">复查</button></td>
+                  </tr>
+                  <tr data-status="healthy" data-code="688981" data-name="中芯国际">
+                    <td class="tabular-nums font-mono">688981</td>
+                    <td>中芯国际</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td><span class="badge-tag-green">🟢 完整</span></td>
+                    <td><button type="button" class="btn-text-action btn-row-recheck">复查</button></td>
+                  </tr>
+                  <tr data-status="suspended" data-code="002594" data-name="比亚迪">
+                    <td class="tabular-nums font-mono">002594</td>
+                    <td>比亚迪</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums">240</td>
+                    <td class="tabular-nums text-warn">2 (资产重组)</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td><span class="badge-tag-warn">🟡 停牌排除</span></td>
+                    <td><span class="text-subtle">已核准</span></td>
+                  </tr>
+                  <tr data-status="healthy" data-code="601318" data-name="中国平安">
+                    <td class="tabular-nums font-mono">601318</td>
+                    <td>中国平安</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td class="tabular-nums text-muted">0</td>
+                    <td><span class="badge-tag-green">🟢 完整</span></td>
+                    <td><button type="button" class="btn-text-action btn-row-recheck">复查</button></td>
+                  </tr>
+                  <tr data-status="healthy" data-code="002475" data-name="立讯精密" id="rowLuxshare">
+                    <td class="tabular-nums font-mono">002475</td>
+                    <td>立讯精密</td>
+                    <td class="tabular-nums">242</td>
+                    <td class="tabular-nums" id="luxshareActual">242</td>
+                    <td class="tabular-nums text-muted" id="luxshareSuspended">0</td>
+                    <td class="tabular-nums text-muted" id="luxshareMissing">0</td>
+                    <td id="luxshareStatus"><span class="badge-tag-green">🟢 完整</span></td>
+                    <td><button type="button" class="btn-text-action btn-row-recheck" id="btnRecheckLuxshare">复查</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 模块 5: 常驻定时同步守护配置 -->
+          <div class="role-config-card daemon-card">
+            <div class="daemon-header">
+              <div class="daemon-title-area">
+                <div class="daemon-title-row">
+                  <strong>盘后自动定盘同步守护进程 (Sync Daemon)</strong>
+                  <span class="status-online" id="daemonStatusText">● 运行中 (PID: 29104)</span>
+                </div>
+                <div class="daemon-subtitle">
+                  每日 15:35 自动触发持仓池同步，15:40 触发关注池与指数同步，自动跳过周末节假日。
+                </div>
+              </div>
+              <div class="daemon-toggle-area">
+                <label class="switch-control switch-toggle toggle-switch" title="启停定盘同步守护进程" style="position:relative; display:inline-block; width:38px; height:20px; flex-shrink:0;">
+                  <input type="checkbox" id="toggleSyncDaemon" checked style="opacity:0; width:0; height:0;">
+                  <span class="switch-slider toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 守护时间轴指示 -->
+            <div class="daemon-timeline" id="daemonTimeline">
+              <div class="timeline-step passed" id="step1">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <div class="timeline-time tabular-nums">15:00:00</div>
+                  <div class="timeline-label">市场收盘</div>
+                </div>
+              </div>
+              <div class="timeline-step active" id="step2">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <div class="timeline-time tabular-nums">15:35:00</div>
+                  <div class="timeline-label">P0 持仓定盘</div>
+                </div>
+              </div>
+              <div class="timeline-step" id="step3">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <div class="timeline-time tabular-nums">15:40:00</div>
+                  <div class="timeline-label">P1 自选/指数</div>
+                </div>
+              </div>
+              <div class="timeline-step" id="step4">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <div class="timeline-time tabular-nums">15:45:00</div>
+                  <div class="timeline-label">全库自愈体检</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 嵌入式守护日志抽屉 -->
+            <div class="daemon-log-box">
+              <div class="daemon-log-header">
+                <span class="daemon-log-title">实时守护日志流 (sync_daemon.log)</span>
+                <div class="daemon-log-actions" style="display:flex; gap:8px; align-items:center;">
+                  <label style="font-size:10.5px; color:#A6E22E; display:flex; align-items:center; gap:3px; cursor:pointer;">
+                    <input type="checkbox" id="chkAutoStream" checked style="accent-color:#1677FF;"> 实时流
+                  </label>
+                  <button type="button" class="btn-link-xs" id="btnClearDaemonLog">清屏</button>
+                  <button type="button" class="btn-link-xs" id="btnRefreshDaemonLog">刷新</button>
+                </div>
+              </div>
+              <div class="daemon-terminal-console tabular-nums" id="daemonLogTerminal">[2026-09-21 15:35:01] [INFO] [守护进程] 交易日 (2026-09-21) 达到 15:35，触发 P0 核心持仓定盘同步...
+[2026-09-21 15:35:02] [INFO]     P0 持仓同步完成: 成功 3/3, 耗时 0.08s (4线程并发)
+[2026-09-21 15:40:01] [INFO] [守护进程] 达到 15:40，触发 P1 自选与关注池定盘同步...
+[2026-09-21 15:40:02] [INFO]     P1 关注池同步完成: 成功 18/18, 耗时 0.22s
+[2026-09-21 15:40:03] [INFO]     P2 指数池同步完成: 成功 5/5, 耗时 0.05s</div>
+            </div>
+          </div>
+
+          <!-- 模块 6: 外部生态协同 (通达信) -->
+          <div class="role-config-card" style="margin-top: 16px;">
+            <div class="form-label" style="margin-bottom: 4px;">外部投研生态协同 (通达信导入与打通)</div>
+            <div class="form-tip" style="margin-bottom: 10px;">
+              支持导入通达信自选股导出文本或直连本地 T0002 目录，自动解析 A 股标准 6 位代码并去重导入。
+            </div>
+
+            <div class="tdx-sync-layout">
+              <!-- 文件拖拽上传区域 (Dropzone) -->
+              <div class="tdx-dropzone" id="tdxDropzone">
+                <div class="tdx-dropzone-icon">📁</div>
+                <div class="tdx-dropzone-text" id="tdxDropzoneText">点击选择或将通达信导出文件拖拽至此处</div>
+                <div class="tdx-dropzone-hint" id="tdxDropzoneHint">支持 .csv, .txt, .blk, .xls 文件格式</div>
+                <input type="file" id="tdxFileInput" style="display:none;" accept=".csv,.txt,.blk,.xls">
+              </div>
+
+              <!-- 导入参数配置区 -->
+              <div class="tdx-options-form">
+                <div class="form-group" style="margin-bottom: 10px;">
+                  <label class="form-label">目标归属股池</label>
+                  <select class="form-select" id="selectTdxTargetPool">
+                    <option value="watchlist" selected>重点自选池 (Watchlist)</option>
+                    <option value="focus">雷达关注池 (Focus)</option>
+                    <option value="holdings">实盘持仓池 (Holdings)</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <button type="button" class="btn-primary" id="btnExecuteTdxImport" style="width: 100%;">
+                    <span class="btn-icon">📥</span> 解析并执行导入
+                  </button>
+                </div>
+              </div>
+            </div>
         </div>
 
         <!-- View Pane 3: 自选个股深度研判 -->
