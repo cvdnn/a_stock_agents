@@ -1,6 +1,6 @@
 // ==========================================================================
 // AstockAdmin - 系统管理（用户/角色/菜单）UI 模块
-// 通过 window.AstockAdmin.open() 弹出全屏管理界面，包含：
+// 通过 window.AstockAdmin.mount(el) 内联渲染到主工作区【系统管理】页面，包含：
 //   - 用户管理：增删改查、重置密码
 //   - 角色管理：增删改查、菜单分配
 //   - 菜单管理：增删改查、父子结构
@@ -108,21 +108,18 @@
     audit: []
   };
 
+  function hasPermission() {
+    try {
+      return !!(Auth.isSuperAdmin() || Auth.hasMenu("system"));
+    } catch (e) {
+      return false;
+    }
+  }
+
   // ----- 渲染：用户管理 -----
   function renderUsersTab(content) {
     content.innerHTML = "";
     const wrap = el("div", { class: "admin-tab-wrap" });
-    wrap.appendChild(el("div", { class: "admin-tab-header" }, [
-      el("div", { class: "admin-tab-title" }, "用户管理"),
-      el("div", { class: "admin-tab-sub" }, "创建普通用户与重置密码；超级管理员不可通过界面修改。")
-    ]));
-    wrap.appendChild(el("div", { class: "admin-toolbar" }, [
-      el("div", { class: "admin-toolbar-spacer" }),
-      el("button", {
-        class: "admin-btn admin-btn-primary",
-        onclick: function () { openUserEditor(null); }
-      }, "＋ 新建用户")
-    ]));
 
     const tableWrap = el("div", { class: "admin-table-wrap" });
     const table = el("table", { class: "admin-table" });
@@ -167,10 +164,7 @@
           return td;
         })();
         const tr = el("tr", null, [
-          el("td", null, [
-            el("div", null, u.name || "-"),
-            isSuper ? el("span", { class: "admin-pill admin-pill-super" }, "超级管理员") : null
-          ].filter(Boolean)),
+          el("td", null, u.name || "-"),
           el("td", null, u.username || "-"),
           el("td", null, roleLabel),
           el("td", null, status),
@@ -319,17 +313,6 @@
   function renderRolesTab(content) {
     content.innerHTML = "";
     const wrap = el("div", { class: "admin-tab-wrap" });
-    wrap.appendChild(el("div", { class: "admin-tab-header" }, [
-      el("div", { class: "admin-tab-title" }, "角色管理"),
-      el("div", { class: "admin-tab-sub" }, "定义角色并分配可访问的菜单。超级管理员角色不可修改。")
-    ]));
-    wrap.appendChild(el("div", { class: "admin-toolbar" }, [
-      el("div", { class: "admin-toolbar-spacer" }),
-      el("button", {
-        class: "admin-btn admin-btn-primary",
-        onclick: function () { openRoleEditor(null); }
-      }, "＋ 新建角色")
-    ]));
 
     const tableWrap = el("div", { class: "admin-table-wrap" });
     const table = el("table", { class: "admin-table" });
@@ -366,10 +349,7 @@
           return td;
         })();
         tbody.appendChild(el("tr", null, [
-          el("td", null, [
-            el("div", null, r.name || "-"),
-            isBuiltIn ? el("span", { class: "admin-pill admin-pill-super" }, "内置") : null
-          ].filter(Boolean)),
+          el("td", null, r.name || "-"),
           el("td", null, r.code),
           el("td", null, menuChips.length ? menuChips : el("span", { class: "admin-muted" }, "未分配")),
           actions
@@ -491,17 +471,6 @@
   function renderMenusTab(content) {
     content.innerHTML = "";
     const wrap = el("div", { class: "admin-tab-wrap" });
-    wrap.appendChild(el("div", { class: "admin-tab-header" }, [
-      el("div", { class: "admin-tab-title" }, "菜单管理"),
-      el("div", { class: "admin-tab-sub" }, "管理系统菜单与子菜单项，内置菜单不可删除。")
-    ]));
-    wrap.appendChild(el("div", { class: "admin-toolbar" }, [
-      el("div", { class: "admin-toolbar-spacer" }),
-      el("button", {
-        class: "admin-btn admin-btn-primary",
-        onclick: function () { openMenuEditor(null); }
-      }, "＋ 新建菜单")
-    ]));
 
     const tableWrap = el("div", { class: "admin-table-wrap" });
     const table = el("table", { class: "admin-table" });
@@ -541,10 +510,7 @@
           return td;
         })();
         tbody.appendChild(el("tr", null, [
-          el("td", null, [
-            el("div", null, m.name || "-"),
-            isBuiltIn ? el("span", { class: "admin-pill admin-pill-super" }, "内置") : null
-          ].filter(Boolean)),
+          el("td", null, m.name || "-"),
           el("td", null, m.code),
           el("td", null, m.path || "-"),
           el("td", null, m.icon || "-"),
@@ -664,10 +630,6 @@
   function renderAuditTab(content) {
     content.innerHTML = "";
     const wrap = el("div", { class: "admin-tab-wrap" });
-    wrap.appendChild(el("div", { class: "admin-tab-header" }, [
-      el("div", { class: "admin-tab-title" }, "登录审计"),
-      el("div", { class: "admin-tab-sub" }, "查看最近的登录与失败审计记录。")
-    ]));
     const tableWrap = el("div", { class: "admin-table-wrap" });
     const table = el("table", { class: "admin-table" });
     table.appendChild(el("thead", null, el("tr", null, [
@@ -718,10 +680,43 @@
     state.audit = (r && r.items) || [];
   }
 
+  // ----- 渲染：无权限 -----
+  function renderDeniedTab(content) {
+    content.innerHTML = "";
+    content.appendChild(el("div", { class: "admin-tab-wrap admin-denied" }, [
+      el("div", { class: "admin-denied-icon" }, "🔒"),
+      el("div", { class: "admin-denied-title" }, "无系统管理权限"),
+      el("div", { class: "admin-denied-sub" }, "仅超级管理员或被授权【系统管理】菜单的角色可访问本页面，请联系管理员开通权限。")
+    ]));
+  }
+
+  // 各页签的主操作按钮：统一渲染到顶栏【刷新数据】之后
+  const tabPrimaryActions = {
+    users: { label: "＋ 新建用户", run: function () { openUserEditor(null); } },
+    roles: { label: "＋ 新建角色", run: function () { openRoleEditor(null); } },
+    menus: { label: "＋ 新建菜单", run: function () { openMenuEditor(null); } }
+  };
+
   // ----- 渲染入口 -----
   function render() {
     if (!panelRoot) return;
     const content = panelRoot.querySelector("#adminContent");
+    if (!content) return;
+    const allowed = hasPermission();
+    const header = panelRoot.querySelector("#adminPanelHeader");
+    if (header) header.style.display = allowed ? "" : "none";
+    if (!allowed) {
+      renderDeniedTab(content);
+      return;
+    }
+    const actionSlot = panelRoot.querySelector("#adminTabAction");
+    if (actionSlot) {
+      actionSlot.innerHTML = "";
+      const def = tabPrimaryActions[activeTab];
+      if (def) {
+        actionSlot.appendChild(el("button", { class: "admin-btn admin-btn-primary", onclick: def.run }, def.label));
+      }
+    }
     if (activeTab === "users") renderUsersTab(content);
     else if (activeTab === "roles") renderRolesTab(content);
     else if (activeTab === "menus") renderMenusTab(content);
@@ -730,15 +725,12 @@
 
   function buildPanel() {
     const root = el("div", { id: "astockAdminPanel", class: "admin-panel" });
-    const header = el("div", { class: "admin-panel-header" }, [
-      el("div", { class: "admin-panel-title-wrap" }, [
-        el("div", { class: "admin-panel-title" }, "⚙️ 系统管理"),
-        el("div", { class: "admin-panel-sub" }, "用户 · 角色 · 菜单 · 审计")
-      ]),
+    const headerActions = el("div", { class: "admin-panel-header-actions" }, [
       el("button", {
-        class: "admin-btn admin-btn-ghost",
-        onclick: function () { close(); }
-      }, "✕ 关闭")
+        class: "admin-btn",
+        onclick: function () { reload(); }
+      }, "🔄 刷新数据"),
+      el("div", { id: "adminTabAction", class: "admin-tab-action-slot" })
     ]);
     const tabs = el("div", { class: "admin-tabs" });
     const tabDefs = [
@@ -759,9 +751,9 @@
       }, t.label);
       tabs.appendChild(btn);
     });
+    const header = el("div", { class: "admin-panel-header", id: "adminPanelHeader" }, [tabs, headerActions]);
     const content = el("div", { id: "adminContent", class: "admin-content" });
     root.appendChild(header);
-    root.appendChild(tabs);
     root.appendChild(content);
 
     injectStyles();
@@ -773,25 +765,19 @@
     const s = document.createElement("style");
     s.id = "astockAdminStyles";
     s.textContent =
-      ".admin-panel{position:fixed;inset:0;background:#fff;z-index:10000;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;}" +
-      ".admin-panel-header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid #EBF0F5;background:#F6F8FC;}" +
-      ".admin-panel-title{font-size:18px;font-weight:700;color:#1D2129;}" +
-      ".admin-panel-sub{font-size:12px;color:#86909C;margin-top:4px;}" +
-      ".admin-tabs{display:flex;gap:4px;padding:12px 28px 0;border-bottom:1px solid #EBF0F5;background:#fff;}" +
+      ".admin-panel{position:relative;display:flex;flex-direction:column;height:calc(100vh - 84px);min-height:460px;background:#fff;border:1px solid #EBF0F5;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.035);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'PingFang SC','Microsoft YaHei',sans-serif;}" +
+      ".admin-panel-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:6px 16px 0;border-bottom:1px solid #EBF0F5;background:#fff;flex-shrink:0;}" +
+      ".admin-panel-header-actions{display:flex;align-items:center;gap:8px;padding-bottom:10px;}" +
+      ".admin-tab-action-slot{display:contents;}" +
+      ".admin-tabs{display:flex;gap:4px;}" +
       ".admin-tab-btn{padding:10px 18px;border:none;background:transparent;font-size:14px;color:#4E5969;cursor:pointer;border-bottom:2px solid transparent;}" +
       ".admin-tab-btn.active{color:#1677FF;border-bottom-color:#1677FF;font-weight:600;}" +
-      ".admin-content{flex:1;overflow:auto;padding:24px 28px;background:#F6F8FC;}" +
+      ".admin-content{flex:1;overflow:auto;padding:18px 22px;background:#F6F8FC;}" +
       ".admin-tab-wrap{background:#fff;border-radius:14px;padding:20px 24px;box-shadow:0 2px 10px rgba(0,0,0,0.035);}" +
-      ".admin-tab-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}" +
-      ".admin-tab-title{font-size:16px;font-weight:700;color:#1D2129;}" +
-      ".admin-tab-sub{font-size:12px;color:#86909C;}" +
-      ".admin-toolbar{display:flex;align-items:center;margin:8px 0 16px;}" +
-      ".admin-toolbar-spacer{flex:1;}" +
       ".admin-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid #EBF0F5;background:#fff;font-size:13px;color:#4E5969;cursor:pointer;transition:all .18s;}" +
       ".admin-btn:hover{border-color:#91CAFF;color:#1677FF;}" +
       ".admin-btn-primary{background:#1677FF;border-color:#1677FF;color:#fff;}" +
       ".admin-btn-primary:hover{background:#0958D9;border-color:#0958D9;color:#fff;}" +
-      ".admin-btn-ghost{border:none;background:transparent;color:#4E5969;}" +
       ".admin-btn-link{border:none;background:transparent;color:#1677FF;padding:4px 8px;}" +
       ".admin-btn-link:hover{background:#E6F4FF;}" +
       ".admin-btn-danger{color:#F5222D;}" +
@@ -807,7 +793,6 @@
       ".admin-pill{display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;margin-left:6px;}" +
       ".admin-pill-ok{background:#F6FFED;color:#389E0D;border:1px solid #B7EB8F;}" +
       ".admin-pill-off{background:#F2F5FA;color:#86909C;}" +
-      ".admin-pill-super{background:#FFF7E6;color:#D48806;border:1px solid #FFD591;}" +
       ".admin-pill-fail{background:#FFF1F0;color:#CF1322;border:1px solid #FFA39E;}" +
       ".admin-chip{display:inline-block;padding:2px 8px;background:#E6F4FF;color:#1677FF;border-radius:6px;font-size:11px;margin:2px;}" +
       ".admin-muted{color:#86909C;font-size:12px;}" +
@@ -834,21 +819,17 @@
       ".admin-error{display:none;background:#FFF1F0;border:1px solid #FFA39E;color:#CF1322;padding:8px 12px;border-radius:8px;font-size:12px;margin-top:10px;}" +
       ".admin-error.show{display:block;}" +
       ".admin-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}" +
+      ".admin-denied{text-align:center;padding:48px 24px;}" +
+      ".admin-denied-icon{font-size:38px;line-height:1;}" +
+      ".admin-denied-title{margin-top:14px;font-size:16px;font-weight:700;color:#1D2129;}" +
+      ".admin-denied-sub{margin-top:8px;font-size:12px;color:#86909C;}" +
       "@media (max-width:768px){.admin-form-grid{grid-template-columns:1fr;}.admin-modal{width:90vw;}}";
     document.head.appendChild(s);
   }
 
-  // ----- 入口 -----
-  async function open() {
-    if (panelRoot) return;
-    if (!Auth.isSuperAdmin() && !Auth.hasMenu("system")) {
-      showToast("无系统管理权限", "error");
-      return;
-    }
-    activeTab = "users";
-    panelRoot = buildPanel();
-    document.body.appendChild(panelRoot);
-
+  // ----- 数据加载 -----
+  async function reload() {
+    if (!hasPermission()) { render(); return; }
     try {
       await Promise.all([refreshUsers(), refreshRoles(), refreshMenus()]);
       if (Auth.isSuperAdmin()) {
@@ -857,17 +838,22 @@
       render();
     } catch (e) {
       showToast((e && e.message) || "数据加载失败", "error");
-      close();
     }
   }
 
-  function close() {
-    if (panelRoot && panelRoot.parentNode) panelRoot.parentNode.removeChild(panelRoot);
-    panelRoot = null;
+  // ----- 入口 -----
+  // 内联渲染到主工作区页面容器（左侧菜单【系统管理】）
+  async function mount(container) {
+    if (!container) return;
+    if (!panelRoot) {
+      panelRoot = buildPanel();
+      container.innerHTML = "";
+      container.appendChild(panelRoot);
+    }
+    await reload();
   }
 
   global.AstockAdmin = {
-    open: open,
-    close: close
+    mount: mount
   };
 })(window);

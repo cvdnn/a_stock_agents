@@ -11501,7 +11501,7 @@ body.dark-mode .chat-md-chip:hover {
   display: flex;
   gap: 4px;
   padding: 8px 12px 0;
-  background: rgba(255, 255, 255, 0.96);
+  background: #FFFFFF;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -11572,15 +11572,25 @@ body.dark-mode .chat-md-chip:hover {
   grid-column: 1 / -1;
 }
 
+.datasync-col-main,
 .datasync-run-layout > .datasync-pools-section,
 .datasync-run-layout > .datasync-integrity-card {
   grid-column: 1;
 }
 
+.datasync-col-sidebar,
 .datasync-run-layout > .datasync-feed-card,
 .datasync-run-layout > .daemon-card,
 .datasync-run-layout > .datasync-tdx-card {
   grid-column: 2;
+}
+
+.datasync-col-main,
+.datasync-col-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
 }
 
 .datasync-status-grid {
@@ -11950,6 +11960,11 @@ body.dark-mode .chat-md-chip:hover {
   max-width: none;
 }
 
+/* 系统管理独立控制台：不显示工作台 Title 栏，也不接入 AI 助手 */
+.system-console-mode .workbench-header {
+  display: none;
+}
+
 @media (max-width: 980px) {
   .datasync-run-layout,
   .datasync-task-layout,
@@ -11962,6 +11977,8 @@ body.dark-mode .chat-md-chip:hover {
     grid-template-columns: 1fr;
   }
 
+  .datasync-col-main,
+  .datasync-col-sidebar,
   .datasync-run-layout > .sync-clock-hero,
   .datasync-run-layout > .datasync-status-grid,
   .datasync-run-layout > .datasync-pools-section,

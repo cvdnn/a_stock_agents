@@ -127,7 +127,11 @@ def create_app() -> FastAPI:
 
         # Web UI 与静态资源
         if path in {"/", "/favicon.ico"} or path.startswith(("/ui", "/css", "/js", "/assets")):
-            return await call_next(request)
+            response = await call_next(request)
+            # 强制协商缓存：每次携带 ETag/Last-Modified 回源校验，命中则 304，
+            # 杜绝前端 JS/CSS 更新后浏览器沿用启发式缓存的旧副本导致页面空白。
+            response.headers["Cache-Control"] = "no-cache"
+            return response
 
         # 2. 用户会话 Token (优先于静态 API Token)
         from server.db import lookup_auth_token

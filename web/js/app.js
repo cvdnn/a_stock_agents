@@ -1291,7 +1291,8 @@ const ViewDescriptions = {
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
   'datasync': '数据同步与行情中枢 (时段时钟/多源链路/分级并发/自愈体检/定时守护/通达信协同)',
   'projected-action': '实战交易三原则指令单 (保本价试算器/三级止损)',
-  'skills': '18项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)'
+  'skills': '18项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)',
+  'system': '系统管理 (用户 · 角色 · 菜单 · 登录审计)'
 };
 
 const ViewHeaderInfo = {
@@ -1301,7 +1302,8 @@ const ViewHeaderInfo = {
   'returns': { title: '投资收益全景分析', icon: '💰', tag: '资产净值曲线与多因子归因' },
   'datasync': { title: '数据同步与行情中枢', icon: '🔄', tag: '多源行情中枢 · 盘后定盘调度 · 数据自愈与投研协同' },
   'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️', tag: '保本价精算与三级风控指令' },
-  'skills': { title: '技能治理中心', icon: '🧩', tag: '18项量化投研技能生命周期管理' }
+  'skills': { title: '技能治理中心', icon: '🧩', tag: '18项量化投研技能生命周期管理' },
+  'system': { title: '系统管理', icon: '🛡️', tag: '用户 · 角色 · 菜单 · 登录审计' }
 };
 
 // 切换不同菜单模块 title 栏专属功能按钮：
@@ -1343,10 +1345,10 @@ function updateWorkbenchHeaderActions(tabId) {
     }
   }
 
-  // 数据同步是独立运维控制台，不提供 AI 助手入口。
+  // 数据同步与系统管理是独立控制台，不提供 AI 助手入口。
   const copilotBtn = document.getElementById('btnCopilotLauncher');
   const collapseWorkbenchBtn = document.getElementById('btnCollapseWorkbench');
-  if (tabId === 'dashboard' || tabId === 'datasync') {
+  if (tabId === 'dashboard' || tabId === 'datasync' || tabId === 'system') {
     if (copilotBtn) copilotBtn.style.display = 'none';
     if (collapseWorkbenchBtn) collapseWorkbenchBtn.style.display = tabId === 'dashboard' ? 'inline-flex' : 'none';
   } else {
@@ -1375,6 +1377,8 @@ function switchRightTab(tabId) {
   }
   if (document.body && document.body.classList && typeof document.body.classList.toggle === 'function') {
     document.body.classList.toggle('datasync-no-copilot', tabId === 'datasync');
+    // 系统管理为独立控制台：隐藏工作台 Title 栏，且不接入 AI 助手
+    document.body.classList.toggle('system-console-mode', tabId === 'system');
   }
 
   // 1. 同步布局模式：投研盘面居中，其他功能主工作区居中+AI助手在右
@@ -1406,6 +1410,17 @@ function switchRightTab(tabId) {
   if (tabId === 'datasync') {
     initDatasync();
   }
+  // 3.2 Hook: 系统管理内联渲染到主工作区页面
+  if (tabId === 'system') {
+    const adminMount = document.getElementById('astockAdminMount');
+    if (adminMount) {
+      if (window.AstockAdmin && typeof window.AstockAdmin.mount === 'function') {
+        window.AstockAdmin.mount(adminMount);
+      } else {
+        adminMount.innerHTML = '<div style="background:#fff;border:1px solid #FFCCC7;border-radius:14px;padding:28px;text-align:center;color:#CF1322;font-size:14px;">系统管理模块 (js/admin.js) 加载失败，请强制刷新页面（Cmd/Ctrl + Shift + R）后重试。</div>';
+      }
+    }
+  }
 
   // 4. Update Header Title, Icon and Tag
   const info = ViewHeaderInfo[tabId] || { title: `工作台 [${tabId}]`, icon: '📊', tag: '业务功能工作区' };
@@ -1419,10 +1434,10 @@ function switchRightTab(tabId) {
   // 4.1 Update Header Action Buttons: 仅在【投研助手】展示【预览/源码、目录导航、复制代码、独立窗口】，其他模块展示各自专属功能按钮与末尾【AI助手】
   updateWorkbenchHeaderActions(tabId);
 
-  // 4.2 若 AI 助手处于初始欢迎态，刷新为当前工作区专属问候与推荐操作
+  // 4.2 若 AI 助手处于初始欢迎态，刷新为当前工作区专属问候与推荐操作（独立控制台不接入）
   const chatMessages = document.getElementById('chatMessages');
   const welcomeCard = chatMessages ? chatMessages.querySelector('.welcome-intro-card') : null;
-  if (tabId !== 'datasync' && chatMessages && (welcomeCard || chatMessages.children.length === 0)) {
+  if (tabId !== 'datasync' && tabId !== 'system' && chatMessages && (welcomeCard || chatMessages.children.length === 0)) {
     chatMessages.innerHTML = getWelcomeMessageHtml(tabId);
   }
 

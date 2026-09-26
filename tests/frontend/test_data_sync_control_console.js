@@ -51,7 +51,16 @@ function jsonResponse(data) {
     }
     assert.doesNotMatch(html, /id="pane-datasync"[^>]*style="[^"]*display\s*:\s*none/i, 'active pane must not be hidden inline');
     assert.match(app, /tabId === ['"]datasync['"][\s\S]{0,1200}btnCopilotLauncher[\s\S]{0,300}display\s*=\s*['"]none['"]/);
-    assert.match(app, /tabId\s*!==\s*['"]datasync['"]\s*&&\s*chatMessages/, 'datasync must not render hidden chat welcome content');
+    assert.match(
+      app,
+      /tabId\s*!==\s*['"]datasync['"](?:\s*&&\s*tabId\s*!==\s*['"][a-z-]+['"])*\s*&&\s*chatMessages/,
+      'datasync must not render hidden chat welcome content',
+    );
+    assert.match(
+      app,
+      /tabId\s*!==\s*['"]system['"]\s*&&\s*chatMessages/,
+      'system (standalone console) must not render hidden chat welcome content',
+    );
     const copilotConfig = app.slice(app.indexOf('const TabCopilotConfigs'), app.indexOf('function getWelcomeMessageHtml'));
     assert.strictEqual(/['"]datasync['"]\s*:/.test(copilotConfig), false, 'datasync must not have an AI copilot config');
   });
