@@ -10613,8 +10613,9 @@ let isSelectionInitialized = false;
 
 const SelectionData = {
   activeModelId: 'value-growth-v3',
+  activeLayer: 1,
   models: [
-    { id: 'value-growth-v3', name: '价值成长漏斗V3', desc: '多因子价值成长选股', status: 'running', statusLabel: '运行中', nextTrigger: '09:30', time: '2024-03-21 09:28:15' },
+    { id: 'value-growth-v3', name: '成长优选模型', desc: '多因子价值成长选股', status: 'running', statusLabel: '运行中', nextTrigger: '14:30', time: '2024-03-21 09:28:15' },
     { id: 'steady-bluechip', name: '稳健蓝筹筛选', desc: '低波动蓝筹策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:35', time: '2024-03-21 08:55:02' },
     { id: 'tech-growth', name: '科技成长优选', desc: '科技赛道成长股', status: 'pending', statusLabel: '待运行', nextTrigger: '10:00', time: '2024-03-20 16:00:00' },
     { id: 'low-valuation', name: '低估值价值精选', desc: '低估值价值投资', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-20 09:30:05' },
@@ -10622,29 +10623,28 @@ const SelectionData = {
     { id: 'high-dividend', name: '高股息防御组合', desc: '高股息防御策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-19 09:30:00' },
   ],
   funnel: [
-    { layer: 1, name: '全市场股票池', total: 5200, totalLabel: '5,200', remain: 3100, remainLabel: '3,100 只', rate: '59.6%', cost: '00:00:12', state: 'done', color: 'l1' },
-    { layer: 2, name: '流动性筛选', total: 3100, totalLabel: '3,100', remain: 980, remainLabel: '980 只', rate: '31.6%', cost: '00:00:28', state: 'done', color: 'l2' },
-    { layer: 3, name: '财务质量筛选', total: 980, totalLabel: '980', remain: 240, remainLabel: '240 只', rate: '24.5%', cost: '00:00:45', state: 'done', color: 'l3' },
-    { layer: 4, name: '估值筛选', total: 240, totalLabel: '240', remain: 56, remainLabel: '56 只', rate: '23.3%', cost: '00:00:38', state: 'active', color: 'l4' },
-    { layer: 5, name: '技术形态确认', total: 0, totalLabel: '', remain: 0, remainLabel: '', rate: '', cost: '', state: 'idle', color: 'l5' },
+    { layer: 1, name: '全市场股票池', value: '5,432', trigger: '定时触发 14:30', condition: '剔除ST、北交所等', remain: '3,821（70.4%）', state: 'done', color: 'l1' },
+    { layer: 2, name: '基本面筛选', value: '3,821', trigger: '定时触发 14:30', condition: '营业收入 ＞ 20%', remain: '1,243（32.5%）', state: 'done', color: 'l2' },
+    { layer: 3, name: '行业筛选', value: '1,243', trigger: '定时触发 14:30', condition: '行业集中度前 60', remain: '386（31.1%）', state: 'done', color: 'l3' },
+    { layer: 4, name: '技术面筛选', value: '386', trigger: '定时触发 14:30', condition: 'MA 多头排列', remain: '98（25.4%）', state: 'done', color: 'l4' },
+    { layer: 5, name: '组合优化', value: '--', trigger: '--', condition: '--', remain: '--', state: 'idle', color: 'l5' },
   ],
   results: [
-    { code: '600519', name: '贵州茅台', industry: '食品饮料', price: '1696.20', delta: '+1.23%', pe: '28.5', roe: '32.8%', cap: '21,358', score: '92.5' },
-    { code: '300750', name: '宁德时代', industry: '电力设备', price: '214.30', delta: '+2.16%', pe: '18.6', roe: '16.4%', cap: '9,420', score: '88.3' },
-    { code: '600036', name: '招商银行', industry: '银行', price: '33.21', delta: '+0.76%', pe: '6.8', roe: '15.2%', cap: '8,372', score: '85.6' },
-    { code: '600333', name: '美的集团', industry: '家用电器', price: '71.35', delta: '+1.42%', pe: '12.3', roe: '18.6%', cap: '4,881', score: '84.1' },
-    { code: '000001', name: '平安银行', industry: '金融期货', price: '25.18', delta: '+0.32%', pe: '19.6', roe: '11.9%', cap: '6,170', score: '82.7' },
-    { code: '000858', name: '五粮液', industry: '食品饮料', price: '168.24', delta: '+1.18%', pe: '24.1', roe: '28.6%', cap: '6,522', score: '80.3' },
-    { code: '601899', name: '紫金矿业', industry: '有色金属', price: '18.62', delta: '+2.45%', pe: '15.2', roe: '22.4%', cap: '4,680', score: '79.8' },
-    { code: '002594', name: '比亚迪', industry: '汽车整车', price: '268.50', delta: '+1.86%', pe: '22.8', roe: '25.3%', cap: '7,812', score: '78.5' },
-    { code: '600900', name: '长江电力', industry: '公用事业', price: '28.44', delta: '+0.53%', pe: '20.5', roe: '16.8%', cap: '6,952', score: '77.2' },
-    { code: '601012', name: '隆基绿能', industry: '电力设备', price: '24.36', delta: '+3.12%', pe: '14.6', roe: '13.5%', cap: '1,845', score: '75.9' },
+    { code: '600519', name: '贵州茅台', industry: '食品饮料', price: '1,682.30', delta: '+0.45%' },
+    { code: '300750', name: '宁德时代', industry: '电力设备', price: '257.88', delta: '+1.20%' },
+    { code: '600036', name: '招商银行', industry: '银行', price: '33.21', delta: '-0.30%' },
+    { code: '000858', name: '五粮液', industry: '食品饮料', price: '162.15', delta: '+0.52%' },
+    { code: '601318', name: '中国平安', industry: '非银金融', price: '48.73', delta: '-0.18%' },
+    { code: '600900', name: '长江电力', industry: '公用事业', price: '28.85', delta: '+0.35%' },
+    { code: '600333', name: '美的集团', industry: '家用电器', price: '72.38', delta: '+0.21%' },
+    { code: '002594', name: '比亚迪', industry: '汽车', price: '245.60', delta: '+1.56%' },
+    { code: '601728', name: '中国电信', industry: '通信', price: '6.12', delta: '-0.49%' },
+    { code: '600276', name: '恒瑞医药', industry: '医药生物', price: '47.91', delta: '+0.78%' },
   ],
 };
 
 function initSelectionWorkbench() {
   renderSelectionWorkbench();
-  startSelectionCostTimer();
   isSelectionInitialized = true;
 }
 
@@ -10675,40 +10675,52 @@ function renderSelectionModelList() {
 function renderSelectionFunnel() {
   const wrap = document.getElementById('selectionFunnel');
   if (!wrap) return;
-  // 漏斗梯形宽度（顶层→底层逐级收窄，形成连续漏斗）
-  const widths = [100, 84, 68, 52, 40];
+  // 漏斗梯形宽度 [顶宽%, 底宽%]（顶层→底层逐级收窄，形成连续漏斗）
+  const widths = [[100, 86], [82, 69], [68, 57], [61, 52], [59, 49]];
   wrap.innerHTML = SelectionData.funnel.map((f, idx) => {
-    const stateClass = f.state === 'active' ? 'funnel-active' : f.state === 'idle' ? 'funnel-idle' : 'funnel-done';
-    const topW = widths[idx];
-    const bottomW = idx + 1 < widths.length ? widths[idx + 1] : topW - 10;
+    const selected = f.layer === SelectionData.activeLayer;
+    const stateClass = f.state === 'idle' ? 'funnel-idle' : 'funnel-done';
+    const [topW, bottomW] = widths[idx] || [60, 50];
     const inset = (((topW - bottomW) / 2) / topW * 100).toFixed(1);
     const clipPath = `polygon(0% 0%, 100% 0%, ${(100 - inset)}% 100%, ${inset}% 100%)`;
-    const barVal = f.state === 'idle' ? '--' : f.totalLabel;
-    // 运行中层：通过率后追加实时耗时（计时器每秒刷新 #selActiveCost）
-    const rateLine = f.state === 'idle' ? '' : `<span class="funnel-bar-rate tabular-nums">通过率 ${f.rate}${
-      f.state === 'active' ? ` · <span id="selActiveCost">${f.cost}</span>` : ''
-    }</span>`;
-    const connectorBadge = f.state === 'active' ? '<span class="funnel-run-badge">● 运行中</span>' : '';
     return `
-      <div class="funnel-row ${stateClass}">
-        <div class="funnel-bar-wrap">
-          <div class="funnel-bar ${f.color}" style="width:${topW}%;clip-path:${clipPath}">
-            <span class="funnel-bar-name">${f.name}</span>
-            <span class="funnel-bar-val tabular-nums">${barVal}</span>
-            ${rateLine}
-          </div>
+      <div class="funnel-row ${stateClass} ${selected ? 'selected' : ''}" onclick="selectFunnelLayer(${f.layer})" title="查看第 ${f.layer} 层筛选结果">
+        <div class="funnel-index-col">
+          <span class="funnel-index-dot tabular-nums">${f.layer}</span>
         </div>
-        <div class="funnel-connector conn-${f.color}">${connectorBadge}</div>
+        <div class="funnel-row-body">
+          <div class="funnel-shape-wrap">
+            <div class="funnel-bar ${f.color}" style="width:${topW}%;clip-path:${clipPath}">
+              <span class="funnel-bar-name">${f.name}</span>
+              <span class="funnel-bar-val tabular-nums">${f.value}</span>
+            </div>
+          </div>
+          <div class="funnel-info-panel">
+            <div class="funnel-info-line"><span class="funnel-info-label">运行信息</span><span class="funnel-info-val">${f.trigger}</span></div>
+            <div class="funnel-info-line"><span class="funnel-info-label">筛选条件</span><span class="funnel-info-val">${f.condition}</span></div>
+            <div class="funnel-info-line"><span class="funnel-info-label">筛选后</span><span class="funnel-info-val strong tabular-nums">${f.remain}</span></div>
+          </div>
+          ${selected ? '<span class="funnel-row-arrow">›</span>' : ''}
+        </div>
       </div>
     `;
   }).join('');
+}
+
+function selectFunnelLayer(layer) {
+  if (SelectionData.activeLayer === layer) return;
+  SelectionData.activeLayer = layer;
+  const f = SelectionData.funnel.find(x => x.layer === layer);
+  const label = document.getElementById('selResultLayerLabel');
+  if (label && f) label.innerText = `（第 ${f.layer} 层：${f.name}）`;
+  renderSelectionFunnel();
 }
 
 function renderSelectionResults(rows) {
   const body = document.getElementById('selResultBody');
   if (!body) return;
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="13" class="sel-empty-row">未匹配到符合条件的标的</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="sel-empty-row">未匹配到符合条件的标的</td></tr>';
     return;
   }
   body.innerHTML = rows.map((r, i) => `
@@ -10716,15 +10728,9 @@ function renderSelectionResults(rows) {
       <td class="tabular-nums">${i + 1}</td>
       <td class="tabular-nums sel-code-cell">${r.code}</td>
       <td class="sel-name-cell">${r.name}</td>
-      <td>${r.industry}</td>
       <td class="num tabular-nums">${r.price}</td>
-      <td class="num tabular-nums text-up">${r.delta}</td>
-      <td class="num tabular-nums">${r.pe}</td>
-      <td class="num tabular-nums">${r.roe}</td>
-      <td class="num tabular-nums">${r.cap}</td>
-      <td class="num tabular-nums sel-score-cell">${r.score}</td>
-      <td><span class="sel-pass-tag">符合</span></td>
-      <td><button type="button" class="sel-view-btn" onclick="event.stopPropagation();selectSelectionStock('${r.code}','${r.name}')">查看</button></td>
+      <td class="num tabular-nums ${r.delta.startsWith('-') ? 'text-down' : 'text-up'}">${r.delta}</td>
+      <td>${r.industry}</td>
     </tr>
   `).join('');
 }
@@ -10733,10 +10739,12 @@ function selectFunnelModel(modelId) {
   SelectionData.activeModelId = modelId;
   const m = SelectionData.models.find(x => x.id === modelId);
   if (m) {
+    const nameEl = document.getElementById('selDetailModelName');
+    if (nameEl) nameEl.innerText = m.name;
     const st = document.getElementById('selDetailStatus');
     if (st) {
-      st.className = 'sel-status-badge status-next';
-      st.innerText = `● 下次触发：${m.nextTrigger || '--'}`;
+      st.className = `sel-status-badge status-${m.status}`;
+      st.innerText = `● ${m.statusLabel}`;
     }
   }
   renderSelectionModelList();
@@ -10838,26 +10846,6 @@ function refreshSelectionWorkbench() {
   renderSelectionWorkbench();
 }
 
-// 运行中层的耗时实时计时器（每秒 +1s，渲染到 #selActiveCost）
-let selCostTimer = null;
-let selCostSeconds = 38;
-
-function formatSelDuration(sec) {
-  const h = String(Math.floor(sec / 3600)).padStart(2, '0');
-  const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-  const s = String(sec % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-}
-
-function startSelectionCostTimer() {
-  if (selCostTimer) clearInterval(selCostTimer);
-  selCostTimer = setInterval(() => {
-    selCostSeconds += 1;
-    const el = document.getElementById('selActiveCost');
-    if (el) el.innerText = formatSelDuration(selCostSeconds);
-  }, 1000);
-}
-
 function exportFunnelResults() {
   showToast('漏斗筛选结果导出中...（CSV）');
 }
@@ -10869,6 +10857,7 @@ function openNewFunnelModelModal() {
 window.initSelectionWorkbench = initSelectionWorkbench;
 window.renderSelectionWorkbench = renderSelectionWorkbench;
 window.selectFunnelModel = selectFunnelModel;
+window.selectFunnelLayer = selectFunnelLayer;
 window.selectSelectionStock = selectSelectionStock;
 window.toggleSelectionAnalysis = toggleSelectionAnalysis;
 window.filterFunnelResults = filterFunnelResults;

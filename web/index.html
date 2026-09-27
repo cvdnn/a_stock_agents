@@ -991,74 +991,89 @@
               </div>
             </div>
 
-            <!-- Column 2: 漏斗筛选流程 (漏斗流程 + 当前层结果) -->
+            <!-- Column 2: 漏斗筛选流程 (顶部模型状态栏 + 漏斗运行图 + 筛选后股票列表) -->
             <div class="selection-detail-col">
-              <div class="selection-panel-card selection-detail-card">
-                <div class="selection-detail-head">
-                  <div class="selection-detail-title-row">
-                    <span class="selection-detail-title">🔻 漏斗筛选流程</span>
-                    <span class="sel-status-badge status-next" id="selDetailStatus">● 下次触发：09:30</span>
+              <!-- 顶部模型状态栏 -->
+              <div class="selection-detail-headcard">
+                <div class="selection-detail-title-row">
+                  <span class="selection-detail-model-name" id="selDetailModelName">成长优选模型</span>
+                  <span class="sel-status-badge status-running" id="selDetailStatus">● 运行中</span>
+                </div>
+                <div class="selection-detail-actions">
+                  <button type="button" class="sel-act-btn danger" onclick="showToast('已发送停止运行指令')"><span class="sel-stop-square"></span> 停止运行</button>
+                  <button type="button" class="sel-act-btn" onclick="showToast('正在打开运行日志')">
+                    <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13"/><path d="M6 8h4M6 10.5h4"/></svg>
+                    查看日志
+                  </button>
+                  <button type="button" class="sel-act-btn" onclick="exportFunnelResults()">
+                    <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M5 6.5l3 3 3-3"/><path d="M2.5 13.5h11"/></svg>
+                    导出结果
+                  </button>
+                </div>
+              </div>
+
+              <div class="selection-detail-body">
+                <!-- 左卡片：漏斗运行图 -->
+                <div class="selection-panel-card selection-funnel-card">
+                  <div class="funnel-card-head">
+                    <span class="funnel-card-title">漏斗运行图</span>
+                    <span class="funnel-card-sub">共 5 层筛选</span>
                   </div>
-                  <div class="selection-detail-actions">
-                    <button type="button" class="sel-act-btn danger" onclick="showToast('已发送停止运行指令')"><span>■</span> 停止运行</button>
-                    <button type="button" class="sel-act-btn" onclick="showToast('正在打开运行日志')"><span>📄</span> 查看日志</button>
-                    <button type="button" class="sel-act-btn" onclick="exportFunnelResults()"><span>📥</span> 导出结果</button>
+                  <div class="selection-funnel" id="selectionFunnel">
+                    <!-- 漏斗层由 JS 渲染 -->
                   </div>
                 </div>
 
-                <!-- 漏斗筛选流程 -->
-                <div class="selection-funnel-section">
-                  <div class="selection-funnel-body">
-                    <div class="selection-funnel-col">
-                      <div class="selection-funnel" id="selectionFunnel">
-                        <!-- 漏斗层由 JS 渲染 -->
-                      </div>
+                <!-- 右卡片：筛选后股票列表 -->
+                <div class="selection-panel-card selection-result-card">
+                  <div class="selection-result-head">
+                    <div class="selection-result-title-row">
+                      <span class="selection-result-title">筛选后股票列表</span>
+                      <span class="selection-result-sub" id="selResultLayerLabel">（第 1 层：全市场股票池）</span>
                     </div>
-
-                    <!-- 当前层筛选结果（与漏斗并排） -->
-                    <div class="selection-result-panel">
-                      <div class="selection-result-head">
-                        <div class="selection-section-label">当前层筛选结果</div>
-                        <div class="selection-result-tools">
-                          <div class="sel-search-box">
-                            <span class="sel-search-icon">🔍</span>
-                            <input type="text" placeholder="搜索股票代码或名称..." id="selResultSearch" oninput="filterFunnelResults(this.value)">
-                          </div>
-                          <button type="button" class="sel-act-btn" onclick="showToast('已呼出高级筛选')"><span>⚙</span> 筛选</button>
-                          <button type="button" class="sel-act-btn" onclick="exportFunnelResults()"><span>📥</span> 导出</button>
-                        </div>
-                      </div>
-                      <div class="selection-result-table-wrap">
-                        <table class="selection-result-table">
-                          <thead>
-                            <tr>
-                              <th>#</th><th>代码</th><th>名称</th><th>所属行业</th>
-                              <th class="num">最新价 (元)</th><th class="num">涨跌幅</th>
-                              <th class="num">市盈率PE</th><th class="num">ROE</th>
-                              <th class="num">市值 (亿元)</th><th class="num">最新评分</th>
-                              <th>筛选</th><th>操作</th>
-                            </tr>
-                          </thead>
-                          <tbody id="selResultBody">
-                            <!-- 结果行由 JS 渲染 -->
-                          </tbody>
-                        </table>
-                      </div>
-                      <div class="selection-result-foot">
-                        <span class="sel-total-note">共 <strong class="tabular-nums">56</strong> 条记录</span>
-                        <div class="sel-pagination">
-                          <button type="button" class="sel-page-btn" onclick="showToast('上一页')">‹</button>
-                          <button type="button" class="sel-page-btn active" onclick="showToast('第 1 页')">1</button>
-                          <button type="button" class="sel-page-btn" onclick="showToast('第 2 页')">2</button>
-                          <button type="button" class="sel-page-btn" onclick="showToast('第 3 页')">3</button>
-                          <button type="button" class="sel-page-btn" onclick="showToast('第 4 页')">4</button>
-                          <button type="button" class="sel-page-btn" onclick="showToast('第 5 页')">5</button>
-                          <span class="sel-page-ellipsis">…</span>
-                          <button type="button" class="sel-page-btn" onclick="showToast('第 10 页')">10</button>
-                          <button type="button" class="sel-page-btn" onclick="showToast('下一页')">›</button>
-                          <span class="sel-page-size">10 条/页</span>
-                        </div>
-                      </div>
+                    <div class="sel-search-box">
+                      <svg class="sel-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+                      <input type="text" placeholder="按股票名称/代码搜索" id="selResultSearch" oninput="filterFunnelResults(this.value)">
+                    </div>
+                  </div>
+                  <div class="selection-result-table-wrap">
+                    <table class="selection-result-table selection-result-head-table">
+                      <thead>
+                        <tr>
+                          <th>序号</th>
+                          <th>代码</th>
+                          <th>股票名称</th>
+                          <th class="num">最新价</th>
+                          <th class="num">涨跌幅</th>
+                          <th>所属行业</th>
+                        </tr>
+                      </thead>
+                    </table>
+                    <div class="selection-result-body-scroll">
+                      <table class="selection-result-table selection-result-body-table">
+                        <tbody id="selResultBody">
+                          <!-- 结果行由 JS 渲染 -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div class="selection-result-foot">
+                    <span class="sel-total-note">共 <strong class="tabular-nums">3,821</strong> 条</span>
+                    <div class="sel-pagination">
+                      <button type="button" class="sel-page-btn" onclick="showToast('上一页')">‹</button>
+                      <button type="button" class="sel-page-btn active" onclick="showToast('第 1 页')">1</button>
+                      <button type="button" class="sel-page-btn" onclick="showToast('第 2 页')">2</button>
+                      <button type="button" class="sel-page-btn" onclick="showToast('第 3 页')">3</button>
+                      <button type="button" class="sel-page-btn" onclick="showToast('第 4 页')">4</button>
+                      <button type="button" class="sel-page-btn" onclick="showToast('第 5 页')">5</button>
+                      <span class="sel-page-ellipsis">…</span>
+                      <button type="button" class="sel-page-btn" onclick="showToast('第 255 页')">255</button>
+                      <button type="button" class="sel-page-btn" onclick="showToast('下一页')">›</button>
+                      <select class="sel-page-size-select" onchange="showToast('已切换为 ' + this.value)" aria-label="每页条数">
+                        <option value="10 条/页" selected>10 条/页</option>
+                        <option value="20 条/页">20 条/页</option>
+                        <option value="50 条/页">50 条/页</option>
+                      </select>
                     </div>
                   </div>
                 </div>
