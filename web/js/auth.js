@@ -120,9 +120,7 @@
     return fallback;
   }
 
-  async function apiFetch(url, options) {
-    options = options || {};
-    const resp = await rawFetch(url, options);
+  async function consumeResponse(resp, url) {
     let payload = null;
     const text = await resp.text();
     if (text) {
@@ -146,6 +144,12 @@
       throw err;
     }
     return payload;
+  }
+
+  async function apiFetch(url, options) {
+    options = options || {};
+    const resp = await rawFetch(url, options);
+    return consumeResponse(resp, url);
   }
 
   function clearSession() {
@@ -180,6 +184,17 @@
   }
 
   async function fetchMe() {
+    // 复用页面 <head> 前置探测已发出的请求（与资源加载并行），避免重复请求与串行等待
+    const early = global.__ASTOCK_ME_RAW__;
+    global.__ASTOCK_ME_RAW__ = null;
+    if (early) {
+      try {
+        const resp = await early;
+        return await consumeResponse(resp, "/api/auth/me");
+      } catch (e) {
+        // 网络层异常时回退到常规请求
+      }
+    }
     return await apiFetch("/api/auth/me", { method: "GET" });
   }
 

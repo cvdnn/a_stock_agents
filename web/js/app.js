@@ -869,6 +869,37 @@ const TabCopilotConfigs = {
       }
     ]
   },
+  'selection': {
+    title: '您好！我是您的 漏斗选股模型研判助手',
+    subtitle: '多因子层层过滤 · 漏斗编排可视化 · 优质标的挖掘',
+    desc: '基于多因子投研选股漏斗模型，逐层穿透<strong>全市场股票池 → 流动性 → 财务质量 → 估值 → 技术形态</strong>，实时呈现各层通过率与筛选结果，并可对当前层入选标的发起深度研判。',
+    quickActions: [
+      {
+        icon: '🔻',
+        title: '解读当前漏斗',
+        desc: '一键解读 >',
+        tooltip: '解读价值成长漏斗V3各层筛选逻辑与通过率',
+        action: '解读当前漏斗',
+        prompt: '请解读当前价值成长漏斗V3的各层筛选条件、通过率与最终入选标的的核心逻辑。'
+      },
+      {
+        icon: '🎯',
+        title: '优化筛选条件',
+        desc: '优化建议 >',
+        tooltip: '针对漏斗各层阈值给出优化建议',
+        action: '优化漏斗筛选条件',
+        prompt: '请针对当前漏斗各层的筛选阈值与因子权重给出优化建议，以提升入选标的质量与命中率。'
+      },
+      {
+        icon: '📊',
+        title: '入选标的诊断',
+        desc: '深度诊断 >',
+        tooltip: '对当前层筛选结果标的进行综合评分诊断',
+        action: '诊断漏斗入选标的',
+        prompt: '请对当前层筛选结果中的入选标的进行100分制综合诊断，并给出实战三原则保本价与三级止损建议。'
+      }
+    ]
+  },
   'watchlist': {
     title: '您好！我是您的 自选个股量化诊断助手',
     subtitle: '重点自选深度体检 · 主力筹码沉淀透视 · 游资战法买卖点捕捉',
@@ -1287,6 +1318,7 @@ function switchLayoutMode(mode) {
 const ViewDescriptions = {
   'dashboard': '整体投研盘面 (大盘/自选/持仓监控/策略开关)',
   'market': '市场行情全景 (四大指数/情绪仪表盘/日K线/板块流向)',
+  'selection': '漏斗选股模型工作台 (多因子层层过滤/漏斗可视化/当前层结果/个股分析)',
   'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
   'datasync': '数据同步与行情中枢 (时段时钟/多源链路/分级并发/自愈体检/定时守护/通达信协同)',
@@ -1298,6 +1330,7 @@ const ViewDescriptions = {
 const ViewHeaderInfo = {
   'dashboard': { title: '用户操作指南', icon: '📖', tag: '系统算法与功能导引' },
   'market': { title: '市场行情全景', icon: '📈', tag: '实时行情与主力资金流向' },
+  'selection': { title: '漏斗选股模型工作台', icon: '🔻', tag: '多因子层层过滤 · 挖掘优质标的' },
   'watchlist': { title: '自选个股深度研判', icon: '⭐', tag: '重点自选多周期量化追踪' },
   'returns': { title: '投资收益全景分析', icon: '💰', tag: '资产净值曲线与多因子归因' },
   'datasync': { title: '数据同步与行情中枢', icon: '🔄', tag: '多源行情中枢 · 盘后定盘调度 · 数据自愈与投研协同' },
@@ -1322,6 +1355,7 @@ function updateWorkbenchHeaderActions(tabId) {
   const targetMap = {
     'dashboard': 'actionsDashboard',
     'market': 'actionsMarket',
+    'selection': 'actionsSelection',
     'watchlist': 'actionsWatchlist',
     'returns': 'actionsReturns',
     'datasync': 'actionsDatasync',
@@ -1409,6 +1443,9 @@ function switchRightTab(tabId) {
   }
   if (tabId === 'datasync') {
     initDatasync();
+  }
+  if (tabId === 'selection') {
+    initSelectionWorkbench();
   }
   // 3.2 Hook: 系统管理内联渲染到主工作区页面
   if (tabId === 'system') {
@@ -3418,6 +3455,8 @@ function renderTabCharts(tabId) {
     loadWatchlistData(AppState.selectedStock);
   } else if (tabId === 'returns') {
     loadReturnsData();
+  } else if (tabId === 'selection') {
+    renderSelectionWorkbench();
   }
 }
 
@@ -10566,3 +10605,275 @@ function toggleSyncDaemonModal() {
   switchDatasyncTab('settings');
   showToast('高级设置接口尚未接入，当前不可保存配置', 'info');
 }
+
+// ============================================================================
+// STRATEGY SELECTION WORKBENCH (策略选股 · 漏斗选股模型工作台)
+// ============================================================================
+let isSelectionInitialized = false;
+
+const SelectionData = {
+  activeModelId: 'value-growth-v3',
+  models: [
+    { id: 'value-growth-v3', name: '价值成长漏斗V3', desc: '多因子价值成长选股', status: 'running', statusLabel: '运行中', nextTrigger: '09:30', time: '2024-03-21 09:28:15' },
+    { id: 'steady-bluechip', name: '稳健蓝筹筛选', desc: '低波动蓝筹策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:35', time: '2024-03-21 08:55:02' },
+    { id: 'tech-growth', name: '科技成长优选', desc: '科技赛道成长股', status: 'pending', statusLabel: '待运行', nextTrigger: '10:00', time: '2024-03-20 16:00:00' },
+    { id: 'low-valuation', name: '低估值价值精选', desc: '低估值价值投资', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-20 09:30:05' },
+    { id: 'northbound-pref', name: '北向资金偏好股', desc: '北向资金流向选股', status: 'error', statusLabel: '异常', nextTrigger: '14:30', time: '2024-03-19 14:20:11' },
+    { id: 'high-dividend', name: '高股息防御组合', desc: '高股息防御策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-19 09:30:00' },
+  ],
+  funnel: [
+    { layer: 1, name: '全市场股票池', total: 5200, totalLabel: '5,200', remain: 3100, remainLabel: '3,100 只', rate: '59.6%', cost: '00:00:12', state: 'done', color: 'l1' },
+    { layer: 2, name: '流动性筛选', total: 3100, totalLabel: '3,100', remain: 980, remainLabel: '980 只', rate: '31.6%', cost: '00:00:28', state: 'done', color: 'l2' },
+    { layer: 3, name: '财务质量筛选', total: 980, totalLabel: '980', remain: 240, remainLabel: '240 只', rate: '24.5%', cost: '00:00:45', state: 'done', color: 'l3' },
+    { layer: 4, name: '估值筛选', total: 240, totalLabel: '240', remain: 56, remainLabel: '56 只', rate: '23.3%', cost: '00:00:38', state: 'active', color: 'l4' },
+    { layer: 5, name: '技术形态确认', total: 0, totalLabel: '', remain: 0, remainLabel: '', rate: '', cost: '', state: 'idle', color: 'l5' },
+  ],
+  results: [
+    { code: '600519', name: '贵州茅台', industry: '食品饮料', price: '1696.20', delta: '+1.23%', pe: '28.5', roe: '32.8%', cap: '21,358', score: '92.5' },
+    { code: '300750', name: '宁德时代', industry: '电力设备', price: '214.30', delta: '+2.16%', pe: '18.6', roe: '16.4%', cap: '9,420', score: '88.3' },
+    { code: '600036', name: '招商银行', industry: '银行', price: '33.21', delta: '+0.76%', pe: '6.8', roe: '15.2%', cap: '8,372', score: '85.6' },
+    { code: '600333', name: '美的集团', industry: '家用电器', price: '71.35', delta: '+1.42%', pe: '12.3', roe: '18.6%', cap: '4,881', score: '84.1' },
+    { code: '000001', name: '平安银行', industry: '金融期货', price: '25.18', delta: '+0.32%', pe: '19.6', roe: '11.9%', cap: '6,170', score: '82.7' },
+    { code: '000858', name: '五粮液', industry: '食品饮料', price: '168.24', delta: '+1.18%', pe: '24.1', roe: '28.6%', cap: '6,522', score: '80.3' },
+    { code: '601899', name: '紫金矿业', industry: '有色金属', price: '18.62', delta: '+2.45%', pe: '15.2', roe: '22.4%', cap: '4,680', score: '79.8' },
+    { code: '002594', name: '比亚迪', industry: '汽车整车', price: '268.50', delta: '+1.86%', pe: '22.8', roe: '25.3%', cap: '7,812', score: '78.5' },
+    { code: '600900', name: '长江电力', industry: '公用事业', price: '28.44', delta: '+0.53%', pe: '20.5', roe: '16.8%', cap: '6,952', score: '77.2' },
+    { code: '601012', name: '隆基绿能', industry: '电力设备', price: '24.36', delta: '+3.12%', pe: '14.6', roe: '13.5%', cap: '1,845', score: '75.9' },
+  ],
+};
+
+function initSelectionWorkbench() {
+  renderSelectionWorkbench();
+  startSelectionCostTimer();
+  isSelectionInitialized = true;
+}
+
+function renderSelectionWorkbench() {
+  renderSelectionModelList();
+  renderSelectionFunnel();
+  renderSelectionResults(SelectionData.results);
+  drawSelectionPriceChart();
+}
+
+function renderSelectionModelList() {
+  const list = document.getElementById('selectionModelList');
+  if (!list) return;
+  list.innerHTML = SelectionData.models.map(m => `
+    <div class="sel-model-card ${m.id === SelectionData.activeModelId ? 'active' : ''}" onclick="selectFunnelModel('${m.id}')">
+      <div class="sel-model-card-top">
+        <span class="sel-model-name">${m.name}</span>
+        <span class="sel-status-dot status-${m.status}" title="${m.statusLabel}"></span>
+      </div>
+      <div class="sel-model-foot">
+        <span class="sel-model-time">🕐 ${m.time}</span>
+        <span class="sel-model-arrow">›</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSelectionFunnel() {
+  const wrap = document.getElementById('selectionFunnel');
+  if (!wrap) return;
+  // 漏斗梯形宽度（顶层→底层逐级收窄，形成连续漏斗）
+  const widths = [100, 84, 68, 52, 40];
+  wrap.innerHTML = SelectionData.funnel.map((f, idx) => {
+    const stateClass = f.state === 'active' ? 'funnel-active' : f.state === 'idle' ? 'funnel-idle' : 'funnel-done';
+    const topW = widths[idx];
+    const bottomW = idx + 1 < widths.length ? widths[idx + 1] : topW - 10;
+    const inset = (((topW - bottomW) / 2) / topW * 100).toFixed(1);
+    const clipPath = `polygon(0% 0%, 100% 0%, ${(100 - inset)}% 100%, ${inset}% 100%)`;
+    const barVal = f.state === 'idle' ? '--' : f.totalLabel;
+    // 运行中层：通过率后追加实时耗时（计时器每秒刷新 #selActiveCost）
+    const rateLine = f.state === 'idle' ? '' : `<span class="funnel-bar-rate tabular-nums">通过率 ${f.rate}${
+      f.state === 'active' ? ` · <span id="selActiveCost">${f.cost}</span>` : ''
+    }</span>`;
+    const connectorBadge = f.state === 'active' ? '<span class="funnel-run-badge">● 运行中</span>' : '';
+    return `
+      <div class="funnel-row ${stateClass}">
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar ${f.color}" style="width:${topW}%;clip-path:${clipPath}">
+            <span class="funnel-bar-name">${f.name}</span>
+            <span class="funnel-bar-val tabular-nums">${barVal}</span>
+            ${rateLine}
+          </div>
+        </div>
+        <div class="funnel-connector conn-${f.color}">${connectorBadge}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSelectionResults(rows) {
+  const body = document.getElementById('selResultBody');
+  if (!body) return;
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="13" class="sel-empty-row">未匹配到符合条件的标的</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((r, i) => `
+    <tr onclick="selectSelectionStock('${r.code}','${r.name}')">
+      <td class="tabular-nums">${i + 1}</td>
+      <td class="tabular-nums sel-code-cell">${r.code}</td>
+      <td class="sel-name-cell">${r.name}</td>
+      <td>${r.industry}</td>
+      <td class="num tabular-nums">${r.price}</td>
+      <td class="num tabular-nums text-up">${r.delta}</td>
+      <td class="num tabular-nums">${r.pe}</td>
+      <td class="num tabular-nums">${r.roe}</td>
+      <td class="num tabular-nums">${r.cap}</td>
+      <td class="num tabular-nums sel-score-cell">${r.score}</td>
+      <td><span class="sel-pass-tag">符合</span></td>
+      <td><button type="button" class="sel-view-btn" onclick="event.stopPropagation();selectSelectionStock('${r.code}','${r.name}')">查看</button></td>
+    </tr>
+  `).join('');
+}
+
+function selectFunnelModel(modelId) {
+  SelectionData.activeModelId = modelId;
+  const m = SelectionData.models.find(x => x.id === modelId);
+  if (m) {
+    const st = document.getElementById('selDetailStatus');
+    if (st) {
+      st.className = 'sel-status-badge status-next';
+      st.innerText = `● 下次触发：${m.nextTrigger || '--'}`;
+    }
+  }
+  renderSelectionModelList();
+  showToast(`已切换到模型案例：${m ? m.name : modelId}`);
+}
+
+function selectSelectionStock(code, name) {
+  const nameEl = document.getElementById('selStockName');
+  const codeEl = document.getElementById('selStockCode');
+  if (nameEl) nameEl.innerText = name;
+  if (codeEl) codeEl.innerText = code;
+  toggleSelectionAnalysis(true);
+  drawSelectionPriceChart();
+  showToast(`已加载 ${name} (${code}) 分析信息`);
+}
+
+function toggleSelectionAnalysis(show) {
+  const pane = document.getElementById('pane-selection');
+  const col = document.getElementById('selectionAnalysisCol') ||
+    (pane ? pane.querySelector('.selection-analysis-col') : null);
+  const listCol = document.getElementById('selectionModelCol') ||
+    (pane ? pane.querySelector('.selection-model-col') : null);
+  if (col) col.classList.toggle('collapsed', !show);
+  // 联动：右侧分析面板展开时收起左侧选股列表，关闭时恢复
+  if (listCol) listCol.classList.toggle('collapsed', !!show);
+}
+
+function filterFunnelResults(keyword) {
+  const kw = (keyword || '').trim().toLowerCase();
+  const rows = SelectionData.results.filter(r =>
+    !kw || r.code.toLowerCase().includes(kw) || r.name.toLowerCase().includes(kw)
+  );
+  renderSelectionResults(rows);
+}
+
+function switchSelAnalysisTab(sec) {
+  document.querySelectorAll('#selAnalysisTabs .sel-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sec === sec);
+  });
+}
+
+function switchSelPeriod(btn, label) {
+  document.querySelectorAll('#selPeriodSwitch .sel-period').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  drawSelectionPriceChart();
+}
+
+function drawSelectionPriceChart() {
+  const canvas = document.getElementById('selPriceChart');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  const pts = [1636, 1648, 1642, 1655, 1660, 1652, 1668, 1675, 1670, 1682, 1690, 1686, 1696, 1698];
+  const xLabels = ['03-15', '03-18', '03-19', '03-20', '03-21'];
+  const yLabels = [1720, 1680, 1640, 1600];
+  const padL = 36, padR = 8, padT = 8, padB = 18;
+  const min = 1600, max = 1720;
+  const stepX = (w - padL - padR) / (pts.length - 1);
+  ctx.font = '9px -apple-system, "PingFang SC", sans-serif';
+  // 网格与 Y 轴刻度
+  ctx.strokeStyle = '#F0F2F5';
+  ctx.lineWidth = 1;
+  yLabels.forEach((yv, i) => {
+    const gy = padT + (h - padT - padB) * i / (yLabels.length - 1);
+    ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(w - padR, gy); ctx.stroke();
+    ctx.fillStyle = '#86909C';
+    ctx.textAlign = 'right';
+    ctx.fillText(yv.toLocaleString(), padL - 4, gy + 3);
+  });
+  // X 轴日期标签
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#86909C';
+  xLabels.forEach((lb, i) => {
+    const idx = Math.round(i * (pts.length - 1) / (xLabels.length - 1));
+    ctx.fillText(lb, padL + idx * stepX, h - 5);
+  });
+  // 面积 + 折线
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const x = padL + i * stepX;
+    const y = h - padB - ((p - min) / (max - min || 1)) * (h - padT - padB);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#1677FF';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.lineTo(padL + (pts.length - 1) * stepX, h - padB);
+  ctx.lineTo(padL, h - padB);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(22,119,255,0.18)');
+  grad.addColorStop(1, 'rgba(22,119,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+function refreshSelectionWorkbench() {
+  renderSelectionWorkbench();
+}
+
+// 运行中层的耗时实时计时器（每秒 +1s，渲染到 #selActiveCost）
+let selCostTimer = null;
+let selCostSeconds = 38;
+
+function formatSelDuration(sec) {
+  const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+  const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+  const s = String(sec % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+function startSelectionCostTimer() {
+  if (selCostTimer) clearInterval(selCostTimer);
+  selCostTimer = setInterval(() => {
+    selCostSeconds += 1;
+    const el = document.getElementById('selActiveCost');
+    if (el) el.innerText = formatSelDuration(selCostSeconds);
+  }, 1000);
+}
+
+function exportFunnelResults() {
+  showToast('漏斗筛选结果导出中...（CSV）');
+}
+
+function openNewFunnelModelModal() {
+  showToast('新建漏斗选股模型：条件树编辑器与漏斗编排器即将上线');
+}
+
+window.initSelectionWorkbench = initSelectionWorkbench;
+window.renderSelectionWorkbench = renderSelectionWorkbench;
+window.selectFunnelModel = selectFunnelModel;
+window.selectSelectionStock = selectSelectionStock;
+window.toggleSelectionAnalysis = toggleSelectionAnalysis;
+window.filterFunnelResults = filterFunnelResults;
+window.switchSelAnalysisTab = switchSelAnalysisTab;
+window.switchSelPeriod = switchSelPeriod;
+window.refreshSelectionWorkbench = refreshSelectionWorkbench;
+window.exportFunnelResults = exportFunnelResults;
+window.openNewFunnelModelModal = openNewFunnelModelModal;
