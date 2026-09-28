@@ -1476,15 +1476,16 @@
               <div class="daemon-header">
                 <div class="daemon-title-area">
                   <div class="daemon-title-row">
-                    <strong>盘后自动定盘同步守护进程 (Sync Daemon)</strong>
+                    <strong>盘后自动定盘同步巡检 (In-Process Cron)</strong>
                     <span class="status-standby" id="daemonStatusText">状态未加载</span>
                   </div>
                   <div class="daemon-subtitle">
-                    每日 15:35 自动触发持仓池同步，15:40 触发关注池与指数同步，自动跳过周末节假日。
+                    本开关控制 Web 服务内的巡检协程：交易日 15:35 触发 P0 持仓池与核心指数增量定盘，自动跳过周末节假日。
+                    如需 15:40 的自选/关注池分层调度与独立进程守护，请另行启动 CLI 守护进程 DataSyncDaemon（不受本开关控制）。
                   </div>
                 </div>
                 <div class="daemon-toggle-area">
-                  <label class="switch-control switch-toggle toggle-switch" title="启停定盘同步守护进程" style="position:relative; display:inline-block; width:38px; height:20px; flex-shrink:0;">
+                  <label class="switch-control switch-toggle toggle-switch" title="启停服务内自动定盘巡检协程" style="position:relative; display:inline-block; width:38px; height:20px; flex-shrink:0;">
                     <input type="checkbox" id="toggleSyncDaemon" style="opacity:0; width:0; height:0;">
                     <span class="switch-slider toggle-slider"></span>
                   </label>
@@ -1526,7 +1527,7 @@
               <!-- 嵌入式守护日志抽屉 -->
               <div class="daemon-log-box">
                 <div class="daemon-log-header">
-                  <span class="daemon-log-title">实时守护日志流 (sync_daemon.log)</span>
+                  <span class="daemon-log-title">自动定盘同步日志流（服务内巡检 + CLI 守护）</span>
                   <div class="daemon-log-actions" style="display:flex; gap:8px; align-items:center;">
                     <label style="font-size:10.5px; color:#A6E22E; display:flex; align-items:center; gap:3px; cursor:pointer;">
                       <input type="checkbox" id="chkAutoStream" checked style="accent-color:#1677FF;"> 实时流

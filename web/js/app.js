@@ -10107,10 +10107,11 @@ function datasyncTaskResult(task) {
 
 function setDatasyncButtonBusy(button, busy, label) {
   if (!button) return;
-  if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent.trim();
+  // 用 innerHTML 保存/恢复，避免带 svg 或 btn-icon 的按钮在恢复后被纯文本打平
+  if (!button.dataset.idleHtml) button.dataset.idleHtml = button.innerHTML;
   button.disabled = busy;
   button.classList.toggle('is-loading', busy);
-  button.textContent = busy ? label : button.dataset.idleLabel;
+  button.innerHTML = busy ? label : button.dataset.idleHtml;
 }
 
 function persistDatasyncFilters() {
@@ -10479,10 +10480,11 @@ async function submitDatasyncP3() {
 }
 
 // ---- 市场时钟：交易日 / 定盘状态机（GET /api/market_data/clock）----
+let datasyncClockWarned = false;
+
 async function refreshDatasyncMarketClock() {
   const api = window.AStockAPI;
   if (!api || typeof api.getMarketClock !== 'function') return false;
-  const clockDisplay = document.getElementById('syncClockDisplay');
   const tradingDayBadge = document.getElementById('syncTradingDayBadge');
   const settleBadge = document.getElementById('syncSettleBadge');
   const phaseDesc = document.getElementById('syncPhaseDesc');
@@ -10491,8 +10493,7 @@ async function refreshDatasyncMarketClock() {
     const data = await api.getMarketClock();
     if (!data || data.status !== 'success') throw new Error('市场时钟返回异常');
     if (serviceCard) serviceCard.textContent = '在线';
-    // 服务端权威时间，随后由本地 setInterval 逐秒续走
-    if (clockDisplay && data.time) clockDisplay.textContent = data.time;
+    // 时钟数字只由本地秒针驱动，服务端时间用于状态机判定，避免每分钟发生一次回跳
     if (tradingDayBadge) {
       tradingDayBadge.className = data.is_trading_day ? 'badge-tag-green' : 'badge-tag-warn';
       tradingDayBadge.textContent = data.is_trading_day ? '🟢 交易日' : '⚪ 非交易日';
@@ -10505,12 +10506,17 @@ async function refreshDatasyncMarketClock() {
         : `● ${data.phase_label || '未定盘'} (PENDING)`;
     }
     if (phaseDesc && data.description) phaseDesc.textContent = data.description;
+    datasyncClockWarned = false;
     return true;
   } catch (error) {
     if (serviceCard) serviceCard.textContent = '不可用';
     if (tradingDayBadge) { tradingDayBadge.className = 'badge-tag-warn'; tradingDayBadge.textContent = '交易日状态获取失败'; }
     if (settleBadge) { settleBadge.className = 'status-capsule capsule-closed'; settleBadge.textContent = '● 定盘状态未知'; }
-    showToast(`读取市场时钟失败：${error.message || '未知错误'}`, 'error');
+    // 60 秒轮询，失败只提示一次，避免持续不可用时刷屏
+    if (!datasyncClockWarned) {
+      datasyncClockWarned = true;
+      showToast(`读取市场时钟失败：${error.message || '未知错误'}`, 'error');
+    }
     return false;
   }
 }
@@ -10608,14 +10614,15 @@ function renderDatasyncAuditRows(items) {
       badge = '<span class="badge-tag-warn">🟡 合规停牌</span>';
       filterTag = 'suspended';
     }
-    const gapText = `${missing}${bad > 0 ? ` <small class="status-standby">(${bad}坏点)</small>` : ''}${suspended > 0 && isHealthy ? ` <small class="status-standby">(${suspended}停牌)</small>` : ''}`;
+    const gapBadge = missing > 0 ? `<span class="badge-tag-red">${missing}</span>` : `${missing}`;
+    const gapText = `${gapBadge}${bad > 0 ? ` <small class="status-standby">(${bad}坏点)</small>` : ''}${suspended > 0 && isHealthy ? ` <small class="status-standby">(${suspended}停牌)</small>` : ''}`;
     return `<tr data-status="${filterTag}" data-code="${escapeDatasyncHtml(code)}" data-name="${escapeDatasyncHtml(code)}">
       <td><strong class="stock-code tabular-nums">${escapeDatasyncHtml(symbol)}</strong></td>
       <td class="tabular-nums">${escapeDatasyncHtml(code)}</td>
       <td class="tabular-nums">${expected}</td>
       <td class="tabular-nums">${rowCount}</td>
       <td class="tabular-nums">${suspended}</td>
-      <td class="tabular-nums${missing > 0 ? ' badge-tag-red' : ''}">${gapText}</td>
+      <td class="tabular-nums">${gapText}</td>
       <td title="${escapeDatasyncHtml(row.message || '')}">${badge}</td>
       <td><div class="datasync-task-actions">
         <button type="button" data-repair-code="${escapeDatasyncHtml(code)}">${missing > 0 || bad > 0 || isEmpty ? '一键自愈' : '重新校验'}</button>
@@ -10657,7 +10664,9 @@ async function repairDatasyncCode(code) {
   if (task) showToast(`已提交 [${code}] 自愈回补任务`, 'success');
 }
 
-// ---- 守护进程（POST /api/market_data/daemon/control、GET /api/market_data/daemon/logs）----
+// ---- 服务内自动定盘巡检（POST /api/market_data/daemon/control、GET .../daemon/logs）----
+const DAEMON_EXECUTOR_LABEL = '服务内自动巡检';
+
 async function refreshDatasyncDaemonStatus() {
   const api = window.AStockAPI;
   const checkbox = document.getElementById('toggleSyncDaemon');
@@ -10669,12 +10678,14 @@ async function refreshDatasyncDaemonStatus() {
     if (checkbox) checkbox.checked = running;
     if (statusText) {
       statusText.className = running ? 'status-online' : 'status-standby';
-      statusText.textContent = running ? `● 运行中 (PID: ${res.pid || 'Active'})` : '○ 已停止';
+      statusText.textContent = running
+        ? `● 已启用 (${DAEMON_EXECUTOR_LABEL}, PID ${res.pid || '—'})`
+        : `○ 已暂停 (${DAEMON_EXECUTOR_LABEL})`;
     }
   } catch (error) {
     if (statusText) {
       statusText.className = 'status-standby';
-      statusText.textContent = '● 状态获取失败';
+      statusText.textContent = '● 巡检状态获取失败';
     }
   }
 }
@@ -10698,7 +10709,7 @@ async function toggleDatasyncDaemon(isStart, checkbox) {
   const api = window.AStockAPI;
   const statusText = document.getElementById('daemonStatusText');
   if (!api || typeof api.controlSyncDaemon !== 'function') {
-    showToast('守护进程控制接口不可用', 'error');
+    showToast('自动巡检控制接口不可用', 'error');
     if (checkbox) checkbox.checked = !isStart;
     return;
   }
@@ -10707,14 +10718,21 @@ async function toggleDatasyncDaemon(isStart, checkbox) {
     const running = Boolean(res && res.daemon_running);
     if (statusText) {
       statusText.className = running ? 'status-online' : 'status-standby';
-      statusText.textContent = running ? `● 运行中 (PID: ${res.pid || 'Active'})` : '○ 已停止';
+      statusText.textContent = running
+        ? `● 已启用 (${DAEMON_EXECUTOR_LABEL}, PID ${res.pid || '—'})`
+        : `○ 已暂停 (${DAEMON_EXECUTOR_LABEL})`;
     }
     if (checkbox) checkbox.checked = running;
-    showToast(running ? '常驻同步守护进程已启动' : '常驻同步守护进程已停止', running ? 'success' : 'info');
+    showToast(
+      running
+        ? (res && res.note ? `服务内自动巡检已启用；${res.note}` : '服务内自动巡检已启用')
+        : '服务内自动巡检已暂停：15:35 定盘同步将不再自动执行',
+      running ? 'success' : 'info',
+    );
     refreshDatasyncDaemonLogs();
   } catch (error) {
     if (checkbox) checkbox.checked = !isStart;
-    showToast(`守护进程切换失败：${error.message || '未知错误'}`, 'error');
+    showToast(`自动巡检切换失败：${error.message || '未知错误'}`, 'error');
   }
 }
 

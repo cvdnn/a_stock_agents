@@ -35,33 +35,70 @@ logger = get_logger("server.app")
 
 
 async def _market_post_settle_cron() -> None:
-    """盘后定盘定时巡检协程：在交易日 15:35 自动触发 P0 持仓池与 P2 核心大盘指数增量定盘同步"""
+    """盘后定盘定时巡检协程：交易日 15:35 触发 P0 持仓池与核心大盘指数增量定盘同步。
+
+    调度参数与启停均由 core.data.sync_daemon.SERVER_SYNC_RUNTIME 驱动，
+    与 /api/market_data/daemon/control 是同一份状态，不存在"关了仍在跑"的脱节。
+    独立 CLI 守护进程 DataSyncDaemon 属于另一个进程，不受此协程状态影响。
+    """
     import asyncio
     from datetime import datetime, time as dt_time
+    from core.data.sync_daemon import SERVER_SYNC_RUNTIME, record_sync_runtime_event
+
     last_executed_date = ""
+    last_enabled = None
 
     while True:
         try:
-            await asyncio.sleep(60)  # 每分钟轮询一次时钟状态
+            await asyncio.sleep(max(15, int(SERVER_SYNC_RUNTIME.get("interval") or 60)))
             now = datetime.now()
             today_str = now.strftime("%Y-%m-%d")
+            stamp = now.strftime("%Y-%m-%d %H:%M:%S")
+            SERVER_SYNC_RUNTIME["last_check"] = stamp
+
+            enabled = bool(SERVER_SYNC_RUNTIME.get("enabled", True))
+            if enabled != last_enabled:
+                # 仅在启停跃迁时留痕，避免每个轮询周期刷同一条记录
+                record_sync_runtime_event(
+                    "服务内自动巡检运行中" if enabled else "服务内自动巡检处于暂停状态", "info",
+                )
+                last_enabled = enabled
+            if not enabled:
+                continue
 
             if last_executed_date == today_str:
                 continue
 
             from core.data.sync_engine import TradeCalendar, DataSyncEngine
             if TradeCalendar.is_trading_day(now) and now.time() >= dt_time(15, 35):
-                logger.info(f"[Cron] 触发交易日 ({today_str}) 15:35 盘后定盘自动同步...")
+                workers = max(1, min(int(SERVER_SYNC_RUNTIME.get("workers") or 4), 16))
+                logger.info(f"[Cron] 触发交易日 ({today_str}) 15:35 盘后定盘自动同步 (并发 {workers})...")
+                SERVER_SYNC_RUNTIME["last_run"] = stamp
+                record_sync_runtime_event(
+                    f"{today_str} 15:35 盘后定盘自动同步开始（并发 {workers} 线程）", "running",
+                )
                 engine = DataSyncEngine()
-                symbols = engine.resolve_symbols(include_indices=True)
+                symbols = engine.resolve_symbols(pool="holdings", include_indices=True)
                 loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, lambda: engine.sync_batch(symbols, mode="incremental"))
+                res = await loop.run_in_executor(
+                    None,
+                    lambda: engine.sync_batch(symbols, mode="incremental", max_workers=workers),
+                )
+                summary = res if isinstance(res, dict) else {}
+                status = "success" if summary.get("failed_count", 0) == 0 else "degraded"
+                message = (
+                    f"{today_str} 盘后定盘同步：{summary.get('total_requested', len(symbols))} 只标的，"
+                    f"成功 {summary.get('success_count', 0)}，失败 {summary.get('failed_count', 0)}，"
+                    f"耗时 {summary.get('elapsed_seconds', 0)}s"
+                )
+                record_sync_runtime_event(message, status)
                 last_executed_date = today_str
-                logger.info(f"[Cron] 交易日 ({today_str}) 盘后定盘自动同步完成！")
+                logger.info(f"[Cron] {message}")
         except asyncio.CancelledError:
             break
         except Exception as exc:
-            logger.debug(f"[Cron] 盘后定时同步巡检异常: {exc}")
+            record_sync_runtime_event(f"盘后定盘自动同步异常：{exc}", "failed")
+            logger.warning(f"[Cron] 盘后定时同步巡检异常: {exc}")
 
 
 @asynccontextmanager

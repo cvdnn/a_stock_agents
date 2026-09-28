@@ -801,85 +801,110 @@ async def ping_market_data_feeds() -> Dict[str, Any]:
     return res
 
 
-_DAEMON_RUNTIME_STATE = {
-    "running": True,
-    "pid": os.getpid(),
-    "interval": 60,
-    "workers": 4,
-    "last_check": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-}
-
 @router.post("/market_data/daemon/control")
 async def control_market_data_daemon(payload: Optional[Dict[str, Any]] = Body(None)) -> Dict[str, Any]:
-    """常驻数据同步守护进程启停与状态控制"""
-    global _DAEMON_RUNTIME_STATE
+    """服务内自动定盘巡检的启停与调度参数控制。
+
+    真实生效对象是 app.py 的 `_market_post_settle_cron` 协程：两者读写同一份
+    core.data.sync_daemon.SERVER_SYNC_RUNTIME，因此关闭后协程当轮即跳过。
+    """
+    from core.data.sync_daemon import apply_sync_runtime_control
+
     data = payload or {}
-    action = data.get("action", "status")
-    interval = int(data.get("interval") or _DAEMON_RUNTIME_STATE["interval"])
-    workers = int(data.get("workers") or _DAEMON_RUNTIME_STATE["workers"])
-
-    if action == "start":
-        _DAEMON_RUNTIME_STATE["running"] = True
-        _DAEMON_RUNTIME_STATE["pid"] = os.getpid()
-        _DAEMON_RUNTIME_STATE["interval"] = interval
-        _DAEMON_RUNTIME_STATE["workers"] = workers
-        _DAEMON_RUNTIME_STATE["last_check"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    elif action == "stop":
-        _DAEMON_RUNTIME_STATE["running"] = False
-    elif action == "restart":
-        _DAEMON_RUNTIME_STATE["running"] = True
-        _DAEMON_RUNTIME_STATE["pid"] = os.getpid()
-        _DAEMON_RUNTIME_STATE["interval"] = interval
-        _DAEMON_RUNTIME_STATE["workers"] = workers
-        _DAEMON_RUNTIME_STATE["last_check"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+    interval = data.get("interval")
+    workers = data.get("workers")
+    snapshot = apply_sync_runtime_control(
+        action=str(data.get("action", "status")),
+        interval=int(interval) if interval not in (None, "") else None,
+        workers=int(workers) if workers not in (None, "") else None,
+    )
     return {
         "status": "success",
-        "daemon_running": _DAEMON_RUNTIME_STATE["running"],
-        **_DAEMON_RUNTIME_STATE,
+        "executor": "in_process_cron",
+        "executor_label": "服务内自动巡检协程 (server.app)",
+        "daemon_running": snapshot["enabled"],
+        "pid": os.getpid(),
+        "available_actions": ["status", "start", "stop", "restart"],
+        "note": "独立 CLI 守护进程 DataSyncDaemon 运行在另一进程，不受此开关控制",
+        **snapshot,
     }
 
 
 @router.get("/market_data/daemon/logs")
 async def get_market_data_daemon_logs(tail: int = Query(50, ge=1, le=500)) -> Dict[str, Any]:
-    """抓取守护进程最新日志明细"""
-    from core.workspace import PROJECT_ROOT
-    log_dir = PROJECT_ROOT / "log" / "core.data.sync_daemon"
-    lines: List[str] = []
+    """汇总自动定盘同步的真实日志：服务内协程 [Cron] 行 + 独立 CLI 守护进程日志。"""
+    from core.config import LOG_DIR
+    from core.data.sync_daemon import sync_runtime_snapshot
 
-    if log_dir.exists():
-        log_files = sorted(log_dir.glob("*.log"), key=os.path.getmtime, reverse=True)
-        if log_files:
-            try:
-                with open(log_files[0], "r", encoding="utf-8", errors="ignore") as f:
-                    lines = [ln.rstrip() for ln in f.readlines()[-tail:]]
-            except Exception:
-                pass
+    sources: Dict[str, List[str]] = {}
+    for name, marker in (("server.app", "[Cron]"), ("core.data.sync_daemon", None)):
+        directory = LOG_DIR / name
+        collected: List[str] = []
+        if directory.exists():
+            for path in sorted(directory.glob("*.log"), key=os.path.getmtime, reverse=True)[:2]:
+                try:
+                    with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+                        raw = [ln.rstrip() for ln in handle.readlines()]
+                except OSError:
+                    continue
+                if marker:
+                    raw = [ln for ln in raw if marker in ln]
+                collected = raw[-tail:] + collected
+        if collected:
+            sources[name] = collected[-tail:]
 
-    if not lines:
-        now_dt_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        lines = [
-            f"[{now_dt_str}] INFO [DataSyncDaemon] 守护进程巡检就绪，等待定盘窗口 (15:35 / 15:40)",
-            f"[{now_dt_str}] INFO [DataSyncDaemon] 监听标的池: ['holdings', 'watchlist', 'indices']",
-            f"[{now_dt_str}] INFO [DataSyncDaemon] 调度模式: 增量定盘，线程并发: {_DAEMON_RUNTIME_STATE['workers']}",
+    label_of = {"server.app": "服务内巡检", "core.data.sync_daemon": "CLI守护"}
+    merged: List[str] = []
+    for name, lines in sources.items():
+        merged.extend(f"[{label_of.get(name, name)}] {line}" for line in lines)
+    merged = merged[-tail:]
+
+    snapshot = sync_runtime_snapshot()
+    runtime_lines = [
+        f"[运行时状态] 自动巡检={'启用' if snapshot['enabled'] else '暂停'} | 轮询间隔={snapshot['interval']}s"
+        f" | 并发={snapshot['workers']} | 最近巡检={snapshot['last_check'] or '尚未执行'}"
+    ]
+    history = list(snapshot.get("history") or [])
+    if history:
+        runtime_lines.extend(f"[巡检事件] {line}" for line in history[-15:])
+    else:
+        runtime_lines.append(
+            "[巡检事件] 本次服务启动后尚无事件：协程按轮询间隔运行，启停操作与交易日 15:35 的同步结果都会在此留痕。"
+        )
+    if snapshot.get("skipped_reason"):
+        runtime_lines.append(f"[运行时状态] 跳过原因：{snapshot['skipped_reason']}")
+
+    if not merged:
+        merged = [
+            "[日志] 文件日志中暂无自动同步记录：core.config 默认日志级别为 WARNING，"
+            "巡检协程的 info 级明细不会落盘；上方「巡检事件」为进程内真实记录，不依赖日志级别。"
         ]
 
     return {
         "status": "success",
-        "count": len(lines),
-        "lines": lines,
+        "count": len(merged),
+        "log_sources": sorted(sources.keys()),
+        "history_count": len(history),
+        "runtime": runtime_lines,
+        "lines": runtime_lines + merged,
     }
 
 
 @router.post("/settings/datafeed")
 async def update_datafeed_settings(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
-    """更新数据源与并发调度设置"""
+    """更新服务内自动巡检的并发线程数（真实传入 sync_batch(max_workers=...)）。"""
+    from core.data.sync_daemon import apply_sync_runtime_control
+
     workers = int(payload.get("sync_max_workers", 4))
-    _DAEMON_RUNTIME_STATE["workers"] = workers
+    snapshot = apply_sync_runtime_control("status", workers=workers)
     return {
         "success": True,
-        "sync_max_workers": workers,
-        "message": f"并发调度参数已更新为 {workers} 线程",
+        "sync_max_workers": snapshot["workers"],
+        "applied_to": "in_process_cron",
+        "message": (
+            f"并发调度参数已更新为 {snapshot['workers']} 线程（仅作用于服务内自动巡检；"
+            "手动同步任务的并发由请求参数 concurrency 独立指定）"
+        ),
     }
 
 

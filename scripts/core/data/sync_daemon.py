@@ -34,6 +34,83 @@ except ImportError:
 logger = get_logger("core.data.sync_daemon")
 
 
+# ---------------------------------------------------------------------------
+# 服务内自动巡检的共享运行时状态（唯一事实来源）
+#
+# 消费者是 server 进程内的 `_market_post_settle_cron` 协程（scripts/server/app.py），
+# /api/market_data/daemon/* 端点只做读写，不另存副本，避免"开关显示与真实调度脱节"。
+#
+# 重要边界：独立 CLI 守护进程 DataSyncDaemon 运行在**另一个进程**，
+# 无法共享本进程内存状态，因此不受这里的 enabled/workers 影响。
+# ---------------------------------------------------------------------------
+SERVER_SYNC_RUNTIME: Dict[str, Any] = {
+    "enabled": True,
+    "interval": 60,
+    "workers": 4,
+    "last_check": None,
+    "last_run": None,
+    "last_status": None,
+    "last_message": None,
+    "skipped_reason": None,
+    # 巡检事件不依赖 logging 级别（core.config 默认 WARNING 会丢弃 info 行），
+    # 由 record_sync_runtime_event 直接维护，保证 UI 读到的执行历史真实可回溯。
+    "history": [],
+}
+
+HISTORY_LIMIT = 50
+
+
+def record_sync_runtime_event(message: str, status: Optional[str] = None) -> Dict[str, Any]:
+    """追加一条巡检事件到进程内历史；status 非空时同步更新 last_status/last_message。"""
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    level = (status or "info").upper()
+    entry = f"[{stamp}] {level} :: {message}"
+    history = SERVER_SYNC_RUNTIME.setdefault("history", [])
+    if not history or history[-1] != entry:
+        history.append(entry)
+        del history[:-HISTORY_LIMIT]
+    SERVER_SYNC_RUNTIME["last_message"] = message
+    if status:
+        SERVER_SYNC_RUNTIME["last_status"] = status
+    return sync_runtime_snapshot()
+
+
+def sync_runtime_snapshot() -> Dict[str, Any]:
+    """返回当前服务内巡检状态的可变副本。"""
+    return dict(SERVER_SYNC_RUNTIME)
+
+
+def apply_sync_runtime_control(
+    action: str = "status",
+    interval: Optional[int] = None,
+    workers: Optional[int] = None,
+) -> Dict[str, Any]:
+    """按 action 变更服务内巡检调度参数；非法值夹紧到安全区间。"""
+    if interval is not None:
+        SERVER_SYNC_RUNTIME["interval"] = max(15, min(int(interval), 3600))
+    if workers is not None:
+        SERVER_SYNC_RUNTIME["workers"] = max(1, min(int(workers), 16))
+
+    act = (action or "status").strip().lower()
+    if act in ("start", "restart"):
+        SERVER_SYNC_RUNTIME["enabled"] = True
+        # 恢复启用时必须清除暂停原因，否则日志会同时出现"已启用"与"已被暂停"
+        SERVER_SYNC_RUNTIME["skipped_reason"] = None
+        if act == "restart":
+            SERVER_SYNC_RUNTIME["last_status"] = None
+        record_sync_runtime_event(
+            "服务内自动巡检已启用（API 控制）" if act == "start" else "服务内自动巡检已重启（API 控制）",
+            "info",
+        )
+    elif act == "stop":
+        SERVER_SYNC_RUNTIME["enabled"] = False
+        SERVER_SYNC_RUNTIME["skipped_reason"] = "服务内自动巡检已被暂停"
+        record_sync_runtime_event(
+            "服务内自动巡检已暂停（API 控制）：15:35 定盘同步不再自动执行", "info",
+        )
+    return sync_runtime_snapshot()
+
+
 class DataSyncDaemon:
     """本地行情数据自动化定时同步守护器"""
 
