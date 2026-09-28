@@ -44,6 +44,14 @@ def test_market_data_ping_endpoint(auth_headers):
         assert "sina_ms" in data
         assert "eastmoney_ms" in data
 
+        # 诚实性约束：探测失败的源必须为 None，不得回落成伪造延迟常量；
+        # online 必须由真实可达源推导，local_ms 与 local_db 状态一致。
+        external = ("tencent_ms", "sina_ms", "eastmoney_ms")
+        reachable = [k for k in external if data[k] is not None]
+        assert all(isinstance(data[k], int) and data[k] >= 1 for k in reachable)
+        assert data["online"] == bool(reachable), "online 必须由真实可达源推导"
+        assert (data["local_ms"] is None) == (not data["local_db"]), "不可达时 local_ms 不得返回数值"
+
 
 def test_market_data_daemon_control_and_logs(auth_headers):
     with TestClient(app) as client:

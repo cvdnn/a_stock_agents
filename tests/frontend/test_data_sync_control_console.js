@@ -172,8 +172,32 @@ function jsonResponse(data) {
     }
     assert.strictEqual(html.includes('id="pingL1">● 运行中 (68ms)'), false);
     assert.strictEqual(html.includes('id="kpiHealthScore">98.5%'), false);
+    // 护栏升级：这 4 个控件此前因后端缺失而被要求保持禁用；现在诚实后端已落地，
+    // 断言由「必须禁用」改为「必须接入真实后端且无伪造兜底」，检测强度不降反升。
     for (const id of ['btnSyncTodaySnapshot', 'btnPingAllFeeds', 'btnAuditIntegrity', 'btnRepairGaps']) {
-      assert.match(html, new RegExp(`id="${id}"[^>]*disabled`), `${id} must be disabled until a truthful backend exists`);
+      assert.strictEqual(
+        new RegExp(`id="${id}"[^>]*disabled`).test(html),
+        false,
+        `${id} must be wired to its real backend instead of staying a disabled placeholder`,
+      );
+      assert.match(
+        controller,
+        new RegExp(`getElementById\\(['"]${id}['"]\\)`),
+        `${id} must be bound to a real handler inside the data sync controller`,
+      );
+    }
+    assert.match(controller, /today:\s*true/, 'today snapshot must request the real snapshot task');
+    assert.match(controller, /check:\s*true/, 'integrity audit must request the real audit task');
+    assert.match(controller, /repair:\s*true/, 'gap repair must request the real repair task');
+    assert.match(
+      apiSource,
+      /pingMarketFeeds\(\)\s*\{[^}]*\/api\/market_data\/ping/,
+      'feed probe must hit the real ping endpoint',
+    );
+    // 跨层防回归：ping 端点不得再把探测失败的源回落成历史伪造常量 68/124/150
+    const pingSource = fs.readFileSync(path.join(root, 'scripts/server/api/market_data.py'), 'utf8');
+    for (const fake of ['else 68', 'else 124', 'else 150']) {
+      assert.strictEqual(pingSource.includes(fake), false, `ping endpoint must not fabricate latency: ${fake}`);
     }
     assert.match(app, /tabId\s*!==\s*['"]datasync['"][\s\S]{0,240}stopDatasyncPolling\s*\(/);
   });

@@ -10540,15 +10540,14 @@ async function runDatasyncPing(button) {
   try {
     const data = await api.pingMarketFeeds();
     if (!data || data.status !== 'success') throw new Error('测速接口返回异常');
-    // 后端在探测失败时会将耗时回落为占位值，故以 online / local_db 为准，不采信回落数字
-    const probe = (ms, reachable) => {
-      if (!reachable || ms == null) return { text: '● 不可达', ok: false };
-      return { text: `● ${ms}ms`, ok: true };
-    };
+    // 后端不可达时返回 null，因此逐源判定，不再需要猜测回落常量
+    const probe = (ms, reachable) => (reachable && ms != null
+      ? { text: `● ${ms}ms`, ok: true }
+      : { text: '● 不可达', ok: false });
     const results = [
-      probe(data.online && data.tencent_ms != null ? data.tencent_ms : null, Boolean(data.online) && data.tencent_ms != null),
-      probe(data.sina_ms, Boolean(data.online) && data.sina_ms != null),
-      probe(data.eastmoney_ms, Boolean(data.online) && data.eastmoney_ms != null),
+      probe(data.tencent_ms, data.tencent_ms != null),
+      probe(data.sina_ms, data.sina_ms != null),
+      probe(data.eastmoney_ms, data.eastmoney_ms != null),
       probe(data.local_ms, Boolean(data.local_db)),
     ];
     results.forEach((item, index) => {
@@ -10557,10 +10556,16 @@ async function runDatasyncPing(button) {
       el.className = `status-${item.ok ? 'online' : 'standby'} tabular-nums`;
       el.textContent = item.text;
     });
-    if (!data.online) {
+    const reachable = [
+      { label: 'L1 腾讯', ms: data.tencent_ms },
+      { label: 'L2 新浪', ms: data.sina_ms },
+      { label: 'L3 东财', ms: data.eastmoney_ms },
+    ].filter((source) => source.ms != null);
+    if (!reachable.length) {
       showToast(`⚡ 链路探测完成：外部行情源均不可达，本地库${data.local_db ? '可用' : '不可用'}`, 'error');
     } else {
-      showToast(`⚡ 链路探测完成：外部链路可达，L1 腾讯 ${data.tencent_ms}ms`, 'success');
+      const best = reachable.reduce((a, b) => (b.ms < a.ms ? b : a));
+      showToast(`⚡ 链路探测完成：${reachable.length}/3 外部链路可达，最优 ${best.label} ${best.ms}ms`, 'success');
     }
   } catch (error) {
     elements.forEach((el) => { if (el) { el.className = 'status-standby tabular-nums'; el.textContent = '● 未检测'; } });

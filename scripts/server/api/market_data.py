@@ -774,7 +774,8 @@ async def ping_market_data_feeds() -> Dict[str, Any]:
         res["local_ms"] = round((time.perf_counter() - t0) * 1000, 2)
     except Exception:
         res["local_db"] = False
-        res["local_ms"] = round((time.perf_counter() - t0) * 1000, 2)
+        # 异常路径的耗时不是查询耗时，返回数值会被前端误读为"本地库延迟"
+        res["local_ms"] = None
 
     # 2. 外部链路非阻塞并发测速
     def _probe_url(url: str) -> Optional[int]:
@@ -794,9 +795,11 @@ async def ping_market_data_feeds() -> Dict[str, Any]:
 
     t_ms, s_ms, e_ms = await asyncio.gather(t_task, s_task, e_task, return_exceptions=True)
 
-    res["tencent_ms"] = t_ms if isinstance(t_ms, int) else 68
-    res["sina_ms"] = s_ms if isinstance(s_ms, int) else 124
-    res["eastmoney_ms"] = e_ms if isinstance(e_ms, int) else 150
+    # 探测失败必须如实返回 None。早期版本会回落 68/124/150 三个假延迟常量，
+    # 导致完全断网时前端仍显示"4 级链路全部就绪"，属于伪造数据。
+    res["tencent_ms"] = t_ms if isinstance(t_ms, int) else None
+    res["sina_ms"] = s_ms if isinstance(s_ms, int) else None
+    res["eastmoney_ms"] = e_ms if isinstance(e_ms, int) else None
     res["online"] = any(isinstance(x, int) for x in (t_ms, s_ms, e_ms))
     return res
 
