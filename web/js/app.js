@@ -869,6 +869,37 @@ const TabCopilotConfigs = {
       }
     ]
   },
+  'selection': {
+    title: '您好！我是您的 漏斗选股模型研判助手',
+    subtitle: '多因子层层过滤 · 漏斗编排可视化 · 优质标的挖掘',
+    desc: '基于多因子投研选股漏斗模型，逐层穿透<strong>全市场股票池 → 流动性 → 财务质量 → 估值 → 技术形态</strong>，实时呈现各层通过率与筛选结果，并可对当前层入选标的发起深度研判。',
+    quickActions: [
+      {
+        icon: '🔻',
+        title: '解读当前漏斗',
+        desc: '一键解读 >',
+        tooltip: '解读价值成长漏斗V3各层筛选逻辑与通过率',
+        action: '解读当前漏斗',
+        prompt: '请解读当前价值成长漏斗V3的各层筛选条件、通过率与最终入选标的的核心逻辑。'
+      },
+      {
+        icon: '🎯',
+        title: '优化筛选条件',
+        desc: '优化建议 >',
+        tooltip: '针对漏斗各层阈值给出优化建议',
+        action: '优化漏斗筛选条件',
+        prompt: '请针对当前漏斗各层的筛选阈值与因子权重给出优化建议，以提升入选标的质量与命中率。'
+      },
+      {
+        icon: '📊',
+        title: '入选标的诊断',
+        desc: '深度诊断 >',
+        tooltip: '对当前层筛选结果标的进行综合评分诊断',
+        action: '诊断漏斗入选标的',
+        prompt: '请对当前层筛选结果中的入选标的进行100分制综合诊断，并给出实战三原则保本价与三级止损建议。'
+      }
+    ]
+  },
   'watchlist': {
     title: '您好！我是您的 自选个股量化诊断助手',
     subtitle: '重点自选深度体检 · 主力筹码沉淀透视 · 游资战法买卖点捕捉',
@@ -944,37 +975,6 @@ const TabCopilotConfigs = {
         tooltip: '基于风险平价与目标波动率模型输出仓位优化方案',
         action: '资产配置与仓位建议',
         prompt: '请根据当前市场环境和回撤控制目标，提供投资组合资产配置优化与目标波动率动态调仓建议。'
-      }
-    ]
-  },
-  'datasync': {
-    title: '您好！我是您的 行情数据中枢与同步协同助手',
-    subtitle: '多源行情中枢 · 盘后定盘调度 · 数据自愈与投研生态协同',
-    desc: '统一监控 L1 腾讯、L2 新浪、L3 东财与本地 SQLite 数据库链路健康度。支持<strong>盘后自动定盘</strong>、<strong>数据断点靶向自愈</strong>与<strong>外部通达信协同导入</strong>。',
-    quickActions: [
-      {
-        icon: '🔍',
-        title: '全库数据完整性体检',
-        desc: '靶向自愈 >',
-        tooltip: '扫描全库标的历史Bar差集断点，合规剔除停牌标的',
-        action: '全库数据完整性体检',
-        prompt: '请扫描当前本地 SQLite 数据库内核心标的的历史 Bar 完整性，诊断是否存在缺失断点。'
-      },
-      {
-        icon: '⚡',
-        title: '4大行情源链路测速',
-        desc: '一键测速 >',
-        tooltip: '测量 L1 腾讯 / L2 新浪 / L3 东财与本地 SQLite 访问延迟',
-        action: '4大行情源链路测速',
-        prompt: '请测试各级行情数据源的实时网络延迟与可用状态，并给出最优调用策略推荐。'
-      },
-      {
-        icon: '🚀',
-        title: '今日盘后定盘调度',
-        desc: '定盘归档 >',
-        tooltip: '执行 15:35 交易所清算后的稳固 Bar 归档落盘',
-        action: '今日盘后定盘调度',
-        prompt: '请检查今日是否已定盘，并为 P0 核心持仓与 P1 重点关注标的触发增量定盘归档。'
       }
     ]
   },
@@ -1318,21 +1318,25 @@ function switchLayoutMode(mode) {
 const ViewDescriptions = {
   'dashboard': '整体投研盘面 (大盘/自选/持仓监控/策略开关)',
   'market': '市场行情全景 (四大指数/情绪仪表盘/日K线/板块流向)',
+  'selection': '漏斗选股模型工作台 (多因子层层过滤/漏斗可视化/当前层结果/个股分析)',
   'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
   'datasync': '数据同步与行情中枢 (时段时钟/多源链路/分级并发/自愈体检/定时守护/通达信协同)',
   'projected-action': '实战交易三原则指令单 (保本价试算器/三级止损)',
-  'skills': '18项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)'
+  'skills': '18项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)',
+  'system': '系统管理 (用户 · 角色 · 菜单 · 登录审计)'
 };
 
 const ViewHeaderInfo = {
   'dashboard': { title: '用户操作指南', icon: '📖', tag: '系统算法与功能导引' },
   'market': { title: '市场行情全景', icon: '📈', tag: '实时行情与主力资金流向' },
+  'selection': { title: '漏斗选股模型工作台', icon: '🔻', tag: '多因子层层过滤 · 挖掘优质标的' },
   'watchlist': { title: '自选个股深度研判', icon: '⭐', tag: '重点自选多周期量化追踪' },
   'returns': { title: '投资收益全景分析', icon: '💰', tag: '资产净值曲线与多因子归因' },
   'datasync': { title: '数据同步与行情中枢', icon: '🔄', tag: '多源行情中枢 · 盘后定盘调度 · 数据自愈与投研协同' },
   'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️', tag: '保本价精算与三级风控指令' },
-  'skills': { title: '技能治理中心', icon: '🧩', tag: '18项量化投研技能生命周期管理' }
+  'skills': { title: '技能治理中心', icon: '🧩', tag: '18项量化投研技能生命周期管理' },
+  'system': { title: '系统管理', icon: '🛡️', tag: '用户 · 角色 · 菜单 · 登录审计' }
 };
 
 // 切换不同菜单模块 title 栏专属功能按钮：
@@ -1343,9 +1347,15 @@ function updateWorkbenchHeaderActions(tabId) {
     grp.style.display = 'none';
   });
 
+  if (tabId === 'datasync') {
+    const datasyncCopilotButton = document.getElementById('btnCopilotLauncher');
+    if (datasyncCopilotButton) datasyncCopilotButton.style.display = 'none';
+  }
+
   const targetMap = {
     'dashboard': 'actionsDashboard',
     'market': 'actionsMarket',
+    'selection': 'actionsSelection',
     'watchlist': 'actionsWatchlist',
     'returns': 'actionsReturns',
     'datasync': 'actionsDatasync',
@@ -1369,12 +1379,12 @@ function updateWorkbenchHeaderActions(tabId) {
     }
   }
 
-  // 除了【投研助手】外，其他菜单的工作区title栏最后显示【AI助手】按钮，点击可侧边滑出AI助手
+  // 数据同步与系统管理是独立控制台，不提供 AI 助手入口。
   const copilotBtn = document.getElementById('btnCopilotLauncher');
   const collapseWorkbenchBtn = document.getElementById('btnCollapseWorkbench');
-  if (tabId === 'dashboard') {
+  if (tabId === 'dashboard' || tabId === 'datasync' || tabId === 'system') {
     if (copilotBtn) copilotBtn.style.display = 'none';
-    if (collapseWorkbenchBtn) collapseWorkbenchBtn.style.display = 'inline-flex';
+    if (collapseWorkbenchBtn) collapseWorkbenchBtn.style.display = tabId === 'dashboard' ? 'inline-flex' : 'none';
   } else {
     if (copilotBtn) {
       copilotBtn.style.display = 'inline-flex';
@@ -1396,6 +1406,14 @@ window.updateWorkbenchHeaderActions = updateWorkbenchHeaderActions;
 
 function switchRightTab(tabId) {
   AppState.activeRightTab = tabId;
+  if (tabId !== 'datasync' && typeof stopDatasyncPolling === 'function') {
+    stopDatasyncPolling();
+  }
+  if (document.body && document.body.classList && typeof document.body.classList.toggle === 'function') {
+    document.body.classList.toggle('datasync-no-copilot', tabId === 'datasync');
+    // 系统管理为独立控制台：隐藏工作台 Title 栏，且不接入 AI 助手
+    document.body.classList.toggle('system-console-mode', tabId === 'system');
+  }
 
   // 1. 同步布局模式：投研盘面居中，其他功能主工作区居中+AI助手在右
   if (tabId === 'dashboard') {
@@ -1426,6 +1444,20 @@ function switchRightTab(tabId) {
   if (tabId === 'datasync') {
     initDatasync();
   }
+  if (tabId === 'selection') {
+    initSelectionWorkbench();
+  }
+  // 3.2 Hook: 系统管理内联渲染到主工作区页面
+  if (tabId === 'system') {
+    const adminMount = document.getElementById('astockAdminMount');
+    if (adminMount) {
+      if (window.AstockAdmin && typeof window.AstockAdmin.mount === 'function') {
+        window.AstockAdmin.mount(adminMount);
+      } else {
+        adminMount.innerHTML = '<div style="background:#fff;border:1px solid #FFCCC7;border-radius:14px;padding:28px;text-align:center;color:#CF1322;font-size:14px;">系统管理模块 (js/admin.js) 加载失败，请强制刷新页面（Cmd/Ctrl + Shift + R）后重试。</div>';
+      }
+    }
+  }
 
   // 4. Update Header Title, Icon and Tag
   const info = ViewHeaderInfo[tabId] || { title: `工作台 [${tabId}]`, icon: '📊', tag: '业务功能工作区' };
@@ -1439,10 +1471,10 @@ function switchRightTab(tabId) {
   // 4.1 Update Header Action Buttons: 仅在【投研助手】展示【预览/源码、目录导航、复制代码、独立窗口】，其他模块展示各自专属功能按钮与末尾【AI助手】
   updateWorkbenchHeaderActions(tabId);
 
-  // 4.2 若 AI 助手处于初始欢迎态，刷新为当前工作区专属问候与推荐操作
+  // 4.2 若 AI 助手处于初始欢迎态，刷新为当前工作区专属问候与推荐操作（独立控制台不接入）
   const chatMessages = document.getElementById('chatMessages');
   const welcomeCard = chatMessages ? chatMessages.querySelector('.welcome-intro-card') : null;
-  if (chatMessages && (welcomeCard || chatMessages.children.length === 0)) {
+  if (tabId !== 'datasync' && tabId !== 'system' && chatMessages && (welcomeCard || chatMessages.children.length === 0)) {
     chatMessages.innerHTML = getWelcomeMessageHtml(tabId);
   }
 
@@ -3423,6 +3455,8 @@ function renderTabCharts(tabId) {
     loadWatchlistData(AppState.selectedStock);
   } else if (tabId === 'returns') {
     loadReturnsData();
+  } else if (tabId === 'selection') {
+    renderSelectionWorkbench();
   }
 }
 
@@ -9965,468 +9999,1258 @@ window.toggleCopilot = toggleCopilot;
 // DATA SYNC & MARKET HUB INTERACTIVE CONTROLLER (数据同步与行情中枢)
 // ============================================================================
 let isDatasyncInitialized = false;
+const DatasyncState = {
+  activeTab: 'run',
+  tasks: [],
+  tasksLoaded: false,
+  selectedTaskId: null,
+  pollingTimer: null,
+  pollingInFlight: false,
+};
+
+const DATASYNC_STATUS_LABELS = {
+  pending: '等待中',
+  running: '运行中',
+  completed: '已完成',
+  failed: '失败',
+  degraded: '局部异常',
+  timed_out: '已超时',
+  cancelled: '已取消',
+  cancel_requested: '取消中',
+};
+
+const DATASYNC_FILTER_IDS = [
+  'datasyncTaskDateFrom',
+  'datasyncTaskDateTo',
+  'datasyncTaskTypeFilter',
+  'datasyncTaskStatusFilter',
+  'datasyncTaskKeywordFilter',
+];
+
+function escapeDatasyncHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function datasyncEffectiveStatus(task) {
+  const status = String(task?.status || 'pending');
+  const result = task?.result || {};
+  const metrics = result.metrics || result.progress_detail || {};
+  const failedCount = Number(metrics.failed_count ?? metrics.failed ?? result.failed_count ?? 0);
+  return status === 'completed' && failedCount > 0 ? 'degraded' : status;
+}
+
+function isDataSyncTask(task) {
+  return Boolean(task && (task.task_type === 'data_sync' || task.task_type === 'sync'));
+}
+
+function normalizeDatasyncTasks(payload) {
+  const tasks = Array.isArray(payload) ? payload : (Array.isArray(payload && payload.tasks) ? payload.tasks : []);
+  return tasks.filter(isDataSyncTask);
+}
+
+function datasyncTaskId(task) {
+  return task && (task.task_id || task.id) ? String(task.task_id || task.id) : '';
+}
+
+function datasyncPercent(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  const percent = numeric >= 0 && numeric <= 1 ? numeric * 100 : numeric;
+  return Math.max(0, Math.min(100, Math.round(percent * 10) / 10));
+}
+
+function datasyncDateTime(value) {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString('zh-CN', { hour12: false });
+}
+
+function datasyncElapsed(value) {
+  const milliseconds = Number(value);
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) return '—';
+  if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
+  const seconds = milliseconds / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+}
+
+function datasyncTaskName(task) {
+  const params = task.params || {};
+  if (params.mode === 'audit') return '完整性审计';
+  if (params.mode === 'repair') return '缺漏修复';
+  const names = { P0: '持仓池同步', P1: '自选关注池同步', P2: '核心指数同步', P3: '全市场同步' };
+  return names[params.tier] || '数据同步';
+}
+
+function datasyncTaskRange(task) {
+  const params = task.params || {};
+  if (Array.isArray(params.codes) && params.codes.length) {
+    const preview = params.codes.slice(0, 3).join(',');
+    return params.codes.length > 3 ? `${preview} 等 ${params.codes.length} 只` : preview;
+  }
+  return params.scope || params.pool || params.tier || '—';
+}
+
+function datasyncTaskResult(task) {
+  const result = task.result || {};
+  const metrics = result.metrics || result.progress_detail || result;
+  const succeeded = metrics.succeeded ?? metrics.success_count ?? metrics.success;
+  const total = metrics.total ?? metrics.total_requested ?? metrics.count;
+  if (succeeded == null && total == null) return '—';
+  return `${succeeded == null ? '—' : succeeded} / ${total == null ? '—' : total}`;
+}
+
+function setDatasyncButtonBusy(button, busy, label) {
+  if (!button) return;
+  if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent.trim();
+  button.disabled = busy;
+  button.classList.toggle('is-loading', busy);
+  button.textContent = busy ? label : button.dataset.idleLabel;
+}
+
+function persistDatasyncFilters() {
+  const filters = {};
+  DATASYNC_FILTER_IDS.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) filters[id] = element.value;
+  });
+  try { window.sessionStorage.setItem('datasync.taskFilters', JSON.stringify(filters)); } catch (_) { /* storage unavailable */ }
+}
+
+function restoreDatasyncFilters() {
+  let filters = {};
+  try { filters = JSON.parse(window.sessionStorage.getItem('datasync.taskFilters') || '{}'); } catch (_) { filters = {}; }
+  DATASYNC_FILTER_IDS.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element && Object.prototype.hasOwnProperty.call(filters, id)) element.value = filters[id];
+  });
+}
+
+function switchDatasyncTab(tabName, moveFocus = false) {
+  const allowedTabs = ['run', 'tasks', 'settings'];
+  const nextTab = allowedTabs.includes(tabName) ? tabName : 'run';
+  DatasyncState.activeTab = nextTab;
+  try { window.sessionStorage.setItem('datasync.activeTab', nextTab); } catch (_) { /* storage unavailable */ }
+
+  document.querySelectorAll('[data-datasync-tab]').forEach((tab) => {
+    const selected = tab.dataset.datasyncTab === nextTab;
+    tab.classList.toggle('active', selected);
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    if (selected && moveFocus) tab.focus();
+  });
+
+  document.querySelectorAll('[data-datasync-panel]').forEach((panel) => {
+    const selected = panel.dataset.datasyncPanel === nextTab;
+    panel.classList.toggle('active', selected);
+    panel.hidden = !selected;
+  });
+
+  if (nextTab === 'tasks') loadDatasyncTasks();
+  updateDatasyncPolling();
+}
+
+function renderDatasyncTaskDetail(task) {
+  const detail = document.getElementById('datasyncTaskDetail');
+  if (!detail) return;
+  if (!task) {
+    detail.innerHTML = '<div class="datasync-detail-placeholder">选择一条任务记录查看参数、进度与执行结果。</div>';
+    return;
+  }
+
+  const taskId = datasyncTaskId(task);
+  const status = datasyncEffectiveStatus(task);
+  const params = task.params || {};
+  const outcome = task.error || task.result || null;
+  detail.innerHTML = `
+    <div class="datasync-card-heading">
+      <div><div class="form-label">任务详情</div><div class="form-hint">${escapeDatasyncHtml(taskId)}</div></div>
+      <span class="datasync-task-status is-${escapeDatasyncHtml(status)}">${escapeDatasyncHtml(DATASYNC_STATUS_LABELS[status] || status)}</span>
+    </div>
+    <dl class="datasync-detail-grid">
+      <dt>任务类型</dt><dd>${escapeDatasyncHtml(task.task_type || '—')}</dd>
+      <dt>触发方式</dt><dd>${escapeDatasyncHtml(params.trigger || '—')}</dd>
+      <dt>范围</dt><dd>${escapeDatasyncHtml(params.scope || params.tier || params.pool || '—')}</dd>
+      <dt>模式</dt><dd>${escapeDatasyncHtml(params.mode || '—')}</dd>
+      <dt>进度</dt><dd>${datasyncPercent(task.progress)}%</dd>
+      <dt>状态说明</dt><dd>${escapeDatasyncHtml(task.status_message || '—')}</dd>
+      <dt>创建时间</dt><dd>${escapeDatasyncHtml(datasyncDateTime(task.created_at))}</dd>
+      <dt>开始时间</dt><dd>${escapeDatasyncHtml(datasyncDateTime(task.started_at))}</dd>
+      <dt>完成时间</dt><dd>${escapeDatasyncHtml(datasyncDateTime(task.completed_at))}</dd>
+      <dt>耗时</dt><dd>${escapeDatasyncHtml(datasyncElapsed(task.elapsed_ms))}</dd>
+    </dl>
+    <div class="form-hint">原始参数</div>
+    <pre class="datasync-detail-json">${escapeDatasyncHtml(JSON.stringify(params, null, 2))}</pre>
+    <div class="form-hint">结果 / 错误</div>
+    <pre class="datasync-detail-json">${escapeDatasyncHtml(JSON.stringify(outcome, null, 2))}</pre>`;
+}
+
+function renderDatasyncTasks() {
+  const body = document.getElementById('datasyncTaskTableBody');
+  const empty = document.getElementById('datasyncTaskEmpty');
+  const summary = document.getElementById('datasyncTaskSummary');
+  if (!body) return;
+
+  const statusValue = document.getElementById('datasyncTaskStatusFilter')?.value || '';
+  const typeValue = document.getElementById('datasyncTaskTypeFilter')?.value || '';
+  const keywordValue = (document.getElementById('datasyncTaskKeywordFilter')?.value || '').trim().toLowerCase();
+  const dateFrom = document.getElementById('datasyncTaskDateFrom')?.value || '';
+  const dateTo = document.getElementById('datasyncTaskDateTo')?.value || '';
+  const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+  const toTime = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : null;
+  const tasks = DatasyncState.tasks.filter((task) => {
+    if (statusValue && datasyncEffectiveStatus(task) !== statusValue) return false;
+    if (typeValue && task.task_type !== typeValue) return false;
+    const taskTime = new Date(task.started_at || task.created_at || 0).getTime();
+    if (fromTime != null && taskTime < fromTime) return false;
+    if (toTime != null && taskTime > toTime) return false;
+    if (keywordValue) {
+      const haystack = `${datasyncTaskId(task)} ${datasyncTaskName(task)} ${datasyncTaskRange(task)} ${JSON.stringify(task.params || {})}`.toLowerCase();
+      if (!haystack.includes(keywordValue)) return false;
+    }
+    return true;
+  });
+  body.innerHTML = tasks.map((task) => {
+    const taskId = datasyncTaskId(task);
+    const status = datasyncEffectiveStatus(task);
+    const params = task.params || {};
+    const selected = taskId === DatasyncState.selectedTaskId;
+    const canCancel = ['pending', 'running'].includes(status);
+    const canRetry = ['failed', 'timed_out', 'cancelled', 'completed'].includes(status);
+    const retryLabel = status === 'completed' ? '再次执行' : '重试';
+    return `<tr class="datasync-task-row${selected ? ' selected' : ''}" data-task-id="${escapeDatasyncHtml(taskId)}" tabindex="0">
+      <td class="tabular-nums">${escapeDatasyncHtml(datasyncDateTime(task.started_at || task.created_at))}</td>
+      <td title="${escapeDatasyncHtml(taskId)}">${escapeDatasyncHtml(datasyncTaskName(task))}</td>
+      <td>${escapeDatasyncHtml(datasyncTaskRange(task))}</td>
+      <td>${escapeDatasyncHtml(params.mode || '—')}</td>
+      <td class="tabular-nums">${escapeDatasyncHtml(datasyncTaskResult(task))}</td>
+      <td><span class="datasync-task-status is-${escapeDatasyncHtml(status)}">${escapeDatasyncHtml(DATASYNC_STATUS_LABELS[status] || status)}</span></td>
+      <td class="tabular-nums">${escapeDatasyncHtml(datasyncElapsed(task.elapsed_ms))}</td>
+      <td><div class="datasync-task-actions">
+        <button type="button" data-task-action="detail" data-task-id="${escapeDatasyncHtml(taskId)}">详情</button>
+        ${canCancel ? `<button type="button" data-task-action="cancel" data-task-id="${escapeDatasyncHtml(taskId)}">取消</button>` : ''}
+        ${canRetry ? `<button type="button" data-task-action="retry" data-task-id="${escapeDatasyncHtml(taskId)}">${retryLabel}</button>` : ''}
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  if (empty) empty.hidden = tasks.length !== 0;
+  if (summary) summary.textContent = `共 ${tasks.length} 条数据同步任务`;
+  const stats = {
+    datasyncTaskStatAll: DatasyncState.tasks.length,
+    datasyncTaskStatActive: DatasyncState.tasks.filter((task) => ['pending', 'running', 'cancel_requested'].includes(datasyncEffectiveStatus(task))).length,
+    datasyncTaskStatCompleted: DatasyncState.tasks.filter((task) => datasyncEffectiveStatus(task) === 'completed').length,
+    datasyncTaskStatProblem: DatasyncState.tasks.filter((task) => ['failed', 'timed_out', 'degraded', 'cancelled'].includes(datasyncEffectiveStatus(task))).length,
+  };
+  Object.entries(stats).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = String(value);
+  });
+  const activeSummary = document.getElementById('datasyncStatusActiveTasks');
+  if (activeSummary) activeSummary.textContent = String(stats.datasyncTaskStatActive);
+  const lastCompleted = DatasyncState.tasks.find((task) => task.status === 'completed' && task.completed_at);
+  const lastCompletedSummary = document.getElementById('datasyncStatusLastCompleted');
+  if (lastCompletedSummary) lastCompletedSummary.textContent = lastCompleted ? datasyncDateTime(lastCompleted.completed_at) : '—';
+  const selectedTask = DatasyncState.tasks.find((task) => datasyncTaskId(task) === DatasyncState.selectedTaskId);
+  renderDatasyncTaskDetail(selectedTask || null);
+}
+
+function updateDatasyncP3Progress(task) {
+  if (!task) return;
+  const result = task.result || {};
+  const metrics = result.metrics || result.progress_detail || {};
+  const succeeded = metrics.succeeded ?? metrics.success_count;
+  const failed = metrics.failed ?? metrics.failed_count;
+  const total = metrics.total ?? metrics.total_requested ?? metrics.count;
+  const processed = metrics.processed ?? ((succeeded == null && failed == null) ? null : ((Number(succeeded) || 0) + (Number(failed) || 0)));
+  const progress = datasyncPercent(task.progress);
+  const progressPanel = document.getElementById('datasyncP3Progress');
+  const progressBar = document.getElementById('datasyncP3ProgressBar');
+  if (progressBar) {
+    progressBar.style.width = `${progress}%`;
+  }
+  if (progressPanel) progressPanel.setAttribute('aria-valuenow', String(progress));
+  const values = {
+    datasyncP3TaskId: datasyncTaskId(task),
+    datasyncP3Total: total,
+    datasyncP3Processed: processed,
+    datasyncP3Succeeded: succeeded,
+    datasyncP3Failed: failed,
+    datasyncP3Batch: metrics.batch || metrics.current_batch,
+    datasyncP3Remaining: metrics.remaining ?? (total == null || processed == null ? null : Math.max(0, total - processed)),
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value == null ? '—' : String(value);
+  });
+}
+
+function stopDatasyncPolling() {
+  if (DatasyncState.pollingTimer) window.clearInterval(DatasyncState.pollingTimer);
+  DatasyncState.pollingTimer = null;
+  DatasyncState.pollingInFlight = false;
+}
+
+async function pollDatasyncTasks() {
+  if (DatasyncState.pollingInFlight) return;
+  DatasyncState.pollingInFlight = true;
+  try {
+    await loadDatasyncTasks({ quiet: true });
+  } finally {
+    DatasyncState.pollingInFlight = false;
+  }
+}
+
+function updateDatasyncPolling() {
+  const hasActiveTask = DatasyncState.tasks.some((task) => ['pending', 'running', 'cancel_requested'].includes(task.status));
+  const hasActiveP3 = DatasyncState.tasks.some((task) => (task.params || {}).tier === 'P3' && ['pending', 'running', 'cancel_requested'].includes(task.status));
+  const shouldPoll = hasActiveTask && (DatasyncState.activeTab === 'tasks' || (DatasyncState.activeTab === 'run' && hasActiveP3));
+  if (shouldPoll && !DatasyncState.pollingTimer) {
+    DatasyncState.pollingTimer = window.setInterval(pollDatasyncTasks, 3000);
+  } else if (!shouldPoll && DatasyncState.pollingTimer) {
+    stopDatasyncPolling();
+  }
+}
+
+function updateDatasyncP3Availability() {
+  const button = document.getElementById('btnDatasyncP3Start');
+  if (!button || button.classList.contains('is-loading')) return;
+  const activeP3 = DatasyncState.tasks.find((task) => (task.params || {}).tier === 'P3' && ['pending', 'running', 'cancel_requested'].includes(task.status));
+  button.disabled = !DatasyncState.tasksLoaded || Boolean(activeP3);
+  button.title = !DatasyncState.tasksLoaded
+    ? '任务状态尚未成功加载，暂不可提交'
+    : activeP3
+      ? `已有活动 P3 任务：${datasyncTaskId(activeP3)}`
+      : '当前后端仅支持指定代码的增量 P3 任务';
+}
+
+async function loadDatasyncTasks({ selectTaskId = '', quiet = false } = {}) {
+  const api = window.AStockAPI;
+  const summary = document.getElementById('datasyncTaskSummary');
+  if (!api || typeof api.listTasks !== 'function') {
+    DatasyncState.tasksLoaded = false;
+    stopDatasyncPolling();
+    updateDatasyncP3Availability();
+    if (summary) summary.textContent = '任务接口不可用';
+    if (!quiet) showToast('任务接口不可用，无法读取真实同步状态', 'error');
+    return [];
+  }
+
+  try {
+    if (summary && !quiet) summary.textContent = '正在加载任务记录…';
+    DatasyncState.tasks = normalizeDatasyncTasks(await api.listTasks({ limit: 100 }));
+    DatasyncState.tasksLoaded = true;
+    if (selectTaskId) DatasyncState.selectedTaskId = selectTaskId;
+    if (!DatasyncState.selectedTaskId && DatasyncState.tasks.length) {
+      DatasyncState.selectedTaskId = datasyncTaskId(DatasyncState.tasks[0]);
+    }
+    renderDatasyncTasks();
+    applyLatestDatasyncAudit();
+    const latestP3Task = DatasyncState.tasks.find((task) => (task.params || {}).tier === 'P3');
+    if (latestP3Task) updateDatasyncP3Progress(latestP3Task);
+    updateDatasyncP3Availability();
+    updateDatasyncPolling();
+    return DatasyncState.tasks;
+  } catch (error) {
+    DatasyncState.tasksLoaded = false;
+    stopDatasyncPolling();
+    updateDatasyncP3Availability();
+    if (summary) summary.textContent = `加载失败：${error.message || '未知错误'}`;
+    if (!quiet) showToast(`读取同步任务失败：${error.message || '未知错误'}`, 'error');
+    return [];
+  }
+}
+
+async function selectDatasyncTask(taskId) {
+  DatasyncState.selectedTaskId = taskId;
+  renderDatasyncTasks();
+  const api = window.AStockAPI;
+  if (!api || typeof api.getTask !== 'function') return;
+  try {
+    const detail = await api.getTask(taskId);
+    if (!isDataSyncTask(detail)) return;
+    const existingIndex = DatasyncState.tasks.findIndex((task) => datasyncTaskId(task) === taskId);
+    if (existingIndex >= 0) DatasyncState.tasks.splice(existingIndex, 1, detail);
+    else DatasyncState.tasks.unshift(detail);
+    renderDatasyncTasks();
+    if ((detail.params || {}).tier === 'P3') updateDatasyncP3Progress(detail);
+  } catch (error) {
+    showToast(`读取任务详情失败：${error.message || '未知错误'}`, 'error');
+  }
+}
+
+async function createDataSyncTask(params, button = null) {
+  const api = window.AStockAPI;
+  if (!api || typeof api.createTask !== 'function') {
+    showToast('任务接口不可用，未提交同步任务', 'error');
+    return null;
+  }
+
+  setDatasyncButtonBusy(button, true, '正在提交…');
+  try {
+    const concurrencyElement = document.getElementById('cfgSyncConcurrency');
+    const concurrency = concurrencyElement ? Number(concurrencyElement.value) : 4;
+    const task = await api.createTask({
+      task_type: 'data_sync',
+      params: { trigger: 'manual', concurrency: concurrency, ...params },
+    });
+    const taskId = datasyncTaskId(task);
+    if (!taskId) throw new Error('服务端未返回任务 ID，无法确认任务已创建');
+    if (!isDataSyncTask(task)) throw new Error('服务端返回了不匹配的任务类型');
+    if (params.tier === 'P3') updateDatasyncP3Progress(task);
+    showToast(`同步任务已提交${taskId ? `：${taskId}` : ''}`, 'success');
+    await loadDatasyncTasks({ selectTaskId: taskId });
+    return task;
+  } catch (error) {
+    showToast(`提交同步任务失败：${error.message || '未知错误'}`, 'error');
+    return null;
+  } finally {
+    setDatasyncButtonBusy(button, false, '');
+    updateDatasyncP3Availability();
+  }
+}
+
+async function cancelDatasyncTask(taskId) {
+  const api = window.AStockAPI;
+  if (!api || typeof api.cancelTask !== 'function') return;
+  try {
+    const response = await api.cancelTask(taskId);
+    if (response && response.status === 'not_running') {
+      showToast(`任务已结束，无法取消：${taskId}`, 'info');
+    } else if (response && response.status === 'cancelled') {
+      showToast(`任务已取消：${taskId}`, 'success');
+    } else {
+      throw new Error('服务端未确认取消结果');
+    }
+    await loadDatasyncTasks({ selectTaskId: taskId });
+  } catch (error) {
+    showToast(`取消任务失败：${error.message || '未知错误'}`, 'error');
+  }
+}
+
+async function retryDatasyncTask(taskId) {
+  const source = DatasyncState.tasks.find((task) => datasyncTaskId(task) === taskId);
+  if (!source) return;
+  await createDataSyncTask({ ...(source.params || {}), retry_of: taskId });
+}
+
+async function submitDatasyncP3() {
+  const scopeElement = document.getElementById('datasyncP3Scope');
+  const modeElement = document.getElementById('datasyncP3Mode');
+  const codesElement = document.getElementById('datasyncP3Codes');
+  const button = document.getElementById('btnDatasyncP3Start');
+  const scope = scopeElement ? scopeElement.value : 'full_market';
+  const mode = modeElement ? modeElement.value : 'incremental';
+  const codes = codesElement ? codesElement.value.split(/[\s,，]+/).map((item) => item.trim()).filter(Boolean) : [];
+
+  if (scope === 'selected' && codes.length === 0) {
+    showToast('指定代码模式至少需要输入一个股票代码', 'error');
+    if (codesElement) codesElement.focus();
+    return;
+  }
+  if (mode === 'full' && !window.confirm(`全量重构会覆盖式重建“${scope}”范围；预计标的数以服务端校验为准，并会占用较多行情源与本地写入资源。确认继续检查后端能力吗？`)) return;
+  if (scope !== 'selected' || mode !== 'incremental') {
+    showToast('P3 批量任务当前仅支持“指定代码 + 增量同步”；全市场与沪深北分区枚举后端未实现，完整性审计与缺漏修复请改用运行面板的体检入口', 'error');
+    return;
+  }
+
+  await loadDatasyncTasks({ quiet: true });
+  if (!DatasyncState.tasksLoaded) {
+    showToast('无法确认当前活动任务，已阻止 P3 提交，请刷新后重试', 'error');
+    return;
+  }
+  const activeP3 = DatasyncState.tasks.find((task) => (task.params || {}).tier === 'P3' && ['pending', 'running', 'cancel_requested'].includes(task.status));
+  if (activeP3) {
+    showToast(`已有活动 P3 任务：${datasyncTaskId(activeP3)}，请等待结束或先取消`, 'error');
+    return;
+  }
+
+  await createDataSyncTask({
+    tier: 'P3',
+    scope: scope,
+    mode: mode,
+    codes: scope === 'selected' ? codes : [],
+  }, button);
+}
+
+// ---- 市场时钟：交易日 / 定盘状态机（GET /api/market_data/clock）----
+async function refreshDatasyncMarketClock() {
+  const api = window.AStockAPI;
+  if (!api || typeof api.getMarketClock !== 'function') return false;
+  const clockDisplay = document.getElementById('syncClockDisplay');
+  const tradingDayBadge = document.getElementById('syncTradingDayBadge');
+  const settleBadge = document.getElementById('syncSettleBadge');
+  const phaseDesc = document.getElementById('syncPhaseDesc');
+  const serviceCard = document.getElementById('datasyncStatusService');
+  try {
+    const data = await api.getMarketClock();
+    if (!data || data.status !== 'success') throw new Error('市场时钟返回异常');
+    if (serviceCard) serviceCard.textContent = '在线';
+    // 服务端权威时间，随后由本地 setInterval 逐秒续走
+    if (clockDisplay && data.time) clockDisplay.textContent = data.time;
+    if (tradingDayBadge) {
+      tradingDayBadge.className = data.is_trading_day ? 'badge-tag-green' : 'badge-tag-warn';
+      tradingDayBadge.textContent = data.is_trading_day ? '🟢 交易日' : '⚪ 非交易日';
+    }
+    if (settleBadge) {
+      const tone = data.is_settled ? 'capsule-settled' : (data.is_market_open ? 'capsule-unsettled' : 'capsule-closed');
+      settleBadge.className = `status-capsule ${tone}`;
+      settleBadge.textContent = data.is_settled
+        ? '● 盘后已定盘 (SETTLED)'
+        : `● ${data.phase_label || '未定盘'} (PENDING)`;
+    }
+    if (phaseDesc && data.description) phaseDesc.textContent = data.description;
+    return true;
+  } catch (error) {
+    if (serviceCard) serviceCard.textContent = '不可用';
+    if (tradingDayBadge) { tradingDayBadge.className = 'badge-tag-warn'; tradingDayBadge.textContent = '交易日状态获取失败'; }
+    if (settleBadge) { settleBadge.className = 'status-capsule capsule-closed'; settleBadge.textContent = '● 定盘状态未知'; }
+    showToast(`读取市场时钟失败：${error.message || '未知错误'}`, 'error');
+    return false;
+  }
+}
+
+// ---- 四级行情链路真实测速（GET /api/market_data/ping）----
+async function runDatasyncPing(button) {
+  const api = window.AStockAPI;
+  if (!api || typeof api.pingMarketFeeds !== 'function') {
+    showToast('行情源探测接口不可用', 'error');
+    return;
+  }
+  const slots = [
+    { id: 'pingL1', label: 'L1 腾讯' },
+    { id: 'pingL2', label: 'L2 新浪' },
+    { id: 'pingL3', label: 'L3 东财' },
+    { id: 'pingLocal', label: '本地时序库' },
+  ];
+  const elements = slots.map((slot) => document.getElementById(slot.id));
+  elements.forEach((el) => { if (el) { el.className = 'status-standby tabular-nums'; el.textContent = '● 测速中…'; } });
+  setDatasyncButtonBusy(button, true, '测速中…');
+  try {
+    const data = await api.pingMarketFeeds();
+    if (!data || data.status !== 'success') throw new Error('测速接口返回异常');
+    // 后端在探测失败时会将耗时回落为占位值，故以 online / local_db 为准，不采信回落数字
+    const probe = (ms, reachable) => {
+      if (!reachable || ms == null) return { text: '● 不可达', ok: false };
+      return { text: `● ${ms}ms`, ok: true };
+    };
+    const results = [
+      probe(data.online && data.tencent_ms != null ? data.tencent_ms : null, Boolean(data.online) && data.tencent_ms != null),
+      probe(data.sina_ms, Boolean(data.online) && data.sina_ms != null),
+      probe(data.eastmoney_ms, Boolean(data.online) && data.eastmoney_ms != null),
+      probe(data.local_ms, Boolean(data.local_db)),
+    ];
+    results.forEach((item, index) => {
+      const el = elements[index];
+      if (!el) return;
+      el.className = `status-${item.ok ? 'online' : 'standby'} tabular-nums`;
+      el.textContent = item.text;
+    });
+    if (!data.online) {
+      showToast(`⚡ 链路探测完成：外部行情源均不可达，本地库${data.local_db ? '可用' : '不可用'}`, 'error');
+    } else {
+      showToast(`⚡ 链路探测完成：外部链路可达，L1 腾讯 ${data.tencent_ms}ms`, 'success');
+    }
+  } catch (error) {
+    elements.forEach((el) => { if (el) { el.className = 'status-standby tabular-nums'; el.textContent = '● 未检测'; } });
+    showToast(`链路测速失败：${error.message || '未知错误'}`, 'error');
+  } finally {
+    setDatasyncButtonBusy(button, false, '');
+  }
+}
+
+// ---- 并发线程数落库（POST /api/settings/datafeed）----
+async function saveDatasyncConcurrency(workers) {
+  const api = window.AStockAPI;
+  if (!api || typeof api.updateDatafeedSettings !== 'function') return;
+  try {
+    await api.updateDatafeedSettings(workers);
+    showToast(`并发调度参数已保存为 ${workers} 线程`, 'success');
+  } catch (error) {
+    showToast(`保存并发参数失败：${error.message || '未知错误'}`, 'error');
+  }
+}
+
+// ---- 完整性审计明细（远端 8 列表头：代码/名称/理论天数/实际落盘/停牌/缺漏/状态/操作）----
+function renderDatasyncAuditRows(items) {
+  const tbody = document.getElementById('auditTableBody');
+  if (!tbody) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="datasync-detail-placeholder">本地时序库暂无检测记录</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map((row) => {
+    const symbol = String(row.symbol || '');
+    const code = symbol.replace(/^(sh|sz|bj)/i, '');
+    const missing = Number(row.missing_count || 0);
+    const suspended = Number(row.suspended_count || 0);
+    const rowCount = Number(row.row_count || 0);
+    const bad = Number(row.bad_count || 0);
+    const isHealthy = row.status === 'healthy';
+    const isDegraded = row.status === 'degraded';
+    const isEmpty = row.status === 'empty';
+    // 理论覆盖天数 = 实际落盘 + 异常缺漏 + 合规停牌（引擎按 all_missing 拆分，此为恒等推导）
+    const expected = isEmpty ? '—' : rowCount + missing + suspended;
+    let badge = '<span class="status-standby">⚪ 无数据</span>';
+    let filterTag = 'empty';
+    if (isHealthy) {
+      badge = '<span class="badge-tag-green">🟢 稳健完整</span>';
+      filterTag = 'healthy';
+    } else if (isDegraded) {
+      badge = '<span class="badge-tag-red">🔴 存在缺漏</span>';
+      filterTag = 'missing';
+    } else if (suspended > 0) {
+      badge = '<span class="badge-tag-warn">🟡 合规停牌</span>';
+      filterTag = 'suspended';
+    }
+    const gapText = `${missing}${bad > 0 ? ` <small class="status-standby">(${bad}坏点)</small>` : ''}${suspended > 0 && isHealthy ? ` <small class="status-standby">(${suspended}停牌)</small>` : ''}`;
+    return `<tr data-status="${filterTag}" data-code="${escapeDatasyncHtml(code)}" data-name="${escapeDatasyncHtml(code)}">
+      <td><strong class="stock-code tabular-nums">${escapeDatasyncHtml(symbol)}</strong></td>
+      <td class="tabular-nums">${escapeDatasyncHtml(code)}</td>
+      <td class="tabular-nums">${expected}</td>
+      <td class="tabular-nums">${rowCount}</td>
+      <td class="tabular-nums">${suspended}</td>
+      <td class="tabular-nums${missing > 0 ? ' badge-tag-red' : ''}">${gapText}</td>
+      <td title="${escapeDatasyncHtml(row.message || '')}">${badge}</td>
+      <td><div class="datasync-task-actions">
+        <button type="button" data-repair-code="${escapeDatasyncHtml(code)}">${missing > 0 || bad > 0 || isEmpty ? '一键自愈' : '重新校验'}</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function applyDatasyncAuditResult(result) {
+  if (!result || typeof result !== 'object') return false;
+  const values = {
+    kpiAuditedCodes: result.total_codes,
+    kpiHealthScore: result.health_rate == null ? null : `${result.health_rate}%`,
+    kpiMissingDays: result.missing_gaps,
+    kpiSuspendedDays: result.suspended_gaps,
+    filterMissingCount: result.missing_gaps,
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element && value != null) element.textContent = String(value);
+  });
+  if (Array.isArray(result.audit_results)) renderDatasyncAuditRows(result.audit_results);
+  return true;
+}
+
+// 从任务列表中取最近一次已完成的审计任务结果，回填体检明细
+function applyLatestDatasyncAudit() {
+  const auditTask = DatasyncState.tasks.find((task) => {
+    const status = datasyncEffectiveStatus(task);
+    return status === 'completed' && ((task.params || {}).check === true || (task.result || {}).action === 'check');
+  });
+  if (auditTask) applyDatasyncAuditResult(auditTask.result || {});
+}
+
+// ---- 单标的靶向自愈（走统一任务接口，替代内联 onclick 拼接）----
+async function repairDatasyncCode(code) {
+  if (!code) return;
+  const task = await createDataSyncTask({ codes: [code], repair: true });
+  if (task) showToast(`已提交 [${code}] 自愈回补任务`, 'success');
+}
+
+// ---- 守护进程（POST /api/market_data/daemon/control、GET /api/market_data/daemon/logs）----
+async function refreshDatasyncDaemonStatus() {
+  const api = window.AStockAPI;
+  const checkbox = document.getElementById('toggleSyncDaemon');
+  const statusText = document.getElementById('daemonStatusText');
+  if (!api || typeof api.controlSyncDaemon !== 'function') return;
+  try {
+    const res = await api.controlSyncDaemon('status');
+    const running = Boolean(res && res.daemon_running);
+    if (checkbox) checkbox.checked = running;
+    if (statusText) {
+      statusText.className = running ? 'status-online' : 'status-standby';
+      statusText.textContent = running ? `● 运行中 (PID: ${res.pid || 'Active'})` : '○ 已停止';
+    }
+  } catch (error) {
+    if (statusText) {
+      statusText.className = 'status-standby';
+      statusText.textContent = '● 状态获取失败';
+    }
+  }
+}
+
+async function refreshDatasyncDaemonLogs() {
+  const api = window.AStockAPI;
+  const terminal = document.getElementById('daemonLogTerminal');
+  if (!api || typeof api.getSyncDaemonLogs !== 'function' || !terminal) return;
+  try {
+    const data = await api.getSyncDaemonLogs(30);
+    if (data && Array.isArray(data.lines)) {
+      terminal.textContent = data.lines.join('\n');
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+  } catch (error) {
+    terminal.textContent = `守护日志读取失败：${error.message || '未知错误'}`;
+  }
+}
+
+async function toggleDatasyncDaemon(isStart, checkbox) {
+  const api = window.AStockAPI;
+  const statusText = document.getElementById('daemonStatusText');
+  if (!api || typeof api.controlSyncDaemon !== 'function') {
+    showToast('守护进程控制接口不可用', 'error');
+    if (checkbox) checkbox.checked = !isStart;
+    return;
+  }
+  try {
+    const res = await api.controlSyncDaemon(isStart ? 'start' : 'stop');
+    const running = Boolean(res && res.daemon_running);
+    if (statusText) {
+      statusText.className = running ? 'status-online' : 'status-standby';
+      statusText.textContent = running ? `● 运行中 (PID: ${res.pid || 'Active'})` : '○ 已停止';
+    }
+    if (checkbox) checkbox.checked = running;
+    showToast(running ? '常驻同步守护进程已启动' : '常驻同步守护进程已停止', running ? 'success' : 'info');
+    refreshDatasyncDaemonLogs();
+  } catch (error) {
+    if (checkbox) checkbox.checked = !isStart;
+    showToast(`守护进程切换失败：${error.message || '未知错误'}`, 'error');
+  }
+}
+
+// ---- 通达信自选导入（POST /api/pools/import_tdx，GBK 解析）----
+const DatasyncTdx = { content: '' };
+let daemonStreamTimer = null;
+
+function bindDatasyncTdxPicker() {
+  const dropzone = document.getElementById('tdxDropzone');
+  const fileInput = document.getElementById('tdxFileInput');
+  if (!dropzone || !fileInput) return;
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      DatasyncTdx.content = String(evt.target.result || '');
+      const dropText = document.getElementById('tdxDropzoneText');
+      if (dropText) dropText.textContent = `已选择文件：${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      showToast(`已读取文件 ${file.name}`, 'info');
+    };
+    reader.onerror = () => showToast(`文件读取失败：${file.name}`, 'error');
+    reader.readAsText(file, 'gbk');
+  });
+}
+
+async function submitDatasyncTdx(button) {
+  const api = window.AStockAPI;
+  if (!api || typeof api.importTdxPool !== 'function') {
+    showToast('通达信导入接口不可用', 'error');
+    return;
+  }
+  const poolSelect = document.getElementById('selectTdxTargetPool');
+  const pool = poolSelect ? poolSelect.value : 'watchlist';
+  if (!DatasyncTdx.content.trim()) {
+    showToast('请先选择通达信导出的自选文件，未提交任何导入', 'error');
+    return;
+  }
+  setDatasyncButtonBusy(button, true, '解析导入中…');
+  try {
+    const res = await api.importTdxPool(pool, DatasyncTdx.content);
+    const count = res && res.imported_count != null ? res.imported_count : 0;
+    if (res && res.status === 'warning') {
+      showToast(res.message || '导入内容为空，未入库任何标的', 'info');
+    } else {
+      showToast((res && res.message) || `通达信自选导入完成：新增 ${count} 只标的`, 'success');
+    }
+  } catch (error) {
+    showToast(`通达信导入失败：${error.message || '未知错误'}`, 'error');
+  } finally {
+    setDatasyncButtonBusy(button, false, '');
+  }
+}
+
+// ---- 体检明细搜索与状态筛选（表格为异步重绘，统一走委托）----
+function filterDatasyncAuditTable() {
+  const tbody = document.getElementById('auditTableBody');
+  if (!tbody) return;
+  const keyword = (document.getElementById('inputAuditSearch')?.value || '').trim().toLowerCase();
+  const activeChip = document.querySelector('.audit-filter-chip.active');
+  const filter = activeChip ? activeChip.getAttribute('data-filter') : 'all';
+  tbody.querySelectorAll('tr').forEach((row) => {
+    const code = (row.getAttribute('data-code') || '').toLowerCase();
+    const status = row.getAttribute('data-status') || '';
+    const matchKeyword = !keyword || code.includes(keyword);
+    const matchStatus = filter === 'all' || status === filter;
+    row.style.display = matchKeyword && matchStatus ? '' : 'none';
+  });
+}
 
 function initDatasync() {
   if (isDatasyncInitialized) return;
   isDatasyncInitialized = true;
 
-  // 1. Clock & Market Phase State Machine
-  const clockDisplay = document.getElementById("syncClockDisplay");
-  const tradingDayBadge = document.getElementById("syncTradingDayBadge");
-  const settleBadge = document.getElementById("syncSettleBadge");
-  const phaseDesc = document.getElementById("syncPhaseDesc");
+  const clockDisplay = document.getElementById('syncClockDisplay');
+  const refreshClock = () => {
+    if (!clockDisplay) return;
+    const now = new Date();
+    clockDisplay.textContent = [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map((value) => String(value).padStart(2, '0')).join(':');
+  };
+  refreshClock();
+  window.setInterval(refreshClock, 1000);
+  refreshDatasyncMarketClock();
+  window.setInterval(refreshDatasyncMarketClock, 60000);
 
-  async function refreshClockState() {
-    try {
-      const data = await AStockAPI.getMarketClock();
-      if (data && data.status === "success") {
-        if (clockDisplay && data.time) clockDisplay.textContent = data.time;
-        if (tradingDayBadge) {
-          if (data.is_trading_day) {
-            tradingDayBadge.className = "badge-tag-green";
-            tradingDayBadge.textContent = "🟢 交易日";
-          } else {
-            tradingDayBadge.className = "badge-tag-gray";
-            tradingDayBadge.textContent = "⚪ 非交易日";
-          }
-        }
-        if (settleBadge) {
-          if (data.is_settled) {
-            settleBadge.className = "status-capsule capsule-settled";
-            settleBadge.textContent = "● 盘后已定盘 (SETTLED)";
-          } else {
-            settleBadge.className = "status-capsule capsule-pending";
-            settleBadge.textContent = "● 盘中未定盘 (PENDING)";
-          }
-        }
-        if (phaseDesc && data.description) {
-          phaseDesc.textContent = data.description;
-        }
-      }
-    } catch (_) {
-      // Local graceful fallback
-    }
-  }
-
-  refreshClockState();
-  if (clockDisplay) {
-    setInterval(() => {
-      const now = new Date();
-      const h = String(now.getHours()).padStart(2, "0");
-      const m = String(now.getMinutes()).padStart(2, "0");
-      const s = String(now.getSeconds()).padStart(2, "0");
-      clockDisplay.textContent = `${h}:${m}:${s}`;
-    }, 1000);
-    setInterval(refreshClockState, 60000);
-  }
-
-  // 2. Today Snapshot Button
-  const btnSyncToday = document.getElementById("btnSyncTodaySnapshot");
-  if (btnSyncToday) {
-    btnSyncToday.addEventListener("click", async () => {
-      btnSyncToday.classList.add("is-loading");
-      btnSyncToday.disabled = true;
-      try {
-        await AStockAPI.createTask("data_sync", { today: true, indices: true, pool: "holdings" });
-        showToast("⚡ 今日收盘快照同步已触发：P0 持仓与核心指数快照正在落盘...", "info");
-      } catch (err) {
-        showToast(`❌ 同步请求异常: ${err.message || err}`, "error");
-      } finally {
-        setTimeout(() => {
-          btnSyncToday.classList.remove("is-loading");
-          btnSyncToday.disabled = false;
-          showToast("✅ 今日盘后快照同步完成：成交与价格切片已写入本地库！", "success");
-        }, 600);
-      }
+  const storedTab = (() => {
+    try { return window.sessionStorage.getItem('datasync.activeTab'); } catch (_) { return null; }
+  })();
+  restoreDatasyncFilters();
+  document.querySelectorAll('[data-datasync-tab]').forEach((tab) => {
+    tab.addEventListener('click', () => switchDatasyncTab(tab.dataset.datasyncTab));
+    tab.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const tabs = Array.from(document.querySelectorAll('[data-datasync-tab]'));
+      const index = tabs.indexOf(tab);
+      const nextIndex = event.key === 'Home' ? 0
+        : event.key === 'End' ? tabs.length - 1
+          : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      switchDatasyncTab(tabs[nextIndex].dataset.datasyncTab, true);
     });
+  });
+  switchDatasyncTab(storedTab || 'run');
+
+  const scopeElement = document.getElementById('datasyncP3Scope');
+  const codesElement = document.getElementById('datasyncP3Codes');
+  if (scopeElement && codesElement) {
+    const updateCodesState = () => { codesElement.disabled = scopeElement.value !== 'selected'; };
+    scopeElement.addEventListener('change', updateCodesState);
+    updateCodesState();
   }
 
-  // 3. Ping Speed Test Button
-  const btnPing = document.getElementById("btnPingAllFeeds");
-  if (btnPing) {
-    btnPing.addEventListener("click", async () => {
-      btnPing.classList.add("is-loading");
-      btnPing.disabled = true;
-      const l1 = document.getElementById("pingL1");
-      const l2 = document.getElementById("pingL2");
-      const l3 = document.getElementById("pingL3");
-      const loc = document.getElementById("pingLocal");
-      if (l1) l1.textContent = "● 测速中...";
-      if (l2) l2.textContent = "● 测速中...";
-      if (l3) l3.textContent = "● 测速中...";
-      if (loc) loc.textContent = "● 测速中...";
+  const startP3 = document.getElementById('btnDatasyncP3Start');
+  if (startP3) startP3.addEventListener('click', submitDatasyncP3);
 
-      try {
-        const pingData = await AStockAPI.pingMarketFeeds();
-        const t1 = pingData.tencent_ms || 68;
-        const t2 = pingData.sina_ms || 124;
-        const t3 = pingData.eastmoney_ms || 150;
-        const locMs = pingData.local_ms || 0.3;
-
-        if (l1) l1.innerHTML = `● 运行中 (${t1}ms)`;
-        if (l2) l2.innerHTML = `● 备用就绪 (${t2}ms)`;
-        if (l3) l3.innerHTML = `● 备用就绪 (${t3}ms)`;
-        if (loc) loc.innerHTML = `● 极速就绪 (&lt;${locMs < 1 ? 1 : locMs}ms)`;
-        showToast(`⚡ 链路测速完成：4 级链路全部就绪，L1 腾讯直连延迟最优 (${t1}ms)`, "success");
-      } catch (err) {
-        if (l1) l1.innerHTML = `● 运行中 (68ms)`;
-        if (l2) l2.innerHTML = `● 备用就绪 (124ms)`;
-        if (l3) l3.innerHTML = `● 备用就绪 (150ms)`;
-        if (loc) loc.innerHTML = `● 极速就绪 (&lt;1ms)`;
-        showToast("⚡ 链路测速完成：4 级高可用链路就绪", "success");
-      } finally {
-        btnPing.classList.remove("is-loading");
-        btnPing.disabled = false;
-      }
-    });
-  }
-
-  // 4. Concurrency Slider
-  const slider = document.getElementById("cfgSyncConcurrency");
-  const valBadge = document.getElementById("valConcurrency");
-  const warnBox = document.getElementById("concurrencyWarningBox");
-  const warnCount = document.getElementById("warnWorkerCount");
+  const slider = document.getElementById('cfgSyncConcurrency');
+  const valBadge = document.getElementById('valConcurrency');
+  const warnBox = document.getElementById('concurrencyWarningBox');
+  const warnCount = document.getElementById('warnWorkerCount');
   if (slider) {
-    slider.addEventListener("input", (e) => {
-      const val = parseInt(e.target.value, 10);
-      if (valBadge) valBadge.textContent = `${val} 线程`;
-      if (warnCount) warnCount.textContent = val;
-      if (warnBox) warnBox.style.display = val > 8 ? "block" : "none";
+    slider.addEventListener('input', (event) => {
+      const value = parseInt(event.target.value, 10);
+      if (valBadge) valBadge.textContent = `${value} 线程`;
+      if (warnCount) warnCount.textContent = value;
+      if (warnBox) warnBox.style.display = value > 8 ? 'block' : 'none';
     });
-    slider.addEventListener("change", async (e) => {
-      const val = parseInt(e.target.value, 10);
-      try {
-        await AStockAPI.updateDatafeedSettings(val);
-      } catch (_) {}
+    slider.addEventListener('change', (event) => {
+      saveDatasyncConcurrency(parseInt(event.target.value, 10));
     });
   }
 
-  // 5. Dynamic Table Render Helper
-  function renderAuditTableRows(items) {
-    const tbody = document.getElementById("auditTableBody");
-    if (!tbody || !Array.isArray(items)) return;
-
-    if (items.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">本地时序库暂无检测记录</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = items.map(r => {
-      const sym = r.symbol || "";
-      const code = sym.replace(/^(sh|sz|bj)/i, "");
-      const isHealthy = r.status === "healthy";
-      const isDegraded = r.status === "degraded";
-      const isSuspended = (r.suspended_count || 0) > 0;
-
-      let statusBadge = '';
-      let filterTag = 'healthy';
-      if (isHealthy) {
-        statusBadge = '<span class="status-badge-green">🟢 稳健完整</span>';
-        filterTag = 'healthy';
-      } else if (isDegraded) {
-        statusBadge = '<span class="status-badge-red">🔴 存在缺漏</span>';
-        filterTag = 'missing';
-      } else if (isSuspended) {
-        statusBadge = '<span class="status-badge-warn">🟡 合规停牌</span>';
-        filterTag = 'suspended';
-      } else {
-        statusBadge = '<span class="status-badge-gray">⚪ 无数据</span>';
-        filterTag = 'empty';
-      }
-
-      const dateRange = (r.min_date && r.max_date) ? `${r.min_date} ~ ${r.max_date}` : '--';
-      const missingCount = r.missing_count || 0;
-      const suspendedCount = r.suspended_count || 0;
-      const rowCount = r.row_count || 0;
-
-      return `
-        <tr data-status="${filterTag}" data-code="${code}" data-name="${code}">
-          <td><strong class="stock-code tabular-nums">${sym}</strong></td>
-          <td><span class="stock-name">标的 ${code}</span></td>
-          <td>${statusBadge}</td>
-          <td class="tabular-nums">${rowCount}</td>
-          <td class="tabular-nums" style="font-size: 11px; color: var(--text-body);">${dateRange}</td>
-          <td class="tabular-nums ${missingCount > 0 ? 'text-red font-bold' : ''}">${missingCount} ${suspendedCount > 0 ? `<small style="color:var(--color-warn);">(${suspendedCount}停牌)</small>` : ''}</td>
-          <td>
-            <button type="button" class="btn-table-action" onclick="repairSingleCode('${code}')">
-              ${missingCount > 0 ? '一键自愈' : '重新校验'}
-            </button>
-          </td>
-        </tr>
-      `;
-    }).join("");
-  }
-
-  // 6. Audit & Repair Buttons
-  const btnAudit = document.getElementById("btnAuditIntegrity");
-  const btnRepair = document.getElementById("btnRepairGaps");
-  const kpiHealth = document.getElementById("kpiHealthScore");
-  const kpiMissing = document.getElementById("kpiMissingDays");
-  const kpiAudited = document.getElementById("kpiAuditedCodes");
-  const kpiSuspended = document.getElementById("kpiSuspendedDays");
-  const filterMissingCount = document.getElementById("filterMissingCount");
-
-  if (btnAudit) {
-    btnAudit.addEventListener("click", async () => {
-      btnAudit.classList.add("is-loading");
-      btnAudit.disabled = true;
-      const oldHtml = btnAudit.innerHTML;
-      btnAudit.innerHTML = `<span class="btn-icon">🔄</span> 全库体检中...`;
-
-      try {
-        const taskResp = await AStockAPI.createTask("data_sync", { all: true, check: true });
-        if (taskResp && taskResp.task_id) {
-          let pollCount = 0;
-          const pollTimer = setInterval(async () => {
-            pollCount++;
-            try {
-              const statusData = await AStockAPI.getTaskStatus(taskResp.task_id);
-              if (statusData && (statusData.status === "completed" || statusData.status === "failed" || pollCount > 15)) {
-                clearInterval(pollTimer);
-                btnAudit.classList.remove("is-loading");
-                btnAudit.disabled = false;
-                btnAudit.innerHTML = oldHtml;
-
-                const result = statusData.result || {};
-                const healthRate = result.health_rate !== undefined ? `${result.health_rate}%` : "100.0%";
-                const missingGaps = result.missing_gaps || 0;
-                const totalCodes = result.total_codes || 26;
-                const suspendedGaps = result.suspended_gaps || 0;
-
-                if (kpiHealth) kpiHealth.textContent = healthRate;
-                if (kpiMissing) kpiMissing.textContent = missingGaps;
-                if (kpiAudited) kpiAudited.textContent = totalCodes;
-                if (kpiSuspended) kpiSuspended.textContent = suspendedGaps;
-                if (filterMissingCount) filterMissingCount.textContent = missingGaps;
-
-                if (result.audit_results) {
-                  renderAuditTableRows(result.audit_results);
-                }
-                showToast(`🔍 全库完整性体检完成：${totalCodes} 只标的已核验，缺漏 ${missingGaps}，健康度 ${healthRate}`, "success");
-              }
-            } catch (_) {
-              clearInterval(pollTimer);
-              btnAudit.classList.remove("is-loading");
-              btnAudit.disabled = false;
-              btnAudit.innerHTML = oldHtml;
-            }
-          }, 400);
-        } else {
-          throw new Error("任务创建失败");
-        }
-      } catch (err) {
-        btnAudit.classList.remove("is-loading");
-        btnAudit.disabled = false;
-        btnAudit.innerHTML = oldHtml;
-        showToast("🔍 全库完整性体检已完成（本地数据库健康度良好）", "success");
-      }
-    });
-  }
-
-  if (btnRepair) {
-    btnRepair.addEventListener("click", async () => {
-      btnRepair.classList.add("is-loading");
-      btnRepair.disabled = true;
-      const oldHtml = btnRepair.innerHTML;
-      btnRepair.innerHTML = `<span class="btn-icon">🔄</span> 靶向回补中...`;
-
-      try {
-        await AStockAPI.createTask("data_sync", { all: true, repair: true });
-        showToast("🩹 靶向自愈任务已提交：正在定向回补缺失切片...", "info");
-        setTimeout(() => {
-          btnRepair.classList.remove("is-loading");
-          btnRepair.disabled = false;
-          btnRepair.innerHTML = oldHtml;
-          showToast("🩹 靶向自愈回补完成：全量缺失 Bar 数据已从 L1 腾讯接口补齐！", "success");
-          if (btnAudit) btnAudit.click();
-        }, 1200);
-      } catch (err) {
-        btnRepair.classList.remove("is-loading");
-        btnRepair.disabled = false;
-        btnRepair.innerHTML = oldHtml;
-        showToast(`❌ 自愈回补异常: ${err.message || err}`, "error");
-      }
-    });
-  }
-
-  // 7. Tiered Pools Buttons
-  document.querySelectorAll(".btn-pool-sync").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      btn.classList.add("is-loading");
-      btn.disabled = true;
-      const oldText = btn.innerHTML;
-      btn.innerHTML = `<span class="btn-icon">🔄</span> 同步中...`;
-
-      const card = btn.closest(".role-config-card");
-      let pool = "holdings";
-      if (card) {
-        const title = (card.querySelector(".sub-title") || {}).textContent || "";
-        if (title.includes("自选") || title.includes("P1")) pool = "watchlist";
-        else if (title.includes("指数") || title.includes("P2")) pool = "indices";
-      }
-
-      const concurrencySlider = document.getElementById("cfgSyncConcurrency");
-      const workers = concurrencySlider ? parseInt(concurrencySlider.value, 10) : 4;
-
-      try {
-        await AStockAPI.createTask("data_sync", { pool, mode: "incremental", workers });
-        showToast(`✅ [${pool}] 标的池增量定盘已落盘归档 (${workers} 线程并发)`, "success");
-      } catch (err) {
-        showToast(`✅ [${pool}] 增量定盘完成 (本地时序库最新)`, "success");
-      } finally {
-        setTimeout(() => {
-          btn.classList.remove("is-loading");
-          btn.disabled = false;
-          btn.innerHTML = oldText;
-        }, 500);
-      }
+  document.querySelectorAll('.btn-pool-sync').forEach((button) => {
+    button.addEventListener('click', () => {
+      const scope = button.dataset.pool;
+      const taskParams = {
+        tier: scope === 'holdings' ? 'P0' : (scope === 'watchlist' ? 'P1' : 'P2'),
+        scope: scope,
+        mode: 'incremental',
+        pool: scope === 'indices' ? null : scope,
+        indices: scope === 'indices',
+      };
+      createDataSyncTask(taskParams, button);
     });
   });
 
-  // 8. Table Search & Filters
-  const searchInput = document.getElementById("inputAuditSearch");
-  if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
-      const term = e.target.value.trim().toLowerCase();
-      document.querySelectorAll("#auditTableBody tr").forEach(row => {
-        const code = (row.getAttribute("data-code") || "").toLowerCase();
-        const name = (row.getAttribute("data-name") || "").toLowerCase();
-        row.style.display = (!term || code.includes(term) || name.includes(term)) ? "" : "none";
-      });
-    });
-  }
-  document.querySelectorAll(".audit-filter-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-      document.querySelectorAll(".audit-filter-chip").forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      const filter = chip.getAttribute("data-filter");
-      document.querySelectorAll("#auditTableBody tr").forEach(row => {
-        const status = row.getAttribute("data-status");
-        row.style.display = (filter === "all" || status === filter) ? "" : "none";
-      });
+  const refreshTasks = document.getElementById('btnRefreshDatasyncTasks');
+  if (refreshTasks) refreshTasks.addEventListener('click', () => loadDatasyncTasks());
+  DATASYNC_FILTER_IDS.forEach((id) => {
+    const filter = document.getElementById(id);
+    if (!filter) return;
+    const eventName = id === 'datasyncTaskKeywordFilter' ? 'input' : 'change';
+    filter.addEventListener(eventName, () => {
+      persistDatasyncFilters();
+      renderDatasyncTasks();
     });
   });
 
-  // 9. Daemon Switch & Terminal
-  const daemonToggle = document.getElementById("chkSyncDaemon");
-  const daemonStatusText = document.getElementById("daemonStatusText");
-  const daemonLogTerminal = document.getElementById("daemonLogTerminal");
-
-  async function refreshDaemonLogs() {
-    try {
-      const logData = await AStockAPI.getSyncDaemonLogs(30);
-      if (daemonLogTerminal && logData && Array.isArray(logData.lines)) {
-        daemonLogTerminal.textContent = logData.lines.join("\n");
-        daemonLogTerminal.scrollTop = daemonLogTerminal.scrollHeight;
+  const taskBody = document.getElementById('datasyncTaskTableBody');
+  if (taskBody) {
+    taskBody.addEventListener('click', (event) => {
+      const actionButton = event.target.closest('[data-task-action]');
+      if (actionButton) {
+        event.stopPropagation();
+        const taskId = actionButton.dataset.taskId;
+        if (actionButton.dataset.taskAction === 'detail') selectDatasyncTask(taskId);
+        if (actionButton.dataset.taskAction === 'cancel') cancelDatasyncTask(taskId);
+        if (actionButton.dataset.taskAction === 'retry') retryDatasyncTask(taskId);
+        return;
       }
-    } catch (_) {}
+      const row = event.target.closest('[data-task-id]');
+      if (row) {
+        selectDatasyncTask(row.dataset.taskId);
+      }
+    });
+    taskBody.addEventListener('keydown', (event) => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      const row = event.target.closest('.datasync-task-row');
+      if (!row) return;
+      event.preventDefault();
+      selectDatasyncTask(row.dataset.taskId);
+    });
   }
-  refreshDaemonLogs();
 
+  const auditBody = document.getElementById('auditTableBody');
+  if (auditBody) {
+    auditBody.innerHTML = '<tr><td colspan="8" class="datasync-detail-placeholder">完整性明细将在真实审计任务返回结果后展示。</td></tr>';
+    auditBody.addEventListener('click', (event) => {
+      const repairButton = event.target.closest('[data-repair-code]');
+      if (repairButton) repairDatasyncCode(repairButton.dataset.repairCode);
+    });
+  }
+
+  const btnPing = document.getElementById('btnPingAllFeeds');
+  if (btnPing) btnPing.addEventListener('click', () => runDatasyncPing(btnPing));
+
+  const btnToday = document.getElementById('btnSyncTodaySnapshot');
+  if (btnToday) {
+    btnToday.addEventListener('click', () => {
+      createDataSyncTask({ today: true, indices: true, pool: 'holdings' }, btnToday);
+    });
+  }
+
+  const btnAudit = document.getElementById('btnAuditIntegrity');
+  if (btnAudit) btnAudit.addEventListener('click', () => createDataSyncTask({ all: true, check: true }, btnAudit));
+
+  const btnRepair = document.getElementById('btnRepairGaps');
+  if (btnRepair) btnRepair.addEventListener('click', () => createDataSyncTask({ all: true, repair: true }, btnRepair));
+
+  const searchInput = document.getElementById('inputAuditSearch');
+  if (searchInput) searchInput.addEventListener('input', filterDatasyncAuditTable);
+  document.querySelectorAll('.audit-filter-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.audit-filter-chip').forEach((item) => item.classList.remove('active'));
+      chip.classList.add('active');
+      filterDatasyncAuditTable();
+    });
+  });
+
+  const daemonToggle = document.getElementById('toggleSyncDaemon');
   if (daemonToggle) {
-    daemonToggle.addEventListener("change", async (e) => {
-      const isStart = e.target.checked;
-      try {
-        const res = await AStockAPI.controlSyncDaemon(isStart ? "start" : "stop");
-        if (daemonStatusText) {
-          if (res.daemon_running) {
-            daemonStatusText.className = "status-online";
-            daemonStatusText.textContent = `● 运行中 (PID: ${res.pid || 'Active'})`;
-            showToast("⚙️ 常驻同步守护进程已启动", "success");
-          } else {
-            daemonStatusText.className = "status-offline";
-            daemonStatusText.textContent = "○ 已停止";
-            showToast("⚙️ 常驻同步守护进程已暂停", "info");
-          }
-        }
-      } catch (err) {
-        showToast(`守护进程切换提示: ${err.message || err}`, "info");
-      }
+    daemonToggle.addEventListener('change', (event) => {
+      toggleDatasyncDaemon(event.target.checked, event.target);
     });
   }
+  refreshDatasyncDaemonStatus();
+  refreshDatasyncDaemonLogs();
 
-  // 10. TDX Import
-  const tdxBtn = document.getElementById("btnExecuteTdxImport");
-  const tdxFileInput = document.getElementById("tdxFileInput");
-  const tdxDropzone = document.getElementById("tdxDropzone");
-  const selectTdxTargetPool = document.getElementById("selectTdxTargetPool");
-  let tdxFileContent = "";
-
-  if (tdxDropzone && tdxFileInput) {
-    tdxDropzone.addEventListener("click", () => tdxFileInput.click());
-    tdxFileInput.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          tdxFileContent = evt.target.result;
-          const dropText = document.getElementById("tdxDropzoneText");
-          if (dropText) dropText.textContent = `已选择文件: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-          showToast(`已加载文件 ${file.name}，可点击下方按钮执行解析`, "info");
-        };
-        reader.readAsText(file, "gbk");
-      }
+  const btnLogRefresh = document.getElementById('btnRefreshDaemonLog');
+  if (btnLogRefresh) btnLogRefresh.addEventListener('click', refreshDatasyncDaemonLogs);
+  const btnLogClear = document.getElementById('btnClearDaemonLog');
+  if (btnLogClear) {
+    btnLogClear.addEventListener('click', () => {
+      const terminal = document.getElementById('daemonLogTerminal');
+      if (terminal) terminal.textContent = '';
     });
   }
-
-  if (tdxBtn) {
-    tdxBtn.addEventListener("click", async () => {
-      tdxBtn.classList.add("is-loading");
-      tdxBtn.disabled = true;
-      const oldHtml = tdxBtn.innerHTML;
-      tdxBtn.innerHTML = `<span class="btn-icon">🔄</span> 解析导入中...`;
-
-      const pool = selectTdxTargetPool ? selectTdxTargetPool.value : "watchlist";
-      const content = tdxFileContent || "600519 贵州茅台\n000001 平安银行\n300750 宁德时代\n688981 中芯国际";
-
-      try {
-        const importRes = await AStockAPI.importTdxPool(pool, content);
-        showToast(importRes.message || `📥 通达信自选文件导入成功：入库 ${importRes.imported_count} 只标的`, "success");
-      } catch (err) {
-        showToast("📥 通达信自选解析合入成功：标的已归集至目标股池", "success");
-      } finally {
-        tdxBtn.classList.remove("is-loading");
-        tdxBtn.disabled = false;
-        tdxBtn.innerHTML = oldHtml;
-      }
-    });
+  const autoStream = document.getElementById('chkAutoStream');
+  if (autoStream) {
+    const applyStream = () => {
+      if (daemonStreamTimer) { window.clearInterval(daemonStreamTimer); daemonStreamTimer = null; }
+      if (autoStream.checked) daemonStreamTimer = window.setInterval(refreshDatasyncDaemonLogs, 10000);
+    };
+    autoStream.addEventListener('change', applyStream);
+    applyStream();
   }
+
+  bindDatasyncTdxPicker();
+  const btnTdx = document.getElementById('btnExecuteTdxImport');
+  if (btnTdx) btnTdx.addEventListener('click', () => submitDatasyncTdx(btnTdx));
+
+  loadDatasyncTasks({ quiet: true });
 }
 
 function triggerManualSync() {
-  showToast("⚡ 正在触发全量盘后定盘同步：P0/P1/P2 多线程并发落盘...", "info");
-  AStockAPI.createTask("data_sync", { pool: "all", mode: "incremental", workers: 4 }).catch(() => {});
-  setTimeout(() => {
-    showToast("✅ 今日盘后定盘同步完成：全量收盘价与筹码分布切片已固化落盘！", "success");
-  }, 700);
+  const button = document.getElementById('btnDatasyncSyncSelected');
+  createDataSyncTask({ tier: 'P0-P2', scope: 'selected_pools', mode: 'incremental', all: true, indices: true }, button);
 }
 
 function runIntegrityAudit() {
-  const btnAudit = document.getElementById("btnAuditIntegrity");
-  if (btnAudit) {
-    btnAudit.scrollIntoView({ behavior: "smooth", block: "center" });
-    btnAudit.click();
-  } else {
-    showToast("🔍 正在执行数据完整性体检...", "info");
+  switchDatasyncTab('run');
+  const btnAudit = document.getElementById('btnAuditIntegrity');
+  if (!btnAudit || btnAudit.disabled) {
+    showToast('完整性审计控件当前不可用', 'error');
+    return;
   }
+  btnAudit.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  btnAudit.click();
 }
 
 function toggleSyncDaemonModal() {
-  const daemonGrid = document.querySelector(".daemon-config-grid");
-  if (daemonGrid) {
-    daemonGrid.scrollIntoView({ behavior: "smooth", block: "center" });
-    showToast("已定位至常驻定时守护配置区", "info");
-  } else {
-    showToast("常驻定时守护运行中：每日 15:35 自动触发 P0 持仓定盘", "info");
-  }
+  switchDatasyncTab('run');
+  const daemonCard = document.querySelector('.daemon-card');
+  if (!daemonCard) return;
+  daemonCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  refreshDatasyncDaemonLogs();
 }
 
-window.repairSingleCode = async function(code) {
-  showToast(`🩹 正在对标的 [${code}] 执行定向自愈回补...`, "info");
-  try {
-    await AStockAPI.createTask("data_sync", { code, repair: true });
-    showToast(`✅ [${code}] 靶向修复完成，K线时序已对齐！`, "success");
-  } catch (_) {
-    showToast(`✅ [${code}] 时序校验已对齐`, "success");
-  }
+// ============================================================================
+// STRATEGY SELECTION WORKBENCH (策略选股 · 漏斗选股模型工作台)
+// ============================================================================
+let isSelectionInitialized = false;
+
+const SelectionData = {
+  activeModelId: 'value-growth-v3',
+  activeLayer: 1,
+  models: [
+    { id: 'value-growth-v3', name: '成长优选模型', desc: '多因子价值成长选股', status: 'running', statusLabel: '运行中', nextTrigger: '14:30', time: '2024-03-21 09:28:15' },
+    { id: 'steady-bluechip', name: '稳健蓝筹筛选', desc: '低波动蓝筹策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:35', time: '2024-03-21 08:55:02' },
+    { id: 'tech-growth', name: '科技成长优选', desc: '科技赛道成长股', status: 'pending', statusLabel: '待运行', nextTrigger: '10:00', time: '2024-03-20 16:00:00' },
+    { id: 'low-valuation', name: '低估值价值精选', desc: '低估值价值投资', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-20 09:30:05' },
+    { id: 'northbound-pref', name: '北向资金偏好股', desc: '北向资金流向选股', status: 'error', statusLabel: '异常', nextTrigger: '14:30', time: '2024-03-19 14:20:11' },
+    { id: 'high-dividend', name: '高股息防御组合', desc: '高股息防御策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-19 09:30:00' },
+  ],
+  funnel: [
+    { layer: 1, name: '全市场股票池', value: '5,432', trigger: '定时触发 14:30', condition: '剔除ST、北交所等', remain: '3,821（70.4%）', state: 'done', color: 'l1' },
+    { layer: 2, name: '基本面筛选', value: '3,821', trigger: '定时触发 14:30', condition: '营业收入 ＞ 20%', remain: '1,243（32.5%）', state: 'done', color: 'l2' },
+    { layer: 3, name: '行业筛选', value: '1,243', trigger: '定时触发 14:30', condition: '行业集中度前 60', remain: '386（31.1%）', state: 'done', color: 'l3' },
+    { layer: 4, name: '技术面筛选', value: '386', trigger: '定时触发 14:30', condition: 'MA 多头排列', remain: '98（25.4%）', state: 'done', color: 'l4' },
+    { layer: 5, name: '组合优化', value: '--', trigger: '--', condition: '--', remain: '--', state: 'idle', color: 'l5' },
+  ],
+  results: [
+    { code: '600519', name: '贵州茅台', industry: '食品饮料', price: '1,682.30', delta: '+0.45%' },
+    { code: '300750', name: '宁德时代', industry: '电力设备', price: '257.88', delta: '+1.20%' },
+    { code: '600036', name: '招商银行', industry: '银行', price: '33.21', delta: '-0.30%' },
+    { code: '000858', name: '五粮液', industry: '食品饮料', price: '162.15', delta: '+0.52%' },
+    { code: '601318', name: '中国平安', industry: '非银金融', price: '48.73', delta: '-0.18%' },
+    { code: '600900', name: '长江电力', industry: '公用事业', price: '28.85', delta: '+0.35%' },
+    { code: '600333', name: '美的集团', industry: '家用电器', price: '72.38', delta: '+0.21%' },
+    { code: '002594', name: '比亚迪', industry: '汽车', price: '245.60', delta: '+1.56%' },
+    { code: '601728', name: '中国电信', industry: '通信', price: '6.12', delta: '-0.49%' },
+    { code: '600276', name: '恒瑞医药', industry: '医药生物', price: '47.91', delta: '+0.78%' },
+  ],
 };
+
+function initSelectionWorkbench() {
+  renderSelectionWorkbench();
+  isSelectionInitialized = true;
+}
+
+function renderSelectionWorkbench() {
+  renderSelectionModelList();
+  renderSelectionFunnel();
+  renderSelectionResults(SelectionData.results);
+  drawSelectionPriceChart();
+}
+
+function renderSelectionModelList() {
+  const list = document.getElementById('selectionModelList');
+  if (!list) return;
+  list.innerHTML = SelectionData.models.map(m => `
+    <div class="sel-model-card ${m.id === SelectionData.activeModelId ? 'active' : ''}" onclick="selectFunnelModel('${m.id}')">
+      <div class="sel-model-card-top">
+        <span class="sel-model-name">${m.name}</span>
+        <span class="sel-status-dot status-${m.status}" title="${m.statusLabel}"></span>
+      </div>
+      <div class="sel-model-foot">
+        <span class="sel-model-time">🕐 ${m.time}</span>
+        <span class="sel-model-arrow">›</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSelectionFunnel() {
+  const wrap = document.getElementById('selectionFunnel');
+  if (!wrap) return;
+  // 漏斗梯形宽度 [顶宽%, 底宽%]（顶层→底层逐级收窄，形成连续漏斗）
+  const widths = [[100, 86], [82, 69], [68, 57], [61, 52], [59, 49]];
+  wrap.innerHTML = SelectionData.funnel.map((f, idx) => {
+    const selected = f.layer === SelectionData.activeLayer;
+    const stateClass = f.state === 'idle' ? 'funnel-idle' : 'funnel-done';
+    const [topW, bottomW] = widths[idx] || [60, 50];
+    const inset = (((topW - bottomW) / 2) / topW * 100).toFixed(1);
+    const clipPath = `polygon(0% 0%, 100% 0%, ${(100 - inset)}% 100%, ${inset}% 100%)`;
+    return `
+      <div class="funnel-row ${stateClass} ${selected ? 'selected' : ''}" onclick="selectFunnelLayer(${f.layer})" title="查看第 ${f.layer} 层筛选结果">
+        <div class="funnel-index-col">
+          <span class="funnel-index-dot tabular-nums">${f.layer}</span>
+        </div>
+        <div class="funnel-row-body">
+          <div class="funnel-shape-wrap">
+            <div class="funnel-bar ${f.color}" style="width:${topW}%;clip-path:${clipPath}">
+              <span class="funnel-bar-name">${f.name}</span>
+              <span class="funnel-bar-val tabular-nums">${f.value}</span>
+            </div>
+          </div>
+          <div class="funnel-info-panel">
+            <div class="funnel-info-line"><span class="funnel-info-label">运行信息</span><span class="funnel-info-val">${f.trigger}</span></div>
+            <div class="funnel-info-line"><span class="funnel-info-label">筛选条件</span><span class="funnel-info-val">${f.condition}</span></div>
+            <div class="funnel-info-line"><span class="funnel-info-label">筛选后</span><span class="funnel-info-val strong tabular-nums">${f.remain}</span></div>
+          </div>
+          ${selected ? '<span class="funnel-row-arrow">›</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectFunnelLayer(layer) {
+  if (SelectionData.activeLayer === layer) return;
+  SelectionData.activeLayer = layer;
+  const f = SelectionData.funnel.find(x => x.layer === layer);
+  const label = document.getElementById('selResultLayerLabel');
+  if (label && f) label.innerText = `（第 ${f.layer} 层：${f.name}）`;
+  renderSelectionFunnel();
+}
+
+function renderSelectionResults(rows) {
+  const body = document.getElementById('selResultBody');
+  if (!body) return;
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="6" class="sel-empty-row">未匹配到符合条件的标的</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((r, i) => `
+    <tr onclick="selectSelectionStock('${r.code}','${r.name}')">
+      <td class="tabular-nums">${i + 1}</td>
+      <td class="tabular-nums sel-code-cell">${r.code}</td>
+      <td class="sel-name-cell">${r.name}</td>
+      <td class="num tabular-nums">${r.price}</td>
+      <td class="num tabular-nums ${r.delta.startsWith('-') ? 'text-down' : 'text-up'}">${r.delta}</td>
+      <td>${r.industry}</td>
+    </tr>
+  `).join('');
+}
+
+function selectFunnelModel(modelId) {
+  SelectionData.activeModelId = modelId;
+  const m = SelectionData.models.find(x => x.id === modelId);
+  if (m) {
+    const nameEl = document.getElementById('selDetailModelName');
+    if (nameEl) nameEl.innerText = m.name;
+    const st = document.getElementById('selDetailStatus');
+    if (st) {
+      st.className = `sel-status-badge status-${m.status}`;
+      st.innerText = `● ${m.statusLabel}`;
+    }
+  }
+  renderSelectionModelList();
+  showToast(`已切换到模型案例：${m ? m.name : modelId}`);
+}
+
+function selectSelectionStock(code, name) {
+  const nameEl = document.getElementById('selStockName');
+  const codeEl = document.getElementById('selStockCode');
+  if (nameEl) nameEl.innerText = name;
+  if (codeEl) codeEl.innerText = code;
+  toggleSelectionAnalysis(true);
+  drawSelectionPriceChart();
+  showToast(`已加载 ${name} (${code}) 分析信息`);
+}
+
+function toggleSelectionAnalysis(show) {
+  const pane = document.getElementById('pane-selection');
+  const col = document.getElementById('selectionAnalysisCol') ||
+    (pane ? pane.querySelector('.selection-analysis-col') : null);
+  const listCol = document.getElementById('selectionModelCol') ||
+    (pane ? pane.querySelector('.selection-model-col') : null);
+  if (col) col.classList.toggle('collapsed', !show);
+  // 联动：右侧分析面板展开时收起左侧选股列表，关闭时恢复
+  if (listCol) listCol.classList.toggle('collapsed', !!show);
+}
+
+function filterFunnelResults(keyword) {
+  const kw = (keyword || '').trim().toLowerCase();
+  const rows = SelectionData.results.filter(r =>
+    !kw || r.code.toLowerCase().includes(kw) || r.name.toLowerCase().includes(kw)
+  );
+  renderSelectionResults(rows);
+}
+
+function switchSelAnalysisTab(sec) {
+  document.querySelectorAll('#selAnalysisTabs .sel-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sec === sec);
+  });
+}
+
+function switchSelPeriod(btn, label) {
+  document.querySelectorAll('#selPeriodSwitch .sel-period').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  drawSelectionPriceChart();
+}
+
+function drawSelectionPriceChart() {
+  const canvas = document.getElementById('selPriceChart');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  const pts = [1636, 1648, 1642, 1655, 1660, 1652, 1668, 1675, 1670, 1682, 1690, 1686, 1696, 1698];
+  const xLabels = ['03-15', '03-18', '03-19', '03-20', '03-21'];
+  const yLabels = [1720, 1680, 1640, 1600];
+  const padL = 36, padR = 8, padT = 8, padB = 18;
+  const min = 1600, max = 1720;
+  const stepX = (w - padL - padR) / (pts.length - 1);
+  ctx.font = '9px -apple-system, "PingFang SC", sans-serif';
+  // 网格与 Y 轴刻度
+  ctx.strokeStyle = '#F0F2F5';
+  ctx.lineWidth = 1;
+  yLabels.forEach((yv, i) => {
+    const gy = padT + (h - padT - padB) * i / (yLabels.length - 1);
+    ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(w - padR, gy); ctx.stroke();
+    ctx.fillStyle = '#86909C';
+    ctx.textAlign = 'right';
+    ctx.fillText(yv.toLocaleString(), padL - 4, gy + 3);
+  });
+  // X 轴日期标签
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#86909C';
+  xLabels.forEach((lb, i) => {
+    const idx = Math.round(i * (pts.length - 1) / (xLabels.length - 1));
+    ctx.fillText(lb, padL + idx * stepX, h - 5);
+  });
+  // 面积 + 折线
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const x = padL + i * stepX;
+    const y = h - padB - ((p - min) / (max - min || 1)) * (h - padT - padB);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#1677FF';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.lineTo(padL + (pts.length - 1) * stepX, h - padB);
+  ctx.lineTo(padL, h - padB);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(22,119,255,0.18)');
+  grad.addColorStop(1, 'rgba(22,119,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+function refreshSelectionWorkbench() {
+  renderSelectionWorkbench();
+}
+
+function exportFunnelResults() {
+  showToast('漏斗筛选结果导出中...（CSV）');
+}
+
+function openNewFunnelModelModal() {
+  showToast('新建漏斗选股模型：条件树编辑器与漏斗编排器即将上线');
+}
+
+window.initSelectionWorkbench = initSelectionWorkbench;
+window.renderSelectionWorkbench = renderSelectionWorkbench;
+window.selectFunnelModel = selectFunnelModel;
+window.selectFunnelLayer = selectFunnelLayer;
+window.selectSelectionStock = selectSelectionStock;
+window.toggleSelectionAnalysis = toggleSelectionAnalysis;
+window.filterFunnelResults = filterFunnelResults;
+window.switchSelAnalysisTab = switchSelAnalysisTab;
+window.switchSelPeriod = switchSelPeriod;
+window.refreshSelectionWorkbench = refreshSelectionWorkbench;
+window.exportFunnelResults = exportFunnelResults;
+window.openNewFunnelModelModal = openNewFunnelModelModal;

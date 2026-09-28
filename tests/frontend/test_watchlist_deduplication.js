@@ -46,6 +46,9 @@ const sandbox = {
   _watchlistSearchKeyword: '',
   _watchlistSortOrder: 'desc',
   selectWatchStock: () => {},
+  requestAnimationFrame: () => 0,
+  setTimeout: () => 0,
+  scrollWatchlistToActiveItem: () => {},
 };
 
 // 提取 renderWatchlistItems 函数代码
@@ -58,6 +61,9 @@ const renderWatchlistItems = new Function('stocks', 'selectedCode', `
   const _watchlistSearchKeyword = this._watchlistSearchKeyword;
   const _watchlistSortOrder = this._watchlistSortOrder;
   const selectWatchStock = this.selectWatchStock;
+  const requestAnimationFrame = this.requestAnimationFrame;
+  const setTimeout = this.setTimeout;
+  const scrollWatchlistToActiveItem = this.scrollWatchlistToActiveItem;
   ${fnBody}
 `).bind(sandbox);
 
