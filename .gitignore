@@ -45,9 +45,15 @@ log/**
 !log/**/.gitkeep
 
 # Rebuildable intermediate scratch directory (temp/) - 可重建中间产物暂存区
+# 该模式含中间分隔符，按 Git 规则锚定仓库根，因此不会命中 web/temp/ 等子层级目录。
 temp/**
 !temp/**/
 !temp/**/.gitkeep
+
+# 前端设计片段归档区 (web/tmp/) —— 刻意纳入版本控制，允许推送至远端。
+# 上方 temp/** 不影响本目录；此处显式声明例外，防止将来新增全局 tmp/ 规则时误将其排除。
+!web/tmp/
+!web/tmp/**
 
 
 # Local runtime caches & databases
