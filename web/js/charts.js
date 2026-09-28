@@ -219,6 +219,8 @@ class FinancialCharts {
     // 基准 Y 坐标：预留端点圆角与游标下边距
     const cy = options.cy !== undefined ? options.cy : (height - strokeWidth / 2 - 4);
     const radius = options.radius || Math.min((width - strokeWidth * 2 - 12) / 2, cy - strokeWidth / 2 - 6);
+    // 容器尚未布局（宽高为 0，如面板隐藏/折叠时）会导致半径为负，跳过绘制避免 arc 抛错
+    if (radius <= 0) return;
 
     // 1. 底层灰色轨道
     ctx.beginPath();
@@ -304,6 +306,8 @@ class FinancialCharts {
     const cx = width / 2;
     const cy = height / 2;
     const outerRadius = Math.min(cx, cy) - 5;
+    // 容器尚未布局（宽高为 0，如面板隐藏/折叠时）会导致半径为负，跳过绘制避免 arc 抛错
+    if (outerRadius <= 0) return;
     const innerRadius = outerRadius * (options.innerRatio || 0.72);
 
     let startAngle = -Math.PI / 2;
