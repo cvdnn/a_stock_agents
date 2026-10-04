@@ -29,7 +29,7 @@
 |:---:|:---|:---|:---|:---:|:---|
 | `SPEC-UI-001` | Web UI 界面设计与交互规范 | [`ui/ui-design-and-interaction-plan.md`](ui/ui-design-and-interaction-plan.md) | [`ui-design-guide.md`](../guidelines/ui/ui-design-guide.md) | 🚧 实施中 | 原基线声明待整改验收；双模动态视口、红涨绿跌色系与 @操作符浮窗 |
 | `SPEC-UI-002` | 前端 `app.js` 源码拆分与模块化规范 | [`ui/app-js-modularization-plan.md`](ui/app-js-modularization-plan.md) | [`app-js-modularization-guide.md`](../guidelines/ui/app-js-modularization-guide.md) | 🚧 实施中 | 巨石单体解耦为领域驱动模块、零构建工具依赖、HTML 内联事件兼容 |
-| `SPEC-UI-003` | 行情数据同步控制台交互规范 | [`ui/market-data-sync-control-console-plan.md`](ui/market-data-sync-control-console-plan.md) | [`market-data-sync-control-console-specification.md`](../guidelines/ui/market-data-sync-control-console-specification.md) | 📋 规划中 (RFC) | `SPEC-DATA-001` 的跨域控制面；P3 定时增量与手动范围选择、真实任务接口、配置持久化与无 AI 助手隔离 |
+| `SPEC-UI-003` | 行情数据同步控制台交互规范 | [`ui/market-data-sync-control-console-plan.md`](ui/market-data-sync-control-console-plan.md) | [`market-data-sync-control-console-specification.md`](../guidelines/ui/market-data-sync-control-console-specification.md) | 🚧 实施中 | `SPEC-DATA-001` 的跨域控制面；三 Tab 无 AI 控制台、设置白名单持久化（`local/settings/data_sync.json`，0600）、P3 交易日定时增量 + 单任务互斥不抢占 P0/P1、盯盘流零伪造；浏览器核验与外部源排序执行层接入待完成 |
 | — | 对话响应呈现（回复卡片 / 执行时间线 / 工作台投射） | [`ui/chat-response-presentation-plan.md`](ui/chat-response-presentation-plan.md) | [`chat-response-presentation-guide.md`](../guidelines/ui/chat-response-presentation-guide.md) | 🚧 实施中 | 归属 `SPEC-UI-001`；纯渲染模块与 Node 单测已落地 |
 | — | 前端数据契约与 MOCK 兜底接入 | [`ui/frontend-api-integration-plan.md`](ui/frontend-api-integration-plan.md) | [`web-aichat-architecture.md`](../guidelines/architecture/web-aichat-architecture.md) | ✅ 已完成 (Completed) | 归属 `SPEC-UI-001` / `SPEC-ARCH-001`；P0–P3 与里程碑 M0–M3 全部达成 |
 
@@ -70,7 +70,7 @@
 | `SPEC-ALGO-ISS-MT-001` | 智能选股系统 · 模型类型设计规范 | [`algorithm/selection-system-plan.md`](algorithm/selection-system-plan.md) | [`selection-model-types-specification.md`](../guidelines/algorithm/selection-model-types-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`；条件树/漏斗/评分排序/组合 4 类型注册中心、统一编译契约与 CompiledSelectionPlan |
 | `SPEC-ALGO-003` | 智能选股系统 · 选股模型通用设计规范 | [`algorithm/general-selection-and-turning-point-plan.md`](algorithm/general-selection-and-turning-point-plan.md) | [`selection-model-general-specification.md`](../guidelines/algorithm/selection-model-general-specification.md) | 📋 规划中 (RFC) | 待执行；选股模型通用规则与转折点识别规则的工程化落地；规范层与唯一示例（[`selection-funnel-example-1.md`](../guidelines/algorithm/selection-funnel-example-1.md)）+ `config/funnel_strategy.yaml` 分离 |
 | — | 算法治理整改计划 | [`algorithm/algo-governance-remediation-plan.md`](algorithm/algo-governance-remediation-plan.md) | [`algorithm-governance.md`](../guidelines/algorithm/algorithm-governance.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-001`（发现 G1）；按 G1→G3 顺序推进 |
-| — | 待办积压登记看板 | [`algorithm/pending-backlog-plan.md`](algorithm/pending-backlog-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`；全部条目未开始（整理日期 2026-09-20） |
+| — | 待办积压登记看板 | [`algorithm/pending-backlog-plan.md`](algorithm/pending-backlog-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`；四批 84 项已全部裁定（2026-09-21），实现零启动（整理日期 2026-09-20） |
 | 🗄️ 归档 | 历史 ADR / RFC / 审计报告（6 篇，不可变） | [`algorithm/archive/`](algorithm/archive/) | — | 🔒 已归档 | 保留 `YYYY-MM-DD-*.md` 日期前缀，豁免 `-plan.md` 命名规则，只增不改 |
 
 ### 7. 数据架构与同步机制设计 (`data/`)
