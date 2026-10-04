@@ -15,6 +15,7 @@ from datetime import date, datetime, timedelta, time as dt_time
 import hashlib
 import json
 from pathlib import Path
+import re
 import sqlite3
 import time
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
@@ -584,6 +585,30 @@ class DataSyncEngine:
     def __init__(self, store: Optional[MarketDataStore] = None):
         self.store = store or MarketDataStore()
         self.bridge = DataBridge()
+
+    #: P3 全市场同步支持的范围枚举（bj 由上游显式报 unsupported，不伪造列表）
+    P3_SCOPES = ("full_market", "sh", "sz", "bj", "selected")
+
+    def list_market_symbols(self, scope: str) -> List[str]:
+        """按 P3 范围解析市场标的列表（full_market/sh/sz）。
+
+        selected/full_market 之外的组合校验由调用方负责；上游列表接口不可用时
+        返回空列表，调用方必须如实降级，不得回退到任何缓存或猜测清单。
+        """
+        from core.data.fetch_history_fallback import get_market_stock_list
+
+        market = "all" if scope == "full_market" else scope
+        codes = get_market_stock_list(market)
+        normalized: List[str] = []
+        for c in codes:
+            c = str(c).strip()
+            if not c:
+                continue
+            if re.match(r"^(sh|sz|bj)\d{6}$", c):
+                normalized.append(c)
+            else:
+                normalized.append(DataBridge.normalize_symbol(c, with_prefix=True))
+        return normalized
 
     def resolve_symbols(
         self,

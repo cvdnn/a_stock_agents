@@ -294,73 +294,31 @@ class TaskManager:
             start_date = params.get("start")
             end_date = params.get("end")
 
-            symbols = engine.resolve_symbols(
-                codes=codes, pool=pool, include_indices=indices, all_pool=all_pool
+            tier = str(params.get("tier") or "").upper()
+            scope = str(params.get("scope") or "").lower()
+
+            # P0/P1/P2 定盘/池同步期间置核心活跃标记：P3 启动前据此让路（不抢占）
+            if tier in ("P0", "P1", "P2"):
+                from core.data.sync_daemon import set_core_sync_active
+                set_core_sync_active(True)
+                try:
+                    return await self._run_data_sync_core(
+                        task_id, engine, loop, params, codes, pool, indices, all_pool,
+                        mode, count, start_date, end_date,
+                        int(params.get("workers") or params.get("concurrency") or 4),
+                    )
+                finally:
+                    set_core_sync_active(False)
+
+            if tier == "P3":
+                return await self._run_p3_sync(task_id, engine, loop, params, scope, mode, codes)
+
+            # 未标层级的历史任务保持原有行为，不进入仲裁
+            return await self._run_data_sync_core(
+                task_id, engine, loop, params, codes, pool, indices, all_pool,
+                mode, count, start_date, end_date,
+                int(params.get("workers") or params.get("concurrency") or 4),
             )
-            workers = int(params.get("workers") or params.get("concurrency") or 4)
-
-            # 1. 数据完整性体检
-            if params.get("check"):
-                update_task_record(task_id=task_id, progress=0.5, status_message=f"Auditing data integrity for {len(symbols)} symbols")
-                res = await loop.run_in_executor(
-                    None,
-                    lambda: engine.audit_integrity(symbols, start_date=start_date, end_date=end_date)
-                )
-                update_task_record(task_id=task_id, progress=1.0, status_message="Integrity audit completed")
-                healthy_count = sum(1 for r in res if r.get("status") == "healthy")
-                missing_total = sum(r.get("missing_count", 0) for r in res)
-                suspended_total = sum(r.get("suspended_count", 0) for r in res)
-                return {
-                    "status": "success",
-                    "action": "check",
-                    "total_codes": len(symbols),
-                    "healthy_codes": healthy_count,
-                    "degraded_codes": len(symbols) - healthy_count,
-                    "missing_gaps": missing_total,
-                    "suspended_gaps": suspended_total,
-                    "health_rate": round(healthy_count / len(symbols) * 100, 1) if symbols else 100.0,
-                    "audit_results": res,
-                }
-
-            # 2. 缺漏数据靶向自愈回补
-            if params.get("repair"):
-                update_task_record(task_id=task_id, progress=0.5, status_message=f"Repairing data gaps for {len(symbols)} symbols")
-                res = await loop.run_in_executor(
-                    None,
-                    lambda: engine.repair_gaps(symbols)
-                )
-                update_task_record(task_id=task_id, progress=1.0, status_message="Data repair completed")
-                repaired_count = sum(1 for r in res if r.get("repaired"))
-                return {
-                    "status": "success",
-                    "action": "repair",
-                    "total_codes": len(symbols),
-                    "repaired_count": repaired_count,
-                    "repair_results": res,
-                }
-
-            # 3. 当日行情快照落盘
-            if params.get("today"):
-                update_task_record(task_id=task_id, progress=0.5, status_message=f"Syncing today snapshot for {len(symbols)} symbols")
-                res = await loop.run_in_executor(
-                    None,
-                    lambda: engine.sync_today_snapshot(symbols)
-                )
-                update_task_record(task_id=task_id, progress=1.0, status_message="Today snapshot synced")
-                return {
-                    "status": "success",
-                    "action": "today_snapshot",
-                    **res,
-                }
-
-            # 4. 常规增量/全量批量同步
-            update_task_record(task_id=task_id, progress=0.5, status_message=f"Syncing market data for {len(symbols)} symbols ({mode})")
-            res = await loop.run_in_executor(
-                None,
-                lambda: engine.sync_batch(symbols, mode=mode, count=count, start_date=start_date, end_date=end_date, max_workers=workers)
-            )
-            update_task_record(task_id=task_id, progress=0.9, status_message="Finishing sync and updating metadata")
-            return res
 
         elif task_type in ("backtest", "combo_backtest"):
             return {
@@ -379,6 +337,182 @@ class TaskManager:
                 confirmed=params.get("confirmed", True),
             )
             return test_resp.model_dump()
+
+    async def _run_data_sync_core(
+        self, task_id: str, engine: Any, loop: Any, params: Dict[str, Any],
+        codes: List[str], pool: Optional[str], indices: bool, all_pool: bool,
+        mode: str, count: int, start_date: Optional[str], end_date: Optional[str],
+        workers: int,
+    ) -> Dict[str, Any]:
+        """data_sync 四模式执行体：完整性审计 / 靶向修复 / 当日快照 / 批量增量-全量。"""
+        symbols = engine.resolve_symbols(
+            codes=codes, pool=pool, include_indices=indices, all_pool=all_pool
+        )
+
+        # 1. 数据完整性体检
+        if params.get("check"):
+            update_task_record(task_id=task_id, progress=0.5, status_message=f"Auditing data integrity for {len(symbols)} symbols")
+            res = await loop.run_in_executor(
+                None,
+                lambda: engine.audit_integrity(symbols, start_date=start_date, end_date=end_date)
+            )
+            update_task_record(task_id=task_id, progress=1.0, status_message="Integrity audit completed")
+            healthy_count = sum(1 for r in res if r.get("status") == "healthy")
+            missing_total = sum(r.get("missing_count", 0) for r in res)
+            suspended_total = sum(r.get("suspended_count", 0) for r in res)
+            return {
+                "status": "success",
+                "action": "check",
+                "total_codes": len(symbols),
+                "healthy_codes": healthy_count,
+                "degraded_codes": len(symbols) - healthy_count,
+                "missing_gaps": missing_total,
+                "suspended_gaps": suspended_total,
+                "health_rate": round(healthy_count / len(symbols) * 100, 1) if symbols else None,
+                "audit_results": res,
+            }
+
+        # 2. 缺漏数据靶向自愈回补
+        if params.get("repair"):
+            update_task_record(task_id=task_id, progress=0.5, status_message=f"Repairing data gaps for {len(symbols)} symbols")
+            res = await loop.run_in_executor(
+                None,
+                lambda: engine.repair_gaps(symbols)
+            )
+            update_task_record(task_id=task_id, progress=1.0, status_message="Data repair completed")
+            repaired_count = sum(1 for r in res if r.get("repaired"))
+            return {
+                "status": "success",
+                "action": "repair",
+                "total_codes": len(symbols),
+                "repaired_count": repaired_count,
+                "repair_results": res,
+            }
+
+        # 3. 当日行情快照落盘
+        if params.get("today"):
+            update_task_record(task_id=task_id, progress=0.5, status_message=f"Syncing today snapshot for {len(symbols)} symbols")
+            res = await loop.run_in_executor(
+                None,
+                lambda: engine.sync_today_snapshot(symbols)
+            )
+            update_task_record(task_id=task_id, progress=1.0, status_message="Today snapshot synced")
+            return {
+                "status": "success",
+                "action": "today_snapshot",
+                **res,
+            }
+
+        # 4. 常规增量/全量批量同步
+        update_task_record(task_id=task_id, progress=0.5, status_message=f"Syncing market data for {len(symbols)} symbols ({mode})")
+        res = await loop.run_in_executor(
+            None,
+            lambda: engine.sync_batch(symbols, mode=mode, count=count, start_date=start_date, end_date=end_date, max_workers=workers)
+        )
+        update_task_record(task_id=task_id, progress=0.9, status_message="Finishing sync and updating metadata")
+        return res
+
+    async def _run_p3_sync(
+        self, task_id: str, engine: Any, loop: Any, params: Dict[str, Any],
+        scope: str, mode: str, codes: List[str],
+    ) -> Dict[str, Any]:
+        """P3 全市场同步：单任务互斥 + 不抢占 P0/P1 + 按有效设置分批并发 + 真实批次进度。
+
+        批次大小与并发数只取服务端白名单校验后的有效设置（SSOT §4.3-6），
+        不接受请求参数覆盖；市场清单上游不可用时如实失败，绝不伪造清单空跑。
+        """
+        from core.data.sync_daemon import release_p3, try_acquire_p3
+        from server.services.data_sync_settings import effective_settings
+
+        if scope not in ("full_market", "sh", "sz", "bj", "selected", ""):
+            raise ValueError(f"P3 同步范围无效：{scope}")
+        if scope in ("bj",):
+            raise ValueError("北交所暂无权威股票清单数据源，P3 拒绝以猜测清单执行同步")
+
+        wants_audit = bool(params.get("check")) or mode == "audit"
+        wants_repair = bool(params.get("repair")) or mode == "repair"
+        if scope in ("full_market", "sh", "sz") and (wants_audit or wants_repair or mode == "full"):
+            raise ValueError(
+                "P3 市场级范围当前仅支持增量同步；完整性审计与缺漏修复请使用运行控制面板的全库体检入口"
+            )
+
+        p3_cfg = effective_settings()["p3"]
+        batch_size = int(p3_cfg["batch_size"])
+        workers = int(p3_cfg["concurrency"])
+
+        acquired, reason = try_acquire_p3(task_id)
+        if not acquired:
+            raise ValueError(reason)
+        try:
+            if scope in ("selected", ""):
+                symbols = engine.resolve_symbols(codes=codes)
+                if not symbols:
+                    raise ValueError("P3 指定代码模式需要至少一个有效股票代码")
+                if wants_audit or wants_repair:
+                    delegate_params = dict(params)
+                    delegate_params["check"] = True if wants_audit else params.get("check", False)
+                    delegate_params["repair"] = True if wants_repair else params.get("repair", False)
+                    if wants_audit:
+                        delegate_params.pop("repair", None)
+                    else:
+                        delegate_params.pop("check", None)
+                    return await self._run_data_sync_core(
+                        task_id, engine, loop, delegate_params, symbols, None, False, False,
+                        "incremental", int(params.get("count", 250)), None, None, workers,
+                    )
+                sync_mode = mode if mode in ("incremental", "full", "snapshot") else "incremental"
+                batches = [symbols[i:i + batch_size] for i in range(0, len(symbols), batch_size)]
+            else:
+                update_task_record(task_id=task_id, progress=0.1, status_message=f"Resolving {scope} market stock list")
+                symbols = await loop.run_in_executor(None, lambda: engine.list_market_symbols(scope))
+                if not symbols:
+                    raise ValueError("市场清单上游暂不可用（degraded），已拒绝以伪造或缓存清单执行同步")
+                batches = [symbols[i:i + batch_size] for i in range(0, len(symbols), batch_size)]
+                sync_mode = "incremental"
+
+            total = len(symbols)
+            success_count = 0
+            failed_count = 0
+            details: List[Dict[str, Any]] = []
+            for batch_index, chunk in enumerate(batches, start=1):
+                update_task_record(
+                    task_id=task_id,
+                    progress=min(0.95, 0.1 + 0.85 * (batch_index - 1) / len(batches)),
+                    status_message=f"P3 batch {batch_index}/{len(batches)} ({len(chunk)} symbols)",
+                )
+                res = await loop.run_in_executor(
+                    None,
+                    lambda c=chunk: engine.sync_batch(
+                        c, mode=sync_mode,
+                        count=int(params.get("count", 250)),
+                        start_date=params.get("start"), end_date=params.get("end"),
+                        max_workers=workers,
+                    ),
+                )
+                success_count += res.get("success_count", 0)
+                failed_count += res.get("failed_count", 0)
+                details.extend((res.get("details") or [])[:200])
+
+            # 局部失败如实 degraded，不伪装全部成功（SSOT §4.3 进度契约）
+            status = "success" if failed_count == 0 and success_count > 0 else (
+                "degraded" if success_count > 0 else "error"
+            )
+            update_task_record(task_id=task_id, progress=1.0, status_message=f"P3 finished: {success_count} ok / {failed_count} failed")
+            return {
+                "status": status,
+                "tier": "P3",
+                "scope": scope or "selected",
+                "mode": sync_mode,
+                "total_requested": total,
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "batches": len(batches),
+                "batch_size": batch_size,
+                "workers": workers,
+                "details": details,
+            }
+        finally:
+            release_p3(task_id)
 
 
 def get_task_manager() -> TaskManager:

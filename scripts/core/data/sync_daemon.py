@@ -18,8 +18,9 @@ import os
 from pathlib import Path
 import signal
 import sys
+import threading
 import time
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 try:
     from core.config import PROJECT_ROOT, LOG_DIR, get_logger
@@ -58,6 +59,86 @@ SERVER_SYNC_RUNTIME: Dict[str, Any] = {
 }
 
 HISTORY_LIMIT = 50
+
+
+# ---------------------------------------------------------------------------
+# P3 优先级仲裁器（SPEC-UI-003 §4.3：同一时刻最多一个 P3；P3 不得抢占 P0/P1）
+#
+# 与服务内调度协程、任务队列共享同一份进程内事实：
+# - p3_task 非空时禁止新的 P3 提交（单任务互斥）；
+# - core_active（P0/P1/P2 定盘同步进行中）时禁止 P3 启动（不抢占高优先级）；
+# - 反向不阻塞：P0/P1 到点照常触发，不被 P3 拖住。
+# ---------------------------------------------------------------------------
+_SYNC_ARBITER_LOCK = threading.Lock()
+
+SYNC_ARBITER: Dict[str, Any] = {
+    "p3_task": None,        # 当前活动 P3 拥有者（task_id 或 "cron:<date>"）
+    "core_active": False,   # P0/P1/P2 定盘同步是否进行中
+}
+
+
+def try_acquire_p3(owner: str) -> Tuple[bool, str]:
+    """尝试占用 P3 槽位。冲突时返回 (False, 原因)，绝不静默排队。"""
+    with _SYNC_ARBITER_LOCK:
+        if SYNC_ARBITER["p3_task"]:
+            return False, f"已有活动 P3 任务（{SYNC_ARBITER['p3_task']}），同一时刻仅允许一个 P3"
+        if SYNC_ARBITER["core_active"]:
+            return False, "P0/P1/P2 定盘同步进行中，P3 不得抢占高优先级任务"
+        SYNC_ARBITER["p3_task"] = owner
+        return True, ""
+
+
+def release_p3(owner: str) -> None:
+    """释放 P3 槽位；仅持有者可释放，防止误清他人锁。"""
+    with _SYNC_ARBITER_LOCK:
+        if SYNC_ARBITER["p3_task"] == owner:
+            SYNC_ARBITER["p3_task"] = None
+
+
+def set_core_sync_active(active: bool) -> None:
+    with _SYNC_ARBITER_LOCK:
+        SYNC_ARBITER["core_active"] = bool(active)
+
+
+def p3_conflict_reason() -> Optional[str]:
+    """存在冲突活动任务时返回拒绝原因，否则 None（用于创建前预检 409）。"""
+    with _SYNC_ARBITER_LOCK:
+        if SYNC_ARBITER["p3_task"]:
+            return f"已有活动 P3 任务（{SYNC_ARBITER['p3_task']}），请等待结束或先取消"
+        if SYNC_ARBITER["core_active"]:
+            return "P0/P1/P2 定盘同步进行中，P3 不得抢占"
+        return None
+
+
+def parse_hhmm(value: str) -> Optional[dt_time]:
+    """HH:MM → datetime.time；非法返回 None。"""
+    try:
+        hour_str, minute_str = str(value).strip().split(":")
+        return dt_time(int(hour_str), int(minute_str))
+    except (ValueError, AttributeError):
+        return None
+
+
+def is_auto_tier_due(now, tier: str, eff_settings: Dict[str, Any], executed_dates: Dict[str, str]) -> bool:
+    """纯判定：某层级定时自动同步当前是否到期且今日尚未执行（交易日判断由调用方负责）。
+
+    - P0/P1 受定时守护总开关 daemon.enabled 门控；P3 额外受 p3.enabled 门控；
+    - 到点判定为 now >= 设定时间；当日同层级只允许成功执行一次。
+    """
+    daemon = eff_settings.get("daemon") or {}
+    if not daemon.get("enabled", True):
+        return False
+    if tier == "P3" and not (eff_settings.get("p3") or {}).get("enabled", True):
+        return False
+    time_key = {"P0": "p0_time", "P1": "p1_time", "P3": "time"}[tier]
+    raw_time = daemon.get(time_key, "") if tier in ("P0", "P1") else (eff_settings.get("p3") or {}).get("time", "")
+    due_at = parse_hhmm(str(raw_time))
+    if due_at is None:
+        return False
+    today = now.strftime("%Y-%m-%d")
+    if executed_dates.get(tier) == today:
+        return False
+    return now.time() >= due_at
 
 
 def record_sync_runtime_event(message: str, status: Optional[str] = None) -> Dict[str, Any]:

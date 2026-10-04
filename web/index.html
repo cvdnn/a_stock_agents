@@ -1275,26 +1275,26 @@
                 <div class="datasync-card-heading">
                   <div>
                     <div class="form-label" id="datasyncP3Title">P3 全市场同步</div>
-                    <div class="form-hint">手动任务支持市场或指定代码；全量重构提交前必须二次确认。</div>
+                    <div class="form-hint">市场级范围（全市场/沪/深）支持增量同步，指定代码支持全部模式；全量重构提交前必须二次确认，互斥与范围校验以服务端为准。</div>
                   </div>
                   <span class="status-capsule capsule-closed" id="datasyncP3AutoState">自动状态未加载</span>
                 </div>
                 <div class="datasync-p3-controls">
                   <label class="datasync-field" for="datasyncP3Scope"><span>同步范围</span>
                     <select class="form-select" id="datasyncP3Scope">
-                      <option value="full_market" disabled>全市场（待后端）</option>
-                      <option value="sh" disabled>沪市（待后端）</option>
-                      <option value="sz" disabled>深市（待后端）</option>
-                      <option value="bj" disabled>北交所（待后端）</option>
+                      <option value="full_market">全市场（沪深，仅增量）</option>
+                      <option value="sh">沪市（仅增量）</option>
+                      <option value="sz">深市（仅增量）</option>
+                      <option value="bj" disabled>北交所（暂无权威清单源）</option>
                       <option value="selected" selected>指定代码</option>
                     </select>
                   </label>
                   <label class="datasync-field" for="datasyncP3Mode"><span>执行模式</span>
                     <select class="form-select" id="datasyncP3Mode">
                       <option value="incremental" selected>增量同步</option>
-                      <option value="audit" disabled>完整性审计（待后端）</option>
-                      <option value="repair" disabled>缺漏修复（待后端）</option>
-                      <option value="full" disabled>全量重构（待后端）</option>
+                      <option value="audit">完整性审计（限指定代码）</option>
+                      <option value="repair">缺漏修复（限指定代码）</option>
+                      <option value="full">全量重构（限指定代码，需二次确认）</option>
                     </select>
                   </label>
                   <label class="datasync-field datasync-code-field" for="datasyncP3Codes"><span>股票代码</span>

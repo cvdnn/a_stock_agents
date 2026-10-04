@@ -2082,10 +2082,16 @@ async function loadDashboardData() {
     const monRes = await window.AStockAPI.getMonitorStream();
     if (monRes) {
       const badge = document.getElementById('dashMonitorLiveBadge');
-      if (badge && monRes.latency_ms !== undefined) {
+      const streamList = document.getElementById('dashMonitorStreamList');
+      // 服务端未接入真实事件源时如实展示空状态，不再回放示例事件（零虚假数据）
+      if (monRes.is_monitoring === false) {
+        if (badge) badge.textContent = '盯盘事件流未接入';
+        if (streamList) {
+          streamList.innerHTML = `<div class="datasync-detail-placeholder">${(monRes.availability && monRes.availability.reason) || '服务端暂无真实盘中事件采集源，未展示任何示例事件'}</div>`;
+        }
+      } else if (badge && monRes.latency_ms != null) {
         badge.innerHTML = `<span class="live-dot"></span> 实时盯盘监控中 (延迟${monRes.latency_ms}ms)`;
       }
-      const streamList = document.getElementById('dashMonitorStreamList');
       if (streamList && Array.isArray(monRes.events) && monRes.events.length > 0) {
         streamList.innerHTML = monRes.events.map(ev => {
           let itemClass = 'stream-buy';
@@ -10153,6 +10159,7 @@ function switchDatasyncTab(tabName, moveFocus = false) {
   });
 
   if (nextTab === 'tasks') loadDatasyncTasks();
+  if (nextTab === 'settings') loadDatasyncSettings();
   updateDatasyncPolling();
 }
 
@@ -10327,7 +10334,7 @@ function updateDatasyncP3Availability() {
     ? '任务状态尚未成功加载，暂不可提交'
     : activeP3
       ? `已有活动 P3 任务：${datasyncTaskId(activeP3)}`
-      : '当前后端仅支持指定代码的增量 P3 任务';
+      : '市场级范围支持增量同步，指定代码支持全部模式；互斥与范围校验以服务端为准';
 }
 
 async function loadDatasyncTasks({ selectTaskId = '', quiet = false } = {}) {
@@ -10454,11 +10461,16 @@ async function submitDatasyncP3() {
     if (codesElement) codesElement.focus();
     return;
   }
-  if (mode === 'full' && !window.confirm(`全量重构会覆盖式重建“${scope}”范围；预计标的数以服务端校验为准，并会占用较多行情源与本地写入资源。确认继续检查后端能力吗？`)) return;
-  if (scope !== 'selected' || mode !== 'incremental') {
-    showToast('P3 批量任务当前仅支持“指定代码 + 增量同步”；全市场与沪深北分区枚举后端未实现，完整性审计与缺漏修复请改用运行面板的体检入口', 'error');
+  // 前端 fail-closed 预检（服务端独立二次校验，前端提示不构成承诺）：
+  if (scope === 'bj') {
+    showToast('北交所暂无权威股票清单数据源，后端拒绝以猜测清单执行 P3 同步', 'error');
     return;
   }
+  if (scope !== 'selected' && mode !== 'incremental') {
+    showToast('市场级范围（全市场/沪市/深市）当前仅支持增量同步；完整性审计与缺漏修复请改用运行控制面板的全库体检入口', 'error');
+    return;
+  }
+  if (mode === 'full' && !window.confirm(`全量重构会覆盖式重建“${scope === 'selected' ? codes.join(',') : scope}”范围；预计标的数以服务端校验为准，并会占用较多行情源与本地写入资源。确认提交？`)) return;
 
   await loadDatasyncTasks({ quiet: true });
   if (!DatasyncState.tasksLoaded) {
@@ -10575,15 +10587,54 @@ async function runDatasyncPing(button) {
   }
 }
 
+// ---- 有效设置回显（GET /api/data-sync/settings）：P3 自动状态徽标与并发滑块以服务端回读值为准 ----
+async function loadDatasyncSettings() {
+  const api = window.AStockAPI;
+  const capsule = document.getElementById('datasyncP3AutoState');
+  if (!api || typeof api.getDataSyncSettings !== 'function') return null;
+  try {
+    const data = await api.getDataSyncSettings();
+    if (!data || data.status !== 'success') throw new Error('设置接口返回异常');
+    const settings = data.settings || {};
+    const p3 = settings.p3 || {};
+    if (capsule) {
+      capsule.textContent = `自动增量：${p3.enabled ? '开' : '关'} · 交易日 ${p3.time || '—'} · 批次 ${p3.batch_size == null ? '—' : p3.batch_size} · 并发 ${p3.concurrency == null ? '—' : p3.concurrency}`;
+      capsule.className = `status-capsule ${p3.enabled ? 'capsule-settled' : 'capsule-closed'}`;
+      capsule.title = data.persisted_status === 'ok'
+        ? '来源：local/settings/data_sync.json（服务端白名单校验后持久化）'
+        : '尚未保存过自定义设置或文件不可读，当前展示服务端默认值';
+    }
+    const slider = document.getElementById('cfgSyncConcurrency');
+    const badge = document.getElementById('valConcurrency');
+    const concurrency = Number((settings.base || {}).concurrency);
+    if (slider && Number.isFinite(concurrency)) {
+      slider.value = String(concurrency);
+      if (badge) badge.textContent = `${concurrency} 线程`;
+      const warnBox = document.getElementById('concurrencyWarningBox');
+      if (warnBox) warnBox.style.display = concurrency > 8 ? 'block' : 'none';
+    }
+    return data;
+  } catch (error) {
+    if (capsule) {
+      capsule.textContent = '有效设置加载失败';
+      capsule.className = 'status-capsule capsule-closed';
+      capsule.title = error.message || '设置接口不可用';
+    }
+    return null;
+  }
+}
+
 // ---- 并发线程数落库（POST /api/settings/datafeed）----
 async function saveDatasyncConcurrency(workers) {
   const api = window.AStockAPI;
   if (!api || typeof api.updateDatafeedSettings !== 'function') return;
   try {
     await api.updateDatafeedSettings(workers);
-    showToast(`并发调度参数已保存为 ${workers} 线程`, 'success');
+    showToast(`并发调度参数已校验并持久化为 ${workers} 线程`, 'success');
+    await loadDatasyncSettings();
   } catch (error) {
     showToast(`保存并发参数失败：${error.message || '未知错误'}`, 'error');
+    await loadDatasyncSettings(); // 保存失败后回读服务端真实值，纠正滑块
   }
 }
 
@@ -10824,6 +10875,8 @@ function initDatasync() {
   window.setInterval(refreshClock, 1000);
   refreshDatasyncMarketClock();
   window.setInterval(refreshDatasyncMarketClock, 60000);
+  // P3 自动状态徽标（运行控制页）与设置滑块初值：来自服务端有效设置回读
+  loadDatasyncSettings();
 
   const storedTab = (() => {
     try { return window.sessionStorage.getItem('datasync.activeTab'); } catch (_) { return null; }

@@ -700,24 +700,27 @@ async def get_watchlist(active_code: str = Query(default="")) -> Dict[str, Any]:
 
 @router.get("/monitor/stream")
 async def get_monitor_stream() -> Dict[str, Any]:
-    """获取盘中实时盯盘流事件与策略开关状态"""
-    now_str = datetime.now().strftime("%H:%M:%S")
+    """盘中实时盯盘流：当前版本未接入真实盘中事件采集源。
+
+    零虚假数据原则（SPEC-DATA-001 / SPEC-UI-003）：历史版本返回固定示例事件、
+    恒真 is_monitoring 与伪造 latency_ms=12，属于演示数据，已整体移除；
+    无真实源时必须返回空数组与明确可用性字段，由前端展示"未接入"空状态。
+    """
+    from core.data.sync_engine import TradeCalendar
+    phase = TradeCalendar.get_market_phase()
     return {
-        "status": "online",
+        "status": "not_running",
         "source": "server_runtime",
         "as_of": _as_of(),
-        "latency_ms": 12,
-        "is_monitoring": True,
-        "events": [
-            {"time": now_str, "name": "中芯国际", "code": "688981", "type": "main", "tag": "主力大单", "desc": "主力资金净流入突破5000万，大单主动买入占比68%"},
-            {"time": now_str, "name": "宁德时代", "code": "300750", "type": "buy", "tag": "均线突破", "desc": "放量突破20日均线压制，MACD水上二次金叉确认"},
-            {"time": now_str, "name": "北方华创", "code": "002371", "type": "main", "tag": "机构异动", "desc": "知名机构席位密集挂单吸筹，量比放大至2.4倍"},
-        ],
-        "strategies": [
-            {"name": "MACD二次金叉策略", "desc": "零轴下二次金叉与底背离突破扫描", "enabled": True},
-            {"name": "主线龙头接力策略", "desc": "连板龙头与首阴反包防守策略", "enabled": True},
-            {"name": "保本进位风控引擎", "desc": "浮亏-3%/-5%/-8%三级阶梯风控触发", "enabled": True},
-        ],
+        "latency_ms": None,
+        "is_monitoring": False,
+        "events": [],
+        "strategies": [],
+        "market_phase": phase["phase"],
+        "availability": {
+            "event_feed": False,
+            "reason": "服务端尚未接入真实盘中逐笔/大单事件采集源，为避免误导不回放任何示例事件",
+        },
     }
 
 
@@ -806,26 +809,56 @@ async def ping_market_data_feeds() -> Dict[str, Any]:
 
 @router.post("/market_data/daemon/control")
 async def control_market_data_daemon(payload: Optional[Dict[str, Any]] = Body(None)) -> Dict[str, Any]:
-    """服务内自动定盘巡检的启停与调度参数控制。
+    """服务内自动定盘巡检的启停与调度参数控制（启停与参数写穿持久化设置）。
 
     真实生效对象是 app.py 的 `_market_post_settle_cron` 协程：两者读写同一份
-    core.data.sync_daemon.SERVER_SYNC_RUNTIME，因此关闭后协程当轮即跳过。
+    core.data.sync_daemon.SERVER_SYNC_RUNTIME，因此关闭后协程当轮即跳过；
+    start/stop 同时持久化 `daemon.enabled`，服务重启后开关状态不回跳。
     """
     from core.data.sync_daemon import apply_sync_runtime_control
+    from server.services.data_sync_settings import apply_to_runtime, effective_settings, save_settings
 
     data = payload or {}
+    act = str(data.get("action", "status")).strip().lower()
     interval = data.get("interval")
     workers = data.get("workers")
+
+    patch: Dict[str, Any] = {}
+    if act in ("start", "restart"):
+        patch["daemon"] = {"enabled": True}
+    elif act == "stop":
+        patch["daemon"] = {"enabled": False}
+    if interval not in (None, ""):
+        patch.setdefault("daemon", {})["interval_seconds"] = int(interval)
+    if workers not in (None, ""):
+        patch.setdefault("base", {})["concurrency"] = int(workers)
+
+    persisted = True
+    if patch:
+        errors, _effective = save_settings(patch)
+        if errors:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail={
+                "error": "SETTINGS_VALIDATION_FAILED", "errors": errors,
+            })
+        apply_to_runtime()
+    else:
+        try:
+            apply_to_runtime(effective_settings())
+        except Exception:
+            persisted = False
+
     snapshot = apply_sync_runtime_control(
-        action=str(data.get("action", "status")),
-        interval=int(interval) if interval not in (None, "") else None,
-        workers=int(workers) if workers not in (None, "") else None,
+        action=act,
+        interval=None,  # 参数已由设置通道生效，这里只做跃迁留痕
+        workers=None,
     )
     return {
         "status": "success",
         "executor": "in_process_cron",
         "executor_label": "服务内自动巡检协程 (server.app)",
         "daemon_running": snapshot["enabled"],
+        "persisted": persisted,
         "pid": os.getpid(),
         "available_actions": ["status", "start", "stop", "restart"],
         "note": "独立 CLI 守护进程 DataSyncDaemon 运行在另一进程，不受此开关控制",
@@ -895,18 +928,34 @@ async def get_market_data_daemon_logs(tail: int = Query(50, ge=1, le=500)) -> Di
 
 @router.post("/settings/datafeed")
 async def update_datafeed_settings(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
-    """更新服务内自动巡检的并发线程数（真实传入 sync_batch(max_workers=...)）。"""
-    from core.data.sync_daemon import apply_sync_runtime_control
+    """更新服务内自动巡检的并发线程数：白名单校验后持久化到有效设置并回灌运行时。
 
-    workers = int(payload.get("sync_max_workers", 4))
-    snapshot = apply_sync_runtime_control("status", workers=workers)
+    历史兼容入口（等价 PUT /api/data-sync/settings 的 base.concurrency 单字段）；
+    参数非法返回 400 与字段级原因，不再静默夹紧，重启后设置保持不回退。
+    """
+    from server.services.data_sync_settings import apply_to_runtime, effective_settings, save_settings
+
+    try:
+        workers = int(payload.get("sync_max_workers", 4))
+    except (TypeError, ValueError):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail={
+            "error": "SETTINGS_VALIDATION_FAILED",
+            "errors": [{"field": "sync_max_workers", "reason": "必须为 1–16 的整数"}],
+        })
+    errors, _effective = save_settings({"base": {"concurrency": workers}})
+    if errors:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail={"error": "SETTINGS_VALIDATION_FAILED", "errors": errors})
+    snapshot = apply_to_runtime(effective_settings())
     return {
         "success": True,
         "sync_max_workers": snapshot["workers"],
         "applied_to": "in_process_cron",
+        "persisted": True,
         "message": (
-            f"并发调度参数已更新为 {snapshot['workers']} 线程（仅作用于服务内自动巡检；"
-            "手动同步任务的并发由请求参数 concurrency 独立指定）"
+            f"并发调度参数已校验并持久化为 {snapshot['workers']} 线程（作用于服务内自动巡检与 P0/P1 定盘；"
+            "P3 全市场并发由高级设置 p3.concurrency 独立控制）"
         ),
     }
 

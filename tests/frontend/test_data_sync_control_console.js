@@ -153,7 +153,24 @@ function jsonResponse(data) {
     assert.match(app, /mode\s*===\s*['"]full['"][\s\S]{0,500}confirm\s*\(/);
     assert.match(app, /getElementById\(['"]datasyncP3ProgressBar['"]\)/, 'progress width must target the inner bar');
     assert.match(app, /numeric\s*<=\s*1[\s\S]{0,160}numeric\s*\*\s*100/, '0-1 backend progress must be normalized to percent');
-    assert.match(app, /scope\s*!==\s*['"]selected['"]/, 'unsupported P3 market scopes must fail closed until backend support lands');
+    // 后端能力已落地：市场级范围必须真实接入（不再是整体 fail-closed），
+    // 但组合约束仍要前端预检 fail-closed，且无权威源的 bj 保持禁用。
+    assert.match(app, /scope\s*!==\s*['"]selected['"][\s\S]{0,10}&&[\s\S]{0,40}mode\s*!==\s*['"]incremental['"]/, 'market-level P3 scopes must fail closed for non-incremental modes');
+    assert.match(app, /scope\s*===\s*['"]bj['"]/, 'Beijing exchange must stay fail-closed without an authoritative list source');
+    assert.strictEqual(/option value="full_market" disabled/.test(html), false, 'full_market option must be wired to the real backend');
+    assert.ok(/option value="bj" disabled/.test(html), 'bj option must remain disabled (no authoritative source)');
+  });
+
+  await test('matrix 4b: effective settings channel is real and drives the UI', async () => {
+    assert.match(apiSource, /getDataSyncSettings\(\)[^{]*\{[^}]*\/api\/data-sync\/settings/, 'settings must load from the real console endpoint');
+    assert.match(apiSource, /putDataSyncSettings/, 'PUT settings channel must exist for whitelisted saving');
+    assert.match(app, /async function loadDatasyncSettings/, 'UI must read server-effective settings');
+    assert.match(app, /datasyncP3AutoState[\s\S]{0,400}p3\.time/, 'P3 auto-state capsule must show the scheduled time from settings');
+    assert.match(app, /if \(nextTab === ['"]settings['"]\) loadDatasyncSettings\(\)/, 'settings tab must hydrate from the server');
+    const settingsSource = fs.readFileSync(path.join(root, 'scripts/server/services/data_sync_settings.py'), 'utf8');
+    assert.match(settingsSource, /ENV_OVERRIDE = ['"]A_STOCK_DATA_SYNC_SETTINGS_FILE['"]/, 'settings path must be overridable for test isolation');
+    assert.match(settingsSource, /LOCAL_DIR \/ ['"]settings['"]/, 'settings must resolve under workspace LOCAL_DIR');
+    assert.match(settingsSource, /os\.chmod\(tmp, 0o600\)|chmod\(path, 0o600\)/, 'persisted settings must be owner-only readable');
   });
 
   await test('matrix 5: data sync controller contains no fabricated success path', () => {

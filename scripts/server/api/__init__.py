@@ -4,6 +4,7 @@ server.api - API routes package.
 """
 from server.api.audit import router as audit_router
 from server.api.auth import router as auth_router
+from server.api.data_sync import router as data_sync_router
 from server.api.chat import router as chat_router
 from server.api.health import router as health_router
 from server.api.market_data import router as market_data_router
@@ -25,6 +26,7 @@ __all__ = [
     "tasks_router",
     "models_mgmt_router",
     "market_data_router",
+    "data_sync_router",
     "users_router",
     "roles_router",
     "menus_router",

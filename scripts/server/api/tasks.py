@@ -20,11 +20,22 @@ router = APIRouter(prefix="/api/tasks", tags=["Async Tasks"])
 @router.post("", response_model=TaskResponse)
 async def create_task(req: TaskCreateRequest):
     """Enqueue a long-running quantitative research or debate task."""
+    # P3 单任务互斥 + 不抢占 P0/P1：创建前预检，冲突直接 409，不产生垃圾任务记录
+    timeout_seconds = req.timeout_seconds or 300
+    if req.task_type == "data_sync" and str((req.params or {}).get("tier") or "").upper() == "P3":
+        from core.data.sync_daemon import p3_conflict_reason
+
+        conflict = p3_conflict_reason()
+        if conflict:
+            raise HTTPException(status_code=409, detail=conflict)
+        # P3 市场级范围按分批同步计，300s 默认上限必然误杀；仅 selected 小任务保留原值
+        if str((req.params or {}).get("scope") or "").lower() in ("full_market", "sh", "sz", "bj", ""):
+            timeout_seconds = max(timeout_seconds, 7200)
     mgr = get_task_manager()
     return mgr.submit_task(
         task_type=req.task_type,
         params=req.params,
-        timeout_seconds=req.timeout_seconds or 300,
+        timeout_seconds=timeout_seconds,
     )
 
 

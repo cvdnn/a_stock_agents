@@ -66,6 +66,14 @@ const AStockAPI = {
       body: JSON.stringify({ sync_max_workers: workers })
     });
   },
+  getDataSyncSettings() { return this._fetchJSON('/api/data-sync/settings'); },
+  putDataSyncSettings(payload) {
+    return this._fetchJSON('/api/data-sync/settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  },
+  getDataSyncOverview() { return this._fetchJSON('/api/data-sync/overview'); },
   importTdxPool(pool = 'watchlist', content = '') {
     return this._fetchJSON('/api/pools/import_tdx', {
       method: 'POST',

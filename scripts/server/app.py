@@ -16,6 +16,7 @@ from server.api import (
     audit_router,
     auth_router,
     chat_router,
+    data_sync_router,
     health_router,
     market_data_router,
     menus_router,
@@ -35,30 +36,39 @@ logger = get_logger("server.app")
 
 
 async def _market_post_settle_cron() -> None:
-    """盘后定盘定时巡检协程：交易日 15:35 触发 P0 持仓池与核心大盘指数增量定盘同步。
+    """盘后定盘定时巡检协程（SPEC-UI-003 §4.2/§4.3 + §6.2）。
 
-    调度参数与启停均由 core.data.sync_daemon.SERVER_SYNC_RUNTIME 驱动，
-    与 /api/market_data/daemon/control 是同一份状态，不存在"关了仍在跑"的脱节。
+    每轮读取服务端有效设置（白名单校验后持久化于 local/settings/data_sync.json）：
+    - 定时守护总开关关闭时不触发任何自动同步；
+    - P0 持仓池按 daemon.p0_time、P1 自选/关注 + P2 指数按 daemon.p1_time 触发；
+    - P3 全市场增量按 p3.time（默认 16:00）触发，仅交易日、仅增量模式；
+    - P3 经 SYNC_ARBITER 单任务互斥，且 P0/P1 进行中不得抢占（冲突则下一轮重试，不标记完成）。
+    启停与参数与 /api/market_data/daemon/control、/api/data-sync/settings 共享同一份真实状态。
     独立 CLI 守护进程 DataSyncDaemon 属于另一个进程，不受此协程状态影响。
     """
     import asyncio
-    from datetime import datetime, time as dt_time
-    from core.data.sync_daemon import SERVER_SYNC_RUNTIME, record_sync_runtime_event
+    from datetime import datetime
+    from core.data.sync_daemon import (
+        SERVER_SYNC_RUNTIME, is_auto_tier_due, record_sync_runtime_event,
+        release_p3, set_core_sync_active, try_acquire_p3,
+    )
+    from server.services.data_sync_settings import apply_to_runtime, effective_settings
 
-    last_executed_date = ""
+    executed_dates: dict = {}
     last_enabled = None
 
     while True:
         try:
-            await asyncio.sleep(max(15, int(SERVER_SYNC_RUNTIME.get("interval") or 60)))
+            settings = effective_settings()
+            await asyncio.sleep(max(15, int(settings["daemon"]["interval_seconds"])))
+            # 每轮回灌有效设置：新参数只影响后续轮次，不中断运行中任务（SSOT §6.2）
+            apply_to_runtime(settings)
             now = datetime.now()
             today_str = now.strftime("%Y-%m-%d")
-            stamp = now.strftime("%Y-%m-%d %H:%M:%S")
-            SERVER_SYNC_RUNTIME["last_check"] = stamp
+            SERVER_SYNC_RUNTIME["last_check"] = now.strftime("%Y-%m-%d %H:%M:%S")
 
             enabled = bool(SERVER_SYNC_RUNTIME.get("enabled", True))
             if enabled != last_enabled:
-                # 仅在启停跃迁时留痕，避免每个轮询周期刷同一条记录
                 record_sync_runtime_event(
                     "服务内自动巡检运行中" if enabled else "服务内自动巡检处于暂停状态", "info",
                 )
@@ -66,34 +76,98 @@ async def _market_post_settle_cron() -> None:
             if not enabled:
                 continue
 
-            if last_executed_date == today_str:
+            from core.data.sync_engine import TradeCalendar, DataSyncEngine
+            if not TradeCalendar.is_trading_day(now):
                 continue
 
-            from core.data.sync_engine import TradeCalendar, DataSyncEngine
-            if TradeCalendar.is_trading_day(now) and now.time() >= dt_time(15, 35):
-                workers = max(1, min(int(SERVER_SYNC_RUNTIME.get("workers") or 4), 16))
-                logger.info(f"[Cron] 触发交易日 ({today_str}) 15:35 盘后定盘自动同步 (并发 {workers})...")
-                SERVER_SYNC_RUNTIME["last_run"] = stamp
-                record_sync_runtime_event(
-                    f"{today_str} 15:35 盘后定盘自动同步开始（并发 {workers} 线程）", "running",
-                )
-                engine = DataSyncEngine()
-                symbols = engine.resolve_symbols(pool="holdings", include_indices=True)
-                loop = asyncio.get_running_loop()
-                res = await loop.run_in_executor(
-                    None,
-                    lambda: engine.sync_batch(symbols, mode="incremental", max_workers=workers),
-                )
+            loop = asyncio.get_running_loop()
+            engine = DataSyncEngine()
+
+            async def _run_core(tier: str, symbols, workers: int, label: str):
+                owner = f"cron:{tier}:{today_str}"
+                SERVER_SYNC_RUNTIME["last_run"] = now.strftime("%Y-%m-%d %H:%M:%S")
+                record_sync_runtime_event(f"{today_str} {label} 自动定盘同步开始（并发 {workers} 线程）", "running")
+                set_core_sync_active(True)
+                try:
+                    res = await loop.run_in_executor(
+                        None,
+                        lambda: engine.sync_batch(symbols, mode="incremental", max_workers=workers),
+                    )
+                finally:
+                    set_core_sync_active(False)
                 summary = res if isinstance(res, dict) else {}
                 status = "success" if summary.get("failed_count", 0) == 0 else "degraded"
                 message = (
-                    f"{today_str} 盘后定盘同步：{summary.get('total_requested', len(symbols))} 只标的，"
+                    f"{today_str} {label}：{summary.get('total_requested', len(symbols))} 只标的，"
                     f"成功 {summary.get('success_count', 0)}，失败 {summary.get('failed_count', 0)}，"
                     f"耗时 {summary.get('elapsed_seconds', 0)}s"
                 )
                 record_sync_runtime_event(message, status)
-                last_executed_date = today_str
                 logger.info(f"[Cron] {message}")
+                executed_dates[tier] = today_str
+
+            # P0 持仓池
+            if is_auto_tier_due(now, "P0", settings, executed_dates):
+                symbols = engine.resolve_symbols(pool="holdings")
+                if symbols:
+                    await _run_core("P0", symbols, int(settings["base"]["concurrency"]), "P0 持仓池定盘同步")
+                else:
+                    executed_dates["P0"] = today_str
+                    record_sync_runtime_event(f"{today_str} P0 持仓池为空，跳过定盘同步（不伪造执行）", "info")
+
+            # P1 自选/关注 + P2 核心指数
+            if is_auto_tier_due(now, "P1", settings, executed_dates):
+                symbols = engine.resolve_symbols(pool="watchlist", include_indices=True)
+                symbols += engine.resolve_symbols(pool="focus")
+                symbols = list(dict.fromkeys(symbols))
+                if symbols:
+                    await _run_core("P1", symbols, int(settings["base"]["concurrency"]), "P1/P2 自选关注与指数定盘同步")
+                else:
+                    executed_dates["P1"] = today_str
+                    record_sync_runtime_event(f"{today_str} P1/P2 池为空，跳过定盘同步（不伪造执行）", "info")
+
+            # P3 全市场定时增量（单任务互斥 + 不抢占；冲突时下一轮重试，不标记完成）
+            if is_auto_tier_due(now, "P3", settings, executed_dates):
+                owner = f"cron:P3:{today_str}"
+                acquired, reason = try_acquire_p3(owner)
+                if not acquired:
+                    logger.info(f"[Cron] P3 本轮让路：{reason}")
+                else:
+                    try:
+                        market_symbols = await loop.run_in_executor(
+                            None, lambda: engine.list_market_symbols("full_market")
+                        )
+                        if not market_symbols:
+                            record_sync_runtime_event(
+                                f"{today_str} P3 全市场清单上游不可用，本轮跳过（拒绝伪造清单空跑）", "degraded")
+                            executed_dates["P3"] = today_str
+                            continue
+                        p3_cfg = settings["p3"]
+                        batch_size = int(p3_cfg["batch_size"])
+                        workers = int(p3_cfg["concurrency"])
+                        SERVER_SYNC_RUNTIME["last_run"] = now.strftime("%Y-%m-%d %H:%M:%S")
+                        record_sync_runtime_event(
+                            f"{today_str} P3 全市场定时增量开始：{len(market_symbols)} 只标的，"
+                            f"批次 {batch_size}，并发 {workers}", "running")
+                        total_ok = total_fail = 0
+                        batches = [market_symbols[i:i + batch_size] for i in range(0, len(market_symbols), batch_size)]
+                        for bi, chunk in enumerate(batches, start=1):
+                            res = await loop.run_in_executor(
+                                None,
+                                lambda c=chunk: engine.sync_batch(c, mode="incremental", max_workers=workers),
+                            )
+                            total_ok += res.get("success_count", 0)
+                            total_fail += res.get("failed_count", 0)
+                            record_sync_runtime_event(
+                                f"{today_str} P3 批次 {bi}/{len(batches)}：累计成功 {total_ok}，失败 {total_fail}",
+                                "running",
+                            )
+                        status = "success" if total_fail == 0 and total_ok > 0 else ("degraded" if total_ok > 0 else "failed")
+                        record_sync_runtime_event(
+                            f"{today_str} P3 全市场定时增量完成：成功 {total_ok}，失败 {total_fail}（{status}）", status)
+                        executed_dates["P3"] = today_str
+                    finally:
+                        release_p3(owner)
         except asyncio.CancelledError:
             break
         except Exception as exc:
@@ -229,6 +303,7 @@ def create_app() -> FastAPI:
     app.include_router(tasks_router)
     app.include_router(models_mgmt_router)
     app.include_router(market_data_router)
+    app.include_router(data_sync_router)
 
     # Mount Static Web UI & Assets
     web_dir = Path(__file__).resolve().parent.parent.parent / "web"

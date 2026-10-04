@@ -14,6 +14,8 @@ _TEST_RUNTIME_ROOT = Path(tempfile.mkdtemp(prefix="astock-pytest-"))
 os.environ.setdefault("A_STOCK_RUNTIME_MODE", "test")
 os.environ.setdefault("A_STOCK_DEFAULT_MODEL", "mock")
 os.environ.setdefault("A_STOCK_DB_PATH", str(_TEST_RUNTIME_ROOT / "chats.db"))
+# 数据同步设置持久化文件默认落在测试临时根目录，避免回归测试污染真实 local/settings
+os.environ.setdefault("A_STOCK_DATA_SYNC_SETTINGS_FILE", str(_TEST_RUNTIME_ROOT / "settings" / "data_sync.json"))
 atexit.register(shutil.rmtree, _TEST_RUNTIME_ROOT, ignore_errors=True)
 
 ROOT = Path(__file__).resolve().parent.parent

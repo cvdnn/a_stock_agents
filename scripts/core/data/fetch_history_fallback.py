@@ -759,6 +759,23 @@ def _fetch_all_stocks_xueqiu(market: str) -> pd.DataFrame:
     return out
 
 
+def get_market_stock_list(market: str = "all") -> list:
+    """程序化获取带前缀的市场股票代码列表（新浪零依赖列表接口，SSOT 唯一列表源）。
+
+    market: all|sh|sz；bj 当前无权威列表源，调用方须显式处理 unsupported。
+    返回空列表表示上游不可用（零虚假数据原则：不猜测、不生成候选段号）。
+    """
+    if market == "bj":
+        raise ValueError("北交所股票列表暂无权威数据源支持（unsupported）")
+    session = _build_session()
+    session.trust_env = False
+    node = None if market in ("all", "full_market") else market
+    df = _fetch_all_stocks_sina(session, node)
+    if df is None or df.empty or "代码" not in df.columns:
+        return []
+    return [str(c) for c in df["代码"].tolist() if c]
+
+
 def cmd_all_stocks(args):
     """获取全市场股票列表（新浪/腾讯/雪球 多源兜底）"""
     session = _build_session()
