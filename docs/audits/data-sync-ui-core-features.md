@@ -2,6 +2,7 @@
 
 > 用途：指导 A-Stock Agents「数据同步」页面的信息架构、功能布局与交互状态设计。
 > 依据：[现有界面规范](../guidelines/ui/market-data-sync-control-console-specification.md)、[数据同步规则](../guidelines/data/market-data-sync-specification.md)。
+> 配色参考：[项目工程 UI 设计配色提取](./project-ui-color-tokens-extracted.md)。
 
 建议沿用项目现有的 **运行控制、任务记录、高级设置** 三个页签。页面定位是行情数据的运行控制台，操作和结果都由系统接口提供，不依赖 AI 对话。
 
