@@ -616,6 +616,7 @@ class DataSyncEngine:
         pool: Optional[str] = None,
         include_indices: bool = False,
         all_pool: bool = False,
+        pools: Optional[List[str]] = None,
     ) -> List[str]:
         symbols: Set[str] = set()
 
@@ -632,6 +633,16 @@ class DataSyncEngine:
                 if c:
                     symbols.add(DataBridge.normalize_symbol(c, with_prefix=True))
 
+        if pools:
+            if not isinstance(pools, list) or any(name not in ("holdings", "watchlist", "focus") for name in pools):
+                raise ValueError("pools 仅支持 holdings/watchlist/focus 列表")
+            pm = PoolManager()
+            for name in pools:
+                for item in pm.get_pool(name):
+                    c = item.get("code") or item.get("symbol")
+                    if c:
+                        symbols.add(DataBridge.normalize_symbol(c, with_prefix=True))
+
         if all_pool:
             pm = PoolManager()
             for p_name in ["holdings", "watchlist", "focus"]:
@@ -644,7 +655,7 @@ class DataSyncEngine:
             for idx in self.DEFAULT_INDICES:
                 symbols.add(idx)
 
-        if not symbols:
+        if not symbols and codes is None and not pool and pools is None and not include_indices and not all_pool:
             pm = PoolManager()
             for item in pm.get_pool("holdings"):
                 c = item.get("code") or item.get("symbol")
@@ -1077,6 +1088,8 @@ class DataSyncEngine:
             "total_requested": len(symbols),
             "success_count": success_count,
             "failed_count": failed_count,
+            "failed_symbols": [symbols[i] for i, result in enumerate(results)
+                               if result is not None and result.get("status") not in ("success", "up_to_date")],
             "elapsed_seconds": elapsed,
             "workers": workers,
             "details": [r for r in results if r is not None],

@@ -16,6 +16,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, Body, HTTPException
 
 from server.services import data_sync_settings as settings_service
+from server.services import data_sync_import as import_service
 
 router = APIRouter(prefix="/api/data-sync", tags=["Data Sync Console"])
 
@@ -62,27 +63,55 @@ async def reset_data_sync_settings() -> Dict[str, Any]:
     return {"status": "success", "settings": effective, "message": "已恢复服务端默认设置"}
 
 
+@router.post("/import/preview")
+async def preview_data_sync_import(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+    """校验本地文件内容；预览不会写入行情库。"""
+    try:
+        return import_service.preview_import(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/import/commit")
+async def commit_data_sync_import(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+    """重新校验同一文件并提交日线数据。"""
+    try:
+        return import_service.commit_import(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.get("/overview")
 async def get_data_sync_overview() -> Dict[str, Any]:
     """运行控制页概览：只聚合真实运行时、真实任务与真实股池数据。"""
     from core.data.sync_daemon import SYNC_ARBITER, sync_runtime_snapshot
-    from core.data.sync_engine import TradeCalendar
+    from core.data.sync_engine import DB_PATH, DataSyncEngine, TradeCalendar
     from core.strategy.pool_manager import PoolManager
+    from server.services.data_sync_overview import build_daily_health
     from server.tasks.task_manager import get_task_manager
 
     phase = TradeCalendar.get_market_phase()
     summary = settings_service.settings_summary_for_ui()
 
     pools: Dict[str, Any] = {}
+    pool_codes: Dict[str, Any] = {}
+    pools_available = True
     try:
         pm = PoolManager()
         for name in ("holdings", "watchlist", "focus"):
-            pools[name] = len(pm.get_pool(name) or [])
+            entries = pm.get_pool(name) or []
+            pools[name] = len(entries)
+            pool_codes[name] = [item.get("code") or item.get("symbol") for item in entries if isinstance(item, dict)]
     except Exception:
         pools = {"holdings": None, "watchlist": None, "focus": None}
+        pool_codes = {}
+        pools_available = False
+
+    daily_health = build_daily_health(phase, pool_codes, DataSyncEngine.DEFAULT_INDICES, DB_PATH) if pools_available else None
 
     recent_tasks = []
     latest_p3 = None
+    last_audit = None
     try:
         tasks = get_task_manager().list_tasks(status=None, limit=50)
         for task in tasks:
@@ -102,6 +131,22 @@ async def get_data_sync_overview() -> Dict[str, Any]:
             recent_tasks.append(item)
             if item["tier"] == "P3" and latest_p3 is None:
                 latest_p3 = item
+            params = raw.get("params") or {}
+            result = raw.get("result") or {}
+            if (last_audit is None and raw.get("status") == "completed"
+                    and (params.get("check") is True or params.get("mode") == "audit")
+                    and result.get("action") == "check"):
+                last_audit = {
+                    "task_id": raw.get("task_id"),
+                    "completed_at": raw.get("completed_at"),
+                    "scope": params.get("scope") or (
+                        "registered_pools_and_indices" if params.get("all") and params.get("indices")
+                        else "registered_pools" if params.get("all") else "selected"
+                    ),
+                    "total_codes": result.get("total_codes"),
+                    "missing_gaps": result.get("missing_gaps"),
+                    "suspended_gaps": result.get("suspended_gaps"),
+                }
     except Exception:
         recent_tasks = []
 
@@ -129,10 +174,13 @@ async def get_data_sync_overview() -> Dict[str, Any]:
         },
         "local_layer": summary["local_layer"],
         "pools": pools,
+        "daily_health": daily_health,
+        "last_audit": last_audit,
         "recent_sync_tasks": recent_tasks[:10],
         "latest_p3_task": latest_p3,
         "availability": {
             "settings_persisted": summary["persisted_status"] == "ok",
             "tasks_available": bool(recent_tasks),
+            "pools_available": pools_available,
         },
     }

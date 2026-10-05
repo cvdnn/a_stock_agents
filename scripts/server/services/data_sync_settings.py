@@ -17,6 +17,7 @@ import json
 import os
 import re
 import threading
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -65,6 +66,27 @@ DEFAULTS: Dict[str, Any] = {
     "cooperation": {
         "tdx_target_pool": "watchlist",  # 通达信导入默认目标股池
     },
+    # 新工作台的目标配置。已接入的执行参数仍由 base/daemon/p3 等域驱动；
+    # 其他目标范围只持久化，不声称当前执行层已支持。
+    "workspace": {
+        "common": {
+            "frequency": "trading_day", "time": "16:30", "mode": "incremental",
+            "prioritize_pools": True, "markets": ["sh", "sz", "bj"],
+            "datasets": ["basic", "daily", "minute", "factor", "index", "finance", "valuation", "industry"],
+            "minute_periods": [1, 5, 15, 30, 60], "minute_days": 30,
+        },
+        "history": {"start_mode": "listing", "start_date": "", "end_mode": "last_complete", "end_date": "", "skip_complete": True},
+        "quality": {
+            "audit_when": "after_update", "check_items": ["missing_date", "duplicate", "required"],
+            "repair_scope": "abnormal_only", "repair_skip": True,
+            "auto_retry": True, "retry_max": 3, "retry_interval_seconds": 60,
+        },
+        "performance": {
+            "primary": "tencent", "backup": "sina", "auto_failover": True,
+            "request_interval_ms": 500, "auto_throttle": True,
+        },
+        "import_rules": {"data_type": "daily", "mode": "missing", "validate_before": True},
+    },
 }
 
 
@@ -102,6 +124,28 @@ def _check_time(errors: List[Dict[str, str]], field: str, value: Any) -> None:
 def _check_bool(errors: List[Dict[str, str]], field: str, value: Any) -> None:
     if not isinstance(value, bool):
         errors.append({"field": field, "reason": "必须为布尔值 true/false"})
+
+
+def _check_choice(errors: List[Dict[str, str]], field: str, value: Any, choices: Tuple[Any, ...]) -> None:
+    if value not in choices:
+        errors.append({"field": field, "reason": f"必须属于 {list(choices)}"})
+
+
+def _check_list(errors: List[Dict[str, str]], field: str, value: Any, choices: Tuple[Any, ...]) -> None:
+    if not isinstance(value, list) or not value or len(value) != len(set(str(item) for item in value)) or any(item not in choices for item in value):
+        errors.append({"field": field, "reason": f"须为非空、无重复的 {list(choices)} 子集"})
+
+
+def _check_optional_date(errors: List[Dict[str, str]], field: str, value: Any) -> None:
+    if not isinstance(value, str):
+        errors.append({"field": field, "reason": "日期须为 YYYY-MM-DD 或空值"})
+        return
+    if value:
+        try:
+            if date.fromisoformat(value).isoformat() != value:
+                raise ValueError("bad date format")
+        except ValueError:
+            errors.append({"field": field, "reason": "日期须为 YYYY-MM-DD 或空值"})
 
 
 def validate_patch(patch: Dict[str, Any]) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
@@ -205,8 +249,64 @@ def validate_patch(patch: Dict[str, Any]) -> Tuple[List[Dict[str, str]], Dict[st
         if "tdx_target_pool" in coop and coop["tdx_target_pool"] not in ("watchlist", "focus", "holdings"):
             errors.append({"field": "cooperation.tdx_target_pool", "reason": "目标股池仅支持 watchlist / focus / holdings"})
 
+    workspace = patch.get("workspace")
+    if "workspace" in patch and not isinstance(workspace, dict):
+        errors.append({"field": "workspace", "reason": "必须为配置对象"})
+    elif isinstance(workspace, dict):
+        for section, fields in workspace.items():
+            if section not in DEFAULTS["workspace"]:
+                errors.append({"field": f"workspace.{section}", "reason": "未知设置分组"})
+                continue
+            if not isinstance(fields, dict):
+                errors.append({"field": f"workspace.{section}", "reason": "必须为配置对象"})
+                continue
+            allowed = DEFAULTS["workspace"][section]
+            for key, value in fields.items():
+                field = f"workspace.{section}.{key}"
+                if key not in allowed:
+                    errors.append({"field": field, "reason": "未知字段，不在白名单内"})
+                    continue
+                if key in ("time",):
+                    _check_time(errors, field, value)
+                elif key in ("start_date", "end_date"):
+                    _check_optional_date(errors, field, value)
+                elif key in ("prioritize_pools", "skip_complete", "repair_skip", "auto_retry", "auto_failover", "auto_throttle", "validate_before"):
+                    _check_bool(errors, field, value)
+                elif key == "markets":
+                    _check_list(errors, field, value, ("sh", "sz", "bj"))
+                elif key == "datasets":
+                    _check_list(errors, field, value, ("basic", "daily", "minute", "factor", "index", "finance", "valuation", "industry"))
+                elif key == "minute_periods":
+                    _check_list(errors, field, value, (1, 5, 15, 30, 60))
+                elif key == "check_items":
+                    _check_list(errors, field, value, ("missing_date", "duplicate", "required"))
+                elif key in ("minute_days", "retry_max", "retry_interval_seconds", "request_interval_ms"):
+                    limits = {"minute_days": (5, 60), "retry_max": (0, 5), "retry_interval_seconds": (30, 300), "request_interval_ms": (0, 1000)}
+                    if isinstance(value, bool) or not isinstance(value, int) or not limits[key][0] <= value <= limits[key][1]:
+                        errors.append({"field": field, "reason": f"必须为 {limits[key][0]}–{limits[key][1]} 的整数"})
+                else:
+                    enums = {
+                        "frequency": ("trading_day",), "mode": (("missing", "overwrite") if section == "import_rules" else ("incremental", "history")),
+                        "start_mode": ("listing", "custom"), "end_mode": ("last_complete", "custom"),
+                        "audit_when": ("after_update", "manual"), "repair_scope": ("abnormal_only", "all_missing"),
+                        "primary": EXTERNAL_PROVIDERS, "backup": EXTERNAL_PROVIDERS,
+                        "data_type": ("daily", "minute", "factor"),
+                    }
+                    _check_choice(errors, field, value, enums.get(key, (allowed[key],)))
+        history = workspace.get("history")
+        if isinstance(history, dict):
+            if history.get("start_mode") == "custom" and not history.get("start_date"):
+                errors.append({"field": "workspace.history.start_date", "reason": "自定义起始范围必须填写日期"})
+            if history.get("end_mode") == "custom" and not history.get("end_date"):
+                errors.append({"field": "workspace.history.end_date", "reason": "自定义结束范围必须填写日期"})
+            if history.get("start_date") and history.get("end_date") and str(history["start_date"]) > str(history["end_date"]):
+                errors.append({"field": "workspace.history.end_date", "reason": "结束日期不得早于起始日期"})
+        performance = workspace.get("performance")
+        if isinstance(performance, dict) and performance.get("primary") and performance.get("primary") == performance.get("backup"):
+            errors.append({"field": "workspace.performance.backup", "reason": "备用数据源应不同于首选数据源"})
+
     # 合并后再验"至少保留一个可用外部数据源"（对候选有效值判定，而非仅补丁）
-    candidate = _deep_merge(DEFAULTS, {}) if errors else _deep_merge(DEFAULTS, patch)
+    candidate = effective_settings() if errors else _deep_merge(effective_settings(), patch)
     if isinstance(ext, dict) or "external_sources" in patch:
         enabled_map = (candidate.get("external_sources") or {}).get("enabled") or {}
         if ext and isinstance(ext.get("enabled"), dict) and not any(
@@ -256,6 +356,7 @@ def local_layer_snapshot() -> Dict[str, Any]:
 
     exists = Path(DB_PATH).is_file()
     wal_mode = None
+    daily_coverage = {"symbols": None, "as_of": None, "rows": None}
     if exists:
         try:
             import sqlite3
@@ -263,6 +364,9 @@ def local_layer_snapshot() -> Dict[str, Any]:
             try:
                 row = conn.execute("PRAGMA journal_mode;").fetchone()
                 wal_mode = str(row[0]) if row else None
+                row = conn.execute("SELECT COUNT(DISTINCT symbol), MAX(date), COUNT(*) FROM daily_kline").fetchone()
+                if row:
+                    daily_coverage = {"symbols": row[0], "as_of": row[1], "rows": row[2]}
             finally:
                 conn.close()
         except Exception:
@@ -274,6 +378,7 @@ def local_layer_snapshot() -> Dict[str, Any]:
     return {
         "db_relative_path": rel,
         "db_exists": exists,
+        "daily_coverage": daily_coverage,
         "journal_mode": wal_mode,
         "read_only_fields": ["db_relative_path", "journal_mode"],
         "note": "本地层为存储与离线读取观测，不参与外部行情源优先级排序",

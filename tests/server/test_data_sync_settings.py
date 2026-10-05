@@ -19,6 +19,87 @@ from server.db import create_auth_token
 from server.services import data_sync_settings as svc
 
 
+def test_full_market_update_can_include_core_indices_without_pool_filter():
+    from server.tasks import task_manager
+
+    class Engine:
+        DEFAULT_INDICES = ("sh000001", "sz399001")
+
+        def list_market_symbols(self, scope):
+            assert scope == "full_market"
+            return ["sh600519", "sz000001", "sh000001"]
+
+    assert hasattr(task_manager, "resolve_p3_symbols")
+    assert task_manager.resolve_p3_symbols(Engine(), "full_market", True) == [
+        "sh600519", "sz000001", "sh000001", "sz399001",
+    ]
+
+    class EmptyEngine(Engine):
+        def list_market_symbols(self, scope):
+            return []
+
+    assert task_manager.resolve_p3_symbols(EmptyEngine(), "full_market", True) == []
+
+
+def test_batch_update_creates_separate_index_shanghai_and_shenzhen_tasks(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from server.tasks.task_manager import TaskManager
+
+    submitted = []
+    monkeypatch.setattr("server.tasks.task_manager.update_task_record", lambda **_kwargs: None)
+
+    class Manager(TaskManager):
+        def submit_task(self, task_type, params, timeout_seconds=300):
+            task_id = f"child-{len(submitted) + 1}"
+            submitted.append((task_type, params, timeout_seconds))
+            self._running_tasks[task_id] = asyncio.create_task(asyncio.sleep(0))
+            return SimpleNamespace(task_id=task_id)
+
+        def get_task(self, task_id):
+            index = int(task_id[-1])
+            return SimpleNamespace(
+                task_id=task_id,
+                status="failed" if index == 2 else "completed",
+                result={"success_count": 10, "failed_count": 2 if index == 1 else 0},
+                error="上游不可用" if index == 2 else None,
+            )
+
+    result = asyncio.run(Manager()._run_data_sync_batch("parent-1", {"trigger": "manual"}))
+    assert [(kind, params["tier"], params.get("scope")) for kind, params, _ in submitted] == [
+        ("data_sync", "P2", "indices"),
+        ("data_sync", "P3", "sh"),
+        ("data_sync", "P3", "sz"),
+    ]
+    assert all(params["parent_task_id"] == "parent-1" for _, params, _ in submitted)
+    assert [timeout for _, _, timeout in submitted] == [1800, 7200, 7200]
+    assert result["status"] == "degraded"
+    assert result["failed_tasks"] == 2
+    assert len(result["children"]) == 3
+
+
+def test_batch_update_uses_dedicated_dispatch_instead_of_skill_registry(monkeypatch):
+    """Regression: the batch parent must not be treated as a skill id."""
+    import asyncio
+    from server.tasks.task_manager import TaskManager
+
+    manager = TaskManager()
+    calls = []
+
+    async def run_batch(task_id, params):
+        calls.append((task_id, params))
+        return {"status": "success", "children": []}
+
+    monkeypatch.setattr(manager, "_run_data_sync_batch", run_batch)
+
+    result = asyncio.run(manager._run_specialized_task(
+        "parent-1", "data_sync_batch", {"trigger": "manual"},
+    ))
+
+    assert result == {"status": "success", "children": []}
+    assert calls == [("parent-1", {"trigger": "manual"})]
+
+
 @pytest.fixture
 def auth_headers():
     tok = create_auth_token(1, 3600)
@@ -73,6 +154,22 @@ def test_validate_external_order_must_be_full_permutation():
     assert any(e["field"] == "external_sources.order" for e in errors)
 
 
+def test_workspace_settings_validate_nested_fields_and_preserve_previous_save(isolated_settings_file):
+    errors, _ = svc.validate_patch({"workspace": {
+        "common": {"markets": [], "mode": "overwrite", "unexpected": True},
+        "history": {"start_mode": "custom", "start_date": ""},
+    }})
+    assert {"workspace.common.markets", "workspace.common.mode", "workspace.common.unexpected",
+            "workspace.history.start_date"} <= {error["field"] for error in errors}
+
+    errors, _ = svc.save_settings({"workspace": {"common": {"minute_days": 60}}})
+    assert errors == []
+    errors, effective = svc.save_settings({"workspace": {"quality": {"retry_max": 5}}})
+    assert errors == []
+    assert effective["workspace"]["common"]["minute_days"] == 60
+    assert effective["workspace"]["quality"]["retry_max"] == 5
+
+
 # ---------------------------------------------------------------------------
 # 持久化：local/ 落盘、权限、原子写、重启回读、损坏回退（清单第 2/5 条）
 # ---------------------------------------------------------------------------
@@ -83,7 +180,8 @@ def test_save_persists_under_local_with_owner_only_permissions(isolated_settings
     path = isolated_settings_file
     assert path.is_file()
     mode = stat.S_IMODE(path.stat().st_mode)
-    assert mode & 0o077 == 0, f"设置文件权限必须仅当前用户可读写，实为 {oct(mode)}"
+    if os.name != "nt":
+        assert mode & 0o077 == 0, f"设置文件权限必须仅当前用户可读写，实为 {oct(mode)}"
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert saved["p3"]["time"] == "16:30" and saved["p3"]["batch_size"] == 800
     assert effective["p3"]["batch_size"] == 800
@@ -181,11 +279,66 @@ def test_overview_endpoint_only_real_aggregates(auth_headers, isolated_settings_
         data = resp.json()
         assert data["status"] == "success"
         assert {"market_phase", "daemon", "settings_summary", "pools", "recent_sync_tasks",
-                "latest_p3_task", "availability", "arbiter"} <= set(data)
+                "latest_p3_task", "availability", "arbiter", "daily_health", "last_audit"} <= set(data)
+        assert set(data["daily_health"]["tiers"]) == {"P0", "P1", "P2"}
+        assert data["daily_health"]["target_date"] <= data["market_phase"]["date"]
         assert isinstance(data["recent_sync_tasks"], list)
         # 无 P3 任务时必须为 null，不得伪造演示任务
         assert data["latest_p3_task"] is None or data["latest_p3_task"]["tier"] == "P3"
         assert data["settings_summary"]["p3"]["batch_size"] in (500, 600, 800)  # 默认或测试补丁值
+
+
+def test_daily_health_uses_settled_target_and_real_meta(tmp_path):
+    import sqlite3
+    from server.services.data_sync_overview import build_daily_health
+
+    db = tmp_path / "market.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute("CREATE TABLE sync_meta (symbol TEXT PRIMARY KEY, max_date TEXT, is_settled INTEGER)")
+        conn.executemany("INSERT INTO sync_meta VALUES (?, ?, ?)", [
+            ("sh600519", "2026-09-30", 1),
+            ("sz000001", "2026-09-29", 1),
+            ("sh000001", "2026-09-30", 1),
+        ])
+    phase = {"date_str": "2026-10-08", "is_trading_day": True, "is_settled": False}
+    health = build_daily_health(
+        phase, {"holdings": ["600519"], "watchlist": ["000001"], "focus": ["600519"]},
+        ["sh000001"], db,
+    )
+    assert health["target_date"] == "2026-09-30"
+    assert health["target_note"] == "今日未定盘，按上一交易日判断"
+    assert health["registered"]["total"] == 3
+    assert health["registered"]["fresh"] == 2
+    assert health["registered"]["pending"] == 1
+    assert health["registered"]["without_data"] == 0
+    assert health["tiers"]["P1"]["total"] == 2
+    assert health["tiers"]["P1"]["pending"] == 1
+
+
+def test_daily_health_missing_database_is_not_reported_as_complete(tmp_path):
+    from server.services.data_sync_overview import build_daily_health
+
+    phase = {"date_str": "2026-10-08", "is_trading_day": True, "is_settled": True}
+    health = build_daily_health(
+        phase, {"holdings": ["600519"], "watchlist": [], "focus": []},
+        [], tmp_path / "absent.db",
+    )
+    assert health["target_date"] == "2026-10-08"
+    assert health["registered"]["total"] == 1
+    assert health["registered"]["without_data"] == 1
+    assert health["registered"]["pending"] == 1
+    assert health["registered"]["state"] == "no_data"
+    assert health["availability"]["local_meta"] is False
+
+
+def test_overview_does_not_claim_pool_coverage_when_pool_read_fails(auth_headers, isolated_settings_file, monkeypatch):
+    from core.strategy.pool_manager import PoolManager
+
+    with TestClient(app) as client:
+        monkeypatch.setattr(PoolManager, "get_pool", lambda self, name: (_ for _ in ()).throw(OSError("pool offline")))
+        data = client.get("/api/data-sync/overview", headers=auth_headers).json()
+    assert data["pools"] == {"holdings": None, "watchlist": None, "focus": None}
+    assert data["daily_health"] is None
 
 
 def test_monitor_stream_no_fabricated_events(auth_headers):
@@ -265,6 +418,34 @@ def test_p3_arbiter_mutex_and_no_preempt():
     assert ok3 is False and "抢占" in reason3
     set_core_sync_active(False)
     assert p3_conflict_reason() is None
+
+
+def test_p3_result_retains_all_failed_symbols_across_batches(monkeypatch):
+    import asyncio
+    from server.tasks.task_manager import TaskManager
+
+    class FakeEngine:
+        def list_market_symbols(self, _scope):
+            return ["sh600519", "sz000001", "sh600000"]
+
+        def sync_batch(self, symbols, **_kwargs):
+            failed = [symbol for symbol in symbols if symbol != "sh600519"]
+            return {"success_count": len(symbols) - len(failed), "failed_count": len(failed),
+                    "failed_symbols": failed, "details": []}
+
+    class DirectLoop:
+        async def run_in_executor(self, _executor, fn):
+            return fn()
+
+    monkeypatch.setattr("core.data.sync_daemon.try_acquire_p3", lambda _task_id: (True, None))
+    monkeypatch.setattr("core.data.sync_daemon.release_p3", lambda _task_id: None)
+    monkeypatch.setattr("server.services.data_sync_settings.effective_settings",
+                        lambda: {"p3": {"batch_size": 2, "concurrency": 1}})
+    monkeypatch.setattr("server.tasks.task_manager.update_task_record", lambda **_kwargs: None)
+    result = asyncio.run(TaskManager()._run_p3_sync(
+        "batch-test", FakeEngine(), DirectLoop(), {}, "full_market", "incremental", []))
+    assert result["failed_count"] == 2
+    assert result["failed_symbols"] == ["sz000001", "sh600000"]
 
 
 def test_p3_task_creation_rejected_with_409_when_active(auth_headers, isolated_settings_file):

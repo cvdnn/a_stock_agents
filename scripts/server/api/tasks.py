@@ -22,6 +22,13 @@ async def create_task(req: TaskCreateRequest):
     """Enqueue a long-running quantitative research or debate task."""
     # P3 单任务互斥 + 不抢占 P0/P1：创建前预检，冲突直接 409，不产生垃圾任务记录
     timeout_seconds = req.timeout_seconds or 300
+    if req.task_type == "data_sync_batch":
+        manager = get_task_manager()
+        active = next((task for task in manager.list_tasks(limit=50)
+                       if task.task_type == "data_sync_batch" and task.status.value in ("pending", "running")), None)
+        if active:
+            raise HTTPException(status_code=409, detail=f"已有全部日线更新任务：{active.task_id}")
+        timeout_seconds = 18000  # 3 个子任务各有独立超时，父任务只负责汇总
     if req.task_type == "data_sync" and str((req.params or {}).get("tier") or "").upper() == "P3":
         from core.data.sync_daemon import p3_conflict_reason
 

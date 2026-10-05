@@ -73,7 +73,16 @@ const AStockAPI = {
       body: JSON.stringify(payload)
     });
   },
+  resetDataSyncSettings() {
+    return this._fetchJSON('/api/data-sync/settings/reset', { method: 'POST' });
+  },
   getDataSyncOverview() { return this._fetchJSON('/api/data-sync/overview'); },
+  previewDataSyncImport(payload) {
+    return this._fetchJSON('/api/data-sync/import/preview', { method: 'POST', body: JSON.stringify(payload) });
+  },
+  commitDataSyncImport(payload) {
+    return this._fetchJSON('/api/data-sync/import/commit', { method: 'POST', body: JSON.stringify(payload) });
+  },
   importTdxPool(pool = 'watchlist', content = '') {
     return this._fetchJSON('/api/pools/import_tdx', {
       method: 'POST',

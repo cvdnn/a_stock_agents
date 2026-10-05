@@ -25,6 +25,18 @@ from server.db import (
 logger = get_logger("server.tasks.task_manager")
 
 
+def resolve_p3_symbols(engine, scope: str, include_indices: bool = False) -> List[str]:
+    """Resolve a market batch, optionally including the supported core indices."""
+    if include_indices and scope != "full_market":
+        raise ValueError("核心指数只能与全市场范围一起更新")
+    symbols = list(dict.fromkeys(engine.list_market_symbols(scope)))
+    if not symbols:
+        return []
+    if include_indices:
+        symbols.extend(index for index in engine.DEFAULT_INDICES if index not in symbols)
+    return symbols
+
+
 class TaskStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
@@ -249,6 +261,9 @@ class TaskManager:
         """Execute task logic depending on task_type."""
         loop = asyncio.get_running_loop()
 
+        if task_type == "data_sync_batch":
+            return await self._run_data_sync_batch(task_id, params)
+
         if task_type in ("screen_5a", "screener"):
             update_task_record(task_id=task_id, progress=0.3, status_message="Scanning market sectors")
             from server.agent.tools import _sync_astock_screen_5a
@@ -298,7 +313,7 @@ class TaskManager:
             scope = str(params.get("scope") or "").lower()
 
             # P0/P1/P2 定盘/池同步期间置核心活跃标记：P3 启动前据此让路（不抢占）
-            if tier in ("P0", "P1", "P2"):
+            if tier in ("P0", "P1", "P2", "P0-P2"):
                 from core.data.sync_daemon import set_core_sync_active
                 set_core_sync_active(True)
                 try:
@@ -338,6 +353,64 @@ class TaskManager:
             )
             return test_resp.model_dump()
 
+    async def _run_data_sync_batch(self, task_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Run supported daily-K datasets as separate, sequential child tasks."""
+        steps = (
+            ("核心指数日 K", {"tier": "P2", "scope": "indices", "indices": True}, 1800),
+            ("沪市日 K", {"tier": "P3", "scope": "sh"}, 7200),
+            ("深市日 K", {"tier": "P3", "scope": "sz"}, 7200),
+        )
+        children: List[Dict[str, Any]] = []
+        for index, (label, step, timeout) in enumerate(steps):
+            child_params = {
+                **step, "mode": "incremental", "trigger": params.get("trigger", "manual"),
+                "parent_task_id": task_id,
+            }
+            child = self.submit_task("data_sync", child_params, timeout_seconds=timeout)
+            children.append({"task_id": child.task_id, "label": label, "status": "running"})
+            update_task_record(
+                task_id=task_id, progress=0.05 + 0.9 * index / len(steps),
+                status_message=f"正在执行 {label}（{index + 1}/{len(steps)}）",
+                result={"status": "running", "children": children},
+            )
+            running = self._running_tasks.get(child.task_id)
+            if running is not None:
+                await running
+            finished = self.get_task(child.task_id)
+            child_status = getattr(finished, "status", "failed")
+            child_status = child_status.value if hasattr(child_status, "value") else str(child_status)
+            child_result = getattr(finished, "result", None) or {}
+            children[-1] = {
+                "task_id": child.task_id,
+                "label": label,
+                "status": child_status,
+                "result_status": child_result.get("status"),
+                "success_count": int(child_result.get("success_count") or 0),
+                "failed_count": int(child_result.get("failed_count") or 0),
+                "error": getattr(finished, "error", None),
+            }
+            update_task_record(
+                task_id=task_id, progress=0.05 + 0.9 * (index + 1) / len(steps),
+                status_message=f"已完成 {label}（{index + 1}/{len(steps)}）",
+                result={"status": "running", "children": children},
+            )
+        failed_tasks = sum(
+            child["status"] != "completed"
+            or child["result_status"] in ("degraded", "error")
+            or child["failed_count"] > 0
+            for child in children
+        )
+        success_count = sum(child["success_count"] for child in children)
+        status = "success" if not failed_tasks else "degraded" if success_count else "error"
+        return {
+            "status": status,
+            "children": children,
+            "total_tasks": len(steps),
+            "failed_tasks": failed_tasks,
+            "success_count": success_count,
+            "failed_count": sum(child["failed_count"] for child in children),
+        }
+
     async def _run_data_sync_core(
         self, task_id: str, engine: Any, loop: Any, params: Dict[str, Any],
         codes: List[str], pool: Optional[str], indices: bool, all_pool: bool,
@@ -346,7 +419,8 @@ class TaskManager:
     ) -> Dict[str, Any]:
         """data_sync 四模式执行体：完整性审计 / 靶向修复 / 当日快照 / 批量增量-全量。"""
         symbols = engine.resolve_symbols(
-            codes=codes, pool=pool, include_indices=indices, all_pool=all_pool
+            codes=codes or None, pool=pool, include_indices=indices, all_pool=all_pool,
+            pools=params.get("pools"),
         )
 
         # 1. 数据完整性体检
@@ -464,7 +538,9 @@ class TaskManager:
                 batches = [symbols[i:i + batch_size] for i in range(0, len(symbols), batch_size)]
             else:
                 update_task_record(task_id=task_id, progress=0.1, status_message=f"Resolving {scope} market stock list")
-                symbols = await loop.run_in_executor(None, lambda: engine.list_market_symbols(scope))
+                symbols = await loop.run_in_executor(
+                    None, lambda: resolve_p3_symbols(engine, scope, bool(params.get("include_indices")))
+                )
                 if not symbols:
                     raise ValueError("市场清单上游暂不可用（degraded），已拒绝以伪造或缓存清单执行同步")
                 batches = [symbols[i:i + batch_size] for i in range(0, len(symbols), batch_size)]
@@ -473,6 +549,7 @@ class TaskManager:
             total = len(symbols)
             success_count = 0
             failed_count = 0
+            failed_symbols: List[str] = []
             details: List[Dict[str, Any]] = []
             for batch_index, chunk in enumerate(batches, start=1):
                 update_task_record(
@@ -491,6 +568,7 @@ class TaskManager:
                 )
                 success_count += res.get("success_count", 0)
                 failed_count += res.get("failed_count", 0)
+                failed_symbols.extend(res.get("failed_symbols") or [])
                 details.extend((res.get("details") or [])[:200])
 
             # 局部失败如实 degraded，不伪装全部成功（SSOT §4.3 进度契约）
@@ -506,6 +584,7 @@ class TaskManager:
                 "total_requested": total,
                 "success_count": success_count,
                 "failed_count": failed_count,
+                "failed_symbols": failed_symbols,
                 "batches": len(batches),
                 "batch_size": batch_size,
                 "workers": workers,

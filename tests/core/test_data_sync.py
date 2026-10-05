@@ -43,6 +43,32 @@ class TestDataSyncEngine(unittest.TestCase):
         self.assertNotIn("2026-06-06", days)
         self.assertNotIn("2026-06-07", days)
 
+    def test_resolve_symbols_accepts_selected_pools_without_adding_holdings(self):
+        fake_pools = {
+            "watchlist": [{"code": "000001"}],
+            "focus": [{"code": "600519"}],
+            "holdings": [{"code": "000002"}],
+        }
+        with patch("core.data.sync_engine.PoolManager") as manager:
+            manager.return_value.get_pool.side_effect = lambda name: fake_pools[name]
+            symbols = self.engine.resolve_symbols(pools=["watchlist", "focus"])
+        self.assertEqual(symbols, ["sh600519", "sz000001"])
+
+    def test_empty_explicit_pools_do_not_fall_back_to_holdings_and_indices(self):
+        with patch("core.data.sync_engine.PoolManager") as manager:
+            manager.return_value.get_pool.return_value = []
+            symbols = self.engine.resolve_symbols(pools=["watchlist", "focus"])
+        self.assertEqual(symbols, [])
+
+    def test_sync_batch_returns_complete_failed_symbol_list_for_targeted_retry(self):
+        def fake_sync(symbol, **_kwargs):
+            return {"symbol": symbol, "status": "error" if symbol == "sz000001" else "success"}
+
+        with patch.object(self.engine, "sync_symbol", side_effect=fake_sync):
+            result = self.engine.sync_batch(["sh600519", "sz000001"], max_workers=1)
+        self.assertEqual(result["failed_count"], 1)
+        self.assertEqual(result["failed_symbols"], ["sz000001"])
+
     def test_trading_day_and_holiday_rules(self):
         # 周末休市
         self.assertFalse(TradeCalendar.is_trading_day("2026-06-06"))  # 周六
