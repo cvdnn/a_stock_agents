@@ -10127,14 +10127,26 @@ function renderDatasyncOverview(data) {
   const stateNames = { fresh: '已更新', pending: '待更新', empty: '范围为空', no_data: '尚无数据', unknown: '水位不可用', unavailable: '未接入' };
   const watermark = (row) => row?.watermark_min && row?.watermark_max && row.watermark_min !== row.watermark_max
     ? `${row.watermark_min} ～ ${row.watermark_max}` : row?.watermark_min || '—';
-  const rows = [
-    { name: '日线行情', scope: `已登记范围 ${registered.total ?? '—'} 只`, asof: watermark(registered), quality: audit?.scope === 'registered_pools_and_indices' ? (audit.missing_gaps > 0 ? `缺漏 ${audit.missing_gaps} 处` : '审计通过') : '未检测', state: registered.state || 'unknown', action: '' },
+  const qualityClass = { complete: ' is-good', missing: ' is-bad' };
+  const coverageRows = Array.isArray(data.dataset_coverage) && data.dataset_coverage.length
+    ? data.dataset_coverage.map((item) => ({
+      name: item.name || item.key || '—',
+      scope: item.scope || '—',
+      asof: item.as_of || item.batch || '—',
+      quality: item.completeness?.label || '未检测',
+      qualityState: item.completeness?.state || 'undetected',
+      state: item.state || 'unknown',
+      action: '',
+    }))
+    : null;
+  const rows = coverageRows || [
+    { name: '日线行情', scope: `已登记范围 ${registered.total ?? '—'} 只`, asof: watermark(registered), quality: audit?.scope === 'registered_pools_and_indices' ? (audit.missing_gaps > 0 ? `缺漏 ${audit.missing_gaps} 处` : '审计通过') : '未检测', qualityState: audit?.scope === 'registered_pools_and_indices' ? (audit.missing_gaps > 0 ? 'missing' : 'complete') : 'undetected', state: registered.state || 'unknown', action: '' },
   ];
   body.innerHTML = rows.map((row) => `<tr>
     <td class="datasync-dataset-name">${escapeDatasyncHtml(row.name)}</td>
     <td>${escapeDatasyncHtml(row.scope)}</td>
     <td class="tabular-nums">${escapeDatasyncHtml(row.asof)}</td>
-    <td><span class="datasync-quality${row.quality === '未检测' ? ' is-muted' : ''}">${escapeDatasyncHtml(row.quality)}</span></td>
+    <td><span class="datasync-quality${qualityClass[row.qualityState] || ' is-muted'}">${escapeDatasyncHtml(row.quality)}</span></td>
     <td><span class="datasync-health-state is-${escapeDatasyncHtml(row.state)}"><i></i>${escapeDatasyncHtml(row.label || stateNames[row.state] || '未检测')}</span></td>
     <td>${row.action ? `<button type="button" class="btn-link-xs" data-health-action="${row.action}">更新</button>` : '<span class="datasync-no-action">—</span>'}</td>
   </tr>`).join('');

@@ -134,6 +134,8 @@ CREATE TABLE IF NOT EXISTS sync_meta (
 );
 ```
 
+> 规划数据集表（`stock_basic` / `minute_kline` / `dividend_event` / `index_member` / `financial_report` / `capital_snapshot` / `industry_class`）见本文 §5.2，仅在满足 §5.3 接入准入后允许迁移创建；准入前控制台覆盖表保持"未接入"占位。
+
 ### 2. `local/` 目录安全加固规范
 ```
 local/                              # POSIX权限: 700 (drwx------)
@@ -155,3 +157,134 @@ local/                              # POSIX权限: 700 (drwx------)
    - `.gitignore` 与 `.dockerignore` 显式写入 `local/`，杜绝本地时序库与用户账户入库。
 3. **打包发布自动化排除**：
    - 打包脚本 `scripts/tools/pack.py` 的 `EXCLUDE_DIRS` 强制排除 `"local"`。
+
+---
+
+## 五、 数据集登记册与接入规划 (Dataset Registry & Rollout)
+
+控制台"数据覆盖与更新状态"表以本登记册为**唯一设计依据**，8 个展示行与 D1–D8 一一对应。未登记的数据集不得出现在覆盖表；已登记但未接入的数据集必须以"未接入（规划：…）"与"未检测"占位呈现，严禁伪造水位（与 SPEC-UI-003 §7.2 一致）。
+
+**归属注记原则**：随日线管线内嵌的产物（P2 指数 K 线、pe/pb/turnover_pct 估值字段、前复权 JSON 镜像）一律归属 D2，不在其他数据集行重复声明接入状态；各行的"接入状态"仅以其**主存储形态**是否具备真实水位为准。
+
+**字段规避原则**：经依赖声明、技能实测文档与已安装版本函数/docstring 三重证据核验，无法确认外部接口渠道的字段（**退市日期、指数成分历史进出日期、行业变更历史区间**）一律**不入 Schema、不设同步与稽核项**；如未来业务确需变更类信息，必须先按 §5.3 准入条件 5 完成接口确认，再回本登记册重新登记。
+
+### 1. 登记册总览
+
+| # | 数据集（覆盖表行） | 主存储形态（现状） | 规划扩展 | 同步调度窗口 | 完整性稽核口径 | 外部接口渠道（已确认） | 接入状态 |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| D1 | 基础资料与交易日历 | `TradeCalendar` 规则日历（2024–2027）+ sh000001 真值延伸 | `stock_basic` 表（名称/市场/上市日期；**退市日期不入库**） | 规则内置；基础资料盘后 15:35 日增核对 | 规则区间与真值交易日对齐；基础资料按已登记标的名称/上市日期覆盖率 | 交易所官方列表 `stock_info_sh/sz/bj_name_code` + `stock_individual_info_em`；日历真值 akshare(sina) | 已接入（规则日历）；基础资料未接入 |
+| D2 | 日线行情 | `daily_kline` + `sync_meta`（含 P2 指数符号、pe/pb/turnover_pct 字段、前复权镜像） | P3 全市场水位聚合展示 | P0 15:35 / P1 15:40 / P2 盘后 / P3 16:00 增量 | 本文 §3 缺漏（Gap）与坏点探测 | 腾讯/新浪/雪球/东财 4 级降级 K 线 | 已接入 |
+| D3 | 分钟K线 | 无（盘中仅动态内存 Bar，不落盘） | `minute_kline` 表 | 盘后归档期按需回补；保留深度 1m 30 天 / 5m 90 天 / 15·30·60m 180 天滚动 | 每交易日每周期期望 Bar 数 = 交易分钟数 ÷ 周期分钟数，缺段记 gap | 腾讯 mkline m1–m60 + `stock_zh_a_hist_min_em`（技能实测 ✅） | 未接入 |
+| D4 | 复权因子与分红 | 无独立表（前复权镜像归属 D2 管线产物） | 独立复权因子表 + `dividend_event` 表 | 复权因子随 D2 于 15:35 定盘落盘；分红事件按除权除息日 15:50 增量 | 复权切片连续性随 D2 稽核；分红按交易所公告除权事件覆盖率 | 新浪 `stock_zh_a_daily(adjust="qfq-factor")` 因子序列；`stock_history_dividend` / `stock_dividend_cninfo` 分红 | 未接入 |
+| D5 | 指数与成分股 | 指数行情归属 D2（P2 五条指数同表同步） | `index_member` 最新成分快照表（含权重；**历史进出不入库**） | 成分每日 16:10 最新批次快照 | 指数行情随 D2 稽核；成分按最新批次覆盖率与权重非空率 | 中证官方 `index_stock_cons_weight_csindex`（仅最新成分+权重） | 未接入 |
+| D6 | 财务报表与指标 | 无 | `financial_report` 表 | 按披露时间每日 16:20 增量，按报告期回补 | 报告期序列完整（一季报/半年报/三季报/年报）；披露时效待巨潮渠道接入 | `stock_financial_analysis_indicator` + 三表 `_by_report_em`（技能实测 ✅）；披露日渠道预留（巨潮 `stock_report_disclosure`，本期 `disclose_date` 留空） | 未接入 |
+| D7 | 估值与股本 | pe/pb/turnover_pct 内嵌 D2 字段 | `capital_snapshot` 表（总股本/流通股本/市值） | 估值随 D2；股本快照盘后 16:30 全市场快照 | 估值随 D2 稽核；股本按字段非空率与日期连续性 | 腾讯 L1 批量快照 PE/PB/市值；股本 = 市值 ÷ 现价 推导（全市场批量） | 未接入 |
+| D8 | 行业分类 | 无（仅在线板块/行业接口能力） | `industry_class` 当前分类快照表（**变更历史不入库**） | 每日 16:40 最新分类快照 | 最新批次分类覆盖率（已登记标的） | 东财 `stock_board_industry_name_em`/`cons_em` + `stock_individual_info_em` 行业字段 + 新浪板块 | 未接入 |
+
+### 2. 规划表 Schema (SQLite)
+
+规划表仅在满足 §5.3 接入准入后由 `MarketDataStore` 迁移创建，创建前不得在覆盖表声明接入：
+
+```sql
+-- D1 基础资料（退市日期无外部接口渠道，按字段规避原则不入库）
+CREATE TABLE IF NOT EXISTS stock_basic (
+    symbol TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    market TEXT NOT NULL,              -- sh / sz / bj
+    list_date TEXT,
+    updated_at TEXT
+);
+
+-- D3 分钟K线
+CREATE TABLE IF NOT EXISTS minute_kline (
+    symbol TEXT NOT NULL,
+    freq TEXT NOT NULL,                -- 1m / 5m / 15m / 30m / 60m
+    ts TEXT NOT NULL,                  -- Bar 结束时间 YYYY-MM-DD HH:MM
+    open REAL NOT NULL, close REAL NOT NULL, high REAL NOT NULL, low REAL NOT NULL,
+    volume REAL DEFAULT 0.0, amount REAL DEFAULT 0.0,
+    PRIMARY KEY (symbol, freq, ts)
+);
+CREATE INDEX IF NOT EXISTS idx_minute_symbol_freq_ts ON minute_kline (symbol, freq, ts);
+
+-- D4 复权因子（新浪 qfq-factor 直取序列）
+CREATE TABLE IF NOT EXISTS adjust_factor (
+    symbol TEXT NOT NULL,
+    date TEXT NOT NULL,
+    factor REAL NOT NULL,
+    updated_at TEXT,
+    PRIMARY KEY (symbol, date)
+);
+
+-- D4 分红事件
+CREATE TABLE IF NOT EXISTS dividend_event (
+    symbol TEXT NOT NULL,
+    ex_date TEXT NOT NULL,             -- 除权除息日
+    dividend_per_share REAL DEFAULT 0.0,
+    bonus_ratio REAL DEFAULT 0.0,
+    allot_ratio REAL DEFAULT 0.0,
+    source TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (symbol, ex_date)
+);
+
+-- D5 指数成分（仅最新批次快照；历史进出日期无外部接口渠道，按字段规避原则不入库）
+CREATE TABLE IF NOT EXISTS index_member (
+    index_code TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    weight REAL,
+    batch_date TEXT NOT NULL,          -- 快照批次日期
+    PRIMARY KEY (index_code, symbol, batch_date)
+);
+
+-- D6 财务报表
+CREATE TABLE IF NOT EXISTS financial_report (
+    symbol TEXT NOT NULL,
+    report_date TEXT NOT NULL,         -- 报告期 YYYY-03-31 / 06-30 / 09-30 / 12-31
+    disclose_date TEXT,
+    revenue REAL, net_profit REAL, roe REAL, gross_margin REAL,
+    source TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (symbol, report_date)
+);
+
+-- D7 股本快照
+CREATE TABLE IF NOT EXISTS capital_snapshot (
+    symbol TEXT NOT NULL,
+    date TEXT NOT NULL,
+    total_shares REAL, float_shares REAL,
+    total_market_cap REAL, float_market_cap REAL,
+    source TEXT,
+    PRIMARY KEY (symbol, date)
+);
+
+-- D8 行业分类（仅当前分类快照；变更历史区间无外部接口渠道，按字段规避原则不入库）
+CREATE TABLE IF NOT EXISTS industry_class (
+    symbol TEXT NOT NULL,
+    industry_code TEXT NOT NULL,
+    industry_name TEXT NOT NULL,
+    batch_date TEXT NOT NULL,          -- 快照批次日期
+    PRIMARY KEY (symbol, batch_date)
+);
+
+-- 稽核快照（覆盖表"完整性/状态"列的数据源；每次同步批次写入一条）
+CREATE TABLE IF NOT EXISTS dataset_audit (
+    dataset_key TEXT NOT NULL,
+    batch_date TEXT NOT NULL,
+    covered INTEGER, total INTEGER, missing INTEGER,
+    state TEXT, detail TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (dataset_key, batch_date)
+);
+```
+
+### 3. 接入准入 (Definition of Connected)
+
+数据集由"未接入"切换为"已接入"必须同时满足：
+
+1. 对应表 Schema 已纳入 SSOT `scripts/core/data/sync_engine.py` 的迁移创建流程；
+2. 增量同步任务与 §5.1 调度窗口已实现，并复用本文 §2 的任务互斥与 P0/P1 优先仲裁；
+3. §5.1 完整性稽核口径已实现，并接入控制台覆盖表的"完整性/状态"列；
+4. 本地读取失败时返回显式不可用状态，不得回退演示值或静默置零；
+5. 字段级渠道确认完成：每个入库字段具备"依赖声明 + 技能实测文档 + 已安装版本函数/docstring"三重证据（见 §5.1 外部接口渠道列）；东财源字段接入前须通过列名校验（见技能 `data-source-traps`）；无法通过确认的字段按字段规避原则删除，不得保留占位列。
+
+准入完成前，覆盖表对应行保持"未接入（规划：…）"与"未检测"占位；准入完成后，该行覆盖范围、数据截至/批次与完整性列改由真实水位与真实审计结果驱动。

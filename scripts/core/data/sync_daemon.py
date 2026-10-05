@@ -314,12 +314,19 @@ class DataSyncDaemon:
                     else:
                         self.log(f"    P1 {p} 池今日 ({today}) 已完成定盘同步，跳过重复拉取")
 
-        if executed_pools:
+        # 3.3 数据集登记册同步 (SPEC-DATA §5.1 固定窗口，每日一次)
+        from core.data import dataset_sync
+        dataset_results = dataset_sync.run_due_datasets(now_dt, self._synced_dates, db_path=self.engine.store.db_path)
+        for res in dataset_results:
+            self.log(f"    数据集同步 {res['key']}: {res['status']} · rows={res['rows']} · source={res['source']}")
+
+        if executed_pools or dataset_results:
             return {
                 "status": "executed",
                 "date": today,
                 "time": now_time_str,
                 "executed_pools": executed_pools,
+                "datasets": [res["key"] for res in dataset_results],
                 "details": batch_results,
             }
         else:

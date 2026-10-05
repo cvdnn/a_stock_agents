@@ -12919,9 +12919,11 @@ body.datasync-no-copilot .datasync-health-state { display: inline-flex; align-it
 .datasync-health-state.is-no_data i,
 .datasync-legend .is-pending { background: #ff8d00; }
 .datasync-health-state.is-unavailable { color: #8190a4; background: #f3f5f8; }
-.datasync-quality { color: #8494a8; }
+.datasync-quality { display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); background: #f2f5fa; color: #8494a8; font-weight: 600; }
+.datasync-quality.is-good { background: #f6ffed; color: #237804; }
+.datasync-quality.is-bad { background: #fff1f0; color: #cf1322; }
 .datasync-quality.is-muted,
-.datasync-no-action { color: #a1afc0; }
+.datasync-no-action { background: transparent; color: #a1afc0; }
 body.datasync-no-copilot .datasync-coverage-card .datasync-coverage-note { display: flex; align-items: center; gap: 8px; margin: 0; padding: 7px 2px 0; font-size: 12px; }
 .datasync-coverage-note > span:first-child { color: #087aff; font-size: 18px; }
 .datasync-legend { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; white-space: nowrap; }

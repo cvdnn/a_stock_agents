@@ -400,7 +400,99 @@ class MarketDataStore:
                 )
             """)
 
-            # 3. 平滑无损迁移: 为旧表自动增量补充新字段
+            # 3. 数据集登记册规划表 (SPEC-DATA §5.2)：仅快照/可得字段，规避字段不入库
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS stock_basic (
+                    symbol TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    market TEXT NOT NULL,
+                    list_date TEXT,
+                    updated_at TEXT
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS minute_kline (
+                    symbol TEXT NOT NULL,
+                    freq TEXT NOT NULL,
+                    ts TEXT NOT NULL,
+                    open REAL NOT NULL, close REAL NOT NULL, high REAL NOT NULL, low REAL NOT NULL,
+                    volume REAL DEFAULT 0.0, amount REAL DEFAULT 0.0,
+                    PRIMARY KEY (symbol, freq, ts)
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_minute_symbol_freq_ts ON minute_kline (symbol, freq, ts)")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS adjust_factor (
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    factor REAL NOT NULL,
+                    updated_at TEXT,
+                    PRIMARY KEY (symbol, date)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS dividend_event (
+                    symbol TEXT NOT NULL,
+                    ex_date TEXT NOT NULL,
+                    dividend_per_share REAL DEFAULT 0.0,
+                    bonus_ratio REAL DEFAULT 0.0,
+                    allot_ratio REAL DEFAULT 0.0,
+                    source TEXT,
+                    updated_at TEXT,
+                    PRIMARY KEY (symbol, ex_date)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS index_member (
+                    index_code TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    weight REAL,
+                    batch_date TEXT NOT NULL,
+                    PRIMARY KEY (index_code, symbol, batch_date)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS financial_report (
+                    symbol TEXT NOT NULL,
+                    report_date TEXT NOT NULL,
+                    disclose_date TEXT,
+                    revenue REAL, net_profit REAL, roe REAL, gross_margin REAL,
+                    source TEXT,
+                    updated_at TEXT,
+                    PRIMARY KEY (symbol, report_date)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS capital_snapshot (
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    total_shares REAL, float_shares REAL,
+                    total_market_cap REAL, float_market_cap REAL,
+                    source TEXT,
+                    PRIMARY KEY (symbol, date)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS industry_class (
+                    symbol TEXT NOT NULL,
+                    industry_code TEXT NOT NULL,
+                    industry_name TEXT NOT NULL,
+                    batch_date TEXT NOT NULL,
+                    PRIMARY KEY (symbol, batch_date)
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS dataset_audit (
+                    dataset_key TEXT NOT NULL,
+                    batch_date TEXT NOT NULL,
+                    covered INTEGER, total INTEGER, missing INTEGER,
+                    state TEXT, detail TEXT,
+                    updated_at TEXT,
+                    PRIMARY KEY (dataset_key, batch_date)
+                )
+            """)
+
+            # 4. 平滑无损迁移: 为旧表自动增量补充新字段
             def _ensure_column(table_name: str, col_name: str, col_type: str):
                 cursor.execute(f"PRAGMA table_info({table_name})")
                 cols = [row[1] for row in cursor.fetchall()]

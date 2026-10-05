@@ -7,6 +7,7 @@ from core.commands.data_cmds import (
     cmd_balance,
     cmd_batch,
     cmd_cyq,
+    cmd_data_dataset,
     cmd_data_quote,
     cmd_data_technical,
     cmd_data_sync,
@@ -59,6 +60,7 @@ from core.commands.trade_cmds import (
 from core.commands.funnel_cmds import cmd_funnel
 
 __all__ = [
+    "cmd_data_dataset",
     "cmd_data_quote",
     "cmd_data_technical",
     "cmd_data_sync",

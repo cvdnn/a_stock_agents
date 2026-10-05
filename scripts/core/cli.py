@@ -50,6 +50,7 @@ from core.commands import (
     cmd_config_market,
     cmd_config_paths,
     cmd_cyq,
+    cmd_data_dataset,
     cmd_data_quote,
     cmd_data_technical,
     cmd_data_sync,
@@ -182,6 +183,13 @@ def build_parser() -> argparse.ArgumentParser:
     # batch
     p_batch = subparsers.add_parser("batch", help="批量实时行情快照", parents=[common_parser])
     p_batch.add_argument("codes", help="股票代码列表，逗号分隔 (如 600519,000858,601318)")
+
+    # dataset
+    p_dataset = subparsers.add_parser("dataset", help="数据集登记册同步 (SPEC-DATA §5)", parents=[common_parser])
+    p_dataset.add_argument("--key", default="", help="数据集键: base_calendar/minute_kline/adjust_factor/index_members/financial/valuation/industry")
+    p_dataset.add_argument("--codes", default="", help="股票代码逗号分隔 (默认按数据集定义的登记范围/全市场)")
+    p_dataset.add_argument("--freqs", default="5,60", help="分钟K线周期逗号分隔 (仅 minute_kline)")
+    p_dataset.add_argument("--due", action="store_true", help="执行所有已到 §5.1 窗口且今日未跑的数据集")
 
     # deploy-monitor
     subparsers.add_parser("deploy-monitor", help="查看监控部署指南", parents=[common_parser])
@@ -544,6 +552,8 @@ def main():
         cmd_market(args)
     elif cmd == "batch":
         cmd_batch(args)
+    elif cmd == "dataset":
+        cmd_data_dataset(args)
     elif cmd == "deploy-monitor":
         cmd_deploy_monitor(args)
     elif cmd == "screen":

@@ -380,6 +380,20 @@ function jsonResponse(data) {
     assert.ok(!body.includes('分钟 K 线'));
     assert.strictEqual(elements.get('datasyncPendingCount').textContent, '2');
     assert.strictEqual(elements.get('datasyncAuditGapCount').textContent, '—');
+    sandbox.render({ daily_health: {
+      target_date: '2026-09-30', target_note: '今日未定盘',
+      registered: { total: 6, covered: 4, without_data: 2, pending: 2, state: 'pending', watermark_min: '2026-09-29', watermark_max: '2026-09-30' },
+      tiers: {},
+    }, daemon: { enabled: true }, last_audit: null, dataset_coverage: [
+      { key: 'base_calendar', name: '基础资料与交易日历', connected: true, scope: '2024-01-01 ～ 2027-12-31 规则日历', as_of: null, batch: '2024–2027 法定休市 66 天已内置', completeness: { state: 'complete', missing: 0, label: '齐全' }, state: 'fresh' },
+      { key: 'daily_kline', name: '日线行情', connected: true, scope: '已登记范围 6 只', as_of: '2026-09-30', batch: null, completeness: { state: 'undetected', missing: null, label: '未检测' }, state: 'pending' },
+      { key: 'minute_kline', name: '分钟K线', connected: false, scope: '未接入（规划：沪深北全市场 · 1/5/15/30/60 分钟）', as_of: null, batch: null, completeness: { state: 'undetected', missing: null, label: '未检测' }, state: 'unavailable' },
+    ] });
+    const coveredBody = elements.get('datasyncDailyHealthBody').innerHTML;
+    assert.strictEqual((coveredBody.match(/<tr>/g) || []).length, 3);
+    assert.ok(coveredBody.includes('分钟K线'));
+    assert.ok(coveredBody.includes('未接入'));
+    assert.ok(coveredBody.includes('is-good'));
     assert.doesNotMatch(css, /body\.datasync-no-copilot \.app-sidebar\s*\{[\s\S]*?background:\s*#1b2935/,
       '数据同步内容不得替换原系统左侧菜单的配色');
     assert.doesNotMatch(css, /body\.datasync-no-copilot \.app-header\s*,/,

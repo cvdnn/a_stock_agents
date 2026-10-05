@@ -279,7 +279,10 @@ def test_overview_endpoint_only_real_aggregates(auth_headers, isolated_settings_
         data = resp.json()
         assert data["status"] == "success"
         assert {"market_phase", "daemon", "settings_summary", "pools", "recent_sync_tasks",
-                "latest_p3_task", "availability", "arbiter", "daily_health", "last_audit"} <= set(data)
+                "latest_p3_task", "availability", "arbiter", "daily_health", "last_audit",
+                "dataset_coverage"} <= set(data)
+        assert len(data["dataset_coverage"]) == 8
+        assert all(entry["connected"] in (True, False) for entry in data["dataset_coverage"])
         assert set(data["daily_health"]["tiers"]) == {"P0", "P1", "P2"}
         assert data["daily_health"]["target_date"] <= data["market_phase"]["date"]
         assert isinstance(data["recent_sync_tasks"], list)
@@ -329,6 +332,32 @@ def test_daily_health_missing_database_is_not_reported_as_complete(tmp_path):
     assert health["registered"]["pending"] == 1
     assert health["registered"]["state"] == "no_data"
     assert health["availability"]["local_meta"] is False
+
+
+def test_dataset_coverage_marks_unconnected_datasets_explicitly():
+    from server.services.data_sync_overview import build_dataset_coverage
+
+    entries = build_dataset_coverage(None, None)
+    assert len(entries) == 8
+    assert [entry["key"] for entry in entries][:2] == ["base_calendar", "daily_kline"]
+    unconnected = [entry for entry in entries if not entry["connected"]]
+    assert len(unconnected) == 6
+    for entry in unconnected:
+        assert entry["as_of"] is None
+        assert entry["batch"] is None
+        assert entry["completeness"]["state"] == "undetected"
+        assert "未接入" in entry["scope"]
+    daily = next(entry for entry in entries if entry["key"] == "daily_kline")
+    assert daily["completeness"]["state"] == "undetected"
+    assert daily["state"] == "unknown"
+
+    audited = build_dataset_coverage(
+        {"registered": {"total": 3, "watermark_min": "2026-09-29", "watermark_max": "2026-09-30", "state": "pending"}},
+        {"scope": "registered_pools_and_indices", "missing_gaps": 8},
+    )
+    daily = next(entry for entry in audited if entry["key"] == "daily_kline")
+    assert daily["completeness"] == {"state": "missing", "missing": 8, "label": "缺漏 8 处"}
+    assert daily["as_of"] == "2026-09-30"
 
 
 def test_overview_does_not_claim_pool_coverage_when_pool_read_fails(auth_headers, isolated_settings_file, monkeypatch):

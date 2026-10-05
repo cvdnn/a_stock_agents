@@ -12,6 +12,29 @@ from core.config import get_logger
 logger = get_logger("core.commands.data")
 
 
+def cmd_data_dataset(args):
+    """数据集登记册同步 (SPEC-DATA §5)：单数据集或到期批量。"""
+    from datetime import datetime
+
+    from core.data import dataset_sync
+
+    codes = [c.strip() for c in str(getattr(args, "codes", "") or "").split(",") if c.strip()] or None
+    if getattr(args, "due", False):
+        results = dataset_sync.run_due_datasets(datetime.now(), {})
+    else:
+        key = getattr(args, "key", "") or "base_calendar"
+        if key == "minute_kline":
+            freqs = tuple(f.strip() for f in str(getattr(args, "freqs", "5,60") or "5,60").split(",") if f.strip())
+            results = [dataset_sync.sync_minute_kline(codes or dataset_sync._resolve_registered(), freqs=freqs)]
+        else:
+            results = [dataset_sync.run_dataset(key, symbols=codes)]
+    if getattr(args, "json", False) or getattr(args, "output", "") == "json":
+        print(json.dumps(results, ensure_ascii=False, indent=2, default=str))
+    else:
+        for res in results:
+            print(f"[{res['key']}] {res['status']} · rows={res['rows']} · source={res['source']} · failed={len(res['failed'])}")
+
+
 def cmd_data_quote(args):
     """实时行情 (单股或多股)"""
     from core.data.data_bridge import DataBridge
