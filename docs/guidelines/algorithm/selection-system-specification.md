@@ -1805,8 +1805,8 @@ log/selection-models/20260921/audit.log
 - 同一 `data_snapshot_id` 可重复得到一致结果；
 - `as_of` 查询不会读取运行时点之后的数据；
 - 选股引擎与规则运行器不直接发起外部行情网络请求，盘中网络获取只能由 `DataBridge` 完成；
-- 快照市值字段分列：`circulating_market_cap` 取自 `parts[44]`、`total_market_cap` 取自 `parts[45]`，任一字段缺失时返回 `0` 且不得回退取另一口径；
-- 市值单位换算：`DataBridge` 快照值为“亿元”，装配后规则输入必须为“元”，换算前后数值一致性可校验；
+- 快照市值字段分列：`circulating_market_cap` 取自 `parts[44]`、`total_market_cap` 取自 `parts[45]`，任一字段缺失时返回 `None` 并记入 `blocking_fields`（同步规范 §5.4 W-10：`0 ≠ 缺失`，禁止以 0 参与比较），且不得回退取另一口径；
+- 市值单位口径：`DataBridge` 在线快照按“亿元”原值交付，换算在入库层单点完成（W-09），装配后规则输入必须为“元”，换算前后数值一致性可校验；
 - 技术指标快照包含 `indicator_engine_version`、参数和原始OHLCV哈希；
 - SQLite历史行经Upsert修复后，原运行仍可依靠已保存输入切片复现；
 - 信号标记分析与交易策略回测口径严格分离；
