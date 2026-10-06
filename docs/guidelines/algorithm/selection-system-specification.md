@@ -925,7 +925,7 @@ signal-latch:<model_id>:<model_version>:<signal_trade_date>:<code>
 - 个股日K默认前复权 `qfq`，指数不复权，复权口径必须进入快照清单；同一条规则的全部输入必须使用同一复权口径，禁止混用；
 - `daily_kline` 当前不含 `adjust` 与 `pre_close` 列，`qfq` 由取数链路按参数拉取保证；在列补齐前，依赖复权口径的规则（新高、均线）不得与不复权派生值放入同一比较，快照必须记录该口径来源；
 - 成交量单位统一为“手”，成交额统一为“元”；
-- 市值单位统一为“元”：`circulating_market_cap` 与 `total_market_cap` 在规则输入中均为“元”；`DataBridge` 腾讯快照原始值为“亿元”，必须由 `DataAssembler` 换算（×1e8）后写入输入切片，禁止把“亿元”原始值直接透传给规则；
+- 市值单位统一为“元”：`circulating_market_cap` 与 `total_market_cap` 在规则输入中均为“元”；换算归位按同步规范 §5.4 W-09 **在入库层单点完成**（`sync_capital` 把腾讯“亿元”源值一次性 ×1e8 落库并标记 `source=tencent_snapshot_derived_yuan`），`DataAssembler` 只消费已为“元”的本地批次，**禁止再次 ×1e8**（二次换算会把 30 亿判为 3000 亿亿）；若确需直取 `DataBridge` 在线快照（仍按“亿元”原值交付），换算只允许在入库/装配边界执行一次并显式标记口径，禁止把“亿元”原始值直接透传给规则；
 - 技术指标只能基于快照中的原始OHLCV本地计算，不调用外部黑盒指标；
 - 交易日判断、T+N计算、同步水位与选股调度必须共用同一 `TradeCalendar` 口径。
 
