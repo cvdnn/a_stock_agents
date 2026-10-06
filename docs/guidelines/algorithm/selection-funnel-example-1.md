@@ -104,13 +104,13 @@ flowchart TD
 收盘价创20日新高，股价大于60日均线，60日均线向上，今日成交量大于昨日成交量，今日主力资金净流入，非ST，非北交所，流通市值大于30亿，今日涨幅小于7%，今日涨幅大于0%
 ```
 
-> 落地数据统一使用前复权日线，流通市值单位为元；关键字段缺失直接淘汰并标记数据不足。其中“60日均线向上”在本示例中取**单点比较 `MA60_t > MA60_{t-1}`（`lag=1`）**，与 `config/funnel_strategy.yaml` 及执行引擎一致（口径选型见 [`SPEC-ALGO-003` §6.2](./selection-model-general-specification.md)）。
+> 落地数据统一使用前复权日线，流通市值单位为元；关键字段缺失直接淘汰并标记数据不足。**单位与缺失口径为强契约**：现链快照字段以亿元交付且缺失回 `0`，与本口径冲突（裁定 W-09 / W-10，修复前启用市值阈值会无差别放行），接入前须在入库层统一换算为元并把缺失改判 `None`。其中“60日均线向上”在本示例中取**单点比较 `MA60_t > MA60_{t-1}`（`lag=1`）**，与 `config/funnel_strategy.yaml` 及执行引擎一致（口径选型见 [`SPEC-ALGO-003` §6.2](./selection-model-general-specification.md)）。
 
 ## 三、四层漏斗与示例取值
 
 ### 3.1 四层漏斗
 
-1. `post_close`（15:35 后）：非 ST、非北交所、流通市值大于 30 亿、当日涨幅小于 7%、创 N 日新高、收盘高于 MA60、MA60 向上、今日量大于昨日量（可选启用 `volume_sustained_expansion` 的持续放量口径）。15:05-15:30 为交易所清算期，复权因子未定盘，禁止使用；主力资金净流入为预留规则，因资金流契约未建立而暂不生效。
+1. `post_close`（15:35 后）：非 ST、非北交所、流通市值大于 30 亿、当日涨幅小于 7%、创 N 日新高、收盘高于 MA60、MA60 向上、今日量大于昨日量（可选启用 `volume_sustained_expansion` 的持续放量口径）。15:05-15:30 为交易所清算期，复权因子未定盘，禁止使用；主力资金净流入为预留规则，因资金流契约未建立而暂不生效（数据依赖登记见[同步规范 §5.1](../data/market-data-sync-specification.md) 登记册 D1/D2/D7/D10）。
 2. `market_gate`（次日开盘前）：默认以上证指数 `sh000001` 为大盘，指数实时价必须高于此前 20 个完整交易日收盘均值。门控失败时整批停止；基准指数可在配置中替换。
 3. `opening_gap`（开盘后）：用开盘价相对昨收计算高开幅度，默认保留 1%～2%。
 4. `turning_point`（早盘确认窗口，窗口结束收敛输出）：必须先有冲高回调段，再确认价格反转。
@@ -279,7 +279,7 @@ P_peak
   同时在信号输出中标注 "degraded: no_order_book"
 ```
 
-> **五档数据其实“部分有”**：腾讯快照 `parts[9-28]` 已包含五档买卖价量，只是 `_parse_tencent_quote` 当前未解析这些字段。**补齐成本很低，建议优先做**，它直接决定 B2 这个 10 分指标能否启用。
+> **五档数据已经补齐（T-09，2026-10-06 落地）**：腾讯快照 `parts[9-28]` 五档买卖价量已收敛至权威解析器 `tencent_fields.parse_order_book`，快照与盘中切片透传统一 `order_book` 结构（缺失或卖盘为 0 → `None` 判 UNKNOWN），**B2 这个 10 分指标可直接启用**（`bid_volume`/`ask_volume` 由解析器给出）。
 
 **C组 · 形态位置分（满分 20）**
 
@@ -513,8 +513,8 @@ scripts/core/strategy/            # 示例目录，实际落点以主规范模�
 | 项 | 现值 | 不做参数的理由（对应 9.1 的判定问号） | 正确归属 |
 | :-- | :-- | :-- | :-- |
 | 交易所清算期 | `15:05-15:30` | 问 2：交易所规则，非策略偏好；调错会用未定盘数据 | 平台级常量 + `TradeCalendar` |
-| `post_close` 最早执行时刻 | `15:35` | 问 2：由清算期结束与数据水位共同决定 | 平台级 `UniverseWatermark` 门控 |
-| 数据就绪判据 | 资金流为空则重试、不当作 0 | 问 2：数据契约语义 | 数据层契约 |
+| `post_close` 最早执行时刻 | `15:35` | 问 2：由清算期结束与数据水位共同决定 | 平台级 `UniverseWatermark` 门控（契约见[同步规范 §5.5](../data/market-data-sync-specification.md)） |
+| 数据就绪判据 | 资金流为空则重试、不当作 0 | 问 2：数据契约语义 | 数据层契约（同步登记册 D10 + §5.5 水位） |
 | 降级标记 | `not_eligible_for_signal` | 问 4：可调即等于可绕过信号定性 | 引擎强制 |
 | 分钟数据源降级层级 | 4 级降级链 | 问 2：容灾链路，非策略语义 | 数据层 |
 | 复权方式 / 市值单位 | 前复权 / 元 | 问 2：口径统一约定 | 数据层契约 |
@@ -571,7 +571,7 @@ scripts/core/strategy/            # 示例目录，实际落点以主规范模�
 | :-- | :-- | :-- |
 | **G1** | 窗口口径在示例、规范 §3 流水线图、§7.3 调度三处不一致 | **已统一**：回调观察段 / 确认输出段 / 窗口结束一次性收敛三口径，并新增 Stage 3.5；旧「软截止」口径废止（见 [`SPEC-ALGO-003` §3](./selection-model-general-specification.md)） |
 | **G2** | 示例原话「量能持续放大」与公式「今日量＞昨日量」不一致 | **已补能力**：新增 `volume_sustained_expansion` 规则（近 N 日均量 / 前 M 日均量，全参数化），与单日 `volume_expansion` 并存，默认关闭 |
-| **G3** | 「主力资金净流入」缺资金流数据契约 | **预留**：`main_fund_inflow` 保持 `enabled=false`，契约落地后改回 `true` 即生效；缺失不得当作 0 |
+| **G3** | 「主力资金净流入」缺资金流数据契约 | **预留**：`main_fund_inflow` 保持 `enabled=false`；数据契约 D10 **已接入**（精算档 `eastmoney_exact` 渠道实测核验 2026-10-06 + 代理档兜底，`capital_flow_daily` 120 交易日可回补）。启用该规则的前提是 D10 精算档 `finalized` 水位（W-07：代理档判 UNKNOWN）；缺失不得当作 0 |
 | **G4** | 规则级参数 Schema 尚未定义（每条规则的可调参数未形式化） | **建设任务**：属规范 §1.4-6 待补项，是可视化配置与编译期校验的前置依赖 |
 | **G5** | 示例文档宣称“全量参数化”，但 Stage 1.5 的 `top_n` 与 Stage 4 的 `stop_ladder` 只在规范 §9 中，未落在示例 `config` | **已补齐**：在 `config/funnel_strategy.yaml` 增加 `ranking` 与 `risk_exit` 两个**声明态**参数块（`status: declared`），使“全量参数化”在配置层单点成立（见 §9.3） |
 
@@ -599,4 +599,5 @@ scripts/core/strategy/            # 示例目录，实际落点以主规范模�
 - 主规范（系统建设）：[`selection-system-specification.md`](./selection-system-specification.md)（`SPEC-ALGO-ISS-001`）
 - 模型类型设计规范：[`selection-model-types-specification.md`](./selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`）
 - 可执行配置：[`config/funnel_strategy.yaml`](../../../config/funnel_strategy.yaml)
-- 实施进度看板：[`SPEC-ALGO-003` 看板](../specs/algorithm/general-selection-and-turning-point-plan.md)、[`SPEC-ALGO-ISS-001` 看板](../specs/algorithm/selection-system-plan.md)
+- 数据依赖登记与就绪水位：[《A-Stock 行情数据 · 本地同步与安全隔离规范》](../data/market-data-sync-specification.md) §5.1 登记册 D1–D12、§5.4 冲突裁定 W-01～W-10、§5.5 `UniverseWatermark` 契约
+- 实施进度看板：[`SPEC-ALGO-003` 看板](../../specs/algorithm/general-selection-and-turning-point-plan.md)、[`SPEC-ALGO-ISS-001` 看板](../../specs/algorithm/selection-system-plan.md)
