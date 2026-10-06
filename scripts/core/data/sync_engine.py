@@ -18,7 +18,7 @@ from pathlib import Path
 import re
 import sqlite3
 import time
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 try:
     from core.config import PROJECT_ROOT, get_logger
@@ -1148,12 +1148,32 @@ class DataSyncEngine:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         max_workers: int = 4,
+        on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
-        """批量同步调度，支持多线程并发与流控"""
+        """批量同步调度，支持多线程并发与流控。
+
+        on_progress: 每完成一个标的回调一次，入参为进度快照
+        {processed, total, success_count, failed_count, symbol}。回调在同步线程内执行，
+        必须轻量；其异常在此吞掉，绝不影响同步主流程。
+        """
         t0 = time.time()
         results: List[Optional[Dict[str, Any]]] = [None] * len(symbols)
         success_count = 0
         failed_count = 0
+
+        def _notify(symbol: Optional[str]) -> None:
+            if on_progress is None:
+                return
+            try:
+                on_progress({
+                    "processed": success_count + failed_count,
+                    "total": len(symbols),
+                    "success_count": success_count,
+                    "failed_count": failed_count,
+                    "symbol": symbol,
+                })
+            except Exception:  # noqa: BLE001 - 进度上报失败不得影响同步
+                logger.debug("sync_batch 进度回调异常", exc_info=True)
 
         def _worker(idx: int, sym: str) -> Tuple[int, Dict[str, Any]]:
             try:
@@ -1175,6 +1195,7 @@ class DataSyncEngine:
                         success_count += 1
                     else:
                         failed_count += 1
+                    _notify(res.get("symbol"))
         else:
             for i, sym in enumerate(symbols):
                 idx, res = _worker(i, sym)
@@ -1183,6 +1204,7 @@ class DataSyncEngine:
                     success_count += 1
                 else:
                     failed_count += 1
+                _notify(res.get("symbol"))
 
         elapsed = round(time.time() - t0, 2)
         phase_info = TradeCalendar.get_market_phase()

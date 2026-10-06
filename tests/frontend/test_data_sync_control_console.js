@@ -431,6 +431,79 @@ function jsonResponse(data) {
     assert.match(records, /分项任务/);
   });
 
+  await test('one click update exposes live 完成数/全部股票数 progress', () => {
+    const runPanel = html.slice(
+      html.indexOf('id="datasync-panel-run"'),
+      html.indexOf('id="datasync-panel-tasks"'),
+    );
+    for (const id of [
+      'datasyncRunProgress', 'datasyncProgressBar', 'datasyncProgressCounter', 'datasyncProgressNote',
+      'datasyncProgressProcessed', 'datasyncProgressTotal', 'datasyncProgressSuccess', 'datasyncProgressFailed',
+      'datasyncProgressBatch', 'datasyncProgressEta', 'datasyncProgressStage', 'datasyncProgressStages',
+      'btnDatasyncCancelRunning',
+    ]) {
+      assert.ok(runPanel.includes(`id="${id}"`), `missing live progress field #${id}`);
+    }
+    assert.ok(runPanel.includes('id="datasyncRunProgress" hidden'), 'progress panel must stay hidden while idle');
+    assert.match(css, /\.datasync-progress-track > span\s*\{[^}]*transition:/, 'progress bar must animate');
+    assert.match(css, /@keyframes datasyncSpin/, 'running state needs a spinner animation');
+    assert.match(css, /\.datasync-progress\.is-indeterminate/, 'unknown totals need an indeterminate animation');
+    assert.match(app, /function renderDatasyncRunProgress\(/);
+    assert.match(app, /function updateDatasyncSyncButton\(/);
+    assert.match(app, /function cancelDatasyncRunningTask\(/);
+    assert.match(app, /btnDatasyncCancelRunning'\)\?\.addEventListener/, 'cancel action must be wired');
+    assert.match(app, /renderDatasyncRunProgress\(\);/, 'progress must refresh on every task poll');
+    assert.match(app, /result\.progress_detail/, 'progress must read the server progress_detail contract');
+    assert.match(app, /setInterval\(pollDatasyncTasks,\s*2000\)/, 'active sync must poll fast enough to feel live');
+
+    const start = app.indexOf('function datasyncEffectiveStatus(');
+    const end = app.indexOf('function renderDatasyncRecentTask(');
+    const sandbox = { escapeDatasyncHtml: (value) => String(value) };
+    vm.createContext(sandbox);
+    vm.runInContext(`${app.slice(start, end)}\nthis.progress = datasyncTaskProgress; this.active = datasyncActiveTask;`, sandbox);
+    sandbox.DatasyncState = { tasks: [] };
+    vm.runInContext('this.progress = (task) => datasyncTaskProgress(task);', sandbox);
+
+    const running = {
+      task_id: 'parent-1',
+      task_type: 'data_sync_batch',
+      status: 'running',
+      status_message: '沪市日 K：已完成 120/2319 只（成功 118，失败 2） · 第 2/3 项',
+      result: {
+        status: 'running',
+        total_tasks: 3,
+        children: [
+          { task_id: 'child-1', label: '核心指数日 K', status: 'completed', processed: 12, total: 12, success_count: 12, failed_count: 0 },
+          { task_id: 'child-2', label: '沪市日 K', status: 'running', processed: 0, total: 0, success_count: 0, failed_count: 0 },
+          { task_id: 'child-3', label: '深市日 K', status: 'pending', processed: 0, total: 0, success_count: 0, failed_count: 0 },
+        ],
+        progress_detail: { stage: '沪市日 K', phase: 'syncing', stage_index: 2, stages: 3, processed: 120, total: 2319, success_count: 118, failed_count: 2, batch: 1, batches: 4, eta_seconds: 90 },
+      },
+    };
+    const model = sandbox.progress(running);
+    assert.strictEqual(model.counterText, '120 / 2,319 只', '必须直接呈现 当前完成数/全部股票数');
+    assert.strictEqual(model.succeeded, 118, '成功数必须与当前分项阶段的完成数同口径');
+    assert.strictEqual(model.failed, 2);
+    assert.strictEqual(model.percent, 5.2);
+    assert.strictEqual(model.stage, '沪市日 K');
+    assert.strictEqual(model.stageIndex, 2);
+    assert.strictEqual(model.stageCount, 3);
+    assert.strictEqual(model.indeterminate, false);
+    assert.strictEqual(model.stages.length, 3);
+    assert.strictEqual(model.stages[0].status, 'completed');
+    assert.strictEqual(model.stages[2].status, 'pending', '未开始的分项必须预先列出为等待中');
+    assert.strictEqual(model.stages[2].total, 0);
+
+    const preparing = {
+      task_id: 'parent-2', task_type: 'data_sync_batch', status: 'running',
+      result: { children: [], progress_detail: { stage: '核心指数日 K', phase: 'preparing', stage_index: 1, stages: 3 } },
+    };
+    const preparingModel = sandbox.progress(preparing);
+    assert.strictEqual(preparingModel.indeterminate, true, '清单未解析完成前必须是动画不确定态');
+    assert.strictEqual(preparingModel.counterText, '标的清单解析中');
+    assert.strictEqual(sandbox.progress(null), null);
+  });
+
   await test('settings save excludes removed target-only controls', () => {
     const start = app.indexOf('function datasyncSettingValue(');
     const end = app.indexOf('function datasyncImportError(', start);

@@ -1191,6 +1191,31 @@
             <div class="datasync-status-card"><span class="datasync-kpi-icon is-red" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 3 30 28H2zM16 11v9M16 24v2"/></svg></span><div><span>异常缺漏</span><strong><b id="datasyncAuditGapCount">—</b> <em>处</em></strong><small id="datasyncLastAuditTime">尚无有效审计结果</small></div></div>
           </div>
 
+          <section class="role-config-card datasync-progress" id="datasyncRunProgress" hidden aria-live="polite">
+            <div class="datasync-progress-head">
+              <div class="datasync-progress-title">
+                <span class="datasync-progress-spinner" aria-hidden="true"></span>
+                <strong id="datasyncProgressTitle">正在更新日线数据</strong>
+                <em id="datasyncProgressStage">准备中…</em>
+              </div>
+              <div class="datasync-progress-side">
+                <span class="datasync-progress-percent" id="datasyncProgressPercent">—</span>
+                <button type="button" class="datasync-outline-action" id="btnDatasyncCancelRunning">取消任务</button>
+              </div>
+            </div>
+            <div class="datasync-progress-track" id="datasyncProgressBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="数据更新进度"><span></span></div>
+            <div class="datasync-progress-counter"><strong id="datasyncProgressCounter">0 / 0 只</strong><span id="datasyncProgressNote">正在提交任务…</span></div>
+            <div class="datasync-progress-metrics">
+              <span>当前完成<strong id="datasyncProgressProcessed">—</strong></span>
+              <span>全部股票数<strong id="datasyncProgressTotal">—</strong></span>
+              <span>成功<strong id="datasyncProgressSuccess">—</strong></span>
+              <span>失败<strong id="datasyncProgressFailed">—</strong></span>
+              <span>当前批次<strong id="datasyncProgressBatch">—</strong></span>
+              <span>预计剩余<strong id="datasyncProgressEta">—</strong></span>
+            </div>
+            <ul class="datasync-progress-stages" id="datasyncProgressStages"></ul>
+          </section>
+
           <section class="role-config-card datasync-coverage-card" aria-labelledby="datasyncCoverageTitle">
             <div class="datasync-card-heading">
               <div><h3 id="datasyncCoverageTitle">日线数据状态</h3><p>当前水位统计覆盖已登记标的；一键更新将分项处理沪深全市场与核心指数。</p></div>
@@ -1198,6 +1223,7 @@
             </div>
             <div class="datasync-table-wrap">
               <table class="datasync-coverage-table">
+                <colgroup><col style="width:13%"><col style="width:28%"><col style="width:22%"><col style="width:10%"><col style="width:16%"><col style="width:11%"></colgroup>
                 <thead><tr><th>数据类型</th><th>覆盖范围</th><th>数据截至 / 批次</th><th>完整性</th><th>状态</th><th>操作</th></tr></thead>
                 <tbody id="datasyncDailyHealthBody"><tr><td colspan="6">正在读取真实数据水位…</td></tr></tbody>
               </table>
@@ -1243,7 +1269,7 @@
                     <button type="button" class="datasync-record-reset" id="btnResetDatasyncTasks">重置</button>
                   </div>
                   <div class="datasync-table-wrap datasync-record-table-wrap" id="datasyncRecordScroll" role="region" aria-label="更新记录列表" tabindex="0">
-                    <table class="datasync-task-table"><thead><tr><th>开始时间</th><th>更新任务</th><th>范围 / 触发方式</th><th>结果 (成功 / 失败)</th><th>耗时</th><th>状态</th><th>操作</th></tr></thead><tbody id="datasyncTaskTableBody"></tbody></table>
+                    <table class="datasync-task-table"><colgroup><col style="width:13%"><col style="width:19%"><col style="width:19%"><col style="width:11%"><col style="width:8%"><col style="width:15%"><col style="width:15%"></colgroup><thead><tr><th>开始时间</th><th>更新任务</th><th>范围 / 触发方式</th><th>结果 (成功 / 失败)</th><th>耗时</th><th>状态</th><th>操作</th></tr></thead><tbody id="datasyncTaskTableBody"></tbody></table>
                     <div class="datasync-empty-state" id="datasyncTaskEmpty" hidden>暂无符合条件的更新记录</div>
                   </div>
                   <div class="datasync-record-list-footer"><span id="datasyncTaskSummary" role="status">尚未加载更新记录</span><button type="button" id="btnLoadMoreDatasyncTasks">加载更多</button></div>

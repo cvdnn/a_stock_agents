@@ -11713,9 +11713,9 @@ body.dark-mode .chat-md-chip:hover {
 .datasync-coverage-table {
   width: 100%;
   margin-top: 12px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
-  white-space: nowrap;
 }
 
 .datasync-coverage-table th,
@@ -11723,12 +11723,24 @@ body.dark-mode .chat-md-chip:hover {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-light);
   text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .datasync-coverage-table th {
+  /* 表格纵向滚动时标题行吸顶固定 */
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: #F4F8FD;
   color: var(--text-secondary);
   font-weight: 600;
+}
+
+/* border-collapse 下 sticky 单元格的边框会随内容滚走，用内阴影补分隔线 */
+.datasync-coverage-table thead th {
+  border-bottom: 0;
+  box-shadow: inset 0 -1px 0 var(--border-light);
 }
 
 .datasync-coverage-table td:first-child {
@@ -11737,11 +11749,14 @@ body.dark-mode .chat-md-chip:hover {
 
 .datasync-health-state {
   display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 3px 8px;
   border-radius: var(--radius-full);
   background: #F2F5FA;
   color: var(--text-secondary);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .datasync-health-state.is-fresh {
@@ -12033,7 +12048,7 @@ body.dark-mode .chat-md-chip:hover {
 
 .datasync-task-table {
   width: 100%;
-  min-width: 760px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -12044,13 +12059,13 @@ body.dark-mode .chat-md-chip:hover {
   border-bottom: 1px solid var(--border-light);
   text-align: left;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .datasync-task-table th {
   background: #F8FAFD;
   color: var(--text-secondary);
   font-weight: 600;
-  white-space: nowrap;
 }
 
 .datasync-task-row {
@@ -12065,13 +12080,15 @@ body.dark-mode .chat-md-chip:hover {
 .datasync-task-status {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 24px;
   padding: 0 8px;
   border-radius: 999px;
   background: #F2F3F5;
   color: var(--text-secondary);
   font-weight: 600;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .datasync-task-status.is-running,
@@ -12896,9 +12913,9 @@ body.datasync-no-copilot .datasync-status-card { flex-direction: row; align-item
 .datasync-kpi-icon.is-red { background: #fff1f3; color: #ee263b; }
 
 body.datasync-no-copilot .datasync-coverage-card { grid-column: 1; min-height: 0; display: flex; flex-direction: column; padding: 10px 12px 8px; border-color: var(--border-card); border-radius: 8px; box-shadow: var(--shadow-card); }
-.datasync-coverage-card h3 { color: #14263c; font-size: 15px; }
+.datasync-coverage-card h3 { display: inline; margin: 0; color: #14263c; font-size: 15px; }
 .datasync-coverage-card .datasync-card-heading { align-items: center; }
-.datasync-coverage-card .datasync-card-heading p { display: inline; margin-left: 16px; font-size: 12px; }
+.datasync-coverage-card .datasync-card-heading p { display: inline; margin: 0 0 0 16px; font-size: 12px; }
 .datasync-coverage-tools { display: flex; align-items: center; gap: 18px; color: #7589a9; font-size: 12px; white-space: nowrap; }
 .datasync-coverage-tools strong { color: #425b82; font-weight: 600; }
 .datasync-coverage-tools .btn-link-xs { color: #086ef4; font-size: 13px; }
@@ -12910,16 +12927,16 @@ body.datasync-no-copilot .datasync-coverage-table th { height: 32px; padding: 4p
 body.datasync-no-copilot .datasync-coverage-table th { background: #f1f6fc; color: #294468; font-weight: 700; }
 body.datasync-no-copilot .datasync-coverage-table td { color: #60769a; }
 body.datasync-no-copilot .datasync-coverage-table .datasync-dataset-name { color: #29415f; font-weight: 700; }
-body.datasync-no-copilot .datasync-health-state { display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px; color: #6c7f9c; background: #f1f4f8; }
+body.datasync-no-copilot .datasync-health-state { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; box-sizing: border-box; padding: 4px 9px; color: #6c7f9c; background: #f1f4f8; }
 .datasync-health-state i,
-.datasync-legend i { width: 9px; height: 9px; display: inline-block; border-radius: 50%; background: #a4b1c3; }
+.datasync-legend i { flex: none; width: 9px; height: 9px; display: inline-block; border-radius: 50%; background: #a4b1c3; }
 .datasync-health-state.is-fresh i,
 .datasync-legend .is-fresh { background: #2cac21; }
 .datasync-health-state.is-pending i,
 .datasync-health-state.is-no_data i,
 .datasync-legend .is-pending { background: #ff8d00; }
 .datasync-health-state.is-unavailable { color: #8190a4; background: #f3f5f8; }
-.datasync-quality { display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); background: #f2f5fa; color: #8494a8; font-weight: 600; }
+.datasync-quality { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 2px 8px; border-radius: var(--radius-full); background: #f2f5fa; color: #8494a8; font-weight: 600; overflow-wrap: anywhere; }
 .datasync-quality.is-good { background: #f6ffed; color: #237804; }
 .datasync-quality.is-bad { background: #fff1f0; color: #cf1322; }
 .datasync-quality.is-muted,
@@ -13080,7 +13097,7 @@ body.datasync-no-copilot .datasync-task-toolbar { display: grid; grid-template-c
 .datasync-record-reset:hover { background: #eef5ff; color: #086cf0; }
 .datasync-record-table-wrap { flex: 1; min-height: 160px; overflow: auto; border: 1px solid #e7edf6; border-radius: 4px; scrollbar-gutter: stable; }
 .datasync-record-table-wrap:focus-visible { outline: 2px solid #0872f7; outline-offset: 2px; }
-body.datasync-no-copilot .datasync-task-table { min-width: 810px; font-size: 13px; }
+body.datasync-no-copilot .datasync-task-table { min-width: 0; font-size: 13px; }
 body.datasync-no-copilot .datasync-task-table th, body.datasync-no-copilot .datasync-task-table td { padding: 6px 9px; border: 1px solid #e7edf6; line-height: 1.45; }
 body.datasync-no-copilot .datasync-task-table th { position: sticky; top: 0; z-index: 1; background: #eff5fc; color: #263c63; font-weight: 700; }
 body.datasync-no-copilot .datasync-task-table td { color: #5b7095; }
@@ -13090,7 +13107,7 @@ body.datasync-no-copilot .datasync-task-table td { color: #5b7095; }
 body.datasync-no-copilot .datasync-task-row.selected { background: #e6f4ff; }
 .datasync-task-row:focus-visible { outline: 2px solid #0872f7; outline-offset: -2px; }
 body.datasync-no-copilot .datasync-task-status { gap: 7px; padding: 4px 11px; font-size: 12px; }
-body.datasync-no-copilot .datasync-task-status::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+body.datasync-no-copilot .datasync-task-status::before { content: ''; flex: none; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
 body.datasync-no-copilot .datasync-task-actions { flex-direction: column; align-items: flex-start; gap: 0; }
 body.datasync-no-copilot .datasync-task-actions button { min-height: 32px; padding: 0 6px; border: 0; background: transparent; color: #086cf0; font-size: 13px; font-weight: 700; }
 body.datasync-no-copilot .datasync-task-actions button:hover { text-decoration: underline; }
@@ -13264,4 +13281,72 @@ body.datasync-no-copilot .datasync-settings-domains { position: static; display:
   .datasync-settings-help { margin-left: 0; }
   .datasync-import-actions { position: static; margin-top: 10px; }
 }
+
+/* 一键更新实时进度：完成数/全部股票数、分项阶段与不确定态动画。 */
+body.datasync-no-copilot .datasync-run-layout.active { grid-template-rows: auto auto auto minmax(0, 1fr); }
+body.datasync-no-copilot .datasync-progress {
+  display: flex; flex-direction: column; gap: 9px; grid-row: 3; grid-column: 1 / -1;
+  margin-top: 0; padding: 11px 13px; box-sizing: border-box;
+  border: 1px solid #cfe1fb; border-radius: 8px;
+  background: linear-gradient(180deg, #f2f8ff 0%, var(--bg-card) 100%); box-shadow: var(--shadow-card);
+}
+body.datasync-no-copilot .datasync-progress[hidden] { display: none; }
+body.datasync-no-copilot .datasync-coverage-card { grid-row: 4; }
+body.datasync-no-copilot .datasync-col-sidebar { grid-row: 4; }
+.datasync-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.datasync-progress-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.datasync-progress-title strong { color: #10233d; font-size: 14px; }
+.datasync-progress-title em { overflow: hidden; color: #64799c; font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.datasync-progress-side { display: flex; align-items: center; gap: 12px; }
+.datasync-progress-percent { color: #086cf0; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.datasync-progress-spinner {
+  flex: none; width: 15px; height: 15px; border: 2px solid #cfe1fb; border-top-color: #086cf0;
+  border-radius: 50%; animation: datasyncSpin 900ms linear infinite;
+}
+.datasync-progress-track { position: relative; height: 10px; overflow: hidden; background: #e6eef9; border-radius: 999px; }
+.datasync-progress-track > span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #2f8bff, #086cf0); border-radius: inherit; transition: width 600ms cubic-bezier(.22,.61,.36,1); }
+.datasync-progress.is-indeterminate .datasync-progress-track > span { width: 34%; animation: datasyncSlide 1300ms ease-in-out infinite; }
+.datasync-progress.is-done .datasync-progress-track > span { background: linear-gradient(90deg, #34b93a, #1f8f27); }
+.datasync-progress-counter { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.datasync-progress-counter strong { color: #10233d; font-size: 21px; font-variant-numeric: tabular-nums; letter-spacing: .3px; }
+.datasync-progress-counter span { color: #64799c; font-size: 12px; }
+.datasync-progress-metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 0; }
+.datasync-progress-metrics > span { min-width: 0; padding: 6px 8px; border: 1px solid #e6eef9; border-radius: 6px; background: #fbfdff; color: #64799c; font-size: 11px; }
+.datasync-progress-metrics > span strong { display: block; margin-top: 1px; overflow: hidden; color: #142949; font-size: 15px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.datasync-progress-stages { display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.datasync-progress-stages li { display: grid; grid-template-columns: minmax(96px, 1fr) auto minmax(70px, auto); align-items: center; gap: 10px; color: #64799c; font-size: 12px; }
+.datasync-progress-stages li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.datasync-progress-stages li > b { font-variant-numeric: tabular-nums; font-weight: 700; }
+.datasync-progress-stages li > em { color: #8697b3; font-size: 11px; font-style: normal; text-align: right; }
+.datasync-progress-stages li.is-pending { color: #97a7bf; }
+.datasync-progress-stages li.is-running > b { color: #086cf0; }
+.datasync-progress-stages li.is-running { color: #2b4a76; }
+.datasync-progress-stages li.is-done > b { color: #1f8f27; }
+.datasync-progress-stages li.is-degraded > b { color: #f38c17; }
+.datasync-progress-stages li.is-failed > b { color: #e61e2d; }
+@keyframes datasyncSpin { to { transform: rotate(360deg); } }
+@keyframes datasyncSlide { 0% { margin-left: -34%; } 100% { margin-left: 100%; } }
+@container datasync (max-width: 1020px) {
+  body.datasync-no-copilot .datasync-run-layout.active { grid-template-rows: none; }
+  body.datasync-no-copilot .datasync-progress,
+  body.datasync-no-copilot .datasync-coverage-card,
+  body.datasync-no-copilot .datasync-col-sidebar { grid-row: auto; }
+  body.datasync-no-copilot .datasync-progress { grid-column: 1; }
+  .datasync-progress-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container datasync (max-width: 560px) { .datasync-progress-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .datasync-progress-counter strong { font-size: 18px; } }
+.datasync-record-detail-heading + .datasync-progress, body.datasync-no-copilot .datasync-progress.datasync-progress-inline {
+  gap: 7px; margin: 0 0 14px; padding: 10px; font-size: 12px;
+}
+.datasync-progress-inline .datasync-progress-track { height: 8px; }
+.datasync-progress-inline .datasync-progress-task { margin-bottom: 0; font-size: 12px; }
+.datasync-progress-inline .datasync-progress-counter { gap: 8px; }
+.datasync-progress-inline .datasync-progress-counter strong { font-size: 17px; }
+.datasync-progress-inline .datasync-progress-counter span { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.datasync-record-subtasks li small { white-space: normal; }
+@media (prefers-reduced-motion: reduce) {
+  .datasync-progress-spinner { animation-duration: 2400ms; }
+  .datasync-progress.is-indeterminate .datasync-progress-track > span { animation: none; width: 100%; opacity: .45; }
+}
+
 

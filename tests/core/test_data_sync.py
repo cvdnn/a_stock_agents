@@ -69,6 +69,37 @@ class TestDataSyncEngine(unittest.TestCase):
         self.assertEqual(result["failed_count"], 1)
         self.assertEqual(result["failed_symbols"], ["sz000001"])
 
+    def test_sync_batch_reports_progress_after_every_symbol(self):
+        """一键更新的实时进度依赖逐标的回调：每完成一只都必须上报 当前完成数/全部股票数。"""
+        def fake_sync(symbol, **_kwargs):
+            return {"symbol": symbol, "status": "error" if symbol == "sz000001" else "success"}
+
+        snapshots = []
+        with patch.object(self.engine, "sync_symbol", side_effect=fake_sync):
+            self.engine.sync_batch(
+                ["sh600519", "sz000001", "sh600000"], max_workers=2,
+                on_progress=snapshots.append,
+            )
+        self.assertEqual(len(snapshots), 3)
+        self.assertEqual([item["processed"] for item in snapshots], [1, 2, 3])
+        self.assertTrue(all(item["total"] == 3 for item in snapshots))
+        self.assertEqual(snapshots[-1]["success_count"], 2)
+        self.assertEqual(snapshots[-1]["failed_count"], 1)
+        self.assertEqual({item["symbol"] for item in snapshots}, {"sh600519", "sz000001", "sh600000"})
+
+    def test_sync_batch_survives_progress_callback_failure(self):
+        """进度上报是旁路观测，回调抛异常绝不能影响同步主流程。"""
+        def fake_sync(symbol, **_kwargs):
+            return {"symbol": symbol, "status": "success"}
+
+        def boom(_snapshot):
+            raise RuntimeError("进度落库失败")
+
+        with patch.object(self.engine, "sync_symbol", side_effect=fake_sync):
+            result = self.engine.sync_batch(["sh600519", "sz000001"], max_workers=1, on_progress=boom)
+        self.assertEqual(result["success_count"], 2)
+        self.assertEqual(result["failed_count"], 0)
+
     def test_trading_day_and_holiday_rules(self):
         # 周末休市
         self.assertFalse(TradeCalendar.is_trading_day("2026-06-06"))  # 周六

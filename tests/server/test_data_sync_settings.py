@@ -78,6 +78,112 @@ def test_batch_update_creates_separate_index_shanghai_and_shenzhen_tasks(monkeyp
     assert len(result["children"]) == 3
 
 
+def test_p3_child_publishes_live_symbol_progress_during_sync(monkeypatch):
+    """一键更新执行期间必须实时落库 当前完成数/全部股票数，供前端进度条与计数消费。"""
+    import asyncio
+    from server.tasks.task_manager import TaskManager
+
+    written = []
+
+    class FakeEngine:
+        def list_market_symbols(self, _scope):
+            return [f"sh60{i:04d}" for i in range(5)]
+
+        def sync_batch(self, symbols, **kwargs):
+            on_progress = kwargs.get("on_progress")
+            assert callable(on_progress), "P3 必须把逐标的进度回调透传给同步引擎"
+            for index, symbol in enumerate(symbols, start=1):
+                on_progress({"processed": index, "total": len(symbols),
+                             "success_count": index, "failed_count": 0, "symbol": symbol})
+            return {"success_count": len(symbols), "failed_count": 0, "failed_symbols": [], "details": []}
+
+    class DirectLoop:
+        async def run_in_executor(self, _executor, fn):
+            return fn()
+
+    def fake_update(**kwargs):
+        result = kwargs.get("result") or {}
+        detail = result.get("progress_detail")
+        if detail:
+            written.append((detail["phase"], detail["processed"], detail["total"], kwargs.get("status_message")))
+
+    monkeypatch.setattr("core.data.sync_daemon.try_acquire_p3", lambda _task_id: (True, None))
+    monkeypatch.setattr("core.data.sync_daemon.release_p3", lambda _task_id: None)
+    monkeypatch.setattr("server.services.data_sync_settings.effective_settings",
+                        lambda: {"p3": {"batch_size": 2, "concurrency": 1}})
+    monkeypatch.setattr("server.tasks.task_manager.update_task_record", fake_update)
+
+    result = asyncio.run(TaskManager()._run_p3_sync(
+        "p3-live", FakeEngine(), DirectLoop(), {"tier": "P3", "scope": "sh"}, "sh", "incremental", []))
+
+    assert result["total_requested"] == 5
+    assert result["progress_detail"]["processed"] == 5
+    assert result["progress_detail"]["total"] == 5
+    live = [item for item in written if item[0] == "syncing"]
+    assert live, "P3 运行期间未落库任何实时进度"
+    assert all(item[2] == 5 for item in live), "全部股票数必须在解析清单后立即确定"
+    assert [item[1] for item in live] == sorted(item[1] for item in live), "完成数不得回退"
+    assert max(item[1] for item in live) > 0, "完成数必须随同步推进而增长"
+    assert any("已完成 2/5" in (item[3] or "") for item in live), "进度文案需直接给出 完成数/全部股票数"
+    assert any(item[0] == "preparing" for item in written), "解析清单阶段也要有可见状态"
+
+
+def test_batch_parent_mirrors_child_live_progress_for_one_click_update(monkeypatch):
+    """父任务必须把子任务的实时完成数聚合进 children，前端才能不依赖子任务列表渲染进度。"""
+    import asyncio
+    import copy
+    from types import SimpleNamespace
+    from server.tasks import task_manager as tm
+    from server.tasks.task_manager import TaskManager
+
+    monkeypatch.setattr(tm, "BATCH_CHILD_POLL_SECONDS", 0.01)
+    updates = []
+    monkeypatch.setattr("server.tasks.task_manager.update_task_record",
+                        lambda **kwargs: updates.append(copy.deepcopy(kwargs)))
+
+    class Manager(TaskManager):
+        def submit_task(self, task_type, params, timeout_seconds=300):
+            task_id = f"child-{len(self._running_tasks) + 1}"
+            self._running_tasks[task_id] = asyncio.ensure_future(asyncio.sleep(0.08))
+            return SimpleNamespace(task_id=task_id)
+
+        def get_task(self, task_id):
+            pending = self._running_tasks.get(task_id)
+            if pending is not None and not pending.done():
+                return SimpleNamespace(
+                    task_id=task_id, status="running", status_message="沪市日 K：已完成 120/2319 只（成功 118，失败 2）",
+                    result={"status": "running", "total_requested": 2319, "success_count": 118, "failed_count": 2,
+                            "progress_detail": {"stage": "沪市日 K", "phase": "syncing", "processed": 120,
+                                                 "total": 2319, "success_count": 118, "failed_count": 2,
+                                                 "batch": 1, "batches": 4, "eta_seconds": 90}},
+                    error=None,
+                )
+            return SimpleNamespace(
+                task_id=task_id, status="completed", status_message="Task completed successfully",
+                result={"status": "success", "total_requested": 2319, "success_count": 2319, "failed_count": 0},
+                error=None,
+            )
+
+    result = asyncio.run(Manager()._run_data_sync_batch("parent-live", {"trigger": "manual"}))
+
+    first = updates[0]["result"]
+    assert [item["status"] for item in first["children"]] == ["running", "pending", "pending"], \
+        "三个分项必须在提交即刻列出，未开始的标记为等待中"
+    live_updates = [
+        item for item in updates
+        if ((item.get("result") or {}).get("progress_detail") or {}).get("processed") == 120
+    ]
+    assert live_updates, "父任务未把子任务的实时完成数落库"
+    detail = live_updates[0]["result"]["progress_detail"]
+    assert detail["total"] == 2319
+    assert detail["stages"] == 3 and 1 <= detail["stage_index"] <= 3
+    assert "120/2319" in live_updates[0]["status_message"]
+    child = live_updates[0]["result"]["children"][detail["stage_index"] - 1]
+    assert child["processed"] == 120 and child["total"] == 2319
+    assert result["progress_detail"]["processed"] == 2319 * 3
+    assert [item["processed"] for item in result["children"]] == [2319, 2319, 2319]
+
+
 def test_batch_update_uses_dedicated_dispatch_instead_of_skill_registry(monkeypatch):
     """Regression: the batch parent must not be treated as a skill id."""
     import asyncio
@@ -281,7 +387,8 @@ def test_overview_endpoint_only_real_aggregates(auth_headers, isolated_settings_
         assert {"market_phase", "daemon", "settings_summary", "pools", "recent_sync_tasks",
                 "latest_p3_task", "availability", "arbiter", "daily_health", "last_audit",
                 "dataset_coverage"} <= set(data)
-        assert len(data["dataset_coverage"]) == 8
+        # D1–D12 登记册（SPEC-DATA §5.1）：12 行与控制台覆盖表一一对应
+        assert len(data["dataset_coverage"]) == 12
         assert all(entry["connected"] in (True, False) for entry in data["dataset_coverage"])
         assert set(data["daily_health"]["tiers"]) == {"P0", "P1", "P2"}
         assert data["daily_health"]["target_date"] <= data["market_phase"]["date"]
@@ -338,10 +445,11 @@ def test_dataset_coverage_marks_unconnected_datasets_explicitly():
     from server.services.data_sync_overview import build_dataset_coverage
 
     entries = build_dataset_coverage(None, None)
-    assert len(entries) == 8
+    # D1–D12 登记册（SPEC-DATA §5.1）：12 行与控制台覆盖表一一对应
+    assert len(entries) == 12
     assert [entry["key"] for entry in entries][:2] == ["base_calendar", "daily_kline"]
     unconnected = [entry for entry in entries if not entry["connected"]]
-    assert len(unconnected) == 6
+    assert len(unconnected) == 10
     for entry in unconnected:
         assert entry["as_of"] is None
         assert entry["batch"] is None

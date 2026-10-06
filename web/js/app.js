@@ -10011,6 +10011,7 @@ const DatasyncState = {
   selectedTaskId: null,
   pollingTimer: null,
   pollingInFlight: false,
+  overviewTick: 0,
   settingsDirty: false,
   settingsLoaded: false,
   repairCodes: [],
@@ -10187,13 +10188,6 @@ function datasyncTaskId(task) {
   return task && (task.task_id || task.id) ? String(task.task_id || task.id) : '';
 }
 
-function datasyncPercent(value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  const percent = numeric >= 0 && numeric <= 1 ? numeric * 100 : numeric;
-  return Math.max(0, Math.min(100, Math.round(percent * 10) / 10));
-}
-
 function datasyncDateTime(value) {
   if (!value) return '—';
   const parsed = new Date(value);
@@ -10255,6 +10249,102 @@ function datasyncTaskDataType(task) {
 function datasyncTaskTrigger(task) {
   const trigger = String((task.params || {}).trigger || '');
   return ({ scheduled: '自动更新', daemon: '自动更新', auto: '自动更新', manual: '手动更新' })[trigger] || (trigger || '未记录');
+}
+
+const DATASYNC_ACTIVE_STATUSES = ['pending', 'running', 'cancel_requested'];
+const DATASYNC_PHASE_LABELS = { preparing: '解析标的清单中', syncing: '同步中', finished: '已完成' };
+
+function datasyncNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function datasyncIsMaintenanceTask(task) {
+  const params = (task && task.params) || {};
+  return Boolean(params.check || params.repair || params.today) || ['audit', 'repair'].includes(params.mode);
+}
+
+function datasyncActiveTask() {
+  const active = DatasyncState.tasks.filter((task) => DATASYNC_ACTIVE_STATUSES.includes(String(task.status)));
+  if (!active.length) return null;
+  return active.find((task) => task.task_type === 'data_sync_batch') || active[0];
+}
+
+function datasyncDuration(value) {
+  const seconds = datasyncNumber(value);
+  if (seconds == null) return '—';
+  if (seconds < 60) return `${Math.round(seconds)} 秒`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分 ${Math.round(seconds % 60)} 秒`;
+  return `${Math.floor(seconds / 3600)} 小时 ${Math.round((seconds % 3600) / 60)} 分`;
+}
+
+/**
+ * 统一进度模型：读取服务端落库的 result.progress_detail（当前完成数 / 全部股票数），
+ * 父任务再联查子任务实时记录，供数据更新页与更新记录详情共用。
+ */
+function datasyncTaskProgress(task) {
+  if (!task) return null;
+  const result = task.result || {};
+  const detail = result.progress_detail || result.metrics || {};
+  const counts = datasyncTaskResult(task);
+  const recorded = Array.isArray(result.children) ? result.children : [];
+  const total = datasyncNumber(detail.total ?? result.total_requested);
+  const processed = datasyncNumber(detail.processed)
+    ?? (total == null ? null : (counts.succeeded || 0) + (counts.failed || 0));
+  const stages = recorded.map((item) => {
+    const live = DatasyncState.tasks.find((candidate) => datasyncTaskId(candidate) === item.task_id);
+    const liveResult = (live && live.result) || {};
+    const liveDetail = liveResult.progress_detail || {};
+    return {
+      taskId: item.task_id || '',
+      label: item.label || (live ? datasyncTaskName(live) : '分项更新'),
+      status: (live ? datasyncEffectiveStatus(live) : item.status) || 'pending',
+      processed: datasyncNumber(liveDetail.processed ?? item.processed) || 0,
+      total: datasyncNumber(liveDetail.total ?? item.total) || 0,
+      succeeded: datasyncNumber(liveResult.success_count ?? item.success_count) || 0,
+      failed: datasyncNumber(liveResult.failed_count ?? item.failed_count) || 0,
+    };
+  });
+  const stageIndex = datasyncNumber(detail.stage_index)
+    ?? (stages.length ? Math.min(stages.length, Math.max(1, stages.filter((item) => item.status !== 'pending').length)) : 1);
+  const stageCount = datasyncNumber(detail.stages ?? result.total_tasks) ?? (stages.length || 1);
+  const percent = total && processed != null ? Math.min(100, Math.round((processed / total) * 1000) / 10) : null;
+  const phase = detail.phase || (total ? 'syncing' : 'preparing');
+  return {
+    taskId: datasyncTaskId(task),
+    title: datasyncTaskName(task),
+    stage: detail.stage || (stages[stageIndex - 1] && stages[stageIndex - 1].label) || datasyncTaskName(task),
+    phase,
+    phaseLabel: DATASYNC_PHASE_LABELS[phase] || phase,
+    stageIndex,
+    stageCount,
+    processed,
+    total,
+    percent,
+    succeeded: datasyncNumber(detail.success_count) ?? counts.succeeded,
+    failed: datasyncNumber(detail.failed_count) ?? counts.failed,
+    batch: datasyncNumber(detail.batch),
+    batches: datasyncNumber(detail.batches),
+    etaSeconds: datasyncNumber(detail.eta_seconds),
+    note: task.status_message || '',
+    indeterminate: !total || phase === 'preparing',
+    counterText: total && processed != null
+      ? `${processed.toLocaleString('zh-CN')} / ${total.toLocaleString('zh-CN')} 只`
+      : (processed ? `已完成 ${processed.toLocaleString('zh-CN')} 只` : '标的清单解析中'),
+    stages,
+  };
+}
+
+function datasyncProgressMarkup(progress) {
+  if (!progress) return '';
+  const percent = progress.percent == null ? 0 : progress.percent;
+  const stageNote = progress.stageCount > 1 ? `第 ${progress.stageIndex}/${progress.stageCount} 项 · ` : '';
+  return `<div class="datasync-progress datasync-progress-inline${progress.indeterminate ? ' is-indeterminate' : ''}">
+    <div class="datasync-progress-task"><strong>${escapeDatasyncHtml(progress.stage)}</strong> · ${escapeDatasyncHtml(stageNote + progress.phaseLabel)}</div>
+    <div class="datasync-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-label="数据更新进度"><span style="width:${percent}%"></span></div>
+    <div class="datasync-progress-counter"><strong>${escapeDatasyncHtml(progress.counterText)}</strong><span>${escapeDatasyncHtml(progress.note || '')}</span></div>
+  </div>`;
 }
 
 function renderDatasyncRecentTask() {
@@ -10361,27 +10451,35 @@ function renderDatasyncTaskDetail(task) {
       return { ...item, live };
     });
     const completed = children.filter((item) => ['completed', 'failed', 'timed_out', 'cancelled'].includes(item.live?.status || item.status)).length;
+    const progress = datasyncTaskProgress(task);
     const log = { status_message: task.status_message || null, error: task.error || null, result };
     detail.innerHTML = `
       <div class="datasync-record-detail-heading"><h2>全部日线更新</h2><span class="datasync-task-status is-${escapeDatasyncHtml(status)}">${escapeDatasyncHtml(DATASYNC_STATUS_LABELS[status] || status)}</span></div>
-      <dl class="datasync-record-meta"><div><dt>任务ID：</dt><dd>${escapeDatasyncHtml(taskId)}</dd></div><div><dt>更新范围：</dt><dd>核心指数、沪市、深市</dd></div><div><dt>进度：</dt><dd>${completed} / 3 项</dd></div></dl>
+      ${datasyncProgressMarkup(progress)}
+      <dl class="datasync-record-meta"><div><dt>任务ID：</dt><dd>${escapeDatasyncHtml(taskId)}</dd></div><div><dt>更新范围：</dt><dd>核心指数、沪市、深市</dd></div><div><dt>进度：</dt><dd>${completed} / ${children.length || 3} 项</dd></div></dl>
       <div class="datasync-record-failures datasync-record-subtasks"><div class="datasync-record-section-heading"><h3>分项任务</h3></div>
       ${children.length ? `<ul>${children.map((item) => {
         const child = item.live;
         const childStatus = child ? datasyncEffectiveStatus(child)
           : item.status === 'completed' && (Number(item.failed_count || 0) > 0 || item.result_status === 'degraded') ? 'degraded' : item.status;
         const childResult = child?.result || {};
+        const childDetail = childResult.progress_detail || {};
         const succeeded = childResult.success_count ?? item.success_count;
         const failed = childResult.failed_count ?? item.failed_count;
+        const processed = childDetail.processed ?? item.processed;
+        const total = childDetail.total ?? item.total;
         const label = item.label || (child ? datasyncTaskName(child) : '分项更新');
         const message = child?.error || item.error || child?.status_message || '';
-        return `<li><span>${escapeDatasyncHtml(label)}<small> ${escapeDatasyncHtml(item.task_id || '—')}</small></span><strong>${escapeDatasyncHtml(DATASYNC_STATUS_LABELS[childStatus] || childStatus || '等待中')}</strong><small>成功 ${escapeDatasyncHtml(succeeded ?? '—')} / 失败 ${escapeDatasyncHtml(failed ?? '—')}${message ? ` · ${escapeDatasyncHtml(message)}` : ''}</small></li>`;
+        const counter = processed != null && total ? `${processed} / ${total} 只` : '';
+        return `<li><span>${escapeDatasyncHtml(label)}<small> ${escapeDatasyncHtml(item.task_id || '—')}</small></span><strong>${escapeDatasyncHtml(DATASYNC_STATUS_LABELS[childStatus] || childStatus || '等待中')}</strong><small>${counter ? `已完成 ${escapeDatasyncHtml(counter)} · ` : ''}成功 ${escapeDatasyncHtml(succeeded ?? '—')} / 失败 ${escapeDatasyncHtml(failed ?? '—')}${message ? ` · ${escapeDatasyncHtml(message)}` : ''}</small></li>`;
       }).join('')}</ul>` : '<p>子任务尚未创建。</p>'}</div>
       <details class="datasync-record-log" id="datasyncRecordLog"><summary>执行记录</summary><pre>${escapeDatasyncHtml(JSON.stringify(log, null, 2))}</pre></details>`;
     return;
   }
   const metrics = result.metrics || result.progress_detail || result;
   const counts = datasyncTaskResult(task);
+  const running = DATASYNC_ACTIVE_STATUSES.includes(status);
+  const progress = datasyncTaskProgress(task);
   const failedSymbols = Array.isArray(result.failed_symbols || metrics.failed_symbols) ? result.failed_symbols || metrics.failed_symbols : [];
   const details = Array.isArray(result.details || metrics.details) ? result.details || metrics.details : [];
   const failureDetails = details.filter((item) => item && item.status && !['success', 'up_to_date', 'completed'].includes(item.status));
@@ -10393,13 +10491,14 @@ function renderDatasyncTaskDetail(task) {
   const log = { status_message: task.status_message || null, error: task.error || null, params, result: task.result || null };
   detail.innerHTML = `
     <div class="datasync-record-detail-heading"><h2>任务详情</h2><span class="datasync-task-status is-${escapeDatasyncHtml(status)}">${escapeDatasyncHtml(DATASYNC_STATUS_LABELS[status] || status)}</span></div>
+    ${running || progress?.total ? datasyncProgressMarkup(progress) : ''}
     <dl class="datasync-record-meta">
       <div><dt>任务ID：</dt><dd>${escapeDatasyncHtml(taskId)}</dd></div>
       <div><dt>数据目标：</dt><dd>${escapeDatasyncHtml(params.target_date || params.end || '未记录')}</dd></div>
       <div><dt>触发方式：</dt><dd>${escapeDatasyncHtml(datasyncTaskTrigger(task))}</dd></div>
     </dl>
     <div class="datasync-record-result-stats">
-      <div><span>成功</span><strong>${counts.succeeded == null ? '—' : counts.succeeded.toLocaleString('zh-CN')}</strong><span>只</span></div>
+      <div><span>${running ? '已完成' : '成功'}</span><strong>${counts.succeeded == null ? '—' : counts.succeeded.toLocaleString('zh-CN')}</strong><span>只</span></div>
       <div><span>失败</span><strong class="is-error">${counts.failed == null ? '—' : counts.failed.toLocaleString('zh-CN')}</strong><span>只</span></div>
       <div><span>合规停牌</span><strong>${escapeDatasyncHtml(result.suspended_gaps ?? metrics.suspended_gaps ?? '—')}</strong><span>只</span></div>
     </div>
@@ -10483,6 +10582,7 @@ function renderDatasyncTasks() {
   if (lastCompletedSummary) lastCompletedSummary.textContent = lastCompleted ? datasyncDateTime(lastCompleted.completed_at) : '—';
   const selectedTask = DatasyncState.tasks.find((task) => datasyncTaskId(task) === DatasyncState.selectedTaskId);
   renderDatasyncTaskDetail(selectedTask && tasks.includes(selectedTask) ? selectedTask : null);
+  renderDatasyncRunProgress();
 }
 
 function exportDatasyncTasks() {
@@ -10508,34 +10608,102 @@ function exportDatasyncTasks() {
   window.requestAnimationFrame(() => URL.revokeObjectURL(url));
 }
 
-function updateDatasyncP3Progress(task) {
-  if (!task) return;
-  const result = task.result || {};
-  const metrics = result.metrics || result.progress_detail || {};
-  const succeeded = metrics.succeeded ?? metrics.success_count;
-  const failed = metrics.failed ?? metrics.failed_count;
-  const total = metrics.total ?? metrics.total_requested ?? metrics.count;
-  const processed = metrics.processed ?? ((succeeded == null && failed == null) ? null : ((Number(succeeded) || 0) + (Number(failed) || 0)));
-  const progress = datasyncPercent(task.progress);
-  const progressPanel = document.getElementById('datasyncP3Progress');
-  const progressBar = document.getElementById('datasyncP3ProgressBar');
-  if (progressBar) {
-    progressBar.style.width = `${progress}%`;
+/** 数据更新页的实时进度面板：一键更新执行期间显示动画、完成数/全部股票数与分项阶段。 */
+function renderDatasyncRunProgress() {
+  const panel = document.getElementById('datasyncRunProgress');
+  const task = datasyncActiveTask();
+  updateDatasyncSyncButton(task);
+  if (!panel) return;
+  if (!task) {
+    panel.hidden = true;
+    return;
   }
-  if (progressPanel) progressPanel.setAttribute('aria-valuenow', String(progress));
-  const values = {
-    datasyncP3TaskId: datasyncTaskId(task),
-    datasyncP3Total: total,
-    datasyncP3Processed: processed,
-    datasyncP3Succeeded: succeeded,
-    datasyncP3Failed: failed,
-    datasyncP3Batch: metrics.batch || metrics.current_batch,
-    datasyncP3Remaining: metrics.remaining ?? (total == null || processed == null ? null : Math.max(0, total - processed)),
-  };
-  Object.entries(values).forEach(([id, value]) => {
+  const progress = datasyncTaskProgress(task);
+  const setText = (id, value) => {
     const element = document.getElementById(id);
     if (element) element.textContent = value == null ? '—' : String(value);
-  });
+  };
+  panel.hidden = false;
+  panel.dataset.taskId = progress.taskId || '';
+  panel.classList.toggle('is-indeterminate', progress.indeterminate);
+  panel.classList.toggle('is-done', progress.percent === 100);
+  setText('datasyncProgressTitle', `${progress.title}进行中`);
+  setText('datasyncProgressStage', progress.stages.length
+    ? `第 ${progress.stageIndex}/${progress.stageCount} 项 · ${progress.stage}`
+    : progress.phaseLabel);
+  setText('datasyncProgressPercent', progress.percent == null ? '—' : `${progress.percent}%`);
+  setText('datasyncProgressCounter', progress.counterText);
+  setText('datasyncProgressNote', progress.note || progress.phaseLabel);
+  setText('datasyncProgressProcessed', progress.processed == null ? '—' : progress.processed.toLocaleString('zh-CN'));
+  setText('datasyncProgressTotal', progress.total == null ? '—' : progress.total.toLocaleString('zh-CN'));
+  setText('datasyncProgressSuccess', progress.succeeded == null ? '—' : progress.succeeded.toLocaleString('zh-CN'));
+  setText('datasyncProgressFailed', progress.failed == null ? '—' : progress.failed.toLocaleString('zh-CN'));
+  setText('datasyncProgressBatch', progress.batches > 1 ? `${progress.batch}/${progress.batches}` : (progress.batches === 1 ? '单批次' : '—'));
+  setText('datasyncProgressEta', datasyncDuration(progress.etaSeconds));
+  const track = document.getElementById('datasyncProgressBar');
+  const fill = track ? track.querySelector(':scope > span') : null;
+  if (track) track.setAttribute('aria-valuenow', String(progress.percent == null ? 0 : progress.percent));
+  if (fill && !progress.indeterminate) fill.style.width = `${progress.percent || 0}%`;
+  const list = document.getElementById('datasyncProgressStages');
+  if (list) {
+    list.innerHTML = progress.stages.map((item) => {
+      const tone = item.status === 'completed' ? (item.failed > 0 ? 'is-degraded' : 'is-done')
+        : ['failed', 'timed_out', 'cancelled'].includes(item.status) ? 'is-failed'
+          : ['running', 'cancel_requested'].includes(item.status) ? 'is-running' : 'is-pending';
+      const count = item.total ? `${item.processed.toLocaleString('zh-CN')} / ${item.total.toLocaleString('zh-CN')}`
+        : (item.succeeded ? `${item.succeeded.toLocaleString('zh-CN')} 只` : '—');
+      return `<li class="${tone}"><span>${escapeDatasyncHtml(item.label)}</span><b>${escapeDatasyncHtml(count)}</b><em>${escapeDatasyncHtml(DATASYNC_STATUS_LABELS[item.status] || item.status)}</em></li>`;
+    }).join('');
+  }
+}
+
+function updateDatasyncSyncButton(task) {
+  const button = document.getElementById('btnDatasyncHeroSync');
+  if (!button) return;
+  const busy = Boolean(task) && !datasyncIsMaintenanceTask(task);
+  if (busy) {
+    setDatasyncButtonBusy(button, true, '⟳ <span>更新中…</span>');
+    button.title = `任务 ${datasyncTaskId(task)} 正在执行，可在下方查看实时进度`;
+  } else {
+    setDatasyncButtonBusy(button, false, '');
+    button.title = '按核心指数、沪市、深市分项更新日线数据，可在执行期间查看实时进度';
+  }
+}
+
+async function cancelDatasyncRunningTask() {
+  const panel = document.getElementById('datasyncRunProgress');
+  const taskId = panel && panel.dataset.taskId;
+  if (!taskId) return;
+  const api = window.AStockAPI;
+  if (!api || typeof api.cancelTask !== 'function') {
+    showToast('任务接口不可用，无法取消', 'error');
+    return;
+  }
+  const button = document.getElementById('btnDatasyncCancelRunning');
+  const task = DatasyncState.tasks.find((item) => datasyncTaskId(item) === taskId);
+  const children = ((task && task.result) || {}).children || [];
+  const targets = [taskId, ...children
+    .map((item) => item.task_id)
+    .filter((childId) => {
+      const child = DatasyncState.tasks.find((item) => datasyncTaskId(item) === childId);
+      return child && DATASYNC_ACTIVE_STATUSES.includes(String(child.status));
+    })];
+  setDatasyncButtonBusy(button, true, '正在取消…');
+  try {
+    const responses = [];
+    for (const id of targets) responses.push(await api.cancelTask(id));
+    if (responses.length && responses.every((response) => response && response.status === 'not_running')) {
+      showToast('任务已结束，无需取消', 'info');
+    } else {
+      showToast(`已请求取消更新任务${targets.length > 1 ? `（含 ${targets.length - 1} 个分项）` : ''}`, 'success');
+    }
+    await loadDatasyncTasks({ selectTaskId: taskId });
+  } catch (error) {
+    showToast(`取消任务失败：${error.message || '未知错误'}`, 'error');
+  } finally {
+    setDatasyncButtonBusy(button, false, '');
+    renderDatasyncRunProgress();
+  }
 }
 
 function stopDatasyncPolling() {
@@ -10555,25 +10723,13 @@ async function pollDatasyncTasks() {
 }
 
 function updateDatasyncPolling() {
-  const hasActiveTask = DatasyncState.tasks.some((task) => ['pending', 'running', 'cancel_requested'].includes(task.status));
+  const hasActiveTask = DatasyncState.tasks.some((task) => DATASYNC_ACTIVE_STATUSES.includes(String(task.status)));
   const shouldPoll = hasActiveTask && (DatasyncState.activeTab === 'tasks' || DatasyncState.activeTab === 'run');
   if (shouldPoll && !DatasyncState.pollingTimer) {
-    DatasyncState.pollingTimer = window.setInterval(pollDatasyncTasks, 3000);
+    DatasyncState.pollingTimer = window.setInterval(pollDatasyncTasks, 2000);
   } else if (!shouldPoll && DatasyncState.pollingTimer) {
     stopDatasyncPolling();
   }
-}
-
-function updateDatasyncP3Availability() {
-  const button = document.getElementById('btnDatasyncP3Start');
-  if (!button || button.classList.contains('is-loading')) return;
-  const activeP3 = DatasyncState.tasks.find((task) => (task.params || {}).tier === 'P3' && ['pending', 'running', 'cancel_requested'].includes(task.status));
-  button.disabled = !DatasyncState.tasksLoaded || Boolean(activeP3);
-  button.title = !DatasyncState.tasksLoaded
-    ? '任务状态尚未成功加载，暂不可提交'
-    : activeP3
-      ? `已有活动 P3 任务：${datasyncTaskId(activeP3)}`
-      : '市场级范围支持增量同步，指定代码支持全部模式；互斥与范围校验以服务端为准';
 }
 
 async function loadDatasyncTasks({ selectTaskId = '', quiet = false } = {}) {
@@ -10582,7 +10738,7 @@ async function loadDatasyncTasks({ selectTaskId = '', quiet = false } = {}) {
   if (!api || typeof api.listTasks !== 'function') {
     DatasyncState.tasksLoaded = false;
     stopDatasyncPolling();
-    updateDatasyncP3Availability();
+    renderDatasyncRunProgress();
     if (summary) summary.textContent = '任务接口不可用';
     if (!quiet) showToast('任务接口不可用，无法读取真实同步状态', 'error');
     return [];
@@ -10598,7 +10754,10 @@ async function loadDatasyncTasks({ selectTaskId = '', quiet = false } = {}) {
     }
     renderDatasyncTasks();
     applyLatestDatasyncAudit();
-    if (DatasyncState.activeTab === 'run') loadDatasyncOverview();
+    if (DatasyncState.activeTab === 'run') {
+      DatasyncState.overviewTick += 1;
+      if (!quiet || DatasyncState.overviewTick % 3 === 0) loadDatasyncOverview();
+    }
     const verification = DatasyncState.repairVerification;
     if (verification) {
       const repairTask = DatasyncState.tasks.find((task) => datasyncTaskId(task) === verification.taskId);
@@ -10608,15 +10767,12 @@ async function loadDatasyncTasks({ selectTaskId = '', quiet = false } = {}) {
         showToast('修复任务已结束，已提交同范围复审', 'info');
       }
     }
-    const latestP3Task = DatasyncState.tasks.find((task) => (task.params || {}).tier === 'P3');
-    if (latestP3Task) updateDatasyncP3Progress(latestP3Task);
-    updateDatasyncP3Availability();
     updateDatasyncPolling();
     return DatasyncState.tasks;
   } catch (error) {
     DatasyncState.tasksLoaded = false;
     stopDatasyncPolling();
-    updateDatasyncP3Availability();
+    renderDatasyncRunProgress();
     if (summary) summary.textContent = `加载失败：${error.message || '未知错误'}`;
     if (!quiet) showToast(`读取同步任务失败：${error.message || '未知错误'}`, 'error');
     return [];
@@ -10635,7 +10791,6 @@ async function selectDatasyncTask(taskId) {
     if (existingIndex >= 0) DatasyncState.tasks.splice(existingIndex, 1, detail);
     else DatasyncState.tasks.unshift(detail);
     renderDatasyncTasks();
-    if ((detail.params || {}).tier === 'P3') updateDatasyncP3Progress(detail);
   } catch (error) {
     showToast(`读取任务详情失败：${error.message || '未知错误'}`, 'error');
   }
@@ -10659,7 +10814,6 @@ async function createDataSyncTask(params, button = null, taskType = 'data_sync')
     const taskId = datasyncTaskId(task);
     if (!taskId) throw new Error('服务端未返回任务 ID，无法确认任务已创建');
     if (!isDataSyncTask(task)) throw new Error('服务端返回了不匹配的任务类型');
-    if (params.tier === 'P3') updateDatasyncP3Progress(task);
     showToast(`同步任务已提交${taskId ? `：${taskId}` : ''}`, 'success');
     await loadDatasyncTasks({ selectTaskId: taskId });
     await loadDatasyncOverview();
@@ -10669,7 +10823,7 @@ async function createDataSyncTask(params, button = null, taskType = 'data_sync')
     return null;
   } finally {
     setDatasyncButtonBusy(button, false, '');
-    updateDatasyncP3Availability();
+    renderDatasyncRunProgress();
   }
 }
 
@@ -10721,50 +10875,6 @@ async function retryDatasyncTask(taskId) {
   } catch (error) {
     showToast(error.message || '无法重试任务', 'error');
   }
-}
-
-async function submitDatasyncP3() {
-  const scopeElement = document.getElementById('datasyncP3Scope');
-  const modeElement = document.getElementById('datasyncP3Mode');
-  const codesElement = document.getElementById('datasyncP3Codes');
-  const button = document.getElementById('btnDatasyncP3Start');
-  const scope = scopeElement ? scopeElement.value : 'full_market';
-  const mode = modeElement ? modeElement.value : 'incremental';
-  const codes = codesElement ? codesElement.value.split(/[\s,，]+/).map((item) => item.trim()).filter(Boolean) : [];
-
-  if (scope === 'selected' && codes.length === 0) {
-    showToast('指定代码模式至少需要输入一个股票代码', 'error');
-    if (codesElement) codesElement.focus();
-    return;
-  }
-  // 前端 fail-closed 预检（服务端独立二次校验，前端提示不构成承诺）：
-  if (scope === 'bj') {
-    showToast('北交所暂无权威股票清单数据源，后端拒绝以猜测清单执行 P3 同步', 'error');
-    return;
-  }
-  if (scope !== 'selected' && mode !== 'incremental') {
-    showToast('市场级范围（全市场/沪市/深市）当前仅支持增量同步；完整性审计与缺漏修复请改用运行控制面板的全库体检入口', 'error');
-    return;
-  }
-  if (mode === 'full' && !window.confirm(`全量重构会覆盖式重建“${scope === 'selected' ? codes.join(',') : scope}”范围；预计标的数以服务端校验为准，并会占用较多行情源与本地写入资源。确认提交？`)) return;
-
-  await loadDatasyncTasks({ quiet: true });
-  if (!DatasyncState.tasksLoaded) {
-    showToast('无法确认当前活动任务，已阻止 P3 提交，请刷新后重试', 'error');
-    return;
-  }
-  const activeP3 = DatasyncState.tasks.find((task) => (task.params || {}).tier === 'P3' && ['pending', 'running', 'cancel_requested'].includes(task.status));
-  if (activeP3) {
-    showToast(`已有活动 P3 任务：${datasyncTaskId(activeP3)}，请等待结束或先取消`, 'error');
-    return;
-  }
-
-  await createDataSyncTask({
-    tier: 'P3',
-    scope: scope,
-    mode: mode,
-    codes: scope === 'selected' ? codes : [],
-  }, button);
 }
 
 // ---- 市场时钟：交易日 / 定盘状态机（GET /api/market_data/clock）----
@@ -11398,7 +11508,12 @@ function filterDatasyncAuditTable() {
 }
 
 function initDatasync() {
-  if (isDatasyncInitialized) return;
+  if (isDatasyncInitialized) {
+    // 离开本页时轮询已停止：再次进入先按内存态恢复进度面板，再静默刷新以重启轮询
+    renderDatasyncRunProgress();
+    loadDatasyncTasks({ quiet: true });
+    return;
+  }
   isDatasyncInitialized = true;
 
   const clockDisplay = document.getElementById('syncClockDisplay');
@@ -11480,6 +11595,7 @@ function initDatasync() {
     createDataSyncTask(params, button);
   });
   document.getElementById('btnDatasyncAutoConfig')?.addEventListener('click', () => switchDatasyncTab('settings'));
+  document.getElementById('btnDatasyncCancelRunning')?.addEventListener('click', cancelDatasyncRunningTask);
 
   const storedTab = (() => {
     try { return window.sessionStorage.getItem('datasync.activeTab'); } catch (_) { return null; }
