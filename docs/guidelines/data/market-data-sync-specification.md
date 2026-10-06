@@ -180,7 +180,7 @@ local/                              # POSIX权限: 700 (drwx------)
 | D4 | 复权因子与分红 | 无独立表（前复权镜像归属 D2 管线产物） | 独立复权因子表 + `dividend_event` 表 | 复权因子随 D2 于 15:35 定盘落盘；分红事件按除权除息日 15:50 增量 | 复权切片连续性随 D2 稽核；分红按交易所公告除权事件覆盖率 | 新浪 `stock_zh_a_daily(adjust="qfq-factor")` 因子序列；`stock_history_dividend` / `stock_dividend_cninfo` 分红 | 未接入 |
 | D5 | 指数与成分股 | 指数行情归属 D2（P2 五条指数同表同步） | `index_member` 最新成分快照表（含权重；**历史进出不入库**） | 成分每日 16:10 最新批次快照 | 指数行情随 D2 稽核；成分按最新批次覆盖率与权重非空率 | 中证官方 `index_stock_cons_weight_csindex`（仅最新成分+权重） | 未接入 |
 | D6 | 财务报表与指标 | 无 | `financial_report` 表 | 按披露时间每日 16:20 增量，按报告期回补 | 报告期序列完整（一季报/半年报/三季报/年报）；披露时效待巨潮渠道接入 | `stock_financial_analysis_indicator` + 三表 `_by_report_em`（技能实测 ✅）；披露日渠道预留（巨潮 `stock_report_disclosure`，本期 `disclose_date` 留空） | 未接入 |
-| D7 | 估值与股本 | pe/pb/turnover_pct 内嵌 D2 字段 | `capital_snapshot` 表（总股本/流通股本/市值；**`total_market_cap`/`float_market_cap` 入库单位为亿元**，见 §5.4 W-09） | **流通市值前置（§5.4 W-02）**：随 D2 于 15:35 定盘批次落盘（`post_close` 硬门槛字段，不得晚于初筛）；股本全市场快照 16:30 仅作深度审计与回补 | 估值随 D2 稽核；股本按字段非空率与日期连续性；候选池缺失市值直接淘汰并记 `INSUFFICIENT_DATA`（禁止置零，见 W-10） | 腾讯 L1 批量快照 PE/PB/市值；股本 = 市值 ÷ 现价 推导（全市场批量） | 未接入 |
+| D7 | 估值与股本 | pe/pb/turnover_pct 内嵌 D2 字段 | `capital_snapshot` 表（总股本/流通股本/市值；**`total_market_cap`/`float_market_cap` 入库单位统一为元**：腾讯快照源值为亿元，入库时一次性 `× 1e8` 并以 `source=tencent_snapshot_derived_yuan` 标记换算口径，规则层禁止再次换算，见 §5.4 W-09） | **流通市值前置（§5.4 W-02）**：随 D2 于 15:35 定盘批次落盘（`post_close` 硬门槛字段，不得晚于初筛）；股本全市场快照 16:30 仅作深度审计与回补 | 估值随 D2 稽核；股本按字段非空率与日期连续性；候选池缺失市值直接淘汰并记 `INSUFFICIENT_DATA`（禁止置零，见 W-10） | 腾讯 L1 批量快照 PE/PB/市值；股本 = 市值 ÷ 现价 推导（全市场批量） | 未接入 |
 | D8 | 行业分类 | 无（仅在线板块/行业接口能力） | `industry_class` 当前分类快照表（**变更历史不入库**） | 每日 16:40 最新分类快照 | 最新批次分类覆盖率（已登记标的） | 东财 `stock_board_industry_name_em`/`cons_em` + `stock_individual_info_em` 行业字段 + 新浪板块 | 未接入 |
 | D9 | 盘中实时快照归档 | 无（快照为 HTTP 即时消费，不留水位与历史） | **运行捕获归档**（切片落 `local/cache/intraday/<交易日>/`，POSIX 700/600，纳入容量淘汰），不建 SQLite 表 | 交易日 09:15–15:00 连续捕获，盘后封存切片并计算 §5.5 水位 | 候选池快照覆盖率（有值标的数 ÷ 当日候选池标的数）；缺失不得置零或回退演示值 | 腾讯 L1 `qt.gtimg.cn` 批量快照（[接口规范 §2.1](./market-data-api-specification.md)，含 `open`/`prev_close`/`change_pct`/内外盘）+ 新浪 L2 | 未接入（仅运行捕获） |
 | D10 | 资金流（主力净流入） | 无 | `capital_flow_daily` 表（`(symbol, date)` 唯一键，日频增量、可回补 120 交易日） | 盘后随 D2 定盘之后、`post_close` 之前（15:35 批次内）；范围为已登记标的 (P0–P2)，全市场代理档可显式请求（仅排序用途） | 字段非空率 + 交易日连续性；**双档分级**（W-07）：精算档 `eastmoney_exact` 全覆盖才判 finalized，任一标的落代理档即 degraded | **已核验（2026-10-06 实测，akshare 1.18.94）**：东财 `stock_individual_fund_flow` 日频约 120 行、主力/超大单/大单净额单位**元**、可回补历史；腾讯内外盘×VWAP 代理档兜底。管线：精算档优先 + 代理档兜底（`astock dataset --key capital_flow`） | 已接入（2026-10-06，精算+代理双档） |
@@ -255,7 +255,7 @@ CREATE TABLE IF NOT EXISTS financial_report (
     PRIMARY KEY (symbol, report_date)
 );
 
--- D7 股本快照
+-- D7 股本快照（市值入库单位统一为元；腾讯快照源值为亿元，入库时一次性 ×1e8 换算，见 §5.4 W-09）
 CREATE TABLE IF NOT EXISTS capital_snapshot (
     symbol TEXT NOT NULL,
     date TEXT NOT NULL,
