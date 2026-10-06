@@ -347,6 +347,80 @@ class TestDataSuite(unittest.TestCase):
             quotes2 = DataBridge.tencent_quote(["sh600519"])
         self.assertIsNone(quotes2["600519"]["pe"])
 
+    def test_tencent_fields_order_book_t09(self):
+        """T-09 五档盘口解析：统一 order_book 结构、缺档不入列、
+        整体缺失或卖盘为 0 → None（消费方按 Kleene 判 UNKNOWN，禁止以 0 参与比较）。"""
+        from core.data.tencent_fields import parse_order_book, split_tencent_line
+
+        def build_line(bids=(), asks=()) -> str:
+            """bids/asks: [(price, volume)×5] 元组列表，按档位顺序填充 parts[9-18]/[19-28]。"""
+            parts = [""] * 55
+            parts[0] = 'v_sh600519="1'
+            parts[1] = "贵州茅台"
+            parts[2] = "600519"
+            parts[3] = "1688.00"
+            parts[4] = "1700.00"
+            parts[5] = "1690.00"
+            parts[6] = "35210"
+            parts[44] = "21200.00"
+            parts[45] = "21205.00"
+            for i, (price, volume) in enumerate(bids):
+                parts[9 + i * 2] = str(price)
+                parts[10 + i * 2] = str(volume)
+            for i, (price, volume) in enumerate(asks):
+                parts[19 + i * 2] = str(price)
+                parts[20 + i * 2] = str(volume)
+            return "~".join(parts)
+
+        full_bids = ((1687.00, 12), (1686.00, 20), (1685.00, 35), (1684.00, 8), (1683.00, 5))
+        full_asks = ((1688.00, 10), (1689.00, 18), (1690.00, 26), (1691.00, 9), (1692.00, 7))
+
+        # 五档齐全：档位、总量、排序全部正确
+        parts = split_tencent_line(build_line(full_bids, full_asks))
+        ob = parse_order_book(parts)
+        self.assertIsNotNone(ob)
+        self.assertEqual(len(ob["bids"]), 5)
+        self.assertEqual(len(ob["asks"]), 5)
+        self.assertEqual(ob["bid_volume"], 12 + 20 + 35 + 8 + 5)
+        self.assertEqual(ob["ask_volume"], 10 + 18 + 26 + 9 + 7)
+        self.assertEqual(ob["bids"][0], {"price": 1687.00, "volume": 12})
+        self.assertEqual(ob["asks"][4], {"price": 1692.00, "volume": 7})
+        # 委买卖比（B2 指标口径）可由 totals 直接计算
+        self.assertAlmostEqual(ob["bid_volume"] / ob["ask_volume"], 80 / 70)
+
+        # 部分缺档：缺失档位不入列表，totals 只累计有效档
+        parts_partial = split_tencent_line(build_line(((1687.00, 12),), ((1688.00, 10),)))
+        ob_partial = parse_order_book(parts_partial)
+        self.assertEqual(len(ob_partial["bids"]), 1)
+        self.assertEqual(ob_partial["bid_volume"], 12)
+        self.assertEqual(ob_partial["ask_volume"], 10)
+
+        # 整体缺失（收盘后快照常见）→ None
+        self.assertIsNone(parse_order_book(split_tencent_line(build_line())))
+
+        # 卖盘为 0（一字涨停、委比无定义）→ None（契约：置 None 而非 0）
+        zero_ask_bids = ((1687.00, 12), (1686.00, 20))
+        zero_ask_asks = ((1688.00, 0), (1689.00, 0))
+        self.assertIsNone(parse_order_book(split_tencent_line(build_line(zero_ask_bids, zero_ask_asks))))
+
+        # parse_tencent_quote 输出透传 order_book；DataBridge 快照同步透传
+        from core.data.tencent_fields import parse_tencent_quote as authoritative
+
+        q = authoritative(build_line(full_bids, full_asks))
+        self.assertEqual(q["order_book"]["bid_volume"], 80)
+        fake_resp = MagicMock()
+        fake_resp.read.return_value = build_line(full_bids, full_asks).encode("gbk")
+        with patch("core.data.data_bridge.urllib.request.urlopen", return_value=fake_resp):
+            quotes = DataBridge.tencent_quote(["sh600519"])
+        self.assertEqual(quotes["600519"]["order_book"]["ask_volume"], 70)
+
+        # 缺失口径：无五档的行 → 快照 order_book 为 None（消费方判 UNKNOWN）
+        fake_resp_none = MagicMock()
+        fake_resp_none.read.return_value = build_line().encode("gbk")
+        with patch("core.data.data_bridge.urllib.request.urlopen", return_value=fake_resp_none):
+            quotes_none = DataBridge.tencent_quote(["sh600519"])
+        self.assertIsNone(quotes_none["600519"]["order_book"])
+
     def test_fetch_history_fallback_constants(self):
         """Verify fetch_history_fallback defines EM_PERFORMANCE_URL without NameError."""
         import core.data.fetch_history_fallback as fh

@@ -472,6 +472,22 @@ class MarketDataStore:
                     PRIMARY KEY (symbol, date)
                 )
             """)
+            # D10 资金流（主力净流入，SPEC-DATA §5.2）：
+            # 单位统一为元（裁定 W-09）；代理档(tencent_proxy)须判 degraded，不得参与正式规则（W-07）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS capital_flow_daily (
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    main_net_inflow REAL,
+                    super_large_net_inflow REAL,
+                    large_net_inflow REAL,
+                    amount REAL,
+                    flow_source TEXT NOT NULL,
+                    updated_at TEXT,
+                    PRIMARY KEY (symbol, date)
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_flow_date ON capital_flow_daily (date)")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS industry_class (
                     symbol TEXT NOT NULL,

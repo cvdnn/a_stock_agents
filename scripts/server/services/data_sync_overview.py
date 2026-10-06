@@ -91,15 +91,22 @@ def build_daily_health(
 
 
 #: 控制台覆盖表数据集登记册：顺序即展示顺序；planned_scope 仅作为“未接入”占位的规划说明，不作为真实水位
+#  D9–D12 为漏斗模型示例反向牵引的登记行（SPEC-DATA §5.1）：
+#  接入状态由真实水位探测驱动——D10 需精算档渠道确认、D9/D11/D12 为运行捕获切片（不入正式持久化表），
+#  在 _probe_dataset_watermarks 扩展对应探测前保持“未接入”占位，严禁伪造水位。
 DATASET_REGISTRY = (
     {"key": "base_calendar", "name": "基础资料与交易日历", "planned_scope": "2024–2027 规则日历"},
     {"key": "daily_kline", "name": "日线行情", "planned_scope": "已登记股池与指数成分"},
-    {"key": "minute_kline", "name": "分钟K线", "planned_scope": "沪深北全市场 · 1/5/15/30/60 分钟"},
+    {"key": "minute_kline", "name": "分钟K线", "planned_scope": "盘中前向采集为主 · 盘后回补限历史审计"},
     {"key": "adjust_factor", "name": "复权因子与分红", "planned_scope": "沪深北全市场复权因子与分红事件"},
     {"key": "index_members", "name": "指数与成分股", "planned_scope": "核心指数最新成分与权重快照"},
     {"key": "financial", "name": "财务报表与指标", "planned_scope": "报告期 · 披露时间"},
-    {"key": "valuation", "name": "估值与股本", "planned_scope": "沪深北全市场 · 每日估值快照"},
+    {"key": "valuation", "name": "估值与股本", "planned_scope": "15:35 定盘批次随 D2 落盘 · 单位元"},
     {"key": "industry", "name": "行业分类", "planned_scope": "沪深北全市场当前行业分类快照"},
+    {"key": "intraday_snapshot", "name": "盘中实时快照归档", "planned_scope": "运行捕获切片 local/cache/intraday · 不建库表"},
+    {"key": "capital_flow", "name": "资金流（主力净流入）", "planned_scope": "代理档已落库 · 精算档渠道确认后接入"},
+    {"key": "tick_book", "name": "分笔 Tick 与五档盘口", "planned_scope": "运行捕获切片 · 仅候选池 N≤20"},
+    {"key": "auction_archive", "name": "集合竞价归档", "planned_scope": "09:15–09:25 采集归档 · 不参与信号"},
 )
 
 
@@ -190,6 +197,8 @@ def _probe_dataset_watermarks(db_path: Path | None) -> Dict[str, Dict[str, Any]]
             financial = one("SELECT COUNT(DISTINCT symbol) AS s, MAX(report_date) AS m FROM financial_report")
             capital = one("SELECT COUNT(*) AS c, MAX(date) AS d FROM capital_snapshot")
             industry = one("SELECT COUNT(*) AS c, MAX(batch_date) AS b FROM industry_class")
+            # D10 资金流：精算档(eastmoney_exact)+代理档(tencent_proxy) 共表水位（2026-10-06 渠道核验通过）
+            flow = one("SELECT COUNT(DISTINCT symbol) AS s, COUNT(*) AS c, MAX(date) AS m FROM capital_flow_daily")
         out = {
             "base_calendar": {"water": basic, "audit": audits.get("base_calendar")},
             "minute_kline": {"water": minute, "audit": audits.get("minute_kline")},
@@ -198,6 +207,7 @@ def _probe_dataset_watermarks(db_path: Path | None) -> Dict[str, Dict[str, Any]]
             "financial": {"water": financial, "audit": audits.get("financial")},
             "valuation": {"water": capital, "audit": audits.get("valuation")},
             "industry": {"water": industry, "audit": audits.get("industry")},
+            "capital_flow": {"water": flow, "audit": audits.get("capital_flow")},
         }
     except (sqlite3.Error, OSError):
         return {}
@@ -218,6 +228,7 @@ def _connected_override(key: str, probe: Dict[str, Any]) -> Dict[str, Any] | Non
         "financial": f"已登记范围 {water.get('s')} 只",
         "valuation": f"全市场 {water.get('c')} 只",
         "industry": f"已登记范围 {water.get('c')} 只",
+        "capital_flow": f"已登记范围 {water.get('s')} 只 · {water.get('c')} 行（精算+代理双档）",
     }
     asof_map = {
         "base_calendar": None,
@@ -227,6 +238,7 @@ def _connected_override(key: str, probe: Dict[str, Any]) -> Dict[str, Any] | Non
         "financial": water.get("m"),
         "valuation": water.get("d"),
         "industry": water.get("b"),
+        "capital_flow": water.get("m"),
     }
     batch_map = {"base_calendar": (water.get("u") or "")[:10] or None}
     missing = audit.get("missing")

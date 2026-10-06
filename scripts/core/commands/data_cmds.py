@@ -13,10 +13,25 @@ logger = get_logger("core.commands.data")
 
 
 def cmd_data_dataset(args):
-    """数据集登记册同步 (SPEC-DATA §5)：单数据集或到期批量。"""
+    """数据集登记册同步 (SPEC-DATA §5)：单数据集、到期批量或水位查询。"""
     from datetime import datetime
 
     from core.data import dataset_sync
+
+    if getattr(args, "watermark", False):
+        trade_date = getattr(args, "date", None) or None
+        res = dataset_sync.check_post_close_ready(trade_date=trade_date)
+        if getattr(args, "json", False) or getattr(args, "output", "") == "json":
+            print(json.dumps(res, ensure_ascii=False, indent=2, default=str))
+        else:
+            icon = "✅" if res["ready"] else ("⚠️" if not res["missing"] else "❌")
+            print(f"{icon} post_close 数据水位门控 · {res['trade_date']}")
+            for key, wm in res["datasets"].items():
+                if wm is None:
+                    print(f"   {key:<16} 无批次（未接入或今日未同步）")
+                else:
+                    print(f"   {key:<16} {wm.get('status', '?'):<10} 覆盖 {wm.get('covered')}/{wm.get('universe_total')} · {wm.get('note', '')}")
+        return
 
     codes = [c.strip() for c in str(getattr(args, "codes", "") or "").split(",") if c.strip()] or None
     if getattr(args, "due", False):
@@ -33,6 +48,49 @@ def cmd_data_dataset(args):
     else:
         for res in results:
             print(f"[{res['key']}] {res['status']} · rows={res['rows']} · source={res['source']} · failed={len(res['failed'])}")
+
+
+def cmd_data_intraday(args):
+    """盘中前向采集归档器 (SPEC-DATA §5.1 D3/D9/D11/D12 运行捕获切片)。"""
+    from core.data.intraday_archiver import IntradayArchiver
+
+    codes = [c.strip() for c in str(getattr(args, "codes", "") or "").split(",") if c.strip()]
+    if not codes:
+        from core.data.dataset_sync import _resolve_registered
+
+        codes = _resolve_registered()
+    if not codes:
+        msg = "未提供采集代码且本地无登记标的"
+        print(json.dumps({"error": msg}, ensure_ascii=False) if getattr(args, "json", False) else f"错误: {msg}")
+        return
+
+    archiver = IntradayArchiver(
+        symbols=codes,
+        snapshot_interval=float(getattr(args, "snapshot_interval", 1.0) or 1.0),
+        minute_interval=float(getattr(args, "minute_interval", 60.0) or 60.0),
+        tick_interval=float(getattr(args, "tick_interval", 3.0) or 3.0),
+    )
+    is_json = getattr(args, "json", False) or getattr(args, "output", "") == "json"
+    if not is_json:
+        print(f"=== 盘中前向采集归档 ({archiver.trade_date} · {len(codes)} 只) ===")
+        print(f"切片目录: {archiver.root}")
+
+    if getattr(args, "watch", False):
+        manifest = archiver.run()
+    else:
+        counts = archiver.run_cycle()
+        manifest = archiver.seal()
+        manifest["last_cycle_counts"] = counts
+
+    if is_json:
+        print(json.dumps(manifest, ensure_ascii=False, indent=2, default=str))
+    else:
+        c = manifest.get("counts", {})
+        print(f"快照 {c.get('snapshot', 0)} 行 · 分钟 {c.get('minute', 0)} 行 · 分笔 {c.get('tick', 0)} 行 · 竞价 {c.get('auction', 0)} 行")
+        wm = manifest.get("watermark") or {}
+        print(f"水位: {wm.get('covered', 0)}/{wm.get('universe_total', 0)} · {wm.get('availability', '-')}")
+        if manifest.get("errors"):
+            print(f"⚠️ 采集异常 {len(manifest['errors'])} 项: {manifest['errors'][:5]}")
 
 
 def cmd_data_quote(args):

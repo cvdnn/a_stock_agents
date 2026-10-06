@@ -240,6 +240,11 @@ class DataBridge:
                 "high": round(parsed["high"] if parsed["high"] is not None else price, 2),
                 "low": round(parsed["low"] if parsed["low"] is not None else price, 2),
                 "volume_hands": parsed["volume_hands"],
+                # 内外盘原始值（手）：D10 资金流代理档推导用（dataset_sync.sync_capital_flow）
+                "outer": parsed["outer"],
+                "inner": parsed["inner"],
+                # T-09: 五档盘口统一结构（缺失或卖盘为 0 → None，消费方判 UNKNOWN）
+                "order_book": parsed["order_book"],
                 "amount": parsed["amount"] or 0,
                 "amount_wan": parsed["amount_wan"] or 0,
                 "vol_ratio": round(parsed["vol_ratio"], 2) if parsed["vol_ratio"] is not None else 1.0,
@@ -668,23 +673,44 @@ class DataBridge:
             pb, roe, revenue_growth (L4 efinance, 可选),
             source: 数据来源层级
         }
+
+        口径契约 (SPEC-DATA §5.4):
+        - W-10 缺失禁置零: pe/circulating_market_cap/total_market_cap 缺失一律返回 None 并记入
+          blocking_fields；缺失不得以 0 参与比较（0 市值/0 PE 不成立，规则层须判 UNKNOWN）。
+        - W-09 单位口径: 本层 circulating_market_cap/total_market_cap 沿用腾讯快照原值，单位亿元；
+          D7 存储层 capital_snapshot 单位为元。两处单位不同，规则层禁止各自换算。
         """
+        _missing_keys = ("pe", "circulating_market_cap", "total_market_cap", "turnover_pct")
+
         try:
             clean_code = _validate_stock_code(code)
         except ValueError as exc:
             logger.warning(f"Invalid stock code for fundamentals: {exc}")
             return {"code": code, "source": "invalid_code", "pe": None,
-                    "circulating_market_cap": 0, "total_market_cap": 0, "turnover_pct": 0}
+                    "circulating_market_cap": None, "total_market_cap": None, "turnover_pct": None,
+                    "blocking_fields": list(_missing_keys)}
 
-        result = {"code": clean_code, "source": "L1_tencent"}
+        result = {"code": clean_code, "source": "L1_tencent", "blocking_fields": []}
 
         # L1: PE/市值/换手率 (腾讯直连，零依赖)
         quote = self.get_realtime_quote(clean_code)
-        if quote:
+        if not quote:
+            result["source"] = "L1_unavailable"
+            for key in _missing_keys:
+                result[key] = None
+                result["blocking_fields"].append(key)
+        else:
             result["pe"] = quote.get("pe")  # §7.7.7: 保留负值，缺失为 None
-            result["circulating_market_cap"] = quote.get("circulating_market_cap", 0)
-            result["total_market_cap"] = quote.get("total_market_cap", 0)
+            # W-10: quote 层把缺失折算为 0 —— 0 市值不成立，视为缺失（0 ≠ 缺失 回归保护）
+            circ = quote.get("circulating_market_cap")
+            total = quote.get("total_market_cap")
+            result["circulating_market_cap"] = circ if circ else None
+            result["total_market_cap"] = total if total else None
+            # 换手率 0 可为真实值（停牌/一字板），不按缺失处理
             result["turnover_pct"] = quote.get("turnover_pct", 0)
+            for key in ("pe", "circulating_market_cap", "total_market_cap"):
+                if result[key] is None:
+                    result["blocking_fields"].append(key)
 
         # L4: efinance 基本面 (可选，需 efinance 包)
         try:

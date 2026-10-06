@@ -13,7 +13,9 @@ tencent_fields.py — 腾讯 qt.gtimg.cn L1 快照解析的单点真实源 (SSOT
 
 口径约定（对应 §7.7.7）：
 - "缺失"（字段为空串或 PE/PB 占位 "0"）→ None；
-- 负值（如亏损股 PE<0）原样保留，由规则层显式判定"亏损"，数据层不做归并。
+- 负值（如亏损股 PE<0）原样保留，由规则层显式判定"亏损"，数据层不做归并；
+- 五档盘口（T-09）：统一输出 `order_book` 结构；档位缺失不入列表，整体缺失或卖盘为 0
+  （委比无定义）→ None，消费方按 Kleene 判 UNKNOWN。
 """
 
 from __future__ import annotations
@@ -50,6 +52,17 @@ IDX_OPEN = 5            # 今开
 IDX_VOLUME_HANDS = 6    # 成交量(手)
 IDX_OUTER = 7           # 外盘
 IDX_INNER = 8           # 内盘
+# 五档盘口（T-09 / P-01 / W-05）：买一价/量(手)起于 9，逐档 +2；卖一价/量起于 19
+IDX_BID1 = 9            # 买一价
+IDX_BID2 = 11
+IDX_BID3 = 13
+IDX_BID4 = 15
+IDX_BID5 = 17
+IDX_ASK1 = 19           # 卖一价
+IDX_ASK2 = 21
+IDX_ASK3 = 23
+IDX_ASK4 = 25
+IDX_ASK5 = 27
 IDX_TIME = 30           # 快照时间
 IDX_CHANGE_PCT = 32     # 涨跌幅(%)
 IDX_HIGH = 33           # 最高
@@ -85,6 +98,39 @@ def _num_no_zero(parts: List[str], idx: int) -> Optional[float]:
     """取浮点值，并把占位 "0" 一并视为"缺失" → None（仅用于 PE/PB 这类无 0 语义字段）。"""
     val = _num(parts, idx)
     return None if val == 0 else val
+
+
+def parse_order_book(parts: List[str]) -> Optional[Dict]:
+    """解析五档买卖盘口为统一 order_book 结构（T-09 / P-01 / W-05 单点实现）。
+
+    输出: {"bids": [{price, volume}×N], "asks": [...],
+           "bid_volume": 五档买盘总量(手), "ask_volume": 五档卖盘总量(手)}
+
+    契约（规范 §5.1 D11 / 算法侧 T-09）：
+    - 逐档取值，价格或量缺失/为 0 的档位不入列表（收盘后快照常见整块缺失）；
+    - 完全无有效档位，或 **卖盘总量为 0**（一字涨停无卖盘、委比无定义）→ 整体返回 None，
+      消费方须按 Kleene 三值逻辑判 UNKNOWN 并携带 not_eligible_for_signal，禁止以 0 参与比较。
+    """
+    bids: List[Dict] = []
+    asks: List[Dict] = []
+    for price_idx in (IDX_BID1, IDX_BID2, IDX_BID3, IDX_BID4, IDX_BID5):
+        price = _num(parts, price_idx)
+        volume = _num(parts, price_idx + 1)
+        if price is not None and price > 0 and volume is not None and volume > 0:
+            bids.append({"price": price, "volume": volume})
+    for price_idx in (IDX_ASK1, IDX_ASK2, IDX_ASK3, IDX_ASK4, IDX_ASK5):
+        price = _num(parts, price_idx)
+        volume = _num(parts, price_idx + 1)
+        if price is not None and price > 0 and volume is not None and volume > 0:
+            asks.append({"price": price, "volume": volume})
+    if not bids and not asks:
+        return None
+    bid_volume = sum(level["volume"] for level in bids)
+    ask_volume = sum(level["volume"] for level in asks)
+    if ask_volume <= 0:
+        # 卖盘为 0：按契约整体判缺失（委买卖比无定义）
+        return None
+    return {"bids": bids, "asks": asks, "bid_volume": bid_volume, "ask_volume": ask_volume}
 
 
 def split_tencent_line(line: str) -> Optional[List[str]]:
@@ -155,4 +201,6 @@ def parse_tencent_quote(line: str) -> Optional[Dict]:
         "total_market_cap": _num(parts, IDX_TOTAL_MKTCAP),
         "limit_up": _num(parts, IDX_LIMIT_UP),
         "limit_down": _num(parts, IDX_LIMIT_DOWN),
+        # T-09: 五档盘口统一结构；缺失或卖盘为 0 → None（消费方判 UNKNOWN）
+        "order_book": parse_order_book(parts),
     }

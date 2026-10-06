@@ -119,6 +119,10 @@ def test_run_due_datasets_respects_window(tmp_path, fake_akshare, registered, mo
         dataset_sync, "sync_capital",
         lambda symbols=None, db_path=None: dataset_sync._result("valuation", "ok", 1, "stub"),
     )
+    monkeypatch.setattr(
+        dataset_sync, "sync_capital_flow",
+        lambda symbols=None, db_path=None: dataset_sync._result("capital_flow", "degraded", 1, "stub"),
+    )
     db = tmp_path / "astock_data.db"
     MarketDataStore(db)
     morning = datetime(2026, 10, 9, 10, 0)  # 周五交易日，早于全部窗口

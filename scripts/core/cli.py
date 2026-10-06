@@ -55,6 +55,7 @@ from core.commands import (
     cmd_data_technical,
     cmd_data_sync,
     cmd_data_daemon,
+    cmd_data_intraday,
     cmd_deploy_monitor,
     cmd_downside,
     cmd_evaluate,
@@ -186,10 +187,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     # dataset
     p_dataset = subparsers.add_parser("dataset", help="数据集登记册同步 (SPEC-DATA §5)", parents=[common_parser])
-    p_dataset.add_argument("--key", default="", help="数据集键: base_calendar/minute_kline/adjust_factor/index_members/financial/valuation/industry")
+    p_dataset.add_argument("--key", default="", help="数据集键: base_calendar/minute_kline/capital_flow/daily_kline/adjust_factor/index_members/financial/valuation/industry")
     p_dataset.add_argument("--codes", default="", help="股票代码逗号分隔 (默认按数据集定义的登记范围/全市场)")
     p_dataset.add_argument("--freqs", default="5,60", help="分钟K线周期逗号分隔 (仅 minute_kline)")
     p_dataset.add_argument("--due", action="store_true", help="执行所有已到 §5.1 窗口且今日未跑的数据集")
+    p_dataset.add_argument("--watermark", action="store_true", help="查询 §5.5 UniverseWatermark 水位与 post_close 门控判定")
+    p_dataset.add_argument("--date", default=None, help="水位查询交易日 (默认最新批次)")
 
     # deploy-monitor
     subparsers.add_parser("deploy-monitor", help="查看监控部署指南", parents=[common_parser])
@@ -413,6 +416,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_data_d.add_argument("--pool", choices=["holdings", "watchlist", "focus", "all"], default="all", help="指定定时同步的标的池")
     p_data_d.add_argument("-w", "--workers", type=int, default=4, help="并发线程数 (默认: 4)")
     p_data_d.add_argument("--once", action="store_true", help="单次检测运行并退出 (不常驻)")
+    p_data_i = data_sub.add_parser("intraday", help="盘中前向采集归档 (D3/D9/D11/D12 切片)", parents=[common_parser])
+    p_data_i.add_argument("--codes", default="", help="股票代码逗号分隔 (默认取已登记标的 P0–P2)")
+    p_data_i.add_argument("--watch", action="store_true", help="常驻循环采集直至收盘 15:00 并封存")
+    p_data_i.add_argument("--snapshot-interval", type=float, default=1.0, help="快照采集间隔秒 (默认 1.0)")
+    p_data_i.add_argument("--minute-interval", type=float, default=60.0, help="1分钟K采集间隔秒 (默认 60.0)")
+    p_data_i.add_argument("--tick-interval", type=float, default=3.0, help="分笔采集间隔秒 (默认 3.0)")
 
     # skill
     p_skill = subparsers.add_parser("skill", help="查看已注册技能模块", parents=[common_parser])
@@ -643,6 +652,8 @@ def main():
             cmd_data_sync(args)
         elif data_cmd == "daemon":
             cmd_data_daemon(args)
+        elif data_cmd == "intraday":
+            cmd_data_intraday(args)
         else:
             parser.print_help()
     elif cmd == "skill":
