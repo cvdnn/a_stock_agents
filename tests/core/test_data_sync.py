@@ -6,8 +6,10 @@ from datetime import datetime
 from pathlib import Path
 import json
 import os
+import shutil
 import sqlite3
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -23,31 +25,19 @@ from core.data.sync_engine import DataSyncEngine, MarketDataStore, TradeCalendar
 class TestDataSyncEngine(unittest.TestCase):
 
     def setUp(self):
-        self.test_db_path = PROJECT_ROOT / "local" / "market_data" / "test_astock_data.db"
-        if self.test_db_path.exists():
-            self.test_db_path.unlink()
+        # 每个用例独立临时库：历史上固定落在真实 local/market_data/ 下，
+        # 既与开发者已同步的 200MB 生产库同目录（误删/误读风险），也让 26 个用例串行复用同一路径。
+        self._tmp_root = tempfile.mkdtemp(prefix="astock-sync-test-")
+        self.addCleanup(shutil.rmtree, self._tmp_root, ignore_errors=True)
+        self.test_db_path = Path(self._tmp_root) / "astock_data.db"
         self.store = MarketDataStore(db_path=self.test_db_path)
         self.engine = DataSyncEngine(store=self.store)
         # 守护定盘时刻取自持久化设置文件，测试须与开发者本机设置隔离：
         # 固定指向不存在的路径，使 resolve_daemon_schedule 走内置默认 15:35 / 15:40。
-        self.absent_settings = self.test_db_path.parent / "test_absent_settings.json"
+        self.absent_settings = Path(self._tmp_root) / "absent_settings.json"
         env_patch = patch.dict(os.environ, {"A_STOCK_DATA_SYNC_SETTINGS_FILE": str(self.absent_settings)})
         env_patch.start()
         self.addCleanup(env_patch.stop)
-
-    def tearDown(self):
-        if self.test_db_path.exists():
-            try:
-                self.test_db_path.unlink()
-            except Exception:
-                pass
-        for name in ("test_daemon_settings.json", "test_broken_settings.json", "test_partial_settings.json"):
-            artifact = self.test_db_path.parent / name
-            if artifact.exists():
-                try:
-                    artifact.unlink()
-                except Exception:
-                    pass
 
     def test_trade_calendar(self):
         # 2026-06-01 (周一) 到 2026-06-07 (周日)

@@ -11,6 +11,7 @@ from server.app import app
 from server.agent.memory import SessionMemoryManager
 from server.db import (
     add_session_memory,
+    create_auth_token,
     create_session,
     get_session,
     get_session_memories,
@@ -94,11 +95,17 @@ class TestSessionMemoryAndTitle:
         assert del_count == 1
         assert len(get_session_memories(sid, db_path=temp_db)) == 0
 
-    def test_api_session_detail_with_memories(self, monkeypatch, temp_db: Path):
+    def test_api_session_detail_with_memories(self, monkeypatch, app, temp_db: Path):
+        """会话详情接口须返回该会话的记忆条目。
+
+        本用例把 `server_settings.db_path` 切到独立临时库，因此会话凭证必须签在同一库上，
+        否则鉴权中间件在新库里查不到 token 而恒判 401。
+        """
         from server.config import server_settings
         monkeypatch.setattr(server_settings, "db_path", temp_db)
 
-        client = TestClient(app)
+        token = create_auth_token(1, 3600, db_path=temp_db)
+        client = TestClient(app, headers={"Authorization": f"Bearer {token['token']}"})
 
         # 1. Create session
         res = client.post("/api/chat/sessions", json={"title": "新建投研对话"})

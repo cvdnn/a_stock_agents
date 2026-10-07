@@ -31,6 +31,23 @@ def _resolve_template_path() -> Path:
 TEMPLATE_PATH = _resolve_template_path()
 
 
+def _first_number(*candidates, default: float = 0.0) -> float:
+    """按给定顺序取第一个可解析为数值的候选，全部不可解析时回落 default。
+
+    上游字段可能带脏数据或被注入（如 price=`'100<script>'`），直接 `float()` 会让
+    整份报告生成崩溃。此处只认数值，非数值一律跳过并继续回退下一个真实来源，
+    绝不把未净化的原始串带进 HTML，也不静默伪造一个价格。
+    """
+    for candidate in candidates:
+        if candidate is None or isinstance(candidate, bool):
+            continue
+        try:
+            return float(candidate)
+        except (TypeError, ValueError):
+            continue
+    return default
+
+
 def _sanitize_report_output_path(output_path: str) -> Path:
     """Ensure report output path is safely sandboxed within an authorized directory.
 
@@ -80,8 +97,8 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
     date_str = now_dt.strftime("%Y-%m-%d")
 
     # 现价与涨跌
-    curr_price = float(quote.get("price") or tech.get("close") or 10.0)
-    chg_pct = float(quote.get("change_pct") or 0.0)
+    curr_price = _first_number(quote.get("price"), tech.get("close"), default=10.0)
+    chg_pct = _first_number(quote.get("change_pct"), default=0.0)
     chg_sign = "+" if chg_pct >= 0 else ""
     chg_class = "up" if chg_pct >= 0 else "down"
 
@@ -307,10 +324,10 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
             tpl_str = TEMPLATE_PATH.read_text(encoding="utf-8")
             html_out = (
                 tpl_str
-                .replace("{{TITLE}}", f"{raw_name}({raw_code}) 量化投研分析报告")
+                .replace("{{TITLE}}", f"{name}({code}) 量化投研分析报告")
                 .replace("{{DATE}}", date_str)
                 .replace("{{HEADER_TAG}}", f"量化实战评估 · {date_str}")
-                .replace("{{MAIN_TITLE}}", f"{raw_name} ({raw_code}) 投研报告")
+                .replace("{{MAIN_TITLE}}", f"{name} ({code}) 投研报告")
                 .replace("{{SUB_TITLE}}", f"现价 {curr_price:.2f} ({chg_sign}{chg_pct:.2f}%) · 评级 {rating} · 综合评分 {total_score}/100")
                 .replace("{{HEADER_STATS}}", header_stats_html)
                 .replace("{{CONTENT}}", content_html)

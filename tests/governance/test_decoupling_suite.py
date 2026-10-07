@@ -6,8 +6,11 @@ Ensures the system is not constrained to specific hardcoded stocks.
 import io
 import os
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
 
 from core.config import (
     DEFAULT_CYCLICAL_SECTORS,
@@ -91,7 +94,12 @@ class TestStockCodeDecoupling(unittest.TestCase):
         self.assertEqual(len(fallback_stocks), len(main_stocks))
 
     def test_action_plan_missing_code_defensive_behavior(self):
-        """测试 action-plan 命令在缺少代码且无持仓时，安全提示而非静默分析茅台"""
+        """action-plan 在缺少代码且**本地无持仓**时，必须安全提示而非静默分析某只个股。
+
+        本用例断言的是"无持仓"分支，因此必须把 `OUTPUT_POOLS_DIR` 隔离到空目录：
+        否则它会读到开发者本机真实持仓（历史上正是本机的 600519 让命令走了"唯一持仓自动选取"
+        分支而 FAIL），用例结论随个人数据漂移，且从未真正验证过它想验证的防御路径。
+        """
         from core.commands.strategy_cmds import cmd_action_plan
 
         class DummyArgs:
@@ -101,9 +109,10 @@ class TestStockCodeDecoupling(unittest.TestCase):
             shares = None
             count = 120
 
-        buf = io.StringIO()
-        with redirect_stdout(buf):
-            cmd_action_plan(DummyArgs())
+        with tempfile.TemporaryDirectory() as empty_pools:
+            buf = io.StringIO()
+            with patch("core.config.OUTPUT_POOLS_DIR", Path(empty_pools)), redirect_stdout(buf):
+                cmd_action_plan(DummyArgs())
 
         out = buf.getvalue()
         self.assertIn("请指定股票代码", out)

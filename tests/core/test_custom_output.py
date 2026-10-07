@@ -7,8 +7,10 @@ automatic template initialization, and stock pool / position CRUD routing.
 import os
 import sys
 import shutil
+import tempfile
 import unittest
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,16 +22,11 @@ if str(ROOT / "core") not in sys.path:
 
 class TestCustomOutputIsolation(unittest.TestCase):
     def setUp(self):
-        self.test_custom_dir = ROOT / "cache" / "_unit_test_custom_output"
-        if self.test_custom_dir.exists():
-            shutil.rmtree(self.test_custom_dir)
-
-    def tearDown(self):
-        if self.test_custom_dir.exists():
-            try:
-                shutil.rmtree(self.test_custom_dir)
-            except Exception:
-                pass
+        # 隔离到临时目录：历史上落在真实 cache/_unit_test_custom_output，
+        # 与工程缓存同根目录，异常中断即留下无人清理的残留。
+        self._tmp_root = Path(tempfile.mkdtemp(prefix="astock-output-iso-"))
+        self.addCleanup(shutil.rmtree, self._tmp_root, ignore_errors=True)
+        self.test_custom_dir = self._tmp_root / "_unit_test_custom_output"
 
     def test_default_output_paths(self):
         from core.config import get_active_paths, OUTPUT_DIR, OUTPUT_POOLS_DIR
@@ -135,10 +132,21 @@ class TestCustomOutputIsolation(unittest.TestCase):
         ]
 
 
-        for name, cmd, expected_keywords in scripts_to_verify:
-            res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT), env=env)
+        # 13 个脚本各自冷启动一次 Python + 导入 pandas，串行执行是套件最大单项耗时。
+        # 这些命令都是只读列举（list / --show / --pool / check-pool / audit 不带 --fix），
+        # 且写入目标已被 A_STOCK_OUTPUT_DIR 指向本次隔离目录，故并发安全。
+        with ThreadPoolExecutor(max_workers=min(8, len(scripts_to_verify))) as pool:
+            futures = [
+                (name, pool.submit(subprocess.run, cmd, capture_output=True, text=True,
+                                   cwd=str(ROOT), env=env))
+                for name, cmd, _expected in scripts_to_verify
+            ]
+            results = [(name, fut.result()) for name, fut in futures]
+
+        expected_by_name = {name: expected for name, _cmd, expected in scripts_to_verify}
+        for name, res in results:
             self.assertEqual(res.returncode, 0, f"Script [{name}] failed with returncode {res.returncode}:\nstderr: {res.stderr}\nstdout: {res.stdout}")
-            for kw in expected_keywords:
+            for kw in expected_by_name[name]:
                 self.assertIn(kw, res.stdout, f"Script [{name}] did not find expected keyword '{kw}' from custom output.\nstdout:\n{res.stdout}")
 
     def test_default_output_untouched(self):

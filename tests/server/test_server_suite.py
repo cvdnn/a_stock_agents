@@ -9,6 +9,7 @@ from starlette.testclient import TestClient
 
 from server.app import app
 from server.config import server_settings
+from core.data.data_bridge import DataBridge
 from server.db import (
     add_message,
     check_db_health,
@@ -171,18 +172,46 @@ class TestLLMProviders:
 
 
 class TestAgentTools:
-    """Test core tool execution bridge and risk card extraction."""
+    """Test core tool execution bridge and risk card extraction.
+
+    这两个用例的真实被测对象是**动作单算法**（保本价向上进位、T0/T1/T2 三级止损、风险卡抽取），
+    而腾讯实时行情只是输入。此前它们直连外网，单个耗时约 4.8s，且在网络抖动或被前序用例
+    扰动时抛 CAPABILITY_EXECUTION_FAILED 而随机失败。此处把行情输入固定下来，
+    算法断言一字未减，但结果稳定且毫秒级。
+    """
+
+    @pytest.fixture()
+    def canned_quote(self, monkeypatch):
+        from datetime import date, timedelta
+
+        quote = {
+            "code": "600519", "name": "贵州茅台", "price": 1425.50, "change_pct": 1.24,
+            "high": 1438.00, "low": 1408.60, "open": 1412.00, "prev_close": 1408.10,
+            "volume": 31500, "amount": 4.48e9, "turnover_pct": 0.25, "pe": 22.6,
+            "circulating_market_cap": 1.79e12, "total_market_cap": 1.79e12,
+        }
+        start = date(2026, 4, 1)
+        klines = [
+            [
+                (start + timedelta(days=i)).isoformat(),
+                f"{1380.0 + i * 0.4 - 1:.2f}", f"{1380.0 + i * 0.4:.2f}",
+                f"{1380.0 + i * 0.4 + 6:.2f}", f"{1380.0 + i * 0.4 - 8:.2f}",
+                "31500", "448000.0",
+            ]
+            for i in range(120)
+        ]
+        monkeypatch.setattr(DataBridge, "get_realtime_quote", lambda self, code, **kw: dict(quote))
+        monkeypatch.setattr(DataBridge, "tencent_kline", staticmethod(lambda code, **kw: list(klines)))
 
     @pytest.mark.asyncio
-    async def test_execute_quote_tool(self):
+    async def test_execute_quote_tool(self, canned_quote):
         res = await execute_tool("astock_quote", {"code": "600519"})
-        assert "code" in res or "error" in res
-        if "code" in res:
-            assert res["code"] == "600519"
-            assert "price" in res
+        assert res["status"] == "success", res
+        assert res["code"] == "600519"
+        assert res["price"] == 1425.50
 
     @pytest.mark.asyncio
-    async def test_execute_action_plan_tool(self):
+    async def test_execute_action_plan_tool(self, canned_quote):
         res = await execute_tool("astock_action_plan", {"code": "600519", "cost": 1330.0, "shares": 100})
         assert "code" in res
         assert "breakeven_price" in res
@@ -302,83 +331,79 @@ class TestAgentReActRunner:
 
 
 class TestFastAPIRoutes:
-    """Test HTTP REST endpoints via Starlette TestClient."""
+    """REST 端点回归；统一走 conftest 的 `client`（带会话凭证），不再各自裸建 TestClient。"""
 
-    def test_root_and_health(self):
-        with TestClient(app) as client:
-            r1 = client.get("/")
-            assert r1.status_code == 200
-            assert "GC量化投资助手" in r1.text or "AI量化投资助手" in r1.text or "A-Stock Agents" in r1.text
+    def test_root_and_health(self, client):
+        r1 = client.get("/")
+        assert r1.status_code == 200
+        assert "GC量化投资助手" in r1.text or "AI量化投资助手" in r1.text or "A-Stock Agents" in r1.text
 
-            r_api = client.get("/api")
-            assert r_api.status_code == 200
-            data_api = r_api.json()
-            assert data_api["name"] == "A-Stock Agents Web API Gateway"
-            assert data_api["status"] == "online"
+        r_api = client.get("/api")
+        assert r_api.status_code == 200
+        data_api = r_api.json()
+        assert data_api["name"] == "A-Stock Agents Web API Gateway"
+        assert data_api["status"] == "online"
 
-            r2 = client.get("/api/health")
-            assert r2.status_code == 200
-            data2 = r2.json()
-            assert data2["status"] == "ok"
-            assert data2["db_connected"] is True
+        r2 = client.get("/api/health")
+        assert r2.status_code == 200
+        data2 = r2.json()
+        assert data2["status"] == "ok"
+        assert data2["db_connected"] is True
 
-            r3 = client.get("/api/config")
-            assert r3.status_code == 200
-            data3 = r3.json()
-            assert "default_model" in data3
-            assert "supported_models" in data3
+        r3 = client.get("/api/config")
+        assert r3.status_code == 200
+        data3 = r3.json()
+        assert "default_model" in data3
+        assert "supported_models" in data3
 
-    def test_session_endpoints(self):
-        with TestClient(app) as client:
-            # Create session
-            create_resp = client.post("/api/chat/sessions", json={"title": "端到端测试会话", "model": "mock"})
-            assert create_resp.status_code == 200
-            sess_data = create_resp.json()
-            sid = sess_data["session_id"]
-            assert sid.startswith("sess_")
+    def test_session_endpoints(self, client):
+        # Create session
+        create_resp = client.post("/api/chat/sessions", json={"title": "端到端测试会话", "model": "mock"})
+        assert create_resp.status_code == 200
+        sess_data = create_resp.json()
+        sid = sess_data["session_id"]
+        assert sid.startswith("sess_")
 
-            # Get session
-            get_resp = client.get(f"/api/chat/sessions/{sid}")
-            assert get_resp.status_code == 200
-            detail = get_resp.json()
-            assert detail["session"]["session_id"] == sid
-            assert isinstance(detail["messages"], list)
+        # Get session
+        get_resp = client.get(f"/api/chat/sessions/{sid}")
+        assert get_resp.status_code == 200
+        detail = get_resp.json()
+        assert detail["session"]["session_id"] == sid
+        assert isinstance(detail["messages"], list)
 
-            # List sessions
-            list_resp = client.get("/api/chat/sessions")
-            assert list_resp.status_code == 200
-            assert any(s["session_id"] == sid for s in list_resp.json()["sessions"])
+        # List sessions
+        list_resp = client.get("/api/chat/sessions")
+        assert list_resp.status_code == 200
+        assert any(s["session_id"] == sid for s in list_resp.json()["sessions"])
 
-            # Delete session
-            del_resp = client.delete(f"/api/chat/sessions/{sid}")
-            assert del_resp.status_code == 200
-            assert del_resp.json()["status"] == "deleted"
+        # Delete session
+        del_resp = client.delete(f"/api/chat/sessions/{sid}")
+        assert del_resp.status_code == 200
+        assert del_resp.json()["status"] == "deleted"
 
-    def test_chat_stream_endpoint(self):
-        with TestClient(app) as client:
-            payload = {
-                "message": "你好，请简要介绍 A-Stock Agents 的实战三原则",
-                "model": "mock",
-                "tools_enabled": False,
-            }
-            resp = client.post("/api/chat/completions/stream", json=payload)
-            assert resp.status_code == 200
-            assert "text/event-stream" in resp.headers["content-type"]
-            body = resp.text
-            assert "event: conversation_start" in body
-            assert "event: content_delta" in body
-            assert "event: done" in body
+    def test_chat_stream_endpoint(self, client):
+        payload = {
+            "message": "你好，请简要介绍 A-Stock Agents 的实战三原则",
+            "model": "mock",
+            "tools_enabled": False,
+        }
+        resp = client.post("/api/chat/completions/stream", json=payload)
+        assert resp.status_code == 200
+        assert "text/event-stream" in resp.headers["content-type"]
+        body = resp.text
+        assert "event: conversation_start" in body
+        assert "event: content_delta" in body
+        assert "event: done" in body
 
-    def test_watchlist_no_duplicate_stocks(self):
-        with TestClient(app) as client:
-            resp = client.get("/api/watchlist?active_code=603259")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["status"] == "success"
-            stocks = data["stocks"]
-            assert len(stocks) > 0
-            codes = [s["code"] for s in stocks]
-            assert len(codes) == len(set(codes)), f"Found duplicate stock codes: {[c for c in set(codes) if codes.count(c) > 1]}"
-            assert codes.count("603259") == 1
-            assert data["count"] == len(stocks)
-            assert data["active_stock_detail"]["code"] == "603259"
+    def test_watchlist_no_duplicate_stocks(self, client):
+        resp = client.get("/api/watchlist?active_code=603259")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        stocks = data["stocks"]
+        assert len(stocks) > 0
+        codes = [s["code"] for s in stocks]
+        assert len(codes) == len(set(codes)), f"Found duplicate stock codes: {[c for c in set(codes) if codes.count(c) > 1]}"
+        assert codes.count("603259") == 1
+        assert data["count"] == len(stocks)
+        assert data["active_stock_detail"]["code"] == "603259"

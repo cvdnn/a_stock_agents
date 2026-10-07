@@ -96,6 +96,31 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 
 ---
 
+## 🧪 测试分层执行规约 (Tiered Test Gate)
+
+> 完整规范：[`docs/guidelines/engineering/testing-guide.md`](docs/guidelines/engineering/testing-guide.md) · 速查与目录：[`tests/README.md`](tests/README.md) · 档位归属唯一改动点：[`tests/conftest.py`](tests/conftest.py)
+
+**核心优先，其余需人工确认后再评估是否执行。** 任何改动后，智能体**默认只允许**执行 P0 核心门禁：
+
+| 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
+| :--- | :--- | :--- | ---: | :--- |
+| ① | **P0 核心（132 例）** | `.venv/bin/python -m pytest -m core` | ~13s | 无条件先跑，唯一自动门禁 |
+| ② | 核心离线极速 | `.venv/bin/python -m pytest -m "core and not slow and not network and not subprocess"` | ~12s | ① 失败定位时可自主使用 |
+| ③~⑧ | `core or p1` / `not network` / 全量 / `-n 4` / `network` / `live` | 见测试指南 3.2 | 40~68s | **必须先取得人工确认** |
+
+**硬约束（智能体必须遵守）：**
+
+1. **禁止默认全量**：不得把 `pytest`（无参数）、`pytest -n X`、`pytest -m "core or p1"`、`pytest tests/<目录>/` 当作默认动作。
+2. **先征询再扩展**：确需跑 ③~⑧ 时，必须先说明「为什么核心门禁不足以覆盖本次改动」「预计耗时」「是否会触网或写盘」，得到确认后才执行。
+3. **门禁绿 ≠ 可交付**：改动落在 `p1` 覆盖面（服务端 API、设置接线、技能契约）时，须在结论中明确"建议追加执行 ③"，把决策权交回用户，既不自作主张跳过、也不自作主张全跑。
+4. **失败即止**：① 出现失败立刻停止并报告，不得用"全量里别的也挂了"稀释定位。
+5. **基线是 0 failed**（404 passed · 14 skipped · 2 xfailed）。2 个 `xfail(strict=True)` 是已登记的**生产缺陷档案**，禁止为了让看板变绿而删除/放宽断言或改测试迁就实现。
+
+**用例编写铁律（详见指南第四章，Review 逐条对照）：**
+断言必须必然执行（禁 `if 条件: assert`）；同文件禁重名 `def test_`（会静默覆盖）；HTTP 用例必须走 `client`/`anon_client`（裸建 TestClient 恒 401）；禁写 `output/`、`local/`、`cache/` 真实目录（用 `isolated_user_pools`/`tmp_path`）；外网与 DNS 必须桩化，确需保留则打 `network` 标签；昂贵流水线用 module fixture 只跑一次。
+
+---
+
 ## 📋 股池与持仓分析空数据处理规范 (Empty Pool Handling)
 
 当用户要求分析【持仓/关注/自选】等股池时：

@@ -28,10 +28,12 @@ for p in [PROJECT_ROOT, SCRIPTS_DIR, SCRIPTS_DIR / "core", PROJECT_ROOT / "core"
         sys.path.insert(0, str(p))
 
 try:
-    from core.config import OUTPUT_DIR, BACKUPS_DIR
+    from core.config import OUTPUT_DIR, BACKUPS_DIR, TEMP_DIR
 except Exception:
     OUTPUT_DIR = PROJECT_ROOT / "output"
     BACKUPS_DIR = PROJECT_ROOT / "backups"
+    # 与 AGENTS.md 三目录规范一致：临时解压产物一律落 temp/，严禁落项目根或 output/
+    TEMP_DIR = PROJECT_ROOT / "temp"
 
 PROTECTED_DIRS = [OUTPUT_DIR.name, "output", "user_data", "backups"]
 PROTECTED_FILES = ["config/config.yaml"]

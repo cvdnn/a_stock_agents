@@ -88,8 +88,11 @@ def normalize_minute_timestamp(value: Any) -> Tuple[Optional[str], Optional[str]
             return _minute_from_epoch(float(text) / (1000.0 if len(text) == 13 else 1.0))
         return None, MINUTE_TS_UNPARSABLE
 
+    # `Z` 末尾仅在 Python 3.11+ 被 fromisoformat 接受；本项目声明支持 >=3.9，
+    # 而 UTC 分钟线（`...T01:36:00Z`）是捕获归档的合法输入，必须先补成显式偏移再解析。
+    iso_text = text[:-1] + "+00:00" if text.endswith(("Z", "z")) else text
     try:
-        parsed = datetime.fromisoformat(text)
+        parsed = datetime.fromisoformat(iso_text)
     except ValueError:
         return None, MINUTE_TS_UNPARSABLE
     if parsed.tzinfo is not None:

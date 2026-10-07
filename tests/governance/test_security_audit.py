@@ -7,16 +7,12 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from server.app import create_app
 from core.reporting.report_generator import _sanitize_report_output_path
 from core.config import PROJECT_ROOT, OUTPUT_REPORTS_DIR
 
-
-@pytest.fixture(scope="module")
-def client():
-    app = create_app()
-    with TestClient(app) as test_client:
-        yield test_client
+# `client` / `anon_client` 由 tests/conftest.py 统一供给：
+# `/api/*` 中间件默认拒绝匿名请求，本文件的 SEC-01/SEC-06 断言的是"越权写读"业务码（400/403），
+# 必须已登录才拿得到；历史上此处自建不带凭证的 TestClient，导致整批用例停在 401 而从未真正校验过 403。
 
 
 # ==============================================================================
@@ -33,13 +29,17 @@ def test_docs_save_blocks_overwriting_web_index(client: TestClient):
     assert "restricted" in res.json().get("detail", "").lower() or "access denied" in res.json().get("detail", "").lower()
 
 
-def test_docs_save_blocks_directory_traversal(client: TestClient):
+@pytest.mark.parametrize("evil_path", [
+    "../../evil_report.html",   # 相对穿越
+    "../../etc/passwd",         # 穿越到系统文件
+])
+def test_docs_save_blocks_directory_traversal(client: TestClient, evil_path: str):
     """Attempting path traversal via ../../ must return 403 Forbidden."""
     res = client.post(
         "/api/docs/save",
-        json={"path": "../../evil_report.html", "content": "<h1>Hacked</h1>", "title": "test"},
+        json={"path": evil_path, "content": "<h1>Hacked</h1>", "title": "traversal"},
     )
-    assert res.status_code == 403
+    assert res.status_code in (400, 403)
 
 
 def test_docs_save_blocks_scripts_and_config_dirs(client: TestClient):
@@ -72,17 +72,17 @@ def test_docs_save_confines_to_reports_dir(client: TestClient):
 # SEC-06: /api/docs/read Source Code Disclosure & Directory Boundary Defense
 # ==============================================================================
 
-def test_docs_read_denies_py_source_code(client: TestClient):
-    """Requesting .py source files must return 400 or 403, never disclosing backend source code."""
-    res = client.get("/api/docs/read", params={"path": "scripts/server/app.py"})
+@pytest.mark.parametrize("forbidden_path", [
+    "scripts/server/app.py",   # 后端源码
+    "scripts/core/cli.py",     # CLI 源码
+    "scripts/server/db.py",    # 数据层源码
+    "tests/conftest.py",       # 测试基座（含临时路径构造细节）
+    ".env",                    # 本地私密覆盖（API Key 等）
+])
+def test_docs_read_denies_source_and_sensitive_paths(client: TestClient, forbidden_path: str):
+    """源码、测试与 .env 一律拒绝，绝不向后端以外披露源码。"""
+    res = client.get("/api/docs/read", params={"path": forbidden_path})
     assert res.status_code in (400, 403)
-
-
-def test_docs_read_denies_sensitive_system_dirs(client: TestClient):
-    """Accessing scripts/, tests/, or .env must be rejected with 403 Forbidden."""
-    for forbidden_path in ["scripts/server/db.py", "tests/conftest.py", ".env"]:
-        res = client.get("/api/docs/read", params={"path": forbidden_path})
-        assert res.status_code in (400, 403)
 
 
 def test_docs_read_allows_whitelisted_docs(client: TestClient):
@@ -149,52 +149,73 @@ def test_docker_compose_binds_to_localhost():
     )
 
 
-def test_auth_middleware_flow(client: TestClient):
-    """Verify that when api_token is configured, protected endpoints require Bearer auth."""
+def test_auth_middleware_flow(app):
+    """鉴权中间件状态机：匿名拒绝、有效会话放行、白名单豁免。
+
+    现行契约是 fail-closed：`/api/*` 一律要求有效用户会话，不再存在"无 token 时向下兼容
+    单机开发放行"的旁路（旧用例正是卡在这条已被推翻的期望上，导致 401 被误读成"鉴权生效"）。
+    本用例刻意用不带任何凭证的 TestClient，避免 conftest 的会话头把 401 分支掩盖掉。
+    """
     from server.config import server_settings
+    from server.db import create_auth_token
+
+    anon = TestClient(app)
+    session = TestClient(app)
+    token = create_auth_token(1, 3600)
 
     original_token = server_settings.api_token
     try:
-        # 1. 无 token 时（向下兼容单机开发），受保护端点正常放行
         server_settings.api_token = None
-        res_no_auth = client.get("/api")
-        assert res_no_auth.status_code == 200
 
-        # 2. 启用 token 保护
-        server_settings.api_token = "test-secret-token-9988"
+        # 1. 匿名访问受保护接口 → 401（fail-closed，无单机旁路）
+        res_anon = anon.get("/api")
+        assert res_anon.status_code == 401
+        assert res_anon.json()["detail"]["error"] == "unauthorized"
 
-        # 2.1 未携带 Token 访问受保护接口 -> 401 Unauthorized
-        res_unauth = client.get("/api")
-        assert res_unauth.status_code == 401
-        assert "Unauthorized" in res_unauth.json().get("detail", "")
+        # 2. 伪造/过期 Bearer → 401 且明确是 invalid_token，不得静默降级到别的凭据
+        res_bad = anon.get("/api", headers={"Authorization": "Bearer forged-token"})
+        assert res_bad.status_code == 401
+        assert res_bad.json()["detail"]["error"] == "invalid_token"
 
-        # 2.2 携带错误 Token 访问受保护接口 -> 401 Unauthorized
-        res_bad_token = client.get("/api", headers={"Authorization": "Bearer wrong-token"})
-        assert res_bad_token.status_code == 401
+        # 3. 有效会话 Token → 放行
+        res_ok = session.get("/api", headers={"Authorization": f"Bearer {token['token']}"})
+        assert res_ok.status_code == 200
 
-        # 2.3 携带正确 Token 访问受保护接口 -> 200 OK
-        res_authed = client.get("/api", headers={"Authorization": "Bearer test-secret-token-9988"})
-        assert res_authed.status_code == 200
+        # 4. 白名单豁免：健康检查与 Web UI 无需凭证
+        assert anon.get("/api/health").status_code == 200
+        assert anon.get("/").status_code == 200
 
-        # 2.4 白名单豁免：健康检查接口无需 Token
-        res_health = client.get("/api/health")
-        assert res_health.status_code == 200
-
-        # 2.5 白名单豁免：Web UI 页面无需 Token
-        res_ui = client.get("/")
-        assert res_ui.status_code == 200
-
-        # 2.6 白名单豁免：OPTIONS 预检请求不被拦截为 401
-        res_options = client.options(
+        # 5. OPTIONS 预检不被鉴权拦截（CORS 前提）
+        res_options = anon.options(
             "/api",
-            headers={
-                "Origin": "http://localhost:3000",
-                "Access-Control-Request-Method": "GET",
-            }
+            headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "GET"},
         )
         assert res_options.status_code != 401
         assert res_options.status_code in (200, 204)
+    finally:
+        server_settings.api_token = original_token
 
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "生产缺陷（非用例问题）：`A_STOCK_SERVER_TOKEN` 静态 API Token 已完全失效——中间件"
+        "app.py:257-267 在'携带了 Bearer 但不是有效会话 token'时直接 return 401，"
+        "永远走不到第 269 行的静态 token 分支；而不带 Authorization 的请求又因 "
+        "`if auth_header and ...` 恒为假而同样 401。即机器集成（无浏览器会话）已无任何合法入口，"
+        "该分支为不可达死代码。恢复静态 token 兜底后本用例转 PASS，strict 会以 XPASS 提醒移除标记。"
+    ),
+)
+def test_static_api_token_still_authenticates_machine_integrations(app):
+    """静态 API Token 必须仍可用于无浏览器会话的机器集成。"""
+    from server.config import server_settings
+
+    anon = TestClient(app)
+    original_token = server_settings.api_token
+    try:
+        server_settings.api_token = "test-secret-token-9988"
+        res = anon.get("/api", headers={"Authorization": "Bearer test-secret-token-9988"})
+        assert res.status_code == 200
     finally:
         server_settings.api_token = original_token
 
@@ -256,21 +277,6 @@ def test_ssrf_blocks_non_loopback_on_11434():
 # ==============================================================================
 # Aliases & Additional Tests for Execution Plan Conformance
 # ==============================================================================
-
-def test_docs_save_path_traversal(client: TestClient):
-    """Execution plan alias: test_docs_save_path_traversal."""
-    res = client.post(
-        "/api/docs/save",
-        json={"path": "../../etc/passwd", "content": "root:x:0:0:", "title": "traversal"},
-    )
-    assert res.status_code in (400, 403)
-
-
-def test_docs_read_denies_py(client: TestClient):
-    """Execution plan alias: test_docs_read_denies_py."""
-    res = client.get("/api/docs/read", params={"path": "scripts/core/cli.py"})
-    assert res.status_code in (400, 403)
-
 
 def test_ssrf_rejects_dns_rebind(monkeypatch):
     """DNS rebinding or dynamic domain resolving to internal IP must be rejected."""

@@ -45,11 +45,14 @@ class TestSecuritySuite(unittest.TestCase):
         # Raw executable payloads must NOT be in output
         self.assertNotIn("<script>alert('code')</script>", report)
         self.assertNotIn("<img src=x onerror=alert(1)>", report)
+        self.assertNotIn("<style>bad</style>", report)
+        self.assertNotIn("<style>BAD</style>", report)
 
         # Escaped payloads must be present
         self.assertIn(html_lib.escape("<script>alert('code')</script>"), report)
         self.assertIn(html_lib.escape("<img src=x onerror=alert(1)>"), report)
-        self.assertIn(html_lib.escape("<style>bad</style>"), report)
+        # rating 会被显式 .upper() 归一，故断言转义后的大写形态，避免大小写造成假失败
+        self.assertIn(html_lib.escape("<style>bad</style>".upper()), report)
 
     def test_zip_slip_path_traversal_defense(self):
         """Verify update utility blocks zip files containing malicious path traversal entries."""

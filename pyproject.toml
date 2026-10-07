@@ -31,6 +31,9 @@ full = [
 test = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    # 并行执行加速器：全量套件 -n 4 约 35s，串行约 75s。
+    # 纯可选——未安装时 `pytest` 照常工作，只是失去 -n 参数。
+    "pytest-xdist>=3.5.0",
 ]
 
 [project.scripts]
@@ -43,4 +46,18 @@ include = ["core*", "server*", "tools*"]
 [tool.pytest.ini_options]
 pythonpath = ["scripts", "."]
 testpaths = ["tests", ".agents/skills"]
+# 用例分层：core=P0 核心契约门禁, p1=P1 重要回归, p2=P2 补充边界
+# 能力标签：slow(>1s)/network(真实外网)/subprocess(子进程 CLI)/e2e(端到端)/ui(Node 前端)
+# strict_markers 杜绝拼写错误的标记被静默忽略（历史上 e2e 曾被误写成 endtoend）
+addopts = "-ra --strict-markers"
+markers = [
+    "core: P0 核心业务契约（量化底座/数据装配/撮合/税费保本/真实性红线），任何改动必过门禁",
+    "p1: P1 重要回归（服务端 API、设置持久化、技能契约、治理门禁）",
+    "p2: P2 补充与边界回归（文档、注册表、辅助路径）",
+    "slow: 单用例耗时 > 1s（子进程冷启动、全市场扫描、重复流水线），非核心门禁可延后",
+    "network: 触达真实外网（行情重试、连通性探测），离线环境应 deselect",
+    "subprocess: 通过子进程执行 CLI/脚本的集成用例",
+    "e2e: 端到端链路用例（真实装配→规则→输出）",
+    "live: 需要预先启动真实服务并显式开启（A_STOCK_RUN_LIVE_E2E=1）",
+]
 

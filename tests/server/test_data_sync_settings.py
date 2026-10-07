@@ -207,12 +207,6 @@ def test_batch_update_uses_dedicated_dispatch_instead_of_skill_registry(monkeypa
 
 
 @pytest.fixture
-def auth_headers():
-    tok = create_auth_token(1, 3600)
-    return {"Authorization": f"Bearer {tok['token']}"}
-
-
-@pytest.fixture
 def isolated_settings_file(tmp_path, monkeypatch):
     """每个测试独立的设置文件路径，避免相互污染。"""
     target = tmp_path / "settings" / "data_sync.json"
@@ -667,46 +661,6 @@ def test_daemon_control_stop_survives_reload(auth_headers, isolated_settings_fil
         reloaded = svc.apply_to_runtime(svc.effective_settings())
         assert reloaded["enabled"] is False
         client.post("/api/market_data/daemon/control", json={"action": "start"}, headers=auth_headers)
-
-
-def test_every_setting_is_classified_as_wired_or_persist_only():
-    """每项设置都必须在 EXECUTION_WIRING 中如实归类，杜绝新增"可保存但不生效"的静默死配置。
-
-    历史缺陷：external_sources 排序、base.timeout_seconds、cooperation.tdx_target_pool 等
-    多份设置只被校验与持久化，执行层从不消费，用户保存后毫无效果却无任何提示。
-    """
-    def leaves(node, prefix=""):
-        for key, value in node.items():
-            path = f"{prefix}{key}"
-            if isinstance(value, dict):
-                yield from leaves(value, path + ".")
-            else:
-                yield path
-
-    declared = set(svc.EXECUTION_WIRING["wired"]) | set(svc.EXECUTION_WIRING["persist_only"])
-    wildcard_prefixes = tuple(p[:-1] for p in declared if p.endswith(".*"))
-    actual = set(leaves(svc.DEFAULTS))
-
-    unclassified = {p for p in actual if p not in declared and not p.startswith(wildcard_prefixes)}
-    assert not unclassified, f"以下设置项未登记生效范围: {sorted(unclassified)}"
-
-    stale = {p for p in declared if not p.endswith(".*") and p not in actual}
-    assert not stale, f"EXECUTION_WIRING 登记了 DEFAULTS 中不存在的设置项: {sorted(stale)}"
-
-    # 两分类不得重叠：同一项不能既"已接线"又"仅持久化"
-    overlap = set(svc.EXECUTION_WIRING["wired"]) & set(svc.EXECUTION_WIRING["persist_only"])
-    assert not overlap, f"生效范围归类自相矛盾: {sorted(overlap)}"
-
-
-def test_settings_summary_exposes_execution_wiring(isolated_settings_file):
-    """设置接口必须对外披露各项是否真正接线，供前端如实标注"保存后是否生效"。"""
-    summary = svc.settings_summary_for_ui()
-    wiring = summary["execution_wiring"]
-    assert "external_sources.order" in wiring["wired"]
-    assert "daemon.p0_time" in wiring["wired"]
-    assert "base.timeout_seconds" in wiring["wired"]
-    assert "cooperation.tdx_target_pool" in wiring["wired"]
-    assert any(p.startswith("workspace.") for p in wiring["persist_only"])
 
 
 def test_every_setting_is_classified_as_wired_or_persist_only():
