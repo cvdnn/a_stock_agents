@@ -11353,57 +11353,62 @@ function triggerManualSync() {
 // ============================================================================
 // STRATEGY SELECTION WORKBENCH (策略选股 · 漏斗选股模型工作台)
 // ============================================================================
-let isSelectionInitialized = false;
+// 零虚假数据铁律：后端未提供选股模型接口（scripts/server/api/ 无 selection_models 模块，
+// db.py 无相关表），故本工作台一律 fail-closed 只渲染如实空态。模型列表、漏斗层级、
+// 候选标的、价格走势与个股结论只能来自真实接口返回，禁止内置任何示例值。
+// 规范依据：docs/guidelines/algorithm/selection-system-specification.md §17.2
+// 「未实现的模型类型只能显示"规划中"，不得提供可点击的假编辑器」。
+// 历史缺陷（2026-10-07 已清除，治理回归测试防复现）：本块曾内置写死的模型案例、
+// 五层漏斗通过数、十行候选股与一条固定价格曲线，且新建/停止/日志/导出按钮只弹 toast。
+const SELECTION_UNAVAILABLE_REASON = '选股模型接口与持久化表尚未实现，工作台无真实数据源';
+const SELECTION_EMPTY_PLACEHOLDER = '<div class="datasync-detail-placeholder">'
+  + SELECTION_UNAVAILABLE_REASON + '，不展示任何示例模型、漏斗层级或候选标的</div>';
 
-const SelectionData = {
-  activeModelId: 'value-growth-v3',
-  activeLayer: 1,
-  models: [
-    { id: 'value-growth-v3', name: '成长优选模型', desc: '多因子价值成长选股', status: 'running', statusLabel: '运行中', nextTrigger: '14:30', time: '2024-03-21 09:28:15' },
-    { id: 'steady-bluechip', name: '稳健蓝筹筛选', desc: '低波动蓝筹策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:35', time: '2024-03-21 08:55:02' },
-    { id: 'tech-growth', name: '科技成长优选', desc: '科技赛道成长股', status: 'pending', statusLabel: '待运行', nextTrigger: '10:00', time: '2024-03-20 16:00:00' },
-    { id: 'low-valuation', name: '低估值价值精选', desc: '低估值价值投资', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-20 09:30:05' },
-    { id: 'northbound-pref', name: '北向资金偏好股', desc: '北向资金流向选股', status: 'error', statusLabel: '异常', nextTrigger: '14:30', time: '2024-03-19 14:20:11' },
-    { id: 'high-dividend', name: '高股息防御组合', desc: '高股息防御策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-19 09:30:00' },
-  ],
-  funnel: [
-    { layer: 1, name: '全市场股票池', value: '5,432', trigger: '定时触发 14:30', condition: '剔除ST、北交所等', remain: '3,821（70.4%）', state: 'done', color: 'l1' },
-    { layer: 2, name: '基本面筛选', value: '3,821', trigger: '定时触发 14:30', condition: '营业收入 ＞ 20%', remain: '1,243（32.5%）', state: 'done', color: 'l2' },
-    { layer: 3, name: '行业筛选', value: '1,243', trigger: '定时触发 14:30', condition: '行业集中度前 60', remain: '386（31.1%）', state: 'done', color: 'l3' },
-    { layer: 4, name: '技术面筛选', value: '386', trigger: '定时触发 14:30', condition: 'MA 多头排列', remain: '98（25.4%）', state: 'done', color: 'l4' },
-    { layer: 5, name: '组合优化', value: '--', trigger: '--', condition: '--', remain: '--', state: 'idle', color: 'l5' },
-  ],
-  results: [
-    { code: '600519', name: '贵州茅台', industry: '食品饮料', price: '1,682.30', delta: '+0.45%' },
-    { code: '300750', name: '宁德时代', industry: '电力设备', price: '257.88', delta: '+1.20%' },
-    { code: '600036', name: '招商银行', industry: '银行', price: '33.21', delta: '-0.30%' },
-    { code: '000858', name: '五粮液', industry: '食品饮料', price: '162.15', delta: '+0.52%' },
-    { code: '601318', name: '中国平安', industry: '非银金融', price: '48.73', delta: '-0.18%' },
-    { code: '600900', name: '长江电力', industry: '公用事业', price: '28.85', delta: '+0.35%' },
-    { code: '600333', name: '美的集团', industry: '家用电器', price: '72.38', delta: '+0.21%' },
-    { code: '002594', name: '比亚迪', industry: '汽车', price: '245.60', delta: '+1.56%' },
-    { code: '601728', name: '中国电信', industry: '通信', price: '6.12', delta: '-0.49%' },
-    { code: '600276', name: '恒瑞医药', industry: '医药生物', price: '47.91', delta: '+0.78%' },
-  ],
+const SelectionWorkbench = {
+  activeModelId: null,
+  activeLayer: 0,
+  models: [],
+  funnel: [],
+  results: [],
 };
 
 function initSelectionWorkbench() {
   renderSelectionWorkbench();
-  isSelectionInitialized = true;
 }
 
 function renderSelectionWorkbench() {
   renderSelectionModelList();
   renderSelectionFunnel();
-  renderSelectionResults(SelectionData.results);
-  drawSelectionPriceChart();
+  renderSelectionResults(SelectionWorkbench.results);
+  renderSelectionDetailHead();
+}
+
+function renderSelectionDetailHead() {
+  const m = SelectionWorkbench.models.find(x => x.id === SelectionWorkbench.activeModelId) || null;
+  hydrateFastText('selDetailModelName', m ? m.name : '--');
+  const st = document.getElementById('selDetailStatus');
+  if (st) {
+    st.className = 'sel-status-badge status-pending';
+    st.innerText = m ? m.statusLabel : '○ 无数据源';
+  }
+  const layerLabel = document.getElementById('selResultLayerLabel');
+  if (layerLabel) {
+    const f = SelectionWorkbench.funnel.find(x => x.layer === SelectionWorkbench.activeLayer) || null;
+    layerLabel.innerText = f ? `（第 ${f.layer} 层：${f.name}）` : '（未选择筛选层）';
+  }
+  const total = document.getElementById('selResultTotal');
+  if (total) total.innerText = SelectionWorkbench.results.length ? String(SelectionWorkbench.results.length) : '--';
 }
 
 function renderSelectionModelList() {
   const list = document.getElementById('selectionModelList');
   if (!list) return;
-  list.innerHTML = SelectionData.models.map(m => `
-    <div class="sel-model-card ${m.id === SelectionData.activeModelId ? 'active' : ''}" onclick="selectFunnelModel('${m.id}')">
+  if (!SelectionWorkbench.models.length) {
+    list.innerHTML = SELECTION_EMPTY_PLACEHOLDER;
+    return;
+  }
+  list.innerHTML = SelectionWorkbench.models.map(m => `
+    <div class="sel-model-card ${m.id === SelectionWorkbench.activeModelId ? 'active' : ''}" onclick="selectFunnelModel('${m.id}')">
       <div class="sel-model-card-top">
         <span class="sel-model-name">${m.name}</span>
         <span class="sel-status-dot status-${m.status}" title="${m.statusLabel}"></span>
@@ -11419,10 +11424,16 @@ function renderSelectionModelList() {
 function renderSelectionFunnel() {
   const wrap = document.getElementById('selectionFunnel');
   if (!wrap) return;
+  const sub = document.getElementById('selFunnelLayerCount');
+  if (sub) sub.innerText = SelectionWorkbench.funnel.length ? `共 ${SelectionWorkbench.funnel.length} 层筛选` : '未运行';
+  if (!SelectionWorkbench.funnel.length) {
+    wrap.innerHTML = SELECTION_EMPTY_PLACEHOLDER;
+    return;
+  }
   // 漏斗梯形宽度 [顶宽%, 底宽%]（顶层→底层逐级收窄，形成连续漏斗）
   const widths = [[100, 86], [82, 69], [68, 57], [61, 52], [59, 49]];
-  wrap.innerHTML = SelectionData.funnel.map((f, idx) => {
-    const selected = f.layer === SelectionData.activeLayer;
+  wrap.innerHTML = SelectionWorkbench.funnel.map((f, idx) => {
+    const selected = f.layer === SelectionWorkbench.activeLayer;
     const stateClass = f.state === 'idle' ? 'funnel-idle' : 'funnel-done';
     const [topW, bottomW] = widths[idx] || [60, 50];
     const inset = (((topW - bottomW) / 2) / topW * 100).toFixed(1);
@@ -11452,23 +11463,21 @@ function renderSelectionFunnel() {
 }
 
 function selectFunnelLayer(layer) {
-  if (SelectionData.activeLayer === layer) return;
-  SelectionData.activeLayer = layer;
-  const f = SelectionData.funnel.find(x => x.layer === layer);
-  const label = document.getElementById('selResultLayerLabel');
-  if (label && f) label.innerText = `（第 ${f.layer} 层：${f.name}）`;
+  if (!SelectionWorkbench.funnel.some(x => x.layer === layer)) return;
+  SelectionWorkbench.activeLayer = layer;
   renderSelectionFunnel();
+  renderSelectionDetailHead();
 }
 
 function renderSelectionResults(rows) {
   const body = document.getElementById('selResultBody');
   if (!body) return;
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="6" class="sel-empty-row">未匹配到符合条件的标的</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="sel-empty-row">无真实筛选结果，不展示任何示例标的</td></tr>';
     return;
   }
   body.innerHTML = rows.map((r, i) => `
-    <tr onclick="selectSelectionStock('${r.code}','${r.name}')">
+    <tr onclick="selectSelectionStock('${r.code}')">
       <td class="tabular-nums">${i + 1}</td>
       <td class="tabular-nums sel-code-cell">${r.code}</td>
       <td class="sel-name-cell">${r.name}</td>
@@ -11480,29 +11489,21 @@ function renderSelectionResults(rows) {
 }
 
 function selectFunnelModel(modelId) {
-  SelectionData.activeModelId = modelId;
-  const m = SelectionData.models.find(x => x.id === modelId);
-  if (m) {
-    const nameEl = document.getElementById('selDetailModelName');
-    if (nameEl) nameEl.innerText = m.name;
-    const st = document.getElementById('selDetailStatus');
-    if (st) {
-      st.className = `sel-status-badge status-${m.status}`;
-      st.innerText = `● ${m.statusLabel}`;
-    }
-  }
+  const m = SelectionWorkbench.models.find(x => x.id === modelId) || null;
+  if (!m) return;
+  SelectionWorkbench.activeModelId = modelId;
   renderSelectionModelList();
-  showToast(`已切换到模型案例：${m ? m.name : modelId}`);
+  renderSelectionDetailHead();
+  showToast(`已切换到模型：${m.name}`);
 }
 
-function selectSelectionStock(code, name) {
-  const nameEl = document.getElementById('selStockName');
-  const codeEl = document.getElementById('selStockCode');
-  if (nameEl) nameEl.innerText = name;
-  if (codeEl) codeEl.innerText = code;
+function selectSelectionStock(code) {
+  const row = SelectionWorkbench.results.find(r => r.code === code) || null;
+  if (!row) return;
+  hydrateFastText('selStockName', row.name);
+  hydrateFastText('selStockCode', row.code);
   toggleSelectionAnalysis(true);
-  drawSelectionPriceChart();
-  showToast(`已加载 ${name} (${code}) 分析信息`);
+  showToast(`已选中 ${row.name} (${row.code})；个股分析摘要尚未接入真实数据源`);
 }
 
 function toggleSelectionAnalysis(show) {
@@ -11518,84 +11519,15 @@ function toggleSelectionAnalysis(show) {
 
 function filterFunnelResults(keyword) {
   const kw = (keyword || '').trim().toLowerCase();
-  const rows = SelectionData.results.filter(r =>
+  const rows = SelectionWorkbench.results.filter(r =>
     !kw || r.code.toLowerCase().includes(kw) || r.name.toLowerCase().includes(kw)
   );
   renderSelectionResults(rows);
 }
 
-function switchSelAnalysisTab(sec) {
-  document.querySelectorAll('#selAnalysisTabs .sel-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.sec === sec);
-  });
-}
-
-function switchSelPeriod(btn, label) {
-  document.querySelectorAll('#selPeriodSwitch .sel-period').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  drawSelectionPriceChart();
-}
-
-function drawSelectionPriceChart() {
-  const canvas = document.getElementById('selPriceChart');
-  if (!canvas || !canvas.getContext) return;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-  const pts = [1636, 1648, 1642, 1655, 1660, 1652, 1668, 1675, 1670, 1682, 1690, 1686, 1696, 1698];
-  const xLabels = ['03-15', '03-18', '03-19', '03-20', '03-21'];
-  const yLabels = [1720, 1680, 1640, 1600];
-  const padL = 36, padR = 8, padT = 8, padB = 18;
-  const min = 1600, max = 1720;
-  const stepX = (w - padL - padR) / (pts.length - 1);
-  ctx.font = '9px -apple-system, "PingFang SC", sans-serif';
-  // 网格与 Y 轴刻度
-  ctx.strokeStyle = '#F0F2F5';
-  ctx.lineWidth = 1;
-  yLabels.forEach((yv, i) => {
-    const gy = padT + (h - padT - padB) * i / (yLabels.length - 1);
-    ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(w - padR, gy); ctx.stroke();
-    ctx.fillStyle = '#86909C';
-    ctx.textAlign = 'right';
-    ctx.fillText(yv.toLocaleString(), padL - 4, gy + 3);
-  });
-  // X 轴日期标签
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#86909C';
-  xLabels.forEach((lb, i) => {
-    const idx = Math.round(i * (pts.length - 1) / (xLabels.length - 1));
-    ctx.fillText(lb, padL + idx * stepX, h - 5);
-  });
-  // 面积 + 折线
-  ctx.beginPath();
-  pts.forEach((p, i) => {
-    const x = padL + i * stepX;
-    const y = h - padB - ((p - min) / (max - min || 1)) * (h - padT - padB);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  });
-  ctx.strokeStyle = '#1677FF';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.lineTo(padL + (pts.length - 1) * stepX, h - padB);
-  ctx.lineTo(padL, h - padB);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, 'rgba(22,119,255,0.18)');
-  grad.addColorStop(1, 'rgba(22,119,255,0)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-}
-
 function refreshSelectionWorkbench() {
   renderSelectionWorkbench();
-}
-
-function exportFunnelResults() {
-  showToast('漏斗筛选结果导出中...（CSV）');
-}
-
-function openNewFunnelModelModal() {
-  showToast('新建漏斗选股模型：条件树编辑器与漏斗编排器即将上线');
+  showToast(SELECTION_UNAVAILABLE_REASON);
 }
 
 window.initSelectionWorkbench = initSelectionWorkbench;
@@ -11605,8 +11537,4 @@ window.selectFunnelLayer = selectFunnelLayer;
 window.selectSelectionStock = selectSelectionStock;
 window.toggleSelectionAnalysis = toggleSelectionAnalysis;
 window.filterFunnelResults = filterFunnelResults;
-window.switchSelAnalysisTab = switchSelAnalysisTab;
-window.switchSelPeriod = switchSelPeriod;
 window.refreshSelectionWorkbench = refreshSelectionWorkbench;
-window.exportFunnelResults = exportFunnelResults;
-window.openNewFunnelModelModal = openNewFunnelModelModal;

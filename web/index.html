@@ -446,15 +446,15 @@
 
           <!-- 2.1 策略选股专属功能按钮组 (仅在【策略选股】显示) -->
           <div class="header-action-group tab-actions-selection" id="actionsSelection" style="display: none; align-items: center; gap: 8px;">
-            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="openNewFunnelModelModal()" title="新建漏斗选股模型案例">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" disabled title="漏斗模型编辑器尚未实现（无 selection_models 接口与持久化表），按规范不提供可点击的假编辑器">
               <span class="meta-action-icon">➕</span>
               <span class="meta-action-text">新建模型</span>
             </button>
-            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="refreshSelectionWorkbench(); showToast('漏斗选股模型状态已刷新');" title="刷新模型运行状态">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="refreshSelectionWorkbench()" title="按真实数据源重新渲染工作台">
               <span class="meta-action-icon">🔄</span>
               <span class="meta-action-text">刷新状态</span>
             </button>
-            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="exportFunnelResults()" title="导出当前层筛选结果">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" disabled title="无真实筛选结果可导出，导出接口尚未实现">
               <span class="meta-action-icon">📥</span>
               <span class="meta-action-text">导出结果</span>
             </button>
@@ -964,10 +964,10 @@
               <div class="selection-panel-card selection-model-list-card">
                 <div class="selection-panel-head">
                   <span class="selection-panel-title">📑 选股列表</span>
-                  <button type="button" class="selection-new-btn" onclick="openNewFunnelModelModal()">＋新建</button>
+                  <button type="button" class="selection-new-btn" disabled title="漏斗模型编辑器尚未实现（无 selection_models 接口与持久化表），按规范不提供可点击的假编辑器">＋新建</button>
                 </div>
                 <div class="selection-model-list" id="selectionModelList">
-                  <!-- 模型案例卡片由 JS 渲染 -->
+                  <!-- 模型列表由 JS 按真实接口渲染；无数据源时呈现如实空态 -->
                 </div>
               </div>
             </div>
@@ -977,16 +977,16 @@
               <!-- 顶部模型状态栏 -->
               <div class="selection-detail-headcard">
                 <div class="selection-detail-title-row">
-                  <span class="selection-detail-model-name" id="selDetailModelName">成长优选模型</span>
-                  <span class="sel-status-badge status-running" id="selDetailStatus">● 运行中</span>
+                  <span class="selection-detail-model-name" id="selDetailModelName">--</span>
+                  <span class="sel-status-badge status-pending" id="selDetailStatus">○ 无数据源</span>
                 </div>
                 <div class="selection-detail-actions">
-                  <button type="button" class="sel-act-btn danger" onclick="showToast('已发送停止运行指令')"><span class="sel-stop-square"></span> 停止运行</button>
-                  <button type="button" class="sel-act-btn" onclick="showToast('正在打开运行日志')">
+                  <button type="button" class="sel-act-btn danger" disabled title="无运行中的真实模型实例，可执行的停止指令尚未实现"><span class="sel-stop-square"></span> 停止运行</button>
+                  <button type="button" class="sel-act-btn" disabled title="无真实模型运行日志可查，日志接口尚未实现">
                     <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13"/><path d="M6 8h4M6 10.5h4"/></svg>
                     查看日志
                   </button>
-                  <button type="button" class="sel-act-btn" onclick="exportFunnelResults()">
+                  <button type="button" class="sel-act-btn" disabled title="无真实筛选结果可导出，导出接口尚未实现">
                     <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M5 6.5l3 3 3-3"/><path d="M2.5 13.5h11"/></svg>
                     导出结果
                   </button>
@@ -998,10 +998,10 @@
                 <div class="selection-panel-card selection-funnel-card">
                   <div class="funnel-card-head">
                     <span class="funnel-card-title">漏斗运行图</span>
-                    <span class="funnel-card-sub">共 5 层筛选</span>
+                    <span class="funnel-card-sub" id="selFunnelLayerCount">未运行</span>
                   </div>
                   <div class="selection-funnel" id="selectionFunnel">
-                    <!-- 漏斗层由 JS 渲染 -->
+                    <!-- 漏斗层由 JS 按真实接口渲染；无数据源时呈现如实空态 -->
                   </div>
                 </div>
 
@@ -1010,7 +1010,7 @@
                   <div class="selection-result-head">
                     <div class="selection-result-title-row">
                       <span class="selection-result-title">筛选后股票列表</span>
-                      <span class="selection-result-sub" id="selResultLayerLabel">（第 1 层：全市场股票池）</span>
+                      <span class="selection-result-sub" id="selResultLayerLabel">（未选择筛选层）</span>
                     </div>
                     <div class="sel-search-box">
                       <svg class="sel-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
@@ -1039,23 +1039,8 @@
                     </div>
                   </div>
                   <div class="selection-result-foot">
-                    <span class="sel-total-note">共 <strong class="tabular-nums">3,821</strong> 条</span>
-                    <div class="sel-pagination">
-                      <button type="button" class="sel-page-btn" onclick="showToast('上一页')">‹</button>
-                      <button type="button" class="sel-page-btn active" onclick="showToast('第 1 页')">1</button>
-                      <button type="button" class="sel-page-btn" onclick="showToast('第 2 页')">2</button>
-                      <button type="button" class="sel-page-btn" onclick="showToast('第 3 页')">3</button>
-                      <button type="button" class="sel-page-btn" onclick="showToast('第 4 页')">4</button>
-                      <button type="button" class="sel-page-btn" onclick="showToast('第 5 页')">5</button>
-                      <span class="sel-page-ellipsis">…</span>
-                      <button type="button" class="sel-page-btn" onclick="showToast('第 255 页')">255</button>
-                      <button type="button" class="sel-page-btn" onclick="showToast('下一页')">›</button>
-                      <select class="sel-page-size-select" onchange="showToast('已切换为 ' + this.value)" aria-label="每页条数">
-                        <option value="10 条/页" selected>10 条/页</option>
-                        <option value="20 条/页">20 条/页</option>
-                        <option value="50 条/页">50 条/页</option>
-                      </select>
-                    </div>
+                    <span class="sel-total-note">共 <strong class="tabular-nums" id="selResultTotal">--</strong> 条</span>
+                    <span class="sel-page-note">分页与页长由真实筛选结果接口下发，无数据源时不提供假分页</span>
                   </div>
                 </div>
               </div>
@@ -1070,79 +1055,27 @@
                 </div>
                 <div class="sel-stock-head">
                   <div class="sel-stock-name-row">
-                    <span class="sel-stock-name" id="selStockName">贵州茅台</span>
-                    <span class="sel-stock-code tabular-nums" id="selStockCode">600519</span>
-                    <span class="sel-verified-badge">✓</span>
+                    <span class="sel-stock-name" id="selStockName">--</span>
+                    <span class="sel-stock-code tabular-nums" id="selStockCode">--</span>
                   </div>
-                  <button type="button" class="sel-add-watch" onclick="showToast('已加入自选股')">＋ 自选</button>
+                  <button type="button" class="sel-add-watch" disabled title="加入自选需要真实标的与自选写入接口，当前无可用数据源">＋ 自选</button>
                 </div>
-                <div class="sel-stock-tags">
-                  <span class="sel-tag-pill">食品饮料</span>
-                  <span class="sel-tag-pill">A股</span>
-                  <span class="sel-tag-pill">沪港通</span>
-                </div>
+                <div class="sel-stock-tags" id="selStockTags"></div>
                 <div class="sel-stock-price-row">
                   <div class="sel-stock-price-col">
                     <div class="sel-stock-price-line">
-                      <span class="sel-stock-price tabular-nums text-up" id="selStockPrice">1,698.20</span>
-                      <span class="sel-stock-delta tabular-nums text-up"><span id="selStockDelta">+20.60</span><span id="selStockDeltaPct">+1.23%</span></span>
+                      <span class="sel-stock-price tabular-nums" id="selStockPrice">--</span>
+                      <span class="sel-stock-delta tabular-nums"><span id="selStockDelta">--</span><span id="selStockDeltaPct">--</span></span>
                     </div>
-                    <div class="sel-stock-updatetime">更新时间：<span class="tabular-nums">2024-03-21 10:15:26</span></div>
+                    <div class="sel-stock-updatetime">更新时间：<span class="tabular-nums" id="selStockUpdateTime">--</span></div>
                   </div>
                   <div class="sel-score-box">
                     <div class="sel-score-label">综合评分</div>
-                    <div class="sel-score-val tabular-nums" id="selStockScore">92.5</div>
-                    <div class="sel-score-grade">（优秀）</div>
+                    <div class="sel-score-val tabular-nums" id="selStockScore">--</div>
+                    <div class="sel-score-grade" id="selStockScoreGrade"></div>
                   </div>
                 </div>
-                <div class="sel-analysis-tabs" id="selAnalysisTabs">
-                  <button type="button" class="sel-tab active" data-sec="overview" onclick="switchSelAnalysisTab('overview')">综合分析</button>
-                  <button type="button" class="sel-tab" data-sec="fundamental" onclick="switchSelAnalysisTab('fundamental')">基本面</button>
-                  <button type="button" class="sel-tab" data-sec="technical" onclick="switchSelAnalysisTab('technical')">技术面</button>
-                  <button type="button" class="sel-tab" data-sec="valuation" onclick="switchSelAnalysisTab('valuation')">估值分析</button>
-                  <button type="button" class="sel-tab" data-sec="capital" onclick="switchSelAnalysisTab('capital')">资金面</button>
-                </div>
-                <div class="sel-price-chart-block">
-                  <div class="sel-chart-head">
-                    <span class="sel-chart-title">价格走势</span>
-                    <div class="sel-period-switch" id="selPeriodSwitch">
-                      <button type="button" class="sel-period active" onclick="switchSelPeriod(this,'5日')">5日</button>
-                      <button type="button" class="sel-period" onclick="switchSelPeriod(this,'20日')">20日</button>
-                      <button type="button" class="sel-period" onclick="switchSelPeriod(this,'60日')">60日</button>
-                      <button type="button" class="sel-period" onclick="switchSelPeriod(this,'120日')">120日</button>
-                    </div>
-                  </div>
-                  <canvas id="selPriceChart" class="sel-price-canvas" width="320" height="120"></canvas>
-                </div>
-                <div class="sel-analysis-body">
-                  <div class="sel-block">
-                    <div class="sel-block-title">📋 基本面摘要</div>
-                    <p class="sel-block-text">公司是中国高端白酒龙头，品牌壁垒深厚，盈利能力持续保持行业领先。现金流充沛，具有较强的护城河，长期成长逻辑清晰。</p>
-                  </div>
-                  <div class="sel-block">
-                    <div class="sel-block-title">📈 技术面摘要</div>
-                    <p class="sel-block-text">股价处于上升趋势中，近期放量突破前高，MACD 金叉，动能指标表现强劲，技术形态良好。</p>
-                  </div>
-                  <div class="sel-block">
-                    <div class="sel-block-title">💡 推荐理由</div>
-                    <p class="sel-block-text">品牌护城河稳固，业绩稳定量增，估值处于合理区间，长期配置价值突出。</p>
-                  </div>
-                  <div class="sel-block risk">
-                    <div class="sel-block-title">⚠️ 风险提示</div>
-                    <p class="sel-block-text">白酒行业受宏观经济及消费复苏节奏影响较大，短期可能存在估值波动风险。</p>
-                  </div>
-                  <div class="sel-block">
-                    <div class="sel-block-title">🏷️ 相关标签</div>
-                    <div class="sel-keyword-tags">
-                      <span class="sel-kw-tag">高ROE</span>
-                      <span class="sel-kw-tag">白酒龙头</span>
-                      <span class="sel-kw-tag">业绩稳定</span>
-                      <span class="sel-kw-tag">现金流充沛</span>
-                      <span class="sel-kw-tag">消费回升</span>
-                      <span class="sel-kw-tag">长期向上</span>
-                    </div>
-                  </div>
-                </div>
+                <div class="datasync-detail-placeholder">个股走势、基本面、技术面、估值与资金面摘要尚未接入真实数据源，不展示任何示例结论</div>
               </div>
             </div>
 

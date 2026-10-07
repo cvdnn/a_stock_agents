@@ -12757,6 +12757,15 @@ body.dark-mode .chat-md-chip:hover {
   cursor: pointer;
 }
 
+/* 选股工作台 fail-closed：无真实数据源时动作按钮一律禁用，不提供可点击的假编辑器 */
+.selection-new-btn:disabled,
+.sel-act-btn:disabled,
+.sel-add-watch:disabled,
+.btn-doc-meta-action:disabled { opacity: .5; cursor: not-allowed; }
+.selection-new-btn:disabled:hover { background: var(--primary); }
+.sel-act-btn:disabled:hover { border-color: var(--border-card); color: var(--text-body); }
+.sel-page-note { font-size: 12px; color: var(--text-subtle); }
+
 /* 智能选股 · 响应式收紧：窄窗/矮窗下标记区域整体等比缩小以铺满可视窗口（左右布局不变） */
 @media (max-width: 1560px), (max-height: 920px) {
   .selection-detail-headcard { padding: 10px 14px; margin-bottom: 10px; }

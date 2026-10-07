@@ -14,8 +14,9 @@
 > 2. **上述 6 个伪造载体已全部删除**（非保留），并新增 `renderReturnsUnavailable` / `renderWatchHeroUnavailable` / `markMarketIndicesUnavailable` / `markMarketKlineUnavailable` 四组诚实空态；`initDashboardCharts` + `loadDashboardData`（227 行、目标 DOM id 已全不存在却仍白发 5 个后端请求）一并清除。
 > 3. **§四 数据链路已改**：`/api/market/sentiment`、`/api/market/ranks`、`/api/portfolio/analysis` 不再返回 MOCK，改 `_unavailable()` fail-closed（503 `CAPABILITY_NOT_IMPLEMENTED`）。
 > 4. **§2.1 `index.html`「已清理」不实**：静态层仍残留指数点位、自选 Hero（宁德时代/300750）、事件时间轴、收益结论、北向比率等 17 处写死值，已于 2026-10-07 清除为骨架屏或 `datasync-detail-placeholder` 占位。
+> 5. **第 7 个伪造载体漏检（2026-10-07 追加更正）**：上述「6 个伪造载体已全部删除」并不成立——`web/js/app.js` 的策略选股工作台另有一个整屏假数据载体（6 个模型案例 + 5 层漏斗通过数 + 10 行候选股及价格涨跌幅 + 一条固定价格走势数组），`web/index.html` 的 `#pane-selection` 静态层同样预置了模型名、「● 运行中」徽章、总条数与 255 页假分页、个股现价/涨跌幅/综合评分/更新时间及四段投研结论，且新建/停止/日志/导出/加自选/页签/周期切换按钮一律只弹 toast（违反 [SSOT §17.2](../guidelines/algorithm/selection-system-specification.md)「不得提供可点击的假编辑器」）。根因是治理黑名单为**字面量列表**，恰好不含上述任何串。现该工作台已按后端无 `selection_models` 接口的事实改为 fail-closed 如实空态，无数据源的动作按钮一律 `disabled` 并说明原因。另：同一套假数据的原型页 `web/backup/成长优选模型工作台片段.html` 经 `/ui/backup/*` 仍可被浏览器直接打开（`web/` 由 StaticFiles 整目录挂载），已加显式「非生产设计原型」横幅与标题声明，`workbench_dashboard_backup.html` 同步补标。
 >
-> 防复现回归：`test_workbench_panes_have_no_fabricated_fallback_data`、`test_index_html_has_no_static_fabricated_market_values`、`test_unconnected_market_endpoints_fail_closed_in_source`；`tests/frontend/test_market_adaptive_layout.js` 中原「强制要求 `MarketFallbackData` 存在」的断言语义已反转。现状以 [`SPEC-UI-003`](../specs/ui/market-data-sync-control-console-plan.md) 变更日志为准。
+> 防复现回归：`test_workbench_panes_have_no_fabricated_fallback_data`、`test_index_html_has_no_static_fabricated_market_values`、`test_unconnected_market_endpoints_fail_closed_in_source`、`test_selection_workbench_is_fail_closed_not_fabricated`（含五条结构性断言：静态层可见文本不得含任何数字、不得残留凭空运行态、按钮必须 `disabled` 或接入真实函数、无走势数据源不得自带 canvas、`web/` 下任何备份/原型 html 必须声明「非生产设计原型」——`web/` 被 StaticFiles 整目录挂载，备份页同样会被当成真实结果）；`tests/frontend/test_market_adaptive_layout.js` 中原「强制要求 `MarketFallbackData` 存在」的断言语义已反转。现状以 [`SPEC-UI-003`](../specs/ui/market-data-sync-control-console-plan.md) 变更日志为准。
 
 ---
 

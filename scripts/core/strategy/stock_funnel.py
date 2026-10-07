@@ -129,6 +129,12 @@ def rule_series_compare(record: Mapping[str, Any], spec: Mapping[str, Any], _: M
     series = _numbers(_path_get(record, str(spec.get("field", "volumes"))))
     left_offset = int(spec.get("left_offset", -1))
     right_offset = int(spec.get("right_offset", -2))
+    # 序列长度不足必须报"数据不足"（→ UNKNOWN），不得让越界索引把整阶段求值打断。
+    # 负向偏移 `-k` 至少要 `k` 个元素；非负偏移 `k` 至少要 `k + 1` 个元素。
+    needed = max(abs(offset) if offset < 0 else offset + 1
+                 for offset in (left_offset, right_offset))
+    if needed > len(series):
+        raise ValueError(f"至少需要 {needed} 个数据点，当前 {len(series)} 个")
     left, right = series[left_offset], series[right_offset]
     passed = _compare(left, str(spec.get("op", "gt")), right)
     return RuleResult.two_state("", passed, reason=f"序列比较: {left} vs {right}", observed=left, expected=right)
@@ -571,10 +577,15 @@ class StockFunnelPipeline:
         # 只记录在运行快照清单与运行元数据中，**不进入 plan_hash**——plan_hash 只覆盖
         # 模型定义、规则与参数，不得包含运行时刻、数据环境或日历内容等随运行变化的值。
         run_context = dict(context or {})
-        payload["run_metadata"] = {
+        run_metadata = {
             "calendar_version": run_context.get("calendar_version"),
             "calendar_available": run_context.get("calendar_available"),
         }
+        # §11.7 快照溯源：仅当装配层真实交付清单时才记入，未装配时不得伪造空清单字段。
+        for key in ("data_snapshots", "data_gate"):
+            if run_context.get(key) is not None:
+                run_metadata[key] = run_context[key]
+        payload["run_metadata"] = run_metadata
         return payload
 
     def save_result(self, payload: Mapping[str, Any], trade_date: Optional[str] = None) -> Path:

@@ -98,6 +98,18 @@ def test_market_gate_blocks_entire_universe_below_ma20():
     assert len(result["rejected_records"]) == 2
 
 
+def test_single_point_series_compare_reports_missing_input_not_crash():
+    """真实装配数据可能只有一根定盘 Bar（次新股）：序列比较必须判"数据不足"→ UNKNOWN，
+    不得让越界索引打断整阶段求值（§7.7.7 数据不足不得隐性淘汰，也不得崩溃）。"""
+    pipeline = StockFunnelPipeline()
+    record = eligible_daily_record()
+    record["volumes"] = [1000]
+    result = pipeline.run_stage("post_close", [record])
+    assert result["output_count"] == 0
+    evidence = result["rejected_records"][0]
+    assert any(item["rule_id"] == "volume_expansion" for item in evidence["unknown_rules"])
+
+
 def test_opening_gap_is_derived_and_filtered():
     pipeline = StockFunnelPipeline()
     records = derive_open_gap([

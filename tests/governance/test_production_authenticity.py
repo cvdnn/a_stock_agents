@@ -46,6 +46,14 @@ def test_production_sources_have_no_fabricated_runtime_patterns() -> None:
         "毫秒级28ms延迟监控",
         "持仓组合综合健康度 88分",
         "Mock 200",
+        # 策略选股工作台历史伪造串（2026-10-07 审查发现原黑名单恰好不含任何一条 → 漏检）
+        "SelectionData",
+        "成长优选模型",
+        "5,432",
+        "3,821",
+        "1,243",
+        "1,682.30",
+        "2024-03-21 09:28:15",
     )
     for literal in browser_forbidden:
         assert literal not in browser
@@ -163,3 +171,57 @@ def test_mock_provider_is_guarded_by_explicit_test_mode() -> None:
     assert 'server_settings.runtime_mode != "test"' in factory
     assert "return MockLLMProvider" in factory
     assert factory.index('server_settings.runtime_mode != "test"') < factory.index("return MockLLMProvider")
+
+
+def test_selection_workbench_is_fail_closed_not_fabricated() -> None:
+    """策略选股工作台必须 fail-closed：无真实数据源时不得出现任何示例数值或可点击的假编辑器。
+
+    历史缺陷（SPEC-ALGO-ISS-001 评估 P0-3，2026-10-07 清除）：
+    - `app.js` 的假数据载体写死了 6 个模型案例、5 层漏斗通过数、10 行候选股及其价格与涨跌幅；
+    - `drawSelectionPriceChart` 用一条固定价格数组冒充"价格走势"绘入画布；
+    - `index.html` 静态层预置模型名、"● 运行中"徽章、层数与总条数、255 页假分页，
+      以及个股名称/代码/现价/涨跌额/涨跌幅/综合评分/更新时间与四段投研结论；
+    - 新建、停止、日志、导出、加自选、分析页签、周期切换按钮一律只 `showToast(...)` 谎报成功，
+      违反 `selection-system-specification.md` §17.2「不得提供可点击的假编辑器」。
+
+    除字面量黑名单外，本用例另加五条结构性断言，防止"换一批假数字"绕过黑名单而复现。
+    """
+    app_js = (ROOT / "web/js/app.js").read_text(encoding="utf-8")
+    index_html = (ROOT / "web/index.html").read_text(encoding="utf-8")
+
+    for dead in ("SelectionData", "drawSelectionPriceChart", "switchSelAnalysisTab",
+                 "switchSelPeriod", "exportFunnelResults", "openNewFunnelModelModal"):
+        assert dead not in app_js, f"app.js 残留选股工作台伪造载体: {dead}"
+
+    # 删掉假数据必须同时补上诚实空态，否则只剩永久骨架屏
+    for honest in ("SELECTION_UNAVAILABLE_REASON", "SELECTION_EMPTY_PLACEHOLDER",
+                   "renderSelectionDetailHead", "renderSelectionModelList",
+                   "renderSelectionFunnel", "renderSelectionResults"):
+        assert honest in app_js, f"app.js 缺少选股工作台诚实空态要素: {honest}"
+
+    pane = index_html.split('id="pane-selection"', 1)[1].split("<!-- View Pane", 1)[0]
+
+    # 结构断言 1：静态层可见文本不得含任何数字（点位/条数/页数/评分/涨跌幅只能来自接口）
+    visible = re.sub(r"<[^>]+>", " ", pane)
+    digits = re.findall(r"\d[\d,.]*", visible)
+    assert not digits, f"pane-selection 静态层残留伪造数值: {digits}"
+
+    # 结构断言 2：不得残留凭空写死的运行态与历史时间戳
+    for lie in ("● 运行中", "2024-03", "共 5 层筛选", "（优秀）"):
+        assert lie not in pane, f"pane-selection 残留伪造运行态: {lie}"
+
+    # 结构断言 3：每个按钮要么接入真实处理函数，要么显式 disabled，禁止只弹 toast 的假动作
+    for btn in re.findall(r"<button[^>]*>", pane):
+        assert ("disabled" in btn) or ("showToast" not in btn), f"存在只弹 toast 的假动作按钮: {btn}"
+
+    # 结构断言 4：走势数据源未接入时工作台不得自带画布冒充走势图
+    assert "<canvas" not in pane, "pane-selection 自带 canvas，但价格走势尚无真实数据源"
+
+    # 结构断言 5：web/ 被 StaticFiles 整目录挂载（/ui/*），归档/备份 html 同样能被浏览器直接
+    # 打开，必须显式声明为非生产原型，否则备份页会变成第二块"看起来像真实结果"的假面板。
+    production_pages = {"index.html", "login.html"}
+    for html_path in sorted((ROOT / "web").rglob("*.html")):
+        if html_path.name in production_pages:
+            continue
+        assert "非生产设计原型" in html_path.read_text(encoding="utf-8"), \
+            f"备份/原型页面未声明非生产身份: {html_path.relative_to(ROOT)}"
