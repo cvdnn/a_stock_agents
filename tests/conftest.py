@@ -44,6 +44,10 @@ _TIER_BY_PATH = {
     # --- P0：量化底座与数据可信性契约（错了会直接产出假结论）---
     "tests/core/test_data_assembler.py": "core",       # 快照装配 + 水位门禁 + 字段状态
     "tests/core/test_stock_funnel.py": "core",         # 漏斗规则与分钟时间戳归一
+    "tests/core/test_selection_models.py": "core",     # ISS 引擎：Schema/哈希/AST/版本仓库/编排
+    "tests/core/test_selection_data_and_scheduling.py": "core",  # ISS 批次二：调度/锁/幂等/Latch/覆盖率/W-09/W-10
+    "tests/core/test_selection_stage_e.py": "core",    # ISS 批次四：结果研究/跟踪/评价/调优（门禁 12/14/15/16/17/19）
+    "tests/core/test_selection_screen_model_cmds.py": "core",  # ISS 阶段 E CLI：assess/track/evaluate/tune 失败关闭
     "tests/core/test_indicators.py": "core",           # MA/MACD/KDJ/RSI/BOLL/ATR
     "tests/core/test_data_suite.py": "core",           # 行情字段契约、防注入、费率 SSOT
     "tests/core/test_data_sync.py": "core",            # 落盘、零假数据、交易日历真值
@@ -70,6 +74,8 @@ _TIER_BY_PATH = {
     "tests/governance/test_security_audit.py": "p1",
     "tests/server/test_data_sync_settings.py": "p1",
     "tests/server/test_dataset_sync.py": "p1",
+    "tests/server/test_selection_models_api.py": "p1",  # ISS 批次三：选股 API/权限/SSE/运行隔离
+    "tests/server/test_selection_stage_e_api.py": "p1",  # ISS 批次四：结果研究/跟踪/评价/调优 API
     "tests/server/test_dataset_sync_funnel.py": "p1",
     "tests/server/test_data_sync_import.py": "p1",
     "tests/server/test_market_data_api.py": "p1",
