@@ -454,10 +454,13 @@
 | 阻塞关系 | 解锁 M-03 达成判定与 M-05 正式可用；立项未完成前，M-03 保持"部分达标" |
 | 风险 | 工期与存储成本上升；回补/去重不彻底将污染覆盖率分母；须与同步规范 §5.4 的 W-09/W-10 单点口径保持一致 |
 
+> **实施计划**：本立项的详细任务编排见 [`d11-data-persistence-implementation-plan.md`](d11-data-persistence-implementation-plan.md)（E0–E3 任务矩阵、门禁映射、风险与验收证据）。
+
 ## 八、变更日志
 
 | 日期 | 变更摘要 |
 |:---|:---|
+| 2026-10-07 | **D-11 实施计划制定**：新建 [`d11-data-persistence-implementation-plan.md`](d11-data-persistence-implementation-plan.md)——依据 §七「关键路径立项 · D-11」，明确算法侧 D-11 ↔ 同步侧 D1/D3/D10 映射与边界、现状基线（2026-10-07 实测：D1 已接入 / D3 零行 / D10 仅 7 标的，`post_close` 首次 `ready=True`）、E0–E3 任务矩阵、门禁映射、风险与验收证据占位；登记入 [`docs/specs/README.md`](../README.md) §6 算法矩阵。实现未启动，E1（D3 投产）为唯一硬缺口 |
 | 2026-10-07 | **D-11 数据持久化立项（批次五，关键路径）**：将 D-11 从技术债登记提升为可执行项目，明确目标/范围/入口契约/交付物/依赖/验收/阻塞关系（见 §七「关键路径立项」）；验收以发布门禁 13 与覆盖率主口径 100% 实测为准，解锁 M-03 达成判定与 M-05 正式可用；同步对齐 `pending-backlog-plan.md` §五 风险登记 |
 | 2026-10-07 | **整改执行：G-01 技能登记 + backlog 状态对齐 + 阶段 E CLI/Web 接线**：① G-01 落地——`astock-selection-model` 登记至 `AGENTS.md` 与两处清单（`config/skills_manifest.json` / `.agents/manifests/skills_manifest.json`，另同步 `.yaml` 变体），计数 18→19，新增 `.agents/skills/astock-selection-model/SKILL.md`，并同步 `core/governance/skill_registry.py` 参数 Schema 与 `server/agent/tools.py` 能力映射，契约/治理用例计数同步更新；② `pending-backlog-plan.md` §状态总览对齐批次交付（G1/G3/B1/B6 转"已实现"）；③ 新增 `screen-model` CLI 族（`assess`/`track create|status|tick`/`evaluate`/`tune`，失败关闭、无伪造），接线 `scripts/core/cli.py` 与 `scripts/core/commands/screen_model_cmds.py`；④ Web 工作台新增阶段 E 页签（结果研究/持续跟踪/模型评估，真实接口驱动、四态、无 Mock）。验证：P0 核心门禁 **227 passed / 0 failed**；治理真实性用例 8 passed；前端 29 脚本全通过 |
 | 2026-10-07 | **批次二（B1～B7 / M-03）交付**：新增 `scripts/core/selection_models/` 下 `paths.py`（§13.10 落盘唯一派生点）、`run_lock.py`（运行锁粒度 `model_id+trade_date`、运行期持有、持有者可见）、`run_repository.py`（当日状态按交易日重建、跨日过期不恢复、运行元数据/候选落盘、90 天淘汰且信号切片受保护）、`signal_latch.py`（`converge_at_window_end` 窗口末唯一终态 + 追加 `latched_by_run_id`）、`scheduler.py`（内置 Tick 常驻 + 真实读取 YAML 4 处 `schedule` + `TradeCalendar` 门控 + 分层幂等 + 优雅退出）；接线 CLI `funnel tick` / `funnel daemon`；`data_assembler` 扩展分层 `UniverseWatermark`（R-03/A-05）与覆盖率硬门禁；修复 W-10 市值缺失置零（`tencent_quote` 缺失→`None`）并校验 W-09 单位口径。验证：P0 核心门禁 **197 passed / 0 failed**（新增 `tests/core/test_selection_data_and_scheduling.py` 16 例 + `test_data_assembler.py` +2 例，登记 `core` 档位）；发布门禁 1/4/5/6/7/11 实测通过。**M-03 判为部分达标**（调度侧全绿；门禁 13 与覆盖率 100% 实际达标待 D-11 增量同步就绪）。详见审查文档 §十二 |
