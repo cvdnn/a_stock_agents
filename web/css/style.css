@@ -13383,4 +13383,77 @@ body.datasync-no-copilot .datasync-col-sidebar { grid-row: 4; }
   .datasync-progress.is-indeterminate .datasync-progress-track > span { animation: none; width: 100%; opacity: .45; }
 }
 
+/* ===== 策略选股 · 选股模型工作台（C5，数据来自 /api/selection-models/*） ===== */
+.selection-head-actions { display: inline-flex; gap: 6px; }
+.sel-head-meta { margin-left: auto; font-size: 12px; color: var(--text-muted, #6b7280); }
+.sel-head-meta strong { color: var(--text-primary, #111827); font-weight: 600; }
+.selection-detail-actions { flex-wrap: wrap; gap: 6px; }
+.sel-state { padding: 14px; font-size: 13px; color: var(--text-muted, #6b7280); }
+.sel-state-loading::before { content: "⏳ "; }
+.sel-state-empty::before { content: "○ "; }
+.sel-state-error { color: #b42318; }
+.sel-modal-mask { position: fixed; inset: 0; background: rgba(17, 24, 39, .38); display: flex; align-items: center; justify-content: center; z-index: 4000; }
+.sel-modal { background: #fff; width: 560px; max-width: 92vw; max-height: 86vh; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 18px 48px rgba(15, 23, 42, .28); overflow: hidden; }
+.sel-modal-wide { width: 900px; }
+.sel-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eef0f3; font-weight: 600; }
+.sel-modal-body { padding: 16px; overflow: auto; }
+.sel-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid #eef0f3; }
+.sel-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 13px; }
+.sel-field-inline { flex-direction: row; align-items: center; gap: 8px; }
+.sel-field input, .sel-field select, .sel-field textarea { padding: 7px 9px; border: 1px solid #d6dae0; border-radius: 7px; font-size: 13px; }
+.sel-unit { font-style: normal; color: #8b93a1; }
+.sel-property-drawer-card { grid-column: 1 / -1; }
+.sel-property-drawer { padding: 12px 14px; }
+.sel-drawer-head { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.sel-drawer-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.sel-drawer-foot { margin-top: 12px; }
+.sel-rule-chip { margin: 2px; padding: 2px 8px; border: 1px solid #d6dae0; border-radius: 999px; background: #f8fafc; font-size: 12px; cursor: pointer; }
+.sel-inline-input { width: 120px; padding: 4px 6px; border: 1px solid #d6dae0; border-radius: 6px; font-size: 12px; }
+.sel-version-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sel-version-table th, .sel-version-table td { padding: 7px 9px; border-bottom: 1px solid #eef0f3; text-align: left; }
+.sel-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.sel-mini-btn { margin-right: 4px; padding: 3px 8px; border: 1px solid #d6dae0; border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; }
+.sel-run-layout { display: grid; grid-template-columns: 280px 1fr; gap: 14px; }
+.sel-run-list { max-height: 60vh; overflow: auto; }
+.sel-run-item { padding: 8px 10px; border: 1px solid #eef0f3; border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
+.sel-run-item:hover { background: #f8fafc; }
+.sel-run-item-sub { font-size: 12px; color: #6b7280; }
+.sel-run-events-body { max-height: 180px; overflow: auto; padding: 8px; background: #0f172a; color: #d1e0ff; border-radius: 8px; font-size: 12px; }
+.sel-debug-json pre, .sel-health-raw pre { max-height: 260px; overflow: auto; font-size: 12px; }
+.sel-text-draft-block { margin-bottom: 10px; font-size: 13px; }
+.sel-health-note { margin-bottom: 8px; font-size: 13px; }
+
+/* ===== 选股工作台 · 阶段 E 页签（结果研究 / 持续跟踪 / 模型评估） ===== */
+#pane-selection.active { display: flex; flex-direction: column; }
+.sel-stage-tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 0 0 auto; margin-bottom: 12px; border-bottom: 1px solid var(--border-card, #e5e7eb); padding-bottom: 6px; }
+.sel-stage-tab { padding: 7px 14px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-muted, #6b7280); font-size: 13px; cursor: pointer; }
+.sel-stage-tab:hover { color: var(--primary, #1677ff); }
+.sel-stage-tab.active { background: var(--bg-card, #fff); border-color: var(--border-card, #e5e7eb); color: var(--primary, #1677ff); font-weight: 600; }
+.sel-stage-panel { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.sel-stage-panel[hidden] { display: none !important; }
+#selStagePanelWorkbench { height: auto; overflow: hidden; }
+.sel-stage-notice { margin-bottom: 12px; padding: 8px 10px; border-radius: 8px; background: #fffbe6; border: 1px solid #ffe58f; color: #8a6d3b; font-size: 12.5px; line-height: 1.6; }
+.sel-stage-message { margin-bottom: 10px; font-size: 12.5px; color: var(--text-primary, #111827); }
+.sel-stage-meta { margin-bottom: 8px; font-size: 12px; color: var(--text-muted, #6b7280); }
+.sel-inline-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted, #6b7280); }
+.sel-inline-select { padding: 6px 8px; border: 1px solid #d6dae0; border-radius: 7px; font-size: 13px; max-width: 260px; }
+.sel-inline-input-wide { width: 300px; }
+.sel-inline-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+.sel-research-details { margin-top: 12px; }
+.sel-research-detail { border: 1px solid #eef0f3; border-radius: 8px; margin-bottom: 8px; padding: 8px 10px; }
+.sel-research-detail-body { padding-top: 8px; }
+.sel-research-block { margin-bottom: 10px; font-size: 12.5px; line-height: 1.7; }
+.sel-research-block h4 { margin: 0 0 4px; font-size: 12.5px; color: var(--text-primary, #111827); }
+.sel-research-block pre { max-height: 220px; overflow: auto; background: #f8fafc; padding: 8px; border-radius: 6px; font-size: 11.5px; }
+.sel-track-grid { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.sel-track-title { margin: 0 0 6px; font-size: 12.5px; color: var(--text-primary, #111827); }
+.sel-eval-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.sel-suggestion-card { border: 1px solid #eef0f3; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 12.5px; line-height: 1.7; }
+.sel-suggestion-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sel-suggestion-risk { color: var(--text-muted, #6b7280); font-size: 11.5px; }
+.sel-suggestion-actions { display: inline-flex; gap: 6px; margin-top: 6px; }
+.sel-status-chip { padding: 1px 8px; border-radius: 999px; font-size: 11.5px; background: #f1f5f9; color: #475569; }
+.sel-stage-panel[data-degraded] .sel-stage-notice,
+[data-degraded] .sel-stage-notice { background: #fff1f0; border-color: #ffa39e; color: #b42318; }
+
 

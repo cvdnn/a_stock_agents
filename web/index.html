@@ -957,14 +957,24 @@
 
         <!-- View Pane: 策略选股 · 漏斗选股模型工作台 (多因子漏斗层层过滤选股) -->
         <div class="right-pane" id="pane-selection">
-          <div class="selection-workbench-layout">
+          <!-- 阶段 E 页签（结果研究 / 持续跟踪 / 模型评估）：数据只来自 /api/selection-models/*，无数据源一律如实空态 -->
+          <div class="sel-stage-tabs" id="selStageTabs" role="tablist" aria-label="选股工作台页签">
+            <button type="button" class="sel-stage-tab active" id="selStageTabWorkbench" role="tab" aria-selected="true" aria-controls="selStagePanelWorkbench" onclick="SelModels.main.showStage('workbench')">漏斗工作台</button>
+            <button type="button" class="sel-stage-tab" id="selStageTabResearch" role="tab" aria-selected="false" aria-controls="selStagePanelResearch" onclick="SelModels.main.showStage('research')">结果研究</button>
+            <button type="button" class="sel-stage-tab" id="selStageTabTracking" role="tab" aria-selected="false" aria-controls="selStagePanelTracking" onclick="SelModels.main.showStage('tracking')">持续跟踪</button>
+            <button type="button" class="sel-stage-tab" id="selStageTabEvaluation" role="tab" aria-selected="false" aria-controls="selStagePanelEvaluation" onclick="SelModels.main.showStage('evaluation')">模型评估</button>
+          </div>
+          <div class="selection-workbench-layout sel-stage-panel" id="selStagePanelWorkbench">
 
             <!-- Column 1: 模型案例列表 -->
             <div class="selection-model-col" id="selectionModelCol">
               <div class="selection-panel-card selection-model-list-card">
                 <div class="selection-panel-head">
                   <span class="selection-panel-title">📑 选股列表</span>
-                  <button type="button" class="selection-new-btn" disabled title="漏斗模型编辑器尚未实现（无 selection_models 接口与持久化表），按规范不提供可点击的假编辑器">＋新建</button>
+                  <span class="selection-head-actions">
+                    <button type="button" class="selection-new-btn" onclick="SelModels.main.openTextDraft()" title="把中文选股文案解析为未激活草稿">📝 文案建模型</button>
+                    <button type="button" class="selection-new-btn" onclick="SelModels.main.openWizard()" title="从空白或模板创建选股模型草稿">＋新建</button>
+                  </span>
                 </div>
                 <div class="selection-model-list" id="selectionModelList">
                   <!-- 模型列表由 JS 按真实接口渲染；无数据源时呈现如实空态 -->
@@ -979,14 +989,23 @@
                 <div class="selection-detail-title-row">
                   <span class="selection-detail-model-name" id="selDetailModelName">--</span>
                   <span class="sel-status-badge status-pending" id="selDetailStatus">○ 无数据源</span>
+                  <span class="sel-head-meta">下一执行 <strong id="selNextRunAt">--</strong> · 数据水印 <strong id="selDataWatermark">--</strong></span>
                 </div>
                 <div class="selection-detail-actions">
-                  <button type="button" class="sel-act-btn danger" disabled title="无运行中的真实模型实例，可执行的停止指令尚未实现"><span class="sel-stop-square"></span> 停止运行</button>
-                  <button type="button" class="sel-act-btn" disabled title="无真实模型运行日志可查，日志接口尚未实现">
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.createRun()" title="按已激活版本发起正式手工运行">▶ 运行</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.validate()" title="编译期校验当前草稿">校验</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.saveDraft()" title="保存当前草稿">保存草稿</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.publish()" title="把校验通过的草稿发布为不可变新版本">发布</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openVersions()" title="版本列表、差异、激活与归档">版本管理</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openDebug()" title="调试运行（不产生正式信号）">调试</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openSchedule()" title="查看时间窗、心跳与启停">调度中心</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openDataHealth()" title="本地数据网关水位与准入水印">数据诊断</button>
+                  <button type="button" class="sel-act-btn danger" onclick="SelModels.main.cancelRun()" title="取消正在运行的手工运行"><span class="sel-stop-square"></span> 停止运行</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openRunTimeline()" title="查看历史运行、阶段明细与事件流">
                     <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13"/><path d="M6 8h4M6 10.5h4"/></svg>
                     查看日志
                   </button>
-                  <button type="button" class="sel-act-btn" disabled title="无真实筛选结果可导出，导出接口尚未实现">
+                  <button type="button" class="sel-act-btn" onclick="SelModels.main.exportResults()" title="导出正式结果为 CSV">
                     <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M5 6.5l3 3 3-3"/><path d="M2.5 13.5h11"/></svg>
                     导出结果
                   </button>
@@ -1043,6 +1062,14 @@
                     <span class="sel-page-note">分页与页长由真实筛选结果接口下发，无数据源时不提供假分页</span>
                   </div>
                 </div>
+
+                <!-- 属性抽屉：按参数 Schema 动态生成的规则参数表单 -->
+                <div class="selection-panel-card sel-property-drawer-card">
+                  <div class="selection-panel-head"><span class="selection-panel-title">属性抽屉 · 规则参数</span></div>
+                  <div class="sel-property-drawer" id="selPropertyDrawer">
+                    <div class="datasync-detail-placeholder">点击规则库中的规则项新增，或点击阶段/维度组内的规则标签编辑参数后「应用」</div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1080,6 +1107,72 @@
             </div>
 
           </div>
+
+          <!-- 结果研究：逐只候选查看个股信息、入选证据与建仓持股策略（研究方案，非交易指令） -->
+          <section class="sel-stage-panel" id="selStagePanelResearch" role="tabpanel" aria-labelledby="selStageTabResearch" hidden>
+            <div class="selection-panel-card">
+              <div class="selection-panel-head">
+                <span class="selection-panel-title">结果研究</span>
+                <span class="selection-head-actions">
+                  <label class="sel-inline-label">运行
+                    <select class="sel-inline-select" id="selResearchRunSelect" onchange="SelModels.resultAssessment.selectRun(this.value)">
+                      <option value="">--</option>
+                    </select>
+                  </label>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.resultAssessment.load()">读取评估</button>
+                  <button type="button" class="sel-act-btn primary" onclick="SelModels.resultAssessment.generate()">生成评估</button>
+                </span>
+              </div>
+              <div class="sel-stage-notice">研究方案，非交易指令：历史回测与跟踪结果仅代表过去样本的表现，不代表未来收益；系统不存在自动实盘下单路径。</div>
+              <div class="sel-state sel-state-empty" id="selResearchBody">请选择一次运行后读取或生成结果研究评估。</div>
+            </div>
+          </section>
+
+          <!-- 持续跟踪：查看实时路径、T+N 观察点与相对基准表现（观察序列只追加，不覆盖历史） -->
+          <section class="sel-stage-panel" id="selStagePanelTracking" role="tabpanel" aria-labelledby="selStageTabTracking" hidden>
+            <div class="selection-panel-card">
+              <div class="selection-panel-head">
+                <span class="selection-panel-title">持续跟踪</span>
+                <span class="selection-head-actions">
+                  <label class="sel-inline-label">运行
+                    <select class="sel-inline-select" id="selTrackingRunSelect" onchange="SelModels.trackingCenter.selectRun(this.value)">
+                      <option value="">--</option>
+                    </select>
+                  </label>
+                  <input class="sel-inline-input" id="selTrackingId" type="text" placeholder="跟踪计划 ID" />
+                  <button type="button" class="sel-act-btn" onclick="SelModels.trackingCenter.load()">读取计划</button>
+                </span>
+              </div>
+              <div class="sel-stage-notice">跟踪计划必须绑定真实信号价与运行记录；缺少基准价格时后端失败关闭，不接受任何虚构基准。</div>
+              <div class="sel-inline-row">
+                <label class="sel-inline-label">基准价（格式：代码:价格，逗号分隔）
+                  <input class="sel-inline-input sel-inline-input-wide" id="selTrackingBasePrices" type="text" placeholder="例如 代码:价格" />
+                </label>
+                <button type="button" class="sel-act-btn primary" onclick="SelModels.trackingCenter.create()">创建跟踪计划</button>
+              </div>
+              <div class="sel-state sel-state-empty" id="selTrackingBody">尚无跟踪计划：选择运行并填入真实基准价后创建，或输入既有跟踪计划 ID 读取。</div>
+            </div>
+          </section>
+
+          <!-- 模型评估：按活动版本汇总历史运行与跟踪样本，样本不足时不出强结论 -->
+          <section class="sel-stage-panel" id="selStagePanelEvaluation" role="tabpanel" aria-labelledby="selStageTabEvaluation" hidden>
+            <div class="selection-panel-card">
+              <div class="selection-panel-head">
+                <span class="selection-panel-title">模型评估</span>
+                <span class="selection-head-actions">
+                  <button type="button" class="sel-act-btn primary" onclick="SelModels.modelEvaluation.evaluate()">生成评价</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.modelEvaluation.loadTuning()">读取建议</button>
+                  <button type="button" class="sel-act-btn" onclick="SelModels.modelEvaluation.generateTuning()">生成建议</button>
+                </span>
+              </div>
+              <div class="sel-stage-notice">评价默认只汇总同一版本；跟踪样本低于下限时后端返回样本不足并禁止强结论，本页不补写任何数值。优化建议只读，系统不会自动改版。</div>
+              <div class="sel-eval-split">
+                <div id="selEvaluationBody"><div class="sel-state sel-state-empty">点击「生成评价」按活动版本汇总真实运行与跟踪样本。</div></div>
+                <div id="selSuggestionBody"><div class="sel-state sel-state-empty">点击「读取建议」查看只读优化建议。</div></div>
+              </div>
+            </div>
+          </section>
+
         </div>
 
         <!-- View Pane 6: 数据同步与行情中枢工作区 (多源行情/定盘时钟/分级并发/自愈体检/定时守护/通达信协同) -->
@@ -2649,6 +2742,28 @@
   <script src="js/auth.js"></script>
   <script src="js/admin.js"></script>
   <script src="js/app.js?v=20261005-1"></script>
+  <!-- 策略选股 · 选股模型工作台（C5：21 个前端模块，数据只来自 /api/selection-models/*） -->
+  <script src="js/selection-models/api_client.js?v=20261007-1"></script>
+  <script src="js/selection-models/store.js?v=20261007-1"></script>
+  <script src="js/selection-models/state_views.js?v=20261007-1"></script>
+  <script src="js/selection-models/model_center.js?v=20261007-1"></script>
+  <script src="js/selection-models/overview.js?v=20261007-1"></script>
+  <script src="js/selection-models/wizard.js?v=20261007-1"></script>
+  <script src="js/selection-models/text_draft.js?v=20261007-1"></script>
+  <script src="js/selection-models/rule_library.js?v=20261007-1"></script>
+  <script src="js/selection-models/property_drawer.js?v=20261007-1"></script>
+  <script src="js/selection-models/condition_editor.js?v=20261007-1"></script>
+  <script src="js/selection-models/funnel_editor.js?v=20261007-1"></script>
+  <script src="js/selection-models/version_manager.js?v=20261007-1"></script>
+  <script src="js/selection-models/debug_panel.js?v=20261007-1"></script>
+  <script src="js/selection-models/scheduler.js?v=20261007-1"></script>
+  <script src="js/selection-models/data_health.js?v=20261007-1"></script>
+  <script src="js/selection-models/candidate_trace.js?v=20261007-1"></script>
+  <script src="js/selection-models/run_timeline.js?v=20261007-1"></script>
+  <script src="js/selection-models/result_assessment.js?v=20261007-1"></script>
+  <script src="js/selection-models/tracking_center.js?v=20261007-1"></script>
+  <script src="js/selection-models/model_evaluation.js?v=20261007-1"></script>
+  <script src="js/selection-models/index.js?v=20261007-1"></script>
 
   <!-- ========================================================================
        Login Gate Overlay (未登录时遮蔽工作台，强制跳转登录页)
