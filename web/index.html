@@ -631,11 +631,8 @@
                     <div class="mkt-idx-top">
                       <span class="mkt-idx-name">上证指数</span>
                     </div>
-                    <div class="mkt-idx-price text-up tabular-nums" id="mktShPrice">3,426.56</div>
-                    <div class="mkt-idx-change text-up tabular-nums" id="mktShChange">
-                      <span>▲ +24.38</span>
-                      <span>+0.72%</span>
-                    </div>
+                    <div class="mkt-idx-price tabular-nums" id="mktShPrice"><span class="skeleton-shimmer skeleton-number-lg"></span></div>
+                    <div class="mkt-idx-change tabular-nums" id="mktShChange"><span class="skeleton-shimmer skeleton-number-md"></span></div>
                     <div class="mkt-spark-wrap">
                       <canvas id="marketSparkSh" class="mkt-spark-canvas"></canvas>
                     </div>
@@ -804,9 +801,9 @@
 
                 <!-- MA 指标图例 -->
                 <div class="mkt-kline-legend">
-                  <div class="mkt-legend-item text-ma5"><span>MA5:</span> <strong id="mktKlineMa5" class="tabular-nums">3410.32</strong></div>
-                  <div class="mkt-legend-item text-ma10"><span>MA10:</span> <strong id="mktKlineMa10" class="tabular-nums">3398.76</strong></div>
-                  <div class="mkt-legend-item text-ma20"><span>MA20:</span> <strong id="mktKlineMa20" class="tabular-nums">3376.21</strong></div>
+                  <div class="mkt-legend-item text-ma5"><span>MA5:</span> <strong id="mktKlineMa5" class="tabular-nums">--</strong></div>
+                  <div class="mkt-legend-item text-ma10"><span>MA10:</span> <strong id="mktKlineMa10" class="tabular-nums">--</strong></div>
+                  <div class="mkt-legend-item text-ma20"><span>MA20:</span> <strong id="mktKlineMa20" class="tabular-nums">--</strong></div>
                 </div>
 
                 <!-- Canvas 主走势图 -->
@@ -1367,16 +1364,13 @@
                 <div class="stock-hero-card">
                   <div class="stock-hero-header">
                     <div class="stock-title-cluster">
-                      <div class="stock-brand-badge" id="watchHeroBadge">CATL</div>
+                      <div class="stock-brand-badge" id="watchHeroBadge">--</div>
                       <div class="stock-title-text">
-                        <span class="stock-hero-name" id="watchHeroName">宁德时代</span>
-                        <span class="stock-hero-code" id="watchHeroCode">300750</span>
+                        <span class="stock-hero-name" id="watchHeroName">--</span>
+                        <span class="stock-hero-code" id="watchHeroCode">--</span>
                       </div>
-                      <div class="stock-tags-group" id="watchHeroTags">
-                        <span class="stock-tag-pill">深股通</span>
-                        <span class="stock-tag-pill">融资融券</span>
-                        <span class="stock-tag-pill">MSCI</span>
-                      </div>
+                      <!-- 标的标签（深股通/融资融券/MSCI 等）须由接口按当前选中标的下发，不预置任何标的身分 -->
+                      <div class="stock-tags-group" id="watchHeroTags"></div>
                     </div>
                     <div class="stock-action-btns">
                       <button class="btn-hero-primary" onclick="showToast('已在自选股列表中')">＋ 加入自选</button>
@@ -1390,7 +1384,7 @@
                   <!-- 价格变动主行 (骨架屏预占位) -->
                   <div class="stock-hero-price-row">
                     <div class="stock-price-indicator">
-                      <span class="price-icon-arrow text-up">▲</span>
+                      <span class="price-icon-arrow"></span>
                       <span class="stock-hero-price tabular-nums" id="watchHeroPrice"><span class="skeleton-shimmer skeleton-number-lg" style="width: 120px;"></span></span>
                     </div>
                     <div class="stock-hero-delta tabular-nums" id="watchHeroDelta">
@@ -1492,35 +1486,10 @@
                       <!-- 近期重要事件时间轴 -->
                       <div class="overview-events-col">
                         <div class="events-title">近期重要事件</div>
+                        <!-- 近期重要事件须由接口按当前选中标的下发；此前静态写死 4 条宁德时代专属事件
+                             （机构调研/分红送转/业绩预告/限售解禁），与选中标的无关且永不更新，已移除 -->
                         <div class="overview-timeline-list" id="watchEventsTimeline">
-                          <div class="timeline-entry red-dot">
-                            <div class="entry-date-badge">2025-08-26</div>
-                            <div class="entry-body">
-                              <strong class="entry-type">机构调研</strong>
-                              <div class="entry-desc">近30家机构调研，关注固态电池进展</div>
-                            </div>
-                          </div>
-                          <div class="timeline-entry blue-dot">
-                            <div class="entry-date-badge">2025-08-22</div>
-                            <div class="entry-body">
-                              <strong class="entry-type">分红送转</strong>
-                              <div class="entry-desc">10派5元（含税）</div>
-                            </div>
-                          </div>
-                          <div class="timeline-entry blue-dot">
-                            <div class="entry-date-badge">2025-08-15</div>
-                            <div class="entry-body">
-                              <strong class="entry-type">业绩预告</strong>
-                              <div class="entry-desc">预计上半年净利润同比增长20%-30%</div>
-                            </div>
-                          </div>
-                          <div class="timeline-entry blue-dot">
-                            <div class="entry-date-badge">2025-08-10</div>
-                            <div class="entry-body">
-                              <strong class="entry-type">限售解禁</strong>
-                              <div class="entry-desc">解禁股数1.25亿股，占总股本2.3%</div>
-                            </div>
-                          </div>
+                          <div class="datasync-detail-placeholder">尚未接入真实个股事件数据源，不展示任何示例事件</div>
                         </div>
                       </div>
                     </div>
@@ -1568,19 +1537,10 @@
                       <div class="workbench-card-title">相关新闻</div>
                       <div class="more-link" onclick="showToast('更多个股新闻')">更多 &gt;</div>
                     </div>
+                    <!-- 骨架屏只在"确有数据正在加载"时成立；本列表无任何数据源，
+                         永久闪烁的假加载条等同伪造，改为如实空态 -->
                     <div class="news-simple-list" id="watchNewsList">
-                      <div class="news-item-row">
-                        <span class="news-date"><span class="skeleton-shimmer skeleton-text" style="width: 35px;"></span></span>
-                        <span class="news-headline"><span class="skeleton-shimmer skeleton-text" style="width: 80%;"></span></span>
-                      </div>
-                      <div class="news-item-row">
-                        <span class="news-date"><span class="skeleton-shimmer skeleton-text" style="width: 35px;"></span></span>
-                        <span class="news-headline"><span class="skeleton-shimmer skeleton-text" style="width: 90%;"></span></span>
-                      </div>
-                      <div class="news-item-row">
-                        <span class="news-date"><span class="skeleton-shimmer skeleton-text" style="width: 35px;"></span></span>
-                        <span class="news-headline"><span class="skeleton-shimmer skeleton-text" style="width: 75%;"></span></span>
-                      </div>
+                      <div class="datasync-detail-placeholder">尚未接入真实个股新闻数据源，不展示任何示例条目</div>
                     </div>
                   </div>
                 </div>
@@ -1634,7 +1594,8 @@
                         <canvas id="northboundDonut" style="width: 90px; height: 90px;"></canvas>
                       </div>
                       <div class="northbound-data-wrap">
-                        <div class="north-badge-rate text-down"><span class="skeleton-shimmer skeleton-text" style="width: 40px;"></span></div>
+                        <!-- 北向资金合计涨跌幅须由接口下发；此前为永久 skeleton 且预置 text-down 暗示下跌 -->
+                        <div class="north-badge-rate" id="watchNorthRate">--</div>
                         <div class="north-data-row"><span class="north-lbl">● 沪股通</span> <strong class="tabular-nums" id="watchNorthSH"><span class="skeleton-shimmer skeleton-text" style="width: 45px;"></span></strong></div>
                         <div class="north-data-row"><span class="north-lbl">● 深股通</span> <strong class="tabular-nums" id="watchNorthSZ"><span class="skeleton-shimmer skeleton-text" style="width: 45px;"></span></strong></div>
                       </div>
@@ -1862,24 +1823,9 @@
                       <div class="ret-donut-chart-box">
                         <canvas id="retCompositionDonut" style="width: 120px; height: 120px;"></canvas>
                       </div>
-                      <div class="ret-donut-legend-list">
-                        <div class="ret-donut-legend-row">
-                          <div class="ret-legend-name"><span class="donut-dot" style="background:#165DFF;"></span>股票策略</div>
-                          <div class="ret-legend-val tabular-nums">18.72%</div>
-                        </div>
-                        <div class="ret-donut-legend-row">
-                          <div class="ret-legend-name"><span class="donut-dot" style="background:#14C9C9;"></span>行业配置</div>
-                          <div class="ret-legend-val tabular-nums">6.34%</div>
-                        </div>
-                        <div class="ret-donut-legend-row">
-                          <div class="ret-legend-name"><span class="donut-dot" style="background:#FF7D00;"></span>择时操作</div>
-                          <div class="ret-legend-val tabular-nums">2.87%</div>
-                        </div>
-                        <div class="ret-donut-legend-row">
-                          <div class="ret-legend-name"><span class="donut-dot" style="background:#722ED1;"></span>现金管理</div>
-                          <div class="ret-legend-val tabular-nums">0.63%</div>
-                        </div>
-                      </div>
+                      <!-- 图例须与环形图同源，由 renderReturnsCharts 按 data.composition.slices 渲染；
+                           此前静态写死四个归因百分比且无任何 JS 写入方，属永久伪造 -->
+                      <div class="ret-donut-legend-list" id="retCompositionLegend"></div>
                     </div>
                   </div>
 
@@ -2042,42 +1988,11 @@
                   <span class="ret-card-title">收益分析报告</span>
                   <a class="ret-more-link" onclick="showToast('正在打开更多 AI 收益归因深度研报')">更多 &gt;</a>
                 </div>
-                <div class="ret-report-list">
-                  <!-- Report 1 -->
-                  <div class="ret-report-item" onclick="askAboutReturnReport(1)" title="点击针对此建议向 AI 提问">
-                    <div class="ret-report-icon-box">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                    </div>
-                    <div class="ret-report-content">
-                      <div class="ret-report-title">您的组合在近1年收益率超越了92%的投资者</div>
-                      <div class="ret-report-desc">表现优秀，建议继续保持当前策略</div>
-                      <div class="ret-report-time">2025-08-27 14:32</div>
-                    </div>
-                  </div>
-
-                  <!-- Report 2 -->
-                  <div class="ret-report-item" onclick="askAboutReturnReport(2)" title="点击针对此建议向 AI 提问">
-                    <div class="ret-report-icon-box">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                    </div>
-                    <div class="ret-report-content">
-                      <div class="ret-report-title">当前持仓中，科技板块贡献了主要收益</div>
-                      <div class="ret-report-desc">建议关注消费、医药等防御板块的配置机会</div>
-                      <div class="ret-report-time">2025-08-26 11:20</div>
-                    </div>
-                  </div>
-
-                  <!-- Report 3 -->
-                  <div class="ret-report-item" onclick="askAboutReturnReport(3)" title="点击针对此建议向 AI 提问">
-                    <div class="ret-report-icon-box">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#165DFF" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    </div>
-                    <div class="ret-report-content">
-                      <div class="ret-report-title">回撤控制良好</div>
-                      <div class="ret-report-desc">最大回撤8.72%，低于同类策略平均水平</div>
-                      <div class="ret-report-time">2025-08-25 16:45</div>
-                    </div>
-                  </div>
+                <!-- 收益分析报告须由真实归因结果生成。此前静态写死三条结论
+                     （跑赢多数投资者、某板块贡献主要收益、回撤优于同类平均），
+                     无任何数据源支撑且点击即注入 AI 上下文，已整体移除 -->
+                <div class="ret-report-list" id="retReportList">
+                  <div class="datasync-detail-placeholder">收益归因报告尚未接入真实净值与成交流水数据源，不展示任何示例结论</div>
                 </div>
               </div>
             </div>
@@ -2580,28 +2495,32 @@
 
         <!-- Section 2: Datafeed Fallback -->
         <div class="settings-sec" id="sec-datafeed">
-          <div class="form-tip">4 级高可用行情降级顺序（前级网络失败或限频时自动平滑下切）：</div>
+          <div class="form-tip">4 级行情降级链路，取数层按下列顺序在前级不可达或限频时自动下切。延迟一律来自 <code>GET /api/market_data/ping</code> 实时探测，未测速前不显示任何数值：</div>
           <div class="datafeed-list">
             <div class="datafeed-item">
-              <span>1级 (首选)</span>
+              <span class="datafeed-tier">1级 (首选)</span>
               <strong>腾讯财经 API (Tencent)</strong>
-              <span class="status-online">● 运行中 (延迟 85ms)</span>
+              <span class="status-standby tabular-nums" id="pingL1">○ 未检测</span>
             </div>
             <div class="datafeed-item">
-              <span>2级 (备用)</span>
-              <strong>东方财富 Web 行情 (Eastmoney)</strong>
-              <span class="status-standby">备用就绪</span>
-            </div>
-            <div class="datafeed-item">
-              <span>3级 (备用)</span>
+              <span class="datafeed-tier">2级 (备用)</span>
               <strong>新浪财经实时行情 (Sina)</strong>
-              <span class="status-standby">备用就绪</span>
+              <span class="status-standby tabular-nums" id="pingL2">○ 未检测</span>
             </div>
             <div class="datafeed-item">
-              <span>4级 (离线保底)</span>
-              <strong>证券宝 Baostock / 本地 DuckDB 缓存</strong>
-              <span class="status-standby">备用就绪</span>
+              <span class="datafeed-tier">3级 (备用)</span>
+              <strong>东方财富 Web 行情 (Eastmoney)</strong>
+              <span class="status-standby tabular-nums" id="pingL3">○ 未检测</span>
             </div>
+            <div class="datafeed-item">
+              <span class="datafeed-tier">4级 (离线保底)</span>
+              <strong>本地 SQLite 时序库 (local/market_data)</strong>
+              <span class="status-standby tabular-nums" id="pingLocal">○ 未检测</span>
+            </div>
+          </div>
+          <div class="datafeed-probe-bar">
+            <button type="button" class="btn-probe-datafeed" onclick="runDatasyncPing(this)">⚡ 立即测速</button>
+            <span class="form-tip">探测失败的源如实标记「不可达」，不回落任何预设延迟常量。</span>
           </div>
         </div>
 

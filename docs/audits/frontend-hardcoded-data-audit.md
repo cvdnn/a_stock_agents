@@ -5,6 +5,18 @@
 - 审查目标：前端页面不得硬编码业务数据（股票列表、指数行情、情绪、持仓、收益分析、分析结论等），数据必须从后台接口获取；测试阶段数据允许使用 MOCK。
 - 审查结论：**存在大面积硬编码 + 数据接入链路失效**，已完成主要修复（详见实施计划）。
 
+> [!WARNING]
+> **本文结论已部分过期（2026-10-07 更正，原文按审计时点保留不改）**
+>
+> 本报告写于 2026-09-09，当时允许「测试阶段使用 MOCK」，故 §2.2 的 `generateKlines`「保留为组件兜底工具」、§2.3 的 `astock.js` 组件缺省值「保留」、§四 的「后端 `market_data.py` MOCK 数据 / `api.js` 本地 MOCK 兜底」、§六 的剩余硬编码建议，均已被项目后续确立的**零虚假数据铁律**推翻。2026-10-07 复核与整改实况：
+>
+> 1. **伪造载体归因更正**：治理测试 `test_production_authenticity` 的失败源在 `web/js/app.js`（`MarketFallbackData` / `WatchlistFallbackData` / `ReturnsFallbackData` / `generateKlines` / `defaultSpark` / `defaultNews`），**不在** `astock.js`；§2.3 的表述失真。
+> 2. **上述 6 个伪造载体已全部删除**（非保留），并新增 `renderReturnsUnavailable` / `renderWatchHeroUnavailable` / `markMarketIndicesUnavailable` / `markMarketKlineUnavailable` 四组诚实空态；`initDashboardCharts` + `loadDashboardData`（227 行、目标 DOM id 已全不存在却仍白发 5 个后端请求）一并清除。
+> 3. **§四 数据链路已改**：`/api/market/sentiment`、`/api/market/ranks`、`/api/portfolio/analysis` 不再返回 MOCK，改 `_unavailable()` fail-closed（503 `CAPABILITY_NOT_IMPLEMENTED`）。
+> 4. **§2.1 `index.html`「已清理」不实**：静态层仍残留指数点位、自选 Hero（宁德时代/300750）、事件时间轴、收益结论、北向比率等 17 处写死值，已于 2026-10-07 清除为骨架屏或 `datasync-detail-placeholder` 占位。
+>
+> 防复现回归：`test_workbench_panes_have_no_fabricated_fallback_data`、`test_index_html_has_no_static_fabricated_market_values`、`test_unconnected_market_endpoints_fail_closed_in_source`；`tests/frontend/test_market_adaptive_layout.js` 中原「强制要求 `MarketFallbackData` 存在」的断言语义已反转。现状以 [`SPEC-UI-003`](../specs/ui/market-data-sync-control-console-plan.md) 变更日志为准。
+
 ---
 
 ## 一、总体结论

@@ -8520,6 +8520,7 @@ input:checked + .switch-slider:before {
 
 .btn-refresh-skills,
 .btn-bulk-enable,
+.btn-probe-datafeed,
 .btn-open-debugger {
   display: inline-flex;
   align-items: center;
@@ -8546,6 +8547,30 @@ input:checked + .switch-slider:before {
   background: #E6F4FF;
   border-color: #91CAFF;
   color: #1677FF;
+}
+
+/* 行情源实测面板：测速按钮与说明条（延迟值只来自 /api/market_data/ping） */
+.btn-probe-datafeed:hover {
+  background: #E6F4FF;
+  border-color: #91CAFF;
+  color: #1677FF;
+}
+
+.btn-probe-datafeed:disabled,
+.btn-probe-datafeed.is-loading {
+  cursor: progress;
+  opacity: 0.6;
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #64748B;
+}
+
+.datafeed-probe-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
 }
 
 .btn-open-debugger {

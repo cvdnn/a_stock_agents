@@ -124,7 +124,12 @@ console.log('✅ PASS: CSS 容器查询机制完备，能彻底化解工作区�
 // --------------------------------------------------------------------------
 console.log('\n--- 5. JS 数据驱动、AI 协同联动与 Canvas 高清锐利重绘断言 ---');
 
-assert(appJs.includes('MarketFallbackData'), 'app.js 必须包含基准真实盘口 Fallback 数据');
+// 零虚假数据铁律：市场行情页不得保留任何本地伪造兜底数据。
+// 原断言曾要求存在 MarketFallbackData（写死 3426.56 等指数与 78 分情绪），
+// 该数据并非真实盘口，已整体移除；resize 重绘只能复用最近一次真实取数结果。
+assert(!appJs.includes('MarketFallbackData'), 'app.js 不得保留伪造的 MarketFallbackData 兜底数据');
+assert(!/defaultSpark\s*:/.test(appJs), 'app.js 不得为指数微走势图写死 defaultSpark 兜底序列');
+assert(appJs.includes('const MarketLiveData = {'), 'app.js 必须以真实取数缓存 MarketLiveData 驱动 resize 重绘');
 assert(appJs.includes('function triggerMarketQuickAction('), 'app.js 必须实现快捷入口与 AI 助手协同联动');
 assert(appJs.includes('function triggerMarketAiExperience('), 'app.js 必须实现 AI 量化智能分析体验触发');
 assert(appJs.includes('function switchKlinePeriod('), 'app.js 必须实现 K 线周期切换');

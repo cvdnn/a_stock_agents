@@ -227,58 +227,16 @@ async def get_market_indices() -> Dict[str, Any]:
 
 
 @router.get("/market/sentiment")
-async def get_market_sentiment() -> Dict[str, Any]:
-    """获取全市场情绪量化研判、两市成交分布及领涨板块数据"""
-    # 尝试从四大指数汇总成交情况
-    indices_payload = await get_market_indices()
-    total_turnover_str = "1.28万亿"
-    up_count = 3425
-    down_count = 892
-    flat_count = 892
-    limit_up = 86
-    limit_down = 6
-    score = 78
-    status_text = "较强"
+async def get_market_sentiment():
+    """全市场情绪量化研判（涨跌家数/涨停跌停/两市成交/领涨板块）。
 
-    sectors = [
-        {"name": "半导体", "change_pct": 4.23, "net_inflow": "+48.2亿", "is_up": True},
-        {"name": "光伏设备", "change_pct": 3.87, "net_inflow": "+32.6亿", "is_up": True},
-        {"name": "消费电子", "change_pct": 3.45, "net_inflow": "+25.1亿", "is_up": True},
-        {"name": "电源设备", "change_pct": 3.12, "net_inflow": "+18.9亿", "is_up": True},
-        {"name": "软件开发", "change_pct": 2.96, "net_inflow": "+15.4亿", "is_up": True},
-        {"name": "医药生物", "change_pct": 2.83, "net_inflow": "+12.8亿", "is_up": True},
-        {"name": "电子元件", "change_pct": 2.67, "net_inflow": "+11.5亿", "is_up": True},
-        {"name": "通信设备", "change_pct": 2.54, "net_inflow": "+9.8亿", "is_up": True},
-    ]
-    concepts = [
-        {"name": "AI芯片", "change_pct": 5.12, "is_up": True},
-        {"name": "人形机器人", "change_pct": 4.83, "is_up": True},
-        {"name": "智能驾驶", "change_pct": 3.76, "is_up": True},
-        {"name": "商业航天", "change_pct": 3.21, "is_up": True},
-        {"name": "低空经济", "change_pct": 2.98, "is_up": True},
-        {"name": "固态电池", "change_pct": 2.75, "is_up": True},
-    ]
-
-    return {
-        "status": "success",
-        "source": "market_sentiment_engine",
-        "as_of": _as_of(),
-        "score": score,
-        "label": status_text,
-        "status_text": status_text,
-        "total_turnover": total_turnover_str,
-        "turnover_growth": "+8.5%",
-        "up_count": up_count,
-        "down_count": down_count,
-        "flat_count": flat_count,
-        "limit_up_count": limit_up,
-        "limit_down_count": limit_down,
-        "limit_up": limit_up,
-        "limit_down": limit_down,
-        "ai_summary": "两市量能稳健放大，主板与成长指数共振上行，科技成长赛道主力资金持续净流入，多头趋势形态良好。",
-        "sectors": sectors,
-        "concepts": concepts,
-    }
+    当前无任何真实数据源可支撑该口径：涨跌家数与涨停统计需全市场快照聚合，
+    板块与概念涨幅需行业分类行情源。既有实现曾整块写死 score=78、
+    total_turnover="1.28万亿"、sectors/concepts 榜单，并把 source 标为
+    "market_sentiment_engine"（并不存在该引擎），属伪造运行态。
+    按零虚假数据铁律改为 fail-closed，待真实数据源接入后再实现。
+    """
+    return _unavailable("market.sentiment")
 
 
 @router.get("/market/kline")
@@ -349,59 +307,16 @@ async def get_market_kline(
 
 
 @router.get("/market/ranks")
-async def get_market_ranks() -> Dict[str, Any]:
-    """获取两市涨幅榜、跌幅榜与资金流向榜"""
-    # 选取代表性标的做实时行情拉取
-    sample_symbols = [
-        "sz300750", "sh600519", "sh600036", "sh601318", "sz002594",
-        "sz300128", "sh688578", "sz002371", "sh688981", "sz000001",
-        "sz002475", "sh600555", "sz002341", "sz002717", "sh600765"
-    ]
-    quotes = {}
-    try:
-        quotes = DataBridge.tencent_quote(sample_symbols)
-    except Exception:
-        pass
+async def get_market_ranks():
+    """两市涨幅榜、跌幅榜与资金流向榜。
 
-    gainers = [
-        {"rank": 1, "name": "强瑞技术", "code": "301128", "price": "42.36", "change_pct": "+20.01%", "change_amt": "+7.06"},
-        {"rank": 2, "name": "艾力斯", "code": "688578", "price": "76.23", "change_pct": "+19.98%", "change_amt": "+12.71"},
-        {"rank": 3, "name": "北方华创", "code": "002371", "price": "432.50", "change_pct": "+10.02%", "change_amt": "+39.32"},
-        {"rank": 4, "name": "中芯国际", "code": "688981", "price": "98.76", "change_pct": "+9.21%", "change_amt": "+8.29"},
-        {"rank": 5, "name": "比亚迪", "code": "002594", "price": "315.60", "change_pct": "+5.45%", "change_amt": "+16.32"},
-    ]
-    losers = [
-        {"rank": 1, "name": "通市海创", "code": "600555", "price": "0.98", "change_pct": "-4.87%", "change_amt": "-0.05"},
-        {"rank": 2, "name": "ST新伦", "code": "002341", "price": "1.45", "change_pct": "-4.20%", "change_amt": "-0.06"},
-        {"rank": 3, "name": "国航远洋", "code": "002717", "price": "2.36", "change_pct": "-3.83%", "change_amt": "-0.09"},
-        {"rank": 4, "name": "中航重机", "code": "600765", "price": "12.68", "change_pct": "-3.62%", "change_amt": "-0.48"},
-        {"rank": 5, "name": "华润双鹤", "code": "600062", "price": "18.32", "change_pct": "-3.15%", "change_amt": "-0.60"},
-    ]
-    northbound = [
-        {"rank": 1, "name": "宁德时代", "code": "300750", "net_inflow": "12.36亿", "change_pct": "+2.45%"},
-        {"rank": 2, "name": "贵州茅台", "code": "600519", "net_inflow": "8.72亿", "change_pct": "+1.83%"},
-        {"rank": 3, "name": "招商银行", "code": "600036", "net_inflow": "6.58亿", "change_pct": "+1.26%"},
-        {"rank": 4, "name": "中国平安", "code": "601318", "net_inflow": "5.21亿", "change_pct": "+0.98%"},
-        {"rank": 5, "name": "立讯精密", "code": "002475", "net_inflow": "4.76亿", "change_pct": "+2.12%"},
-    ]
-
-    # 如果抓取到了真实报价，动态刷新宁德时代等标的最新价
-    if quotes:
-        for item in northbound:
-            q = quotes.get(item["code"]) or quotes.get(f"sz{item['code']}") or quotes.get(f"sh{item['code']}")
-            if q and q.get("price"):
-                item["price"] = str(round(float(q["price"]), 2))
-                cp = float(q.get("change_pct", 0.0))
-                item["change_pct"] = f"{'+' if cp >= 0 else ''}{cp:.2f}%"
-
-    return {
-        "status": "success",
-        "source": "market_ranks_engine",
-        "as_of": _as_of(),
-        "gainers": gainers,
-        "losers": losers,
-        "northbound": northbound,
-    }
+    真实榜单需全市场快照排序（涨跌幅榜）与北向/主力资金流数据源，当前均无接入。
+    既有实现把 gainers/losers/northbound 三张榜单整块写死，仅用真实报价刷新
+    northbound 的最新价，并把 source 标为 "market_ranks_engine"（并不存在该引擎），
+    属"半真半假"的伪造榜单——比全假更具误导性。
+    按零虚假数据铁律改为 fail-closed，待全市场快照与资金流数据源接入后再实现。
+    """
+    return _unavailable("market.ranks")
 
 
 @router.get("/portfolio/overview")
@@ -469,107 +384,16 @@ async def get_portfolio_overview() -> Dict[str, Any]:
 
 
 @router.get("/portfolio/analysis")
-async def get_portfolio_analysis() -> Dict[str, Any]:
-    return {
-        "status": "success",
-        "source": "quant_engine",
-        "as_of": _as_of(),
-        "kpis": {
-            "total_return": 28.56,
-            "benchmark_excess": 12.36,
-            "cum_return": "+128,650.32",
-            "init_fund": "100,000.00",
-            "max_drawdown": -8.72,
-            "max_drawdown_date": "2025-04-21",
-            "sharpe_ratio": 2.36,
-            "risk_reward_ratio": 1.82,
-            "spark1": [10, 12, 11, 14, 13, 17, 16, 20, 22, 21, 24, 26, 28.56],
-            "spark2": [100000, 101500, 103200, 102100, 106500, 110200, 114000, 118500, 123000, 128650.32],
-            "spark3": [-1.2, -2.4, -4.5, -6.1, -8.72, -7.2, -6.0, -7.1, -8.72, -6.2],
-            "spark4": [0.35, 0.45, 0.4, 0.6, 0.72, 0.65, 0.95],
-        },
-        "trend": {
-            "activePeriod": "1y",
-            "minPct": -20,
-            "maxPct": 60,
-            "maxVol": 150,
-            "labels": ["2024-08", "2024-10", "2024-12", "2025-02", "2025-04", "2025-06", "2025-08"],
-            "strategy": [
-                0.0, 1.5, 3.2, 2.8, 4.5, 7.8, 9.5, 8.2, 10.4, 12.6,
-                11.2, 9.8, 12.0, 15.4, 18.2, 16.5, 19.8, 23.4, 21.0, 18.5,
-                20.2, 24.5, 27.8, 26.2, 28.4, 30.5, 29.1, 28.0, 31.2, 33.5,
-                32.0, 30.8, 32.5, 35.0, 33.8, 31.5, 29.8, 30.5, 28.9, 29.5,
-                31.0, 32.8, 34.2, 33.0, 31.8, 30.5, 29.2, 28.0, 28.2, 28.56,
-            ],
-            "benchmark": [
-                0.0, 0.8, 1.5, 0.5, 1.8, 4.2, 5.0, 3.5, 4.8, 6.0,
-                5.2, 3.8, 4.5, 6.8, 8.5, 7.2, 8.0, 10.5, 9.2, 7.5,
-                8.8, 11.2, 12.5, 11.8, 13.0, 14.5, 13.8, 12.5, 13.8, 15.2,
-                14.0, 12.8, 13.5, 15.0, 14.2, 13.0, 11.8, 12.5, 13.2, 14.0,
-                14.8, 15.5, 16.0, 15.2, 14.5, 13.8, 14.2, 15.0, 15.8, 16.20,
-            ],
-            "volume": [
-                45, 52, 68, 55, 62, 85, 98, 76, 88, 105,
-                92, 80, 95, 115, 135, 110, 125, 140, 128, 105,
-                118, 132, 145, 125, 138, 148, 130, 115, 122, 135,
-                120, 110, 118, 130, 125, 112, 98, 105, 112, 120,
-                125, 135, 142, 130, 122, 115, 118, 125, 127, 128.36,
-            ],
-            "tooltip": {
-                "date": "2025-08-27",
-                "strategy": "+28.56%",
-                "benchmark": "+16.20%",
-                "volume": "128.36亿",
-            },
-        },
-        "composition": {
-            "period": "1y",
-            "slices": [
-                {"name": "股票策略", "value": 18.72, "color": "#165DFF"},
-                {"name": "行业配置", "value": 6.34, "color": "#14C9C9"},
-                {"name": "择时操作", "value": 2.87, "color": "#FF7D00"},
-                {"name": "现金管理", "value": 0.63, "color": "#722ED1"},
-            ],
-        },
-        "monthly_pnl": [
-            {"month": "08月", "pnl": 1.2},
-            {"month": "09月", "pnl": 2.5},
-            {"month": "10月", "pnl": 5.6},
-            {"month": "11月", "pnl": -1.2},
-            {"month": "12月", "pnl": -6.0},
-            {"month": "01月", "pnl": 1.5},
-            {"month": "02月", "pnl": -0.8},
-            {"month": "03月", "pnl": 5.8},
-            {"month": "04月", "pnl": 1.8},
-            {"month": "05月", "pnl": 3.0},
-            {"month": "06月", "pnl": -4.2},
-            {"month": "07月", "pnl": 6.0},
-            {"month": "08月", "pnl": 6.32, "highlight": True},
-        ],
-        "account_details": [
-            {"period": "近1周", "init": "100,000.00", "current": "103,452.16", "cum_pnl": "+3,452.16", "pnl_rate": "+3.45%", "annual_rate": "18.76%", "max_dd": "-2.13%"},
-            {"period": "近1月", "init": "100,000.00", "current": "106,832.45", "cum_pnl": "+6,832.45", "pnl_rate": "+6.83%", "annual_rate": "21.37%", "max_dd": "-3.26%"},
-            {"period": "近3月", "init": "100,000.00", "current": "118,765.32", "cum_pnl": "+18,765.32", "pnl_rate": "+18.77%", "annual_rate": "24.56%", "max_dd": "-6.72%"},
-            {"period": "近6月", "init": "100,000.00", "current": "124,832.67", "cum_pnl": "+24,832.67", "pnl_rate": "+24.83%", "annual_rate": "26.31%", "max_dd": "-8.21%"},
-            {"period": "近1年", "init": "100,000.00", "current": "128,650.32", "cum_pnl": "+28,650.32", "pnl_rate": "+28.56%", "annual_rate": "24.68%", "max_dd": "-8.72%"},
-        ],
-        "asset_dist": {
-            "total_asset": "128,650.32",
-            "slices": [
-                {"name": "股票", "value": 68.32, "color": "#165DFF"},
-                {"name": "可转债", "value": 12.45, "color": "#00B42A"},
-                {"name": "现金", "value": 8.76, "color": "#FF7D00"},
-                {"name": "其他", "value": 10.47, "color": "#722ED1"},
-            ],
-        },
-        "sidebar": {
-            "strategy_return": "+28.56%",
-            "excess_return": "+12.36%",
-            "max_drawdown": "-8.72%",
-            "annual_return": "+24.68%",
-            "win_rate": "68.23%",
-        },
-    }
+async def get_portfolio_analysis():
+    """投资组合全景收益分析（KPI/收益走势/收益构成/月度盈亏/资产分布/胜率）。
+
+    该口径需要真实成交流水与逐日净值序列做归因计算，当前并无任何数据源接入。
+    既有实现整块写死 total_return=28.56、sharpe_ratio=2.36、win_rate="68.23%"、
+    50 点收益走势与 13 个月盈亏，并把 source 标为 "quant_engine"（并不存在该引擎），
+    属伪造运行态；前端还把它当"真实接口成功"渲染，危害大于显式报错。
+    按零虚假数据铁律改为 fail-closed，待真实净值与成交流水接入后再实现。
+    """
+    return _unavailable("portfolio.analysis")
 
 
 def _configured_pool_entries(config: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -965,8 +789,12 @@ async def import_tdx_pool(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]
     """从通达信自选文件文本解析并导入指定股池"""
     import re
     from core.strategy.pool_manager import PoolManager
+    from server.services.data_sync_settings import effective_settings
 
-    target_pool = str(payload.get("pool") or "watchlist").strip()
+    # 目标股池未显式指定时取有效设置 cooperation.tdx_target_pool（此前恒为硬编码 watchlist）
+    target_pool = str(
+        payload.get("pool") or effective_settings()["cooperation"]["tdx_target_pool"]
+    ).strip()
     raw_content = str(payload.get("content") or "").strip()
 
     if not raw_content:

@@ -1528,11 +1528,11 @@ function askAboutRightContent() {
   if (tab === 'dashboard') {
     prompt = '请结合工作台中本次成功返回的投研数据，分析明天的核心主线与防守标的；缺失数据请明确披露。';
   } else if (tab === 'market') {
-    prompt = '请结合市场行情全景看板与北向资金流向，深度研判大盘短期突破 3,450 点的动能与风险。';
+    prompt = '请结合当前市场行情全景看板已加载的真实指数、成交额与板块数据，研判大盘短期动能与风险；数据缺失处请明确披露。';
   } else if (tab === 'watchlist') {
-    prompt = '请针对自选标的【宁德时代 300750】的主力控盘仪表盘与资金流向，制定下周一的买入与防守策略。';
+    prompt = '请针对当前自选工作台已加载的真实标的及其资金流向，制定下一交易日的买入与防守策略；自选池为空时请先提示登记。';
   } else if (tab === 'returns') {
-    prompt = '请评估投资收益全景看板中的最大回撤(-8.24%)与夏普比率(1.84)，并给出仓位与多因子优化建议。';
+    prompt = '请评估投资收益全景看板已加载的真实最大回撤与夏普比率等风险收益指标，并给出仓位与多因子优化建议；指标缺失请明确披露。';
   } else if (tab === 'projected-action') {
     const cost = AppState.riskParams.cost;
     prompt = `请针对实战动作单中的买入成本 ¥${cost}、最低保本卖出价与三级止损阶梯给出盘中突发跳水的执行动作细节。`;
@@ -1870,40 +1870,6 @@ function renderWorkbenchUnavailable(paneId, error) {
 }
 
 // 6.1.1 初始化投研助手综合工作台六大板块基础 Canvas 图表 (独立隔离设计)
-function initDashboardCharts() {
-  if (typeof FinancialCharts === 'undefined') return;
-
-  // 板块 1: 资产配置环形图 (持仓 vs 可用现金)
-  const donutCanvas = document.getElementById('portfolioDonut');
-  if (donutCanvas) {
-    FinancialCharts.drawDonutChart('portfolioDonut', [
-      { name: '持仓市值', value: 328.56, color: '#1677FF' },
-      { name: '可用现金', value: 125.68, color: '#4096FF' }
-    ], { centerTitle: '总资产', centerValue: '454.24' });
-  }
-
-  // 板块 2-1: 大盘四大核心指数 28 周期日内走势微图 (Sparkline)
-  FinancialCharts.drawSparkline('sparklineSh', [3390, 3396, 3404, 3400, 3410, 3418, 3415, 3422, 3426.5], true);
-  FinancialCharts.drawSparkline('sparklineSz', [10750, 10765, 10780, 10810, 10800, 10830, 10860, 10850, 10880, 10892.1], true);
-  FinancialCharts.drawSparkline('sparklineCy', [2245, 2252, 2260, 2258, 2270, 2278, 2285, 2280, 2286, 2289.7], true);
-  FinancialCharts.drawSparkline('sparklineKc', [990, 995, 1000, 998, 1005, 1008, 1012, 1010, 1011, 1012.3], true);
-
-  // 板块 2-2: 全市场情绪仪表盘 (78分 亢温区)
-  FinancialCharts.drawGauge('dashboardSentimentGauge', 78, { colorType: 'sentiment' });
-
-  // 板块 3-1: 自选主题指数分时曲线 (半导体芯片、人工智能、新能源汽车)
-  FinancialCharts.drawSparkline('sparklineCustomIdx1', [1215, 1222, 1230, 1228, 1238, 1242, 1245, 1248.6], true);
-  FinancialCharts.drawSparkline('sparklineCustomIdx2', [3050, 3065, 3080, 3075, 3095, 3105, 3115, 3120.4], true);
-  FinancialCharts.drawSparkline('sparklineCustomIdx3', [2050, 2058, 2065, 2062, 2074, 2078, 2082, 2086.3], true);
-
-  // 板块 3-2: 策略实际净值 vs 沪深300 基准走势对比折线图
-  FinancialCharts.drawEquityCurve('dashboardInvestCurve',
-    [1.00, 1.05, 1.08, 1.15, 1.25, 1.34],
-    [1.00, 1.01, 1.03, 1.05, 1.07, 1.09],
-    ['3月', '5月', '7月', '9月']
-  );
-}
-
 // 渐进式水合通用原子助手 (Progressive Hydration Helper)
 function hydrateFastText(id, text, className = null) {
   const el = document.getElementById(id);
@@ -1923,291 +1889,46 @@ function hydrateFastHTML(id, html, className = null) {
   el.classList.add('hydrated-fade-in');
 }
 
-async function loadDashboardData() {
-  if (!window.AStockAPI) return;
-  try {
-    // 1. Portfolio Overview (五阶段流水线：快数据先行 -> 空数据规范 -> Canvas 异步跃迁)
-    const portRes = await window.AStockAPI.getPortfolioOverview();
-    if (portRes) {
-      if (portRes.total_assets) hydrateFastText('ovTotalAssets', portRes.total_assets);
-      if (portRes.position_ratio !== undefined) hydrateFastText('ovPositionRatioLbl', `持仓总市值 (${portRes.position_ratio}%)`);
-      if (portRes.position_market_value) hydrateFastText('ovPositionMarketVal', portRes.position_market_value);
-      if (portRes.cash_ratio !== undefined) hydrateFastText('ovCashRatioLbl', `可用现金 (${portRes.cash_ratio}%)`);
-      if (portRes.available_cash) hydrateFastText('ovCash', portRes.available_cash);
-      if (portRes.today_pnl) hydrateFastText('ovTodayPnl', `${portRes.today_pnl} (${portRes.today_pnl_pct >= 0 ? '+' : ''}${portRes.today_pnl_pct}%)`, portRes.today_pnl_pct >= 0 ? 'overview-strip-val text-up tabular-nums' : 'overview-strip-val text-down tabular-nums');
-      if (portRes.total_return_pct !== undefined) hydrateFastText('ovAccumReturn', `${portRes.total_return_pct >= 0 ? '+' : ''}${portRes.total_return_pct}%`, portRes.total_return_pct >= 0 ? 'overview-strip-val text-up tabular-nums' : 'overview-strip-val text-down tabular-nums');
-      if (portRes.annualized_return_pct !== undefined) hydrateFastText('ovAnnualReturn', `${portRes.annualized_return_pct >= 0 ? '+' : ''}${portRes.annualized_return_pct}%`, portRes.annualized_return_pct >= 0 ? 'overview-strip-val text-up tabular-nums' : 'overview-strip-val text-down tabular-nums');
-      if (portRes.risk_status) hydrateFastText('ovCushionTitle', `● ${portRes.risk_status}`);
-      if (portRes.cushion_desc) hydrateFastText('ovCushionDesc', portRes.cushion_desc);
-
-      const holdList = document.getElementById('ovHoldingsList');
-      if (holdList) {
-        if (Array.isArray(portRes.holdings) && portRes.holdings.length > 0) {
-          holdList.innerHTML = portRes.holdings.map(h => `
-            <div class="overview-holding-pill hydrated-fade-in">
-              <span style="font-weight:600;">${h.name || h.code} (${h.code})</span>
-              <span class="tabular-nums">持仓 ${h.ratio_pct || 0}%</span>
-              <span class="${(h.return_pct || 0) >= 0 ? 'text-up' : 'text-down'} tabular-nums">${(h.return_pct || 0) >= 0 ? '+' : ''}${h.return_pct || 0}%</span>
-            </div>
-          `).join('');
-        } else {
-          // 严格按照《AGENTS.md》空数据规范：不虚构假持仓，提示登记示例
-          holdList.innerHTML = `
-            <div class="empty-pool-hint-card hydrated-fade-in">
-              <div style="font-weight: 600; font-size: 12px; color: #4E5969; display: flex; align-items: center; gap: 4px;">
-                <span>📋</span> 尚未登记持仓标的
-              </div>
-              <div style="font-size: 11.5px; color: #86909C; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                登记示例：<code style="background: #EEF2F6; padding: 1px 5px; border-radius: 3px; color: #1D2129; font-weight: 500;">000001:1000@12.50</code>
-              </div>
-              <div style="font-size: 10.5px; color: #A6B0BA; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                （格式规范：股票:股数@成本价）
-              </div>
-            </div>
-          `;
-        }
-      }
-
-      // 重型 Canvas 异步跃迁 (requestAnimationFrame 避免卡顿)
-      if (Array.isArray(portRes.donut_data) && document.getElementById('portfolioDonut')) {
-        requestAnimationFrame(() => {
-          FinancialCharts.drawDonutChart('portfolioDonut', portRes.donut_data, {
-            centerTitle: '总资产',
-            centerValue: portRes.total_assets
-          });
-        });
-      }
-    }
-
-    // 2. Indices 四大指数 (快数据先行，Canvas Sparkline 异步平滑水合)
-    const idxRes = await window.AStockAPI.getMarketIndices();
-    if (idxRes && Array.isArray(idxRes.indices)) {
-      const byName = {};
-      idxRes.indices.forEach(i => { byName[i.name] = i; });
-      const bindDashIdx = (name, valId, changeId, metaId, sparkId) => {
-        const item = byName[name];
-        if (!item) return;
-        const up = item.change >= 0;
-        const fmt = (n) => n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        hydrateFastText(valId, fmt(item.price), `index-2x2-val ${up ? 'text-up' : 'text-down'} tabular-nums`);
-        hydrateFastHTML(changeId, `<span>${up ? '▲ +' : '▼ '}${Math.abs(item.change).toFixed(2)}</span><span>${up ? '+' : ''}${item.change_pct}%</span>`, `index-2x2-change ${up ? 'text-up' : 'text-down'} tabular-nums`);
-        hydrateFastHTML(metaId, `<span>今开 ${fmt(item.open)}</span><span>成交 ${item.turnover_amount}</span>`);
-        if (Array.isArray(item.sparkline)) {
-          requestAnimationFrame(() => {
-            FinancialCharts.drawSparkline(sparkId, item.sparkline, up);
-          });
-        }
-      };
-      bindDashIdx('上证指数', 'dashIndexShVal', 'dashIndexShChange', 'dashIndexShMeta', 'sparklineSh');
-      bindDashIdx('深证成指', 'dashIndexSzVal', 'dashIndexSzChange', 'dashIndexSzMeta', 'sparklineSz');
-      bindDashIdx('创业板指', 'dashIndexCyVal', 'dashIndexCyChange', 'dashIndexCyMeta', 'sparklineCy');
-      bindDashIdx('科创50', 'dashIndexKcVal', 'dashIndexKcChange', 'dashIndexKcMeta', 'sparklineKc');
-    }
-
-    // 3. Sentiment 市场情绪 (快数据直出，表盘 Gauge 异步渲染)
-    const sentRes = await window.AStockAPI.getMarketSentiment();
-    if (sentRes) {
-      if (sentRes.score !== undefined) {
-        hydrateFastText('dashSentimentScoreText', `${sentRes.score}分 · ${sentRes.status_text || sentRes.label || '正常'}`);
-      }
-      const descEl = document.getElementById('dashSentimentMetaDesc');
-      if (descEl && sentRes.total_turnover) {
-        hydrateFastHTML('dashSentimentMetaDesc', `两市总成交 <strong>${sentRes.total_turnover}</strong> (${sentRes.turnover_growth || ''})<br>上涨 <strong class="text-up">${(sentRes.up_count || 0).toLocaleString()}</strong> 家，下跌 <strong class="text-down">${(sentRes.down_count || 0).toLocaleString()}</strong> 家，涨停 <strong class="text-up">${sentRes.limit_up_count || 0}</strong> 只`);
-      }
-      if (sentRes.ai_summary) {
-        hydrateFastHTML('dashAiCommentary', `<strong>AI量化研判</strong>：${sentRes.ai_summary}`);
-      }
-      const sectorList = document.getElementById('dashSectorHotList');
-      if (sectorList && Array.isArray(sentRes.sectors) && sentRes.sectors.length > 0) {
-        sectorList.innerHTML = sentRes.sectors.slice(0, 3).map(s => `
-          <div class="sector-hot-item hydrated-fade-in">
-            <span class="sector-hot-name">${s.name}</span>
-            <span class="text-up tabular-nums" style="font-weight:600;">+${s.change_pct}%</span>
-            <span class="text-up tabular-nums" style="font-size:11px;">主力净流入 ${s.net_inflow}</span>
-          </div>
-        `).join('');
-      }
-      if (document.getElementById('dashboardSentimentGauge') && sentRes.score !== undefined) {
-        requestAnimationFrame(() => {
-          FinancialCharts.drawGauge('dashboardSentimentGauge', sentRes.score, { colorType: 'sentiment' });
-        });
-      }
-    }
-
-    // 4. Custom Indices & Watchlist Table (动态水合)
-    const watchRes = await window.AStockAPI.getWatchlist();
-    if (watchRes) {
-      const tbody = document.getElementById('dashWatchlistTableBody');
-      if (tbody && Array.isArray(watchRes.stocks) && watchRes.stocks.length > 0) {
-        tbody.innerHTML = watchRes.stocks.slice(0, 4).map(stock => {
-          const isUp = (stock.change_pct || 0) >= 0;
-          const sign = isUp ? '+' : '';
-          const cls = isUp ? 'text-up' : 'text-down';
-          const price = typeof stock.price === 'number' ? stock.price.toFixed(2) : stock.price;
-          return `
-            <tr class="hydrated-fade-in" onclick="askStockPrompt('${stock.name}', '${stock.code}', '${price}')">
-              <td class="stock-name-cell">
-                <span class="stock-name">${stock.name}</span>
-                <span class="stock-code">${stock.code}</span>
-              </td>
-              <td class="tabular-nums" style="font-weight: 600;">${price}</td>
-              <td class="${cls} tabular-nums" style="font-weight: 600;">${sign}${stock.change_pct}%</td>
-              <td class="${cls} tabular-nums">${stock.net_inflow || '--'}</td>
-              <td style="text-align: right;">
-                <button class="btn-follow">诊断</button>
-              </td>
-            </tr>
-          `;
-        }).join('');
-      }
-    }
-
-    // 5. Investment Analysis (快指标先行，走势大曲线 Canvas 分帧挂载)
-    const anaRes = await window.AStockAPI.getPortfolioAnalysis();
-    if (anaRes) {
-      if (anaRes.kpis) {
-        if (anaRes.kpis.sharpe_ratio !== undefined) hydrateFastText('dashSharpeVal', anaRes.kpis.sharpe_ratio.toFixed(2));
-        if (anaRes.kpis.max_drawdown !== undefined) hydrateFastText('dashMaxDdVal', `${anaRes.kpis.max_drawdown}%`);
-      }
-      if (anaRes.trend && document.getElementById('dashboardInvestCurve')) {
-        requestAnimationFrame(() => {
-          const eq = anaRes.trend;
-          FinancialCharts.drawEquityCurve('dashboardInvestCurve', eq.strategy, eq.benchmark, eq.labels);
-        });
-      }
-    }
-
-    // 6. Monitor Stream 盯盘流
-    const monRes = await window.AStockAPI.getMonitorStream();
-    if (monRes) {
-      const badge = document.getElementById('dashMonitorLiveBadge');
-      const streamList = document.getElementById('dashMonitorStreamList');
-      // 服务端未接入真实事件源时如实展示空状态，不再回放示例事件（零虚假数据）
-      if (monRes.is_monitoring === false) {
-        if (badge) badge.textContent = '盯盘事件流未接入';
-        if (streamList) {
-          streamList.innerHTML = `<div class="datasync-detail-placeholder">${(monRes.availability && monRes.availability.reason) || '服务端暂无真实盘中事件采集源，未展示任何示例事件'}</div>`;
-        }
-      } else if (badge && monRes.latency_ms != null) {
-        badge.innerHTML = `<span class="live-dot"></span> 实时盯盘监控中 (延迟${monRes.latency_ms}ms)`;
-      }
-      if (streamList && Array.isArray(monRes.events) && monRes.events.length > 0) {
-        streamList.innerHTML = monRes.events.map(ev => {
-          let itemClass = 'stream-buy';
-          let tagClass = 'tag-buy';
-          if (ev.type === 'main') { itemClass = 'stream-main'; tagClass = 'tag-main'; }
-          else if (ev.type === 'risk') { itemClass = 'stream-risk'; tagClass = 'tag-risk'; }
-          return `
-            <div class="monitor-stream-item ${itemClass} hydrated-fade-in">
-              <span class="stream-time tabular-nums">${ev.time}</span>
-              <div class="stream-stock-col">
-                <span class="stream-stock-name">${ev.name}</span>
-                <span class="stream-stock-code tabular-nums">（${ev.code}）</span>
-              </div>
-              <span class="stream-tag ${tagClass}">${ev.tag}</span>
-              <div class="stream-desc-text" title="${ev.desc}">${ev.desc}</div>
-            </div>
-          `;
-        }).join('');
-      }
-    }
-  } catch (err) {
-    console.warn('loadDashboardData error:', err);
-  }
-}
-
-// 6.3 Load Market Data (Tab 2: 市场行情全景 · 像素级设计还原与自适应驱动引擎)
-// 包含 4大指数(6项核心指标)、78分情绪表盘、日K线与成交量副图、板块与概念磁贴、要闻热门卡片以及三大排行榜
-const MarketFallbackData = {
-  indices: [
-    { name: '上证指数', code: '000001', price: 3426.56, change: 24.38, change_pct: 0.72, open: 3410.21, high: 3432.76, low: 3396.12, pre_close: 3402.18, turnover_amount: '5281亿', volume: '3.21亿手', sparkline: [3398, 3404, 3401, 3412, 3418, 3415, 3422, 3426.56] },
-    { name: '深证成指', code: '399001', price: 10892.14, change: 116.24, change_pct: 1.08, open: 10780.32, high: 10912.65, low: 10721.43, pre_close: 10775.90, turnover_amount: '6723亿', volume: '4.16亿手', sparkline: [10760, 10785, 10820, 10810, 10840, 10865, 10880, 10892.14] },
-    { name: '创业板指', code: '399006', price: 2289.76, change: 29.32, change_pct: 1.31, open: 2258.43, high: 2301.24, low: 2231.67, pre_close: 2260.44, turnover_amount: '2510亿', volume: '4.54亿手', sparkline: [2250, 2262, 2270, 2265, 2278, 2282, 2285, 2289.76] },
-    { name: '科创50', code: '000688', price: 969.43, change: 12.87, change_pct: 1.34, open: 956.20, high: 974.35, low: 951.32, pre_close: 956.56, turnover_amount: '1152亿', volume: '0.68亿手', sparkline: [954, 958, 962, 960, 965, 968, 967, 969.43] }
-  ],
-  sentiment: {
-    score: 78,
-    label: '较强',
-    limit_up: 86,
-    limit_down: 6,
-    total_turnover: '1.20万亿',
-    up_count: '3425',
-    flat_count: '892',
-    down_count: '892'
-  },
-  kline: {
-    target: '000001',
-    target_name: '上证指数',
-    ma5: 3410.32,
-    ma10: 3398.76,
-    ma20: 3376.21
-  },
-  sectors: [
-    { name: '半导体', change: '+4.23%', isUp: true },
-    { name: '光伏设备', change: '+3.87%', isUp: true },
-    { name: '消费电子', change: '+3.45%', isUp: true },
-    { name: '电源设备', change: '+3.12%', isUp: true },
-    { name: '软件开发', change: '+2.96%', isUp: true },
-    { name: '医药生物', change: '+2.83%', isUp: true },
-    { name: '电子元件', change: '+2.67%', isUp: true },
-    { name: '通信设备', change: '+2.54%', isUp: true },
-    { name: '计算机应用', change: '+2.31%', isUp: true },
-    { name: '家用电器', change: '+2.18%', isUp: true }
-  ],
-  concepts: [
-    { name: 'AI芯片', change: '+5.12%', isUp: true },
-    { name: '机器人', change: '+4.83%', isUp: true },
-    { name: '智能驾驶', change: '+3.76%', isUp: true },
-    { name: '军工+', change: '+3.21%', isUp: true },
-    { name: '低空经济', change: '+2.98%', isUp: true },
-    { name: '商业航天', change: '+2.75%', isUp: true },
-    { name: '量子科技', change: '+2.63%', isUp: true },
-    { name: '固态电池', change: '+2.41%', isUp: true },
-    { name: '算力租赁', change: '+2.25%', isUp: true },
-    { name: '脑机接口', change: '+2.10%', isUp: true }
-  ],
-  news: [
-    { time: '09:32', title: '外资连续3日净买入A股 重点加仓科技板块' },
-    { time: '09:28', title: '证监会：加大对量化交易监管力度' },
-    { time: '09:15', title: '半导体板块持续走强 多股涨停' },
-    { time: '08:50', title: '央行开展逆回购操作 释放流动性信号' },
-    { time: '08:36', title: '重大政策利好 促进资本市场高质量发展' }
-  ],
-  hot_concepts: ['AI', '半导体', '机器人', '新能源', '数字经济', '军工', '医药', '芯片', '算力'],
-  gainers: [
-    { rank: 1, name: 'N万达轴承', code: '920002', price: '56.80', change_pct: '+45.03%', change_amt: '+17.65' },
-    { rank: 2, name: '强瑞技术', code: '301128', price: '42.36', change_pct: '+20.01%', change_amt: '+7.06' },
-    { rank: 3, name: '艾力斯', code: '688578', price: '76.23', change_pct: '+19.98%', change_amt: '+12.71' },
-    { rank: 4, name: '北方华创', code: '602371', price: '432.50', change_pct: '+10.02%', change_amt: '+39.32' },
-    { rank: 5, name: '中芯国际', code: '688981', price: '98.76', change_pct: '+9.21%', change_amt: '+8.29' }
-  ],
-  losers: [
-    { rank: 1, name: '*ST东方', code: '600811', price: '1.23', change_pct: '-5.76%', change_amt: '-0.08' },
-    { rank: 2, name: '通市海创', code: '600555', price: '0.98', change_pct: '-4.87%', change_amt: '-0.05' },
-    { rank: 3, name: 'ST新伦', code: '002341', price: '1.45', change_pct: '-4.20%', change_amt: '-0.06' },
-    { rank: 4, name: '国航远洋', code: '002717', price: '2.36', change_pct: '-3.83%', change_amt: '-0.09' },
-    { rank: 5, name: '中航重机', code: '600765', price: '12.68', change_pct: '-3.62%', change_amt: '-0.48' }
-  ],
-  northbound: [
-    { rank: 1, name: '宁德时代', code: '300750', net_inflow: '12.36', change_pct: '+2.45%' },
-    { rank: 2, name: '贵州茅台', code: '600519', net_inflow: '8.72', change_pct: '+1.83%' },
-    { rank: 3, name: '招商银行', code: '600036', net_inflow: '6.58', change_pct: '+1.26%' },
-    { rank: 4, name: '中国平安', code: '601318', net_inflow: '5.21', change_pct: '+0.98%' },
-    { rank: 5, name: '隆基绿能', code: '601012', net_inflow: '4.76', change_pct: '+2.12%' }
-  ]
+// 6.3 Load Market Data (Tab 2: 市场行情全景 · 真实接口驱动)
+// 指数/情绪/K线/板块/排行榜一律来自后端真实接口；无数据时呈现空态，严禁本地兜底造数。
+//
+// MarketLiveData 只缓存"最近一次真实取数结果"，唯一用途是容器 resize 时按原数据重绘画布，
+// 避免重绘即清空；它不是缺省值来源，字段为 null/空数组时必须走空态分支。
+const MarketLiveData = {
+  indices: [],          // [{ name, change_pct, sparkline }] 真实指数与真实迷你走势
+  sentimentScore: null, // 真实情绪分（null 表示未取得，不得回落任何默认分）
+  klines: null,         // 真实 K 线序列
 };
 
+// 取数失败或返回空时的如实回落：不让骨架屏永久闪烁冒充"加载中"，一律显示 '--'
+function markMarketIndicesUnavailable() {
+  ['mktSh', 'mktSz', 'mktCy', 'mktKc'].forEach((prefix) => {
+    ['Price', 'Change', 'Open', 'High', 'Low', 'PreClose', 'Turnover', 'Vol'].forEach((field) => {
+      hydrateFastText(prefix + field, '--');
+    });
+  });
+}
+
+function markMarketKlineUnavailable() {
+  ['mktKlineMa5', 'mktKlineMa10', 'mktKlineMa20'].forEach((id) => hydrateFastText(id, '--'));
+}
+
 async function loadMarketData() {
+  // 每轮重新取数前清空真实数据缓存，避免 resize 重绘沿用上一次的旧走势
+  MarketLiveData.indices = [];
+  MarketLiveData.sentimentScore = null;
+  MarketLiveData.klines = null;
+
   // 1. 渲染四大指数（快数据先行，Canvas Sparkline 异步跃迁）
   try {
     if (window.AStockAPI && typeof window.AStockAPI.getMarketIndices === 'function') {
       const res = await window.AStockAPI.getMarketIndices();
       if (res && Array.isArray(res.indices) && res.indices.length > 0) {
         const indexMap = {
-          '上证指数': { prefix: 'mktSh', canvas: 'marketSparkSh', defaultSpark: [3398, 3404, 3401, 3412, 3418, 3415, 3422, 3426.56] },
-          '深证成指': { prefix: 'mktSz', canvas: 'marketSparkSz', defaultSpark: [10760, 10785, 10820, 10810, 10840, 10865, 10880, 10892.14] },
-          '创业板指': { prefix: 'mktCy', canvas: 'marketSparkCy', defaultSpark: [2250, 2262, 2270, 2265, 2278, 2282, 2285, 2289.76] },
-          '科创50':   { prefix: 'mktKc', canvas: 'marketSparkKc', defaultSpark: [954, 958, 962, 960, 965, 968, 967, 969.43] }
+          '上证指数': { prefix: 'mktSh', canvas: 'marketSparkSh' },
+          '深证成指': { prefix: 'mktSz', canvas: 'marketSparkSz' },
+          '创业板指': { prefix: 'mktCy', canvas: 'marketSparkCy' },
+          '科创50':   { prefix: 'mktKc', canvas: 'marketSparkKc' }
         };
 
         res.indices.forEach(item => {
@@ -2227,17 +1948,30 @@ async function loadMarketData() {
           hydrateFastText(conf.prefix + 'Turnover', item.turnover_amount || item.turnover || '--');
           hydrateFastText(conf.prefix + 'Vol', item.volume || item.vol || '--');
 
-          if (typeof FinancialCharts !== 'undefined') {
-            const spark = (Array.isArray(item.sparkline) && item.sparkline.length >= 2) ? item.sparkline : conf.defaultSpark;
-            requestAnimationFrame(() => {
-              FinancialCharts.drawSparkline(conf.canvas, spark, isUp);
+          // 仅当接口返回真实 sparkline 才绘制并缓存（供 resize 重绘）；
+          // 缺失时留空，绝不用本地合成走势补位。
+          const spark = (Array.isArray(item.sparkline) && item.sparkline.length >= 2) ? item.sparkline : null;
+          if (spark) {
+            MarketLiveData.indices.push({
+              canvas: conf.canvas, sparkline: spark,
+              change_pct: item.change != null ? item.change : item.change_pct,
             });
+            if (typeof FinancialCharts !== 'undefined') {
+              requestAnimationFrame(() => {
+                FinancialCharts.drawSparkline(conf.canvas, spark, isUp);
+              });
+            }
           }
         });
+      } else {
+        markMarketIndicesUnavailable();
       }
+    } else {
+      markMarketIndicesUnavailable();
     }
   } catch (e) {
     console.warn('render market indices failed:', e);
+    markMarketIndicesUnavailable();
   }
 
   // 2. 渲染市场情绪与领涨板块（调用后端 /api/market/sentiment 接口）
@@ -2245,13 +1979,15 @@ async function loadMarketData() {
     if (window.AStockAPI && typeof window.AStockAPI.getMarketSentiment === 'function') {
       const sent = await window.AStockAPI.getMarketSentiment();
       if (sent) {
-        const sentScore = sent.score !== undefined ? sent.score : 78;
-        hydrateFastText('mktSentimentScore', sentScore);
-        const sentLabelText = sent.label || sent.status_text || (sentScore >= 70 ? '较强' : sentScore <= 35 ? '低迷' : '中性');
+        // 情绪分与涨跌家数缺失时如实显示 '--'，不回落任何默认值；表盘仅在取得真实分值时绘制
+        const sentScore = (sent.score !== undefined && sent.score !== null) ? Number(sent.score) : null;
+        hydrateFastText('mktSentimentScore', sentScore === null ? '--' : sentScore);
+        const sentLabelText = sent.label || sent.status_text
+          || (sentScore === null ? '--' : sentScore >= 70 ? '较强' : sentScore <= 35 ? '低迷' : '中性');
         hydrateFastText('mktSentimentLabel', sentLabelText);
 
         const sentBadgeEl = document.getElementById('mktSentimentLabel');
-        if (sentBadgeEl) {
+        if (sentBadgeEl && sentScore !== null) {
           if (sentScore >= 70) {
             sentBadgeEl.style.color = '#FA541C';
             sentBadgeEl.style.backgroundColor = '#FFF2E8';
@@ -2264,17 +2000,20 @@ async function loadMarketData() {
           }
         }
 
-        hydrateFastText('mktLimitUpCount', sent.limit_up || sent.limit_up_count || 86);
-        hydrateFastText('mktLimitDownCount', sent.limit_down || sent.limit_down_count || 6);
-        hydrateFastText('mktTotalTurnover', sent.total_turnover || '1.20万亿');
-        hydrateFastText('mktUpCount', sent.up_count ? sent.up_count.toLocaleString() : '3425');
-        hydrateFastText('mktFlatCount', sent.flat_count ? sent.flat_count.toLocaleString() : '892');
-        hydrateFastText('mktDownCount', sent.down_count ? sent.down_count.toLocaleString() : '892');
+        hydrateFastText('mktLimitUpCount', sent.limit_up ?? sent.limit_up_count ?? '--');
+        hydrateFastText('mktLimitDownCount', sent.limit_down ?? sent.limit_down_count ?? '--');
+        hydrateFastText('mktTotalTurnover', sent.total_turnover || '--');
+        hydrateFastText('mktUpCount', sent.up_count != null ? Number(sent.up_count).toLocaleString() : '--');
+        hydrateFastText('mktFlatCount', sent.flat_count != null ? Number(sent.flat_count).toLocaleString() : '--');
+        hydrateFastText('mktDownCount', sent.down_count != null ? Number(sent.down_count).toLocaleString() : '--');
 
-        if (typeof FinancialCharts !== 'undefined' && document.getElementById('sentimentGauge')) {
-          requestAnimationFrame(() => {
-            FinancialCharts.drawGauge('sentimentGauge', sentScore, { colorType: 'sentiment', hideCenterText: true });
-          });
+        if (sentScore !== null) {
+          MarketLiveData.sentimentScore = sentScore;
+          if (typeof FinancialCharts !== 'undefined' && document.getElementById('sentimentGauge')) {
+            requestAnimationFrame(() => {
+              FinancialCharts.drawGauge('sentimentGauge', sentScore, { colorType: 'sentiment', hideCenterText: true });
+            });
+          }
         }
 
         // 行业板块与概念主题：动态由后端返回渲染
@@ -2310,38 +2049,34 @@ async function loadMarketData() {
     if (window.AStockAPI && typeof window.AStockAPI.getMarketKline === 'function') {
       const res = await window.AStockAPI.getMarketKline(targetCode, 'day');
       if (res && Array.isArray(res.klines) && res.klines.length > 0) {
-        hydrateFastText('mktKlineMa5', (res.ma5 || 3410.32).toFixed(2));
-        hydrateFastText('mktKlineMa10', (res.ma10 || 3398.76).toFixed(2));
-        hydrateFastText('mktKlineMa20', (res.ma20 || 3376.21).toFixed(2));
+        // 均线缺失时显示 '--'，不回落任何写死数值
+        const maText = (v) => (v === undefined || v === null ? '--' : Number(v).toFixed(2));
+        hydrateFastText('mktKlineMa5', maText(res.ma5));
+        hydrateFastText('mktKlineMa10', maText(res.ma10));
+        hydrateFastText('mktKlineMa20', maText(res.ma20));
 
+        MarketLiveData.klines = res.klines;
         if (typeof FinancialCharts !== 'undefined' && document.getElementById('marketKlineCanvas')) {
           requestAnimationFrame(() => {
             FinancialCharts.drawCandlestickChart('marketKlineCanvas', res.klines, { showVolume: true });
           });
         }
+      } else {
+        markMarketKlineUnavailable();
       }
+    } else {
+      markMarketKlineUnavailable();
     }
   } catch (e) {
     console.warn('render kline failed:', e);
+    markMarketKlineUnavailable();
   }
 
-  // 4. 渲染今日要闻
+  // 4. 今日要闻：当前无真实快讯数据源，如实呈现空态，不展示任何编造条目
   try {
     const nl = document.getElementById('mktNewsList');
     if (nl) {
-      const defaultNews = [
-        { time: '09:32', title: '主力资金连续净买入核心科技蓝筹标的' },
-        { time: '09:28', title: '证监会全面强化量化高频交易监管与风控核验' },
-        { time: '09:15', title: '半导体芯片与光伏设备板块共振走强' },
-        { time: '08:50', title: '央行公开市场开展逆回购投放流动性' },
-        { time: '08:36', title: '促进资本市场高质量发展政策红利持续释放' }
-      ];
-      nl.innerHTML = defaultNews.map(item => `
-        <div class="mkt-news-item hydrated-fade-in" onclick="triggerMarketQuickAction('财经快讯：' + '${item.title}')">
-          <span class="mkt-news-time">${item.time}</span>
-          <span class="mkt-news-title" title="${item.title}">${item.title}</span>
-        </div>
-      `).join('');
+      nl.innerHTML = '<div class="datasync-detail-placeholder">尚未接入真实财经快讯数据源，不展示任何示例条目</div>';
     }
   } catch (e) {
     console.warn('render news failed:', e);
@@ -2457,6 +2192,41 @@ function triggerMarketAiExperience() {
   showToast('AI量化智能分析已唤起，可直接发送对话');
 }
 
+// 按标的与周期拉取真实 K 线并重绘；无数据时清空画布并如实提示，绝不用随机游走合成走势
+async function renderMarketKline(code, period) {
+  if (typeof FinancialCharts === 'undefined' || !document.getElementById('marketKlineCanvas')) return;
+  const clearCanvas = () => {
+    const cv = document.getElementById('marketKlineCanvas');
+    const ctx = cv && cv.getContext ? cv.getContext('2d') : null;
+    if (ctx) ctx.clearRect(0, 0, cv.width, cv.height);
+  };
+  const maText = (v) => (v === undefined || v === null ? '--' : Number(v).toFixed(2));
+  try {
+    const res = (window.AStockAPI && typeof window.AStockAPI.getMarketKline === 'function')
+      ? await window.AStockAPI.getMarketKline(code, period) : null;
+    if (res && Array.isArray(res.klines) && res.klines.length > 0) {
+      MarketLiveData.klines = res.klines;
+      hydrateFastText('mktKlineMa5', maText(res.ma5));
+      hydrateFastText('mktKlineMa10', maText(res.ma10));
+      hydrateFastText('mktKlineMa20', maText(res.ma20));
+      requestAnimationFrame(() => {
+        FinancialCharts.drawCandlestickChart('marketKlineCanvas', res.klines, { showVolume: true });
+      });
+    } else {
+      MarketLiveData.klines = null;
+      hydrateFastText('mktKlineMa5', '--');
+      hydrateFastText('mktKlineMa10', '--');
+      hydrateFastText('mktKlineMa20', '--');
+      clearCanvas();
+      showToast('该标的与周期暂无真实K线数据', 'error');
+    }
+  } catch (e) {
+    MarketLiveData.klines = null;
+    clearCanvas();
+    showToast(`K线加载失败：${(e && e.message) || '未知错误'}`, 'error');
+  }
+}
+
 // K 线周期切换
 function switchKlinePeriod(period, btnEl) {
   if (btnEl && btnEl.parentElement) {
@@ -2464,10 +2234,8 @@ function switchKlinePeriod(period, btnEl) {
     btnEl.classList.add('active');
   }
   showToast(`已切换至【${btnEl ? btnEl.innerText : period}】周期K线`);
-  if (typeof FinancialCharts !== 'undefined' && document.getElementById('marketKlineCanvas')) {
-    const klines = generateKlines(period === 'min' ? 3420 : 3350, 32, 0.003);
-    FinancialCharts.drawCandlestickChart('marketKlineCanvas', klines, { showVolume: true });
-  }
+  const targetSelect = document.getElementById('mktKlineTargetSelect');
+  renderMarketKline((targetSelect && targetSelect.value) || '000001', period);
 }
 
 // 行业/概念板块 Subtabs 切换
@@ -2498,10 +2266,7 @@ function changeMarketTarget(code) {
     }
   }
   showToast(`已加载代码 [${code}] 行情走势`);
-  if (typeof FinancialCharts !== 'undefined' && document.getElementById('marketKlineCanvas')) {
-    const klines = generateKlines(code === '000001' ? 3420 : code === '399001' ? 10890 : 2280, 35, 0.002);
-    FinancialCharts.drawCandlestickChart('marketKlineCanvas', klines, { showVolume: true });
-  }
+  renderMarketKline(code, 'day');
 }
 
 // 动态 ResizeObserver 监听器 (避免频繁重绘的防抖设计)
@@ -2517,17 +2282,16 @@ function setupMarketResizeObserver() {
       _mktResizeTimer = setTimeout(() => {
         if (target.classList.contains('active')) {
           if (typeof FinancialCharts !== 'undefined') {
-            // 重绘 Sparklines
-            MarketFallbackData.indices.forEach(item => {
-              const canvasId = item.name === '上证指数' ? 'marketSparkSh' : item.name === '深证成指' ? 'marketSparkSz' : item.name === '创业板指' ? 'marketSparkCy' : 'marketSparkKc';
-              FinancialCharts.drawSparkline(canvasId, item.sparkline, item.change_pct >= 0);
+            // 仅按最近一次真实取数结果重绘；无真实数据的图层保持空白，绝不合成走势补位
+            MarketLiveData.indices.forEach(item => {
+              FinancialCharts.drawSparkline(item.canvas, item.sparkline, (item.change_pct ?? 0) >= 0);
             });
-            // 重绘 Gauge
-            const curScore = parseInt(document.getElementById('mktSentimentScore')?.textContent, 10) || 78;
-            FinancialCharts.drawGauge('sentimentGauge', curScore, { colorType: 'sentiment', hideCenterText: true });
-            // 重绘 K线
-            const klines = generateKlines(3350, 35, 0.0035);
-            FinancialCharts.drawCandlestickChart('marketKlineCanvas', klines, { showVolume: true });
+            if (MarketLiveData.sentimentScore !== null) {
+              FinancialCharts.drawGauge('sentimentGauge', MarketLiveData.sentimentScore, { colorType: 'sentiment', hideCenterText: true });
+            }
+            if (Array.isArray(MarketLiveData.klines) && MarketLiveData.klines.length > 0) {
+              FinancialCharts.drawCandlestickChart('marketKlineCanvas', MarketLiveData.klines, { showVolume: true });
+            }
           }
         }
       }, 80);
@@ -2537,93 +2301,8 @@ function setupMarketResizeObserver() {
 }
 
 // 6.4 Load Watchlist Data (Tab 3: 自选个股工作台)
-// 与真实后端 /api/watchlist 交互，同时包含完整高保真兜底数据对齐设计截图。
-const WatchlistFallbackData = {
-  stocks: [
-    { code: '600519', name: '贵州茅台', badge: '茅台', badgeBg: '#C8102E', price: 1582.00, change: 19.68, change_pct: 1.26 },
-    { code: '300750', name: '宁德时代', badge: 'CATL', badgeBg: '#003B99', price: 328.56, change: 8.39, change_pct: 2.77 },
-    { code: '601318', name: '中国平安', badge: '平安', badgeBg: '#EA5404', price: 56.80, change: 0.55, change_pct: 0.98 },
-    { code: '600036', name: '招商银行', badge: '招行', badgeBg: '#D32F2F', price: 42.36, change: 0.59, change_pct: 1.42 },
-    { code: '002594', name: '比亚迪', badge: 'BYD', badgeBg: '#E50012', price: 254.30, change: 7.90, change_pct: 3.21 },
-    { code: '300059', name: '东方财富', badge: '东财', badgeBg: '#FF6A00', price: 22.47, change: -0.15, change_pct: -0.67 },
-    { code: '601899', name: '紫金矿业', badge: '紫金', badgeBg: '#B8860B', price: 18.76, change: 0.16, change_pct: 0.86 },
-    { code: '000651', name: '格力电器', badge: '格力', badgeBg: '#00509E', price: 34.12, change: 0.20, change_pct: 0.59 },
-    { code: '002415', name: '海康威视', badge: '海康', badgeBg: '#8B0000', price: 28.36, change: -0.10, change_pct: -0.35 },
-    { code: '002475', name: '立讯精密', badge: '立讯', badgeBg: '#008B8B', price: 42.78, change: 0.72, change_pct: 1.71 },
-    { code: '600030', name: '中信证券', badge: '中信', badgeBg: '#C62828', price: 27.65, change: 0.30, change_pct: 1.10 },
-    { code: '600900', name: '长江电力', badge: '长电', badgeBg: '#0277BD', price: 28.42, change: 0.08, change_pct: 0.28 }
-  ],
-  detail300750: {
-    code: '300750',
-    name: '宁德时代',
-    badge: 'CATL',
-    badgeBg: '#003B99',
-    tags: ['深股通', '融资融券', 'MSCI'],
-    price: 328.56,
-    change: 8.39,
-    change_pct: 2.77,
-    open: 322.00,
-    high: 332.80,
-    low: 318.45,
-    pre_close: 320.17,
-    volume: '42.36万手',
-    amount: '138.66亿元',
-    ma: { ma5: '320.45', ma10: '315.32', ma20: '308.76', ma60: '291.23' },
-    industry: '电池',
-    concepts: '新能源车、锂电池、固态电池、储能',
-    circ_market_val: '7,654.32亿',
-    total_market_val: '9,832.17亿',
-    pe_ttm: 18.76,
-    pb: 4.32,
-    high_52w: 332.80,
-    low_52w: 169.80,
-    events: [
-      { date: '2025-08-26', type: '机构调研', desc: '近30家机构调研，关注固态电池进展', color: 'red' },
-      { date: '2025-08-22', type: '分红送转', desc: '10派5元（含税）', color: 'blue' },
-      { date: '2025-08-15', type: '业绩预告', desc: '预计上半年净利润同比增长20%-30%', color: 'blue' },
-      { date: '2025-08-10', type: '限售解禁', desc: '解禁股数1.25亿股，占总股本2.3%', color: 'blue' }
-    ],
-    capital_flow: {
-      date: '(2025-08-27)',
-      main_net: '12.36亿 (8.45%)',
-      super_large: '7.23亿 (4.96%)',
-      large: '5.13亿 (3.49%)',
-      medium: '-4.21亿 (-2.87%)',
-      small: '-8.15亿 (-5.58%)',
-      donut: [{ value: 68, color: '#F5222D' }, { value: 32, color: '#52C41A' }],
-      dates: ['08-21', '08-22', '08-25', '08-26', '08-27'],
-      trend_main: [0.5, 3.8, 8.2, 12.5, 18.6],
-      trend_retail: [-2.1, -4.5, -7.8, -11.2, -14.6]
-    },
-    northbound: {
-      rate: '▲ 0.68%',
-      sh_flow: '3.12亿',
-      sz_flow: '2.11亿',
-      donut: [{ value: 3.12, color: '#1677FF' }, { value: 2.11, color: '#69B1FF' }],
-      dates: ['08-21', '08-22', '08-25', '08-26', '08-27'],
-      net_buys: [2.5, 4.2, -3.1, -1.8, 5.23]
-    },
-    main_control: {
-      score: 68.32,
-      holding: '12.36亿',
-      ratio: '8.46%',
-      concentration: '71.26%',
-      dates: ['08-21', '08-22', '08-25', '08-26', '08-27'],
-      history: [8.5, 9.8, 11.2, 12.6, 14.8]
-    },
-    news: [
-      { date: '08-27', title: '宁德时代：固态电池技术取得新进展，预计年内...' },
-      { date: '08-26', title: '机构：看好宁德时代长期发展，维持“买入”评级' },
-      { date: '08-25', title: '宁德时代与华为签署战略合作协议，共同推进...' },
-      { date: '08-22', title: '新能源车销量超预期，锂电池产业景气度持续...' },
-      { date: '08-20', title: '宁德时代拟在欧洲建设新工厂，扩大海外产能布局' }
-    ],
-    ai_conclusion: {
-      summary: '宁德时代当前处于上升趋势，量价配合良好，主力资金持续流入。短线有继续走强空间，关注 320 元支撑位，若放量突破 332 元，有望挑战 350 元压力位。',
-      tags: ['技术面强势', '资金流入明显', '机构看好']
-    }
-  }
-};
+// 与真实后端 /api/watchlist 交互。自选池为空时如实呈现空态与登记引导，
+// 严禁用高保真兜底档案（写死个股价格/资金流/新闻/AI 结论）冒充真实数据。
 
 let _watchlistSortOrder = 'desc';
 let _watchlistSearchKeyword = '';
@@ -2762,14 +2441,14 @@ function renderWatchlistItems(stocks, selectedCode) {
 function filterWatchlist(val) {
   _watchlistSearchKeyword = (val || '').trim();
   const currentCode = AppState.selectedStock || getStoredWatchStock();
-  const list = AppState.currentWatchlistStocks || WatchlistFallbackData.stocks;
+  const list = AppState.currentWatchlistStocks || [];
   renderWatchlistItems(list, currentCode);
 }
 
 function toggleWatchlistSort() {
   _watchlistSortOrder = _watchlistSortOrder === 'desc' ? 'asc' : 'desc';
   const currentCode = AppState.selectedStock || getStoredWatchStock();
-  const list = AppState.currentWatchlistStocks || WatchlistFallbackData.stocks;
+  const list = AppState.currentWatchlistStocks || [];
   renderWatchlistItems(list, currentCode);
 }
 
@@ -2792,14 +2471,16 @@ async function switchWatchPeriod(period, tabEl) {
     }
   }
 
-  if (!klines) {
-    const currentStock = (AppState.currentWatchlistStocks || []).find(s => s.code === curCode) || { price: 320 };
-    const basePrice = currentStock.price || 320;
-    klines = generateKlines(basePrice * 0.94, period === 'day' ? 32 : 24, 0.006);
-  }
-
-  if (document.getElementById('stockKlineCanvas')) {
-    FinancialCharts.drawCandlestickChart('stockKlineCanvas', klines, { showVolume: true });
+  // 无真实 K 线时清空画布并如实提示，绝不合成随机走势充当行情
+  const cv = document.getElementById('stockKlineCanvas');
+  if (cv) {
+    if (klines && klines.length > 0) {
+      FinancialCharts.drawCandlestickChart('stockKlineCanvas', klines, { showVolume: true });
+    } else {
+      const ctx = cv.getContext ? cv.getContext('2d') : null;
+      if (ctx) ctx.clearRect(0, 0, cv.width, cv.height);
+      showToast(`标的 ${curCode} 该周期暂无真实K线数据`, 'error');
+    }
   }
 }
 
@@ -2830,19 +2511,19 @@ function setupWatchlistResizeObserver() {
 }
 
 function drawWatchlistCharts(stockData) {
-  const d = stockData || WatchlistFallbackData.detail300750;
+  // 仅接受真实传入的个股数据；无数据即直接返回，不用伪造兜底档案作图
+  const d = stockData;
   if (!d || typeof FinancialCharts === 'undefined') return;
 
-  // 1. K线图
+  // 1. K线图：仅在标的自带真实 K 线时绘制，否则保持空白，绝不合成随机走势
   const klineEl = document.getElementById('stockKlineCanvas');
-  if (klineEl) {
-    const klines = d.klines || generateKlines(d.open * 0.92, 35, 0.005);
-    FinancialCharts.drawCandlestickChart('stockKlineCanvas', klines, { showVolume: true });
+  if (klineEl && Array.isArray(d.klines) && d.klines.length > 0) {
+    FinancialCharts.drawCandlestickChart('stockKlineCanvas', d.klines, { showVolume: true });
   }
 
   // 2. 资金流向环形图 (双行/多行大字居中)
   if (document.getElementById('fundFlowDonut') && d.capital_flow) {
-    const mainNet = d.capital_flow.main_net || '+12.36亿';
+    const mainNet = d.capital_flow.main_net || '--';
     FinancialCharts.drawDonutChart('fundFlowDonut', d.capital_flow.donut, {
       centerLines: [
         { text: '主力净流入', color: '#86909C', size: 10 },
@@ -2874,7 +2555,7 @@ function drawWatchlistCharts(stockData) {
     FinancialCharts.drawDonutChart('northboundDonut', d.northbound.donut, {
       centerLines: [
         { text: '北向资金合计', color: '#86909C', size: 9.5 },
-        { text: '5.23亿', color: '#1D2129', size: 12.5, bold: true }
+        { text: d.northbound.total || '--', color: '#1D2129', size: 12.5, bold: true }
       ]
     });
   }
@@ -2913,6 +2594,51 @@ function drawWatchlistCharts(stockData) {
   }
 }
 
+// 自选工作台无有效标的时的如实空态：Hero 卡、MA、概况、资金流、主力、北向、AI 结论
+// 全部回落 '--'，画布清空。绝不残留上一次或某个默认标的的身分与行情。
+function renderWatchHeroUnavailable() {
+  const textIds = [
+    'watchHeroName', 'watchHeroCode', 'watchHeroPrice', 'watchHeroDeltaVal', 'watchHeroDeltaPct',
+    'watchHeroOpen', 'watchHeroHigh', 'watchHeroLow', 'watchHeroPreClose', 'watchHeroVol', 'watchHeroAmount',
+    'watchMa5', 'watchMa10', 'watchMa20', 'watchMa60',
+    'watchMetaIndustry', 'watchMetaConcepts', 'watchMetaFloatCap', 'watchMetaTotalCap',
+    'watchMetaPe', 'watchMetaPb', 'watchMeta52High', 'watchMeta52Low',
+    'watchFundDate', 'watchFundMainInflow', 'watchFundSuperInflow',
+    'watchFundLargeInflow', 'watchFundMidInflow', 'watchFundSmallInflow',
+    'watchNorthRate', 'watchNorthSH', 'watchNorthSZ',
+    'watchMainHoldings', 'watchMainRatio', 'watchMainConcentration',
+  ];
+  textIds.forEach((id) => hydrateFastText(id, '--'));
+
+  const badgeEl = document.getElementById('watchHeroBadge');
+  if (badgeEl) {
+    badgeEl.innerText = '--';
+    badgeEl.style.background = '';
+    badgeEl.classList.remove('skeleton-shimmer');
+  }
+  const arrowEl = document.querySelector('.price-icon-arrow');
+  if (arrowEl) {
+    arrowEl.textContent = '';
+    arrowEl.className = 'price-icon-arrow';
+  }
+  const tagsEl = document.getElementById('watchHeroTags');
+  if (tagsEl) tagsEl.innerHTML = '';
+
+  const aiEl = document.getElementById('watchAiConclusion');
+  if (aiEl) {
+    aiEl.innerHTML = '<div class="datasync-detail-placeholder">未选中标的，无可生成的分析结论</div>';
+  }
+  const aiTagsEl = document.getElementById('watchAiTags');
+  if (aiTagsEl) aiTagsEl.innerHTML = '';
+
+  ['stockKlineCanvas', 'fundFlowDonut', 'fundFlowTrendLine', 'northboundDonut',
+   'northboundBar', 'mainControlGauge', 'mainHoldingsBar'].forEach((id) => {
+    const cv = document.getElementById(id);
+    const ctx = cv && cv.getContext ? cv.getContext('2d') : null;
+    if (ctx) ctx.clearRect(0, 0, cv.width, cv.height);
+  });
+}
+
 async function loadWatchlistData(selectedCode) {
   let preferredCode = selectedCode || AppState.selectedStock || getStoredWatchStock();
 
@@ -2937,13 +2663,8 @@ async function loadWatchlistData(selectedCode) {
     }
   }
 
-  // 降级兜底
-  if (!stocksList || stocksList.length === 0) {
-    stocksList = WatchlistFallbackData.stocks || [];
-  }
-  if (!activeDetail) {
-    activeDetail = WatchlistFallbackData.detail300750;
-  }
+  // 接口不可用或自选池为空时，如实按空列表渲染空态与登记引导，不用伪造档案兜底
+  if (!Array.isArray(stocksList)) stocksList = [];
 
   // 渲染自选列表（先执行唯一性清洗）
   const uniqueList = [];
@@ -2958,7 +2679,8 @@ async function loadWatchlistData(selectedCode) {
 
   // 决策当前选中的股票：
   // 1. 若 preferredCode 存在且在 stocksList 中，优先沿用用户的选择；
-  // 2. 否则，按当前排序规则（默认降序）自动选择列表排在第 1 位的股票，彻底避免硬编码第 2 位问题
+  // 2. 否则，按当前排序规则（默认降序）自动选择列表排在第 1 位的股票；
+  // 3. 列表为空则不选中任何标的，绝不硬编码一个默认代码冒充用户持仓
   let code = preferredCode;
   if (!code || !stocksList.some(s => s.code === code)) {
     const sortedCandidates = [...stocksList];
@@ -2967,7 +2689,7 @@ async function loadWatchlistData(selectedCode) {
     } else if (_watchlistSortOrder === 'asc') {
       sortedCandidates.sort((a, b) => (a.change_pct || 0) - (b.change_pct || 0));
     }
-    code = sortedCandidates.length > 0 ? sortedCandidates[0].code : (preferredCode || '300750');
+    code = sortedCandidates.length > 0 ? sortedCandidates[0].code : (preferredCode || null);
   }
 
   AppState.selectedStock = code;
@@ -2983,7 +2705,6 @@ async function loadWatchlistData(selectedCode) {
   if (!activeDetail || activeDetail.code !== code) {
     const matchedStock = stocksList.find(s => s.code === code);
     if (matchedStock) {
-      const isUp = matchedStock.change_pct >= 0;
       const delta = (matchedStock.price * matchedStock.change_pct / 100);
       activeDetail = {
         ...activeDetail,
@@ -2994,9 +2715,8 @@ async function loadWatchlistData(selectedCode) {
         price: matchedStock.price,
         change: delta,
         change_pct: matchedStock.change_pct,
-        open: matchedStock.price * (isUp ? 0.99 : 1.01),
-        high: matchedStock.price * 1.025,
-        low: matchedStock.price * 0.985,
+        // 昨收可由 现价 - 涨跌额 合法反推；今开/最高/最低无真实来源，
+        // 一律留空由水合层显示 '--'，严禁用 price × 系数合成 OHLC 冒充真实盘口。
         pre_close: matchedStock.price - delta
       };
     }
@@ -3004,6 +2724,12 @@ async function loadWatchlistData(selectedCode) {
 
   // 4. 渐进式水合：快数据先行填充
   const d = activeDetail;
+  if (!d || !d.code) {
+    // 自选池为空且接口未返回标的明细：如实呈现空态，
+    // 不得让 Hero 卡残留某个默认标的（此前会永久显示"宁德时代 300750"并抛 TypeError 中断水合）
+    renderWatchHeroUnavailable();
+    return;
+  }
   const isUp = (d.change != null ? d.change : d.change_pct) >= 0;
   const sign = isUp ? '+' : '';
   const arrow = isUp ? '▲' : '▼';
@@ -3077,6 +2803,14 @@ async function loadWatchlistData(selectedCode) {
   if (d.northbound) {
     hydrateFastText('watchNorthSH', d.northbound.sh_flow || '--');
     hydrateFastText('watchNorthSZ', d.northbound.sz_flow || '--');
+    // 合计涨跌幅只在接口给出真实值时着色，否则保持中性 '--'，不预置涨跌方向
+    const rate = d.northbound.rate;
+    if (rate === undefined || rate === null || rate === '') {
+      hydrateFastText('watchNorthRate', '--', 'north-badge-rate');
+    } else {
+      const rateUp = String(rate).trim().startsWith('-') === false;
+      hydrateFastText('watchNorthRate', rate, `north-badge-rate ${rateUp ? 'text-up' : 'text-down'}`);
+    }
   }
 
   if (d.main_control) {
@@ -3116,104 +2850,11 @@ function syncAtOperatorQuotes(stocks) {
   });
 }
 
-// 6.5 Load Returns Data (Tab 4: 收益分析工作台 · 像素级设计还原引擎)
-const ReturnsFallbackData = {
-  kpis: {
-    total_return: 28.56,
-    benchmark_excess: 12.36,
-    cum_return: '+128,650.32',
-    init_fund: '100,000.00',
-    max_drawdown: -8.72,
-    max_drawdown_date: '2025-04-21',
-    sharpe_ratio: 2.36,
-    risk_reward_ratio: 1.82,
-    spark1: [10, 12, 11, 14, 13, 17, 16, 20, 22, 21, 24, 26, 28.56],
-    spark2: [100000, 101500, 103200, 102100, 106500, 110200, 114000, 118500, 123000, 128650.32],
-    spark3: [-1.2, -2.4, -4.5, -6.1, -8.72, -7.2, -6.0, -7.1, -8.72, -6.2],
-    spark4: [0.35, 0.45, 0.4, 0.6, 0.72, 0.65, 0.95]
-  },
-  trend: {
-    activePeriod: '1y',
-    minPct: -20,
-    maxPct: 60,
-    maxVol: 150,
-    labels: ['2024-08', '2024-10', '2024-12', '2025-02', '2025-04', '2025-06', '2025-08'],
-    strategy: [
-      0.0, 1.5, 3.2, 2.8, 4.5, 7.8, 9.5, 8.2, 10.4, 12.6,
-      11.2, 9.8, 12.0, 15.4, 18.2, 16.5, 19.8, 23.4, 21.0, 18.5,
-      20.2, 24.5, 27.8, 26.2, 28.4, 30.5, 29.1, 28.0, 31.2, 33.5,
-      32.0, 30.8, 32.5, 35.0, 33.8, 31.5, 29.8, 30.5, 28.9, 29.5,
-      31.0, 32.8, 34.2, 33.0, 31.8, 30.5, 29.2, 28.0, 28.2, 28.56
-    ],
-    benchmark: [
-      0.0, 0.8, 1.5, 0.5, 1.8, 4.2, 5.0, 3.5, 4.8, 6.0,
-      5.2, 3.8, 4.5, 6.8, 8.5, 7.2, 8.0, 10.5, 9.2, 7.5,
-      8.8, 11.2, 12.5, 11.8, 13.0, 14.5, 13.8, 12.5, 13.8, 15.2,
-      14.0, 12.8, 13.5, 15.0, 14.2, 13.0, 11.8, 12.5, 13.2, 14.0,
-      14.8, 15.5, 16.0, 15.2, 14.5, 13.8, 14.2, 15.0, 15.8, 16.20
-    ],
-    volume: [
-      45, 52, 68, 55, 62, 85, 98, 76, 88, 105,
-      92, 80, 95, 115, 135, 110, 125, 140, 128, 105,
-      118, 132, 145, 125, 138, 148, 130, 115, 122, 135,
-      120, 110, 118, 130, 125, 112, 98, 105, 112, 120,
-      125, 135, 142, 130, 122, 115, 118, 125, 127, 128.36
-    ],
-    tooltip: {
-      date: '2025-08-27',
-      strategy: '+28.56%',
-      benchmark: '+16.20%',
-      volume: '128.36亿'
-    }
-  },
-  composition: {
-    period: '1y',
-    slices: [
-      { name: '股票策略', value: 18.72, color: '#165DFF' },
-      { name: '行业配置', value: 6.34, color: '#14C9C9' },
-      { name: '择时操作', value: 2.87, color: '#FF7D00' },
-      { name: '现金管理', value: 0.63, color: '#722ED1' }
-    ]
-  },
-  monthly_pnl: [
-    { month: '08月', pnl: 1.2 },
-    { month: '09月', pnl: 2.5 },
-    { month: '10月', pnl: 5.6 },
-    { month: '11月', pnl: -1.2 },
-    { month: '12月', pnl: -6.0 },
-    { month: '01月', pnl: 1.5 },
-    { month: '02月', pnl: -0.8 },
-    { month: '03月', pnl: 5.8 },
-    { month: '04月', pnl: 1.8 },
-    { month: '05月', pnl: 3.0 },
-    { month: '06月', pnl: -4.2 },
-    { month: '07月', pnl: 6.0 },
-    { month: '08月', pnl: 6.32, highlight: true }
-  ],
-  account_details: [
-    { period: '近1周', init: '100,000.00', current: '103,452.16', cum_pnl: '+3,452.16', pnl_rate: '+3.45%', annual_rate: '18.76%', max_dd: '-2.13%' },
-    { period: '近1月', init: '100,000.00', current: '106,832.45', cum_pnl: '+6,832.45', pnl_rate: '+6.83%', annual_rate: '21.37%', max_dd: '-3.26%' },
-    { period: '近3月', init: '100,000.00', current: '118,765.32', cum_pnl: '+18,765.32', pnl_rate: '+18.77%', annual_rate: '24.56%', max_dd: '-6.72%' },
-    { period: '近6月', init: '100,000.00', current: '124,832.67', cum_pnl: '+24,832.67', pnl_rate: '+24.83%', annual_rate: '26.31%', max_dd: '-8.21%' },
-    { period: '近1年', init: '100,000.00', current: '128,650.32', cum_pnl: '+28,650.32', pnl_rate: '+28.56%', annual_rate: '24.68%', max_dd: '-8.72%' }
-  ],
-  asset_dist: {
-    total_asset: '128,650.32',
-    slices: [
-      { name: '股票', value: 68.32, color: '#165DFF' },
-      { name: '可转债', value: 12.45, color: '#00B42A' },
-      { name: '现金', value: 8.76, color: '#FF7D00' },
-      { name: '其他', value: 10.47, color: '#722ED1' }
-    ]
-  },
-  sidebar: {
-    strategy_return: '+28.56%',
-    excess_return: '+12.36%',
-    max_drawdown: '-8.72%',
-    annual_return: '+24.68%',
-    win_rate: '68.23%'
-  }
-};
+// 6.5 Load Returns Data (Tab 4: 收益分析工作台)
+// 投资收益全景：收益归因需要真实逐日净值与成交流水，后端 /api/portfolio/analysis
+// 现为 fail-closed（503 CAPABILITY_NOT_IMPLEMENTED）。此前这里保留了一整套本地伪造
+// 收益档案（总收益率、夏普、胜率、50 点走势、13 个月盈亏），周期切换还对其乘
+// 0.3/0.5/0.8 系数"生成"多周期曲线，均已整体移除，改为如实空态渲染。
 
 async function loadReturnsData() {
   let data = null;
@@ -3227,8 +2868,10 @@ async function loadReturnsData() {
       console.warn('Backend portfolio analysis fetch failed:', e);
     }
   }
+  // 收益归因需真实逐日净值与成交流水；后端未接入时如实呈现空态，绝不用本地伪造档案兜底
   if (!data) {
-    data = ReturnsFallbackData;
+    renderReturnsUnavailable();
+    return;
   }
 
   // 1. 快数据先行：文字及指标水合
@@ -3237,6 +2880,38 @@ async function loadReturnsData() {
   requestAnimationFrame(() => {
     renderReturnsCharts(data);
   });
+}
+
+// 收益全景不可用态：全部指标回落 '--'，画布清空，并说明原因与恢复条件
+function renderReturnsUnavailable() {
+  const textIds = [
+    'retKpiTotalReturn', 'retKpiExcessVal', 'retKpiCumReturn', 'retKpiInitFund',
+    'retKpiMaxDd', 'retKpiMaxDdDate', 'retKpiSharpe', 'retKpiRiskReward',
+    'ttDate', 'ttStrategyVal', 'ttBenchmarkVal', 'ttVolumeVal',
+    'retAssetDistStock', 'retAssetDistBond', 'retAssetDistCash', 'retAssetDistOther',
+    'sideStrategyReturn', 'sideExcessReturn', 'sideMaxDd', 'sideAnnualReturn', 'sideWinRate',
+  ];
+  textIds.forEach((id) => hydrateFastText(id, '--'));
+
+  const canvasIds = [
+    'retTrendMainCanvas', 'retCompositionDonut', 'retMonthlyBarCanvas', 'retAssetDistDonut',
+    'retSparkline1', 'retSparkline2', 'retSparkline3', 'retSparkline4',
+  ];
+  canvasIds.forEach((id) => {
+    const cv = document.getElementById(id);
+    const ctx = cv && cv.getContext ? cv.getContext('2d') : null;
+    if (ctx) ctx.clearRect(0, 0, cv.width, cv.height);
+  });
+
+  const reason = '收益归因尚未接入真实净值与成交流水数据源，不展示任何示例收益、回撤或胜率';
+  const table = document.getElementById('retAccountTableBody');
+  if (table) {
+    table.innerHTML = `<tr><td colspan="7"><div class="datasync-detail-placeholder">${reason}</div></td></tr>`;
+  }
+  const legend = document.getElementById('retCompositionLegend');
+  if (legend) {
+    legend.innerHTML = `<div class="datasync-detail-placeholder">${reason}</div>`;
+  }
 }
 
 function renderReturnsDOM(data) {
@@ -3327,14 +3002,28 @@ function renderReturnsCharts(data) {
     });
   }
 
-  // 3. Composition Donut Chart
+  // 3. Composition Donut Chart（中心值取自接口真实 KPI，不写死收益率）
+  const totalReturn = data.kpis ? data.kpis.total_return : null;
+  const totalReturnText = (totalReturn === null || totalReturn === undefined)
+    ? '--' : `${totalReturn >= 0 ? '+' : ''}${totalReturn}%`;
   FinancialCharts.drawDonutChart('retCompositionDonut', data.composition.slices, {
     innerRatio: 0.68,
     centerLines: [
-      { text: '+28.56%', bold: true, size: 12.5, color: '#F53F3F' },
+      { text: totalReturnText, bold: true, size: 12.5, color: '#F53F3F' },
       { text: '总收益率', size: 9.5, color: '#86909C' }
     ]
   });
+
+  // 图例与环形图同源渲染，杜绝静态写死百分比（此前 18.72%/6.34%/2.87%/0.63% 无任何写入方）
+  const legendEl = document.getElementById('retCompositionLegend');
+  if (legendEl) {
+    legendEl.innerHTML = (data.composition.slices || []).map((s) => `
+      <div class="ret-donut-legend-row">
+        <div class="ret-legend-name"><span class="donut-dot" style="background:${escapeSessionHtml(s.color || '#86909C')};"></span>${escapeSessionHtml(s.name)}</div>
+        <div class="ret-legend-val tabular-nums">${s.value == null ? '--' : escapeSessionHtml(s.value) + '%'}</div>
+      </div>
+    `).join('');
+  }
 
   // 4. Monthly PnL Bars
   FinancialCharts.drawReturnsMonthlyBars('retMonthlyBarCanvas', data.monthly_pnl);
@@ -3344,7 +3033,7 @@ function renderReturnsCharts(data) {
     innerRatio: 0.68,
     centerLines: [
       { text: '总资产', size: 9.5, color: '#86909C' },
-      { text: '128,650.32', bold: true, size: 10.5, color: '#1D2129' }
+      { text: data.asset_dist.total_asset || '--', bold: true, size: 10.5, color: '#1D2129' }
     ]
   });
 }
@@ -3361,23 +3050,9 @@ function switchTrendPeriod(period) {
   });
 
   const periodNames = { '1m': '近1月', '3m': '近3月', '6m': '近6月', '1y': '近1年', 'ytd': '今年以来' };
-  showToast(`已切换收益走势至【${periodNames[period] || period}】`);
-
-  // Dynamically redraw trend with slight period variations
-  const mult = period === '1m' ? 0.3 : (period === '3m' ? 0.5 : (period === '6m' ? 0.8 : 1.0));
-  const newStrategy = ReturnsFallbackData.trend.strategy.map(v => Number((v * mult).toFixed(2)));
-  const newBenchmark = ReturnsFallbackData.trend.benchmark.map(v => Number((v * mult).toFixed(2)));
-
-  FinancialCharts.drawReturnsTrendDualAxis('retTrendMainCanvas', {
-    strategyData: newStrategy,
-    benchmarkData: newBenchmark,
-    volumeData: ReturnsFallbackData.trend.volume,
-    labels: ReturnsFallbackData.trend.labels,
-    minPct: -20,
-    maxPct: 60,
-    maxVol: 150,
-    highlightIndex: newStrategy.length - 3
-  });
+  // 后端未按周期提供真实净值序列；此前这里对伪造数组乘 0.3/0.5/0.8 系数"生成"多周期曲线，
+  // 属凭空造数，已移除。周期切换只更新页签高亮并如实告知能力未接入。
+  showToast(`【${periodNames[period] || period}】收益走势尚未接入真实净值数据源`, 'error');
 }
 
 function switchCompositionPeriod(period) {
@@ -3416,32 +3091,10 @@ function viewAccountDetailRow(period) {
   showToast(`已展开【${period}】收益与交易穿透归因明细`);
 }
 
-function askAboutReturnReport(idx) {
-  const questions = {
-    1: '请结合近1年超越92%投资者的收益表现(+28.56%)，深度分析当前组合的核心超额Alpha来源与延续性。',
-    2: '当前科技板块贡献了主要收益，请从宏观估值与防御角度评估消费、医药等板块的调仓配置建议。',
-    3: '当前最大回撤控制在-8.72%，请按照AGENTS.md实战三原则核验持仓标的是否触及T0(-3%)/T1(-5%)/T2(-8%)风控线。'
-  };
-  const prompt = questions[idx] || '请对当前的投资组合收益及风控指标进行多智能体深度量化研判。';
-  
-  // 展开投研助手并填充消息发送
-  if (AppState.isCopilotCollapsed) {
-    toggleChatCollapse();
-  }
-  const input = document.getElementById('chatInput');
-  if (input) {
-    input.value = prompt;
-    handleSendChat();
-  } else {
-    showToast(`已选择问答：${prompt.slice(0, 20)}...`);
-  }
-}
-
 // 6.6 Load All Backend Data in Parallel
 async function loadAllBackendData() {
   await Promise.allSettled([
     initSessionsFromBackend(),
-    loadDashboardData(),
     loadMarketData(),
     loadWatchlistData(),
     loadReturnsData()
@@ -3449,12 +3102,10 @@ async function loadAllBackendData() {
 }
 
 // 6.7 Canvas Charts Dispatcher
-// 图表数据全部来自后端接口（MOCK 兜底），此处仅触发对应数据加载器重新渲染。
+// 各页图表数据一律来自后端真实接口；无数据时呈现空态，不做任何本地 MOCK 兜底。
+// dashboard 页已改为 Markdown/HTML 文档视窗，无图表需要渲染，故不在此分发。
 function renderTabCharts(tabId) {
-  if (tabId === 'dashboard') {
-    initDashboardCharts();
-    loadDashboardData();
-  } else if (tabId === 'market') {
+  if (tabId === 'market') {
     loadMarketData();
   } else if (tabId === 'watchlist') {
     loadWatchlistData(AppState.selectedStock);
@@ -3463,26 +3114,6 @@ function renderTabCharts(tabId) {
   } else if (tabId === 'selection') {
     renderSelectionWorkbench();
   }
-}
-
-function generateKlines(basePrice = 320, count = 28, trend = 0.008) {
-  const list = [];
-  let curr = basePrice;
-  const now = new Date('2026-08-27');
-
-  for (let i = 0; i < count; i++) {
-    const d = new Date(now.getTime() - (count - 1 - i) * 86400000);
-    const dateStr = d.toISOString().slice(5, 10);
-    const change = (Math.random() - 0.44 + trend) * (curr * 0.03);
-    const open = curr;
-    const close = Math.round((curr + change) * 100) / 100;
-    const high = Math.round((Math.max(open, close) + Math.random() * (curr * 0.015)) * 100) / 100;
-    const low = Math.round((Math.min(open, close) - Math.random() * (curr * 0.015)) * 100) / 100;
-    const vol = Math.round(20000 + Math.random() * 45000);
-    list.push([dateStr, open, close, high, low, vol]);
-    curr = close;
-  }
-  return list;
 }
 
 // --------------------------------------------------------------------------
