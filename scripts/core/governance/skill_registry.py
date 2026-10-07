@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 core.governance.skill_registry - Central Skill Registry and Governance Subsystem.
-Loads 18 A-Stock skills from config/skills_manifest.json, generates OpenAI function schemas,
+Loads 19 A-Stock skills from config/skills_manifest.json, generates OpenAI function schemas,
 manages dynamic enable/disable state, enforces security gates and timeout fuses.
 """
 from __future__ import annotations
@@ -21,7 +21,7 @@ logger = get_logger("core.governance.skill_registry")
 MANIFEST_PATH = PROJECT_ROOT / "config" / "skills_manifest.json"
 
 
-# ── Canonical Parameter Schemas for all 18 Skills ────────────────────────────
+# ── Canonical Parameter Schemas for all 19 Skills ────────────────────────────
 
 SKILL_SCHEMAS: Dict[str, Dict[str, Any]] = {
     "astock-data-feed": {
@@ -160,6 +160,16 @@ SKILL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             "count": {"type": "integer", "description": "K线根数，默认60"},
         },
         "required": ["code"],
+    },
+    "astock-selection-model": {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": ["validate", "run", "tick", "assess", "track", "evaluate", "tune"], "description": "ISS 动作：校验/单阶段运行/调度 Tick/结果研究/跟踪/评价/调优"},
+            "model_id": {"type": "string", "description": "选股模型 ID（运行/评价/调优时需要）"},
+            "run_id": {"type": "string", "description": "运行 ID（结果研究/跟踪时需要）"},
+            "stage": {"type": "string", "description": "漏斗阶段 ID（单阶段运行时需要）"},
+        },
+        "required": ["action"],
     },
 }
 

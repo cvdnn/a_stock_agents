@@ -1,4 +1,4 @@
-"""Contract tests for the 18 project-local A-stock skills."""
+"""Contract tests for the 19 project-local A-stock skills."""
 
 from __future__ import annotations
 
@@ -27,10 +27,10 @@ def _subcommands(parser: argparse.ArgumentParser) -> dict[str, argparse.Argument
     return action.choices
 
 
-def test_all_18_skills_have_explicit_schema_and_tool_mapping() -> None:
+def test_all_19_skills_have_explicit_schema_and_tool_mapping() -> None:
     manifest_ids = {item["id"] for item in _manifest()["skills"]}
 
-    assert len(manifest_ids) == 18
+    assert len(manifest_ids) == 19
     assert set(SKILL_SCHEMAS) == manifest_ids
     for skill_id in manifest_ids:
         assert skill_id in TOOL_MAP
@@ -62,6 +62,7 @@ def test_manifest_cli_contracts_parse_with_canonical_examples() -> None:
         "astock-model-validation": "astock validate-model --model {model_name} --code {code}",
         "astock-meta-routing": 'astock intent "{task_description}"',
         "astock-strategy-chenxiaoqun": "astock pattern chenxiaoqun {code}",
+        "astock-selection-model": "astock funnel validate",
     }
     examples = {
         "astock-data-feed": ["data", "quote", "600519", "--json"],
@@ -82,6 +83,7 @@ def test_manifest_cli_contracts_parse_with_canonical_examples() -> None:
         "astock-model-validation": ["validate-model", "--model", "Kronos", "--code", "600519", "--json"],
         "astock-meta-routing": ["intent", "分析这项任务", "--json"],
         "astock-strategy-chenxiaoqun": ["pattern", "chenxiaoqun", "600519", "--json"],
+        "astock-selection-model": ["funnel", "validate", "--json"],
     }
 
     manifest_cli = {item["id"]: item["cli_command"] for item in _manifest()["skills"]}

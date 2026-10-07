@@ -34,11 +34,11 @@ def run_tests():
         with open(manifest_p, "r", encoding="utf-8") as f:
             m = json.load(f)
         skills = m.get("skills", [])
-        assert len(skills) == 18, f"Expected 18 skills, found {len(skills)}"
+        assert len(skills) == 19, f"Expected 19 skills, found {len(skills)}"
         for s in skills:
             doc_p = PROJECT_ROOT / s["skill_doc"]
             assert doc_p.exists(), f"Skill doc missing for {s['id']}: {doc_p}"
-        print(f"  --> PASS (18/18 技能清单及文档完整)")
+        print(f"  --> PASS (19/19 技能清单及文档完整)")
         passed_count += 1
     except Exception as e:
         print(f"  --> FAIL: {e}")
@@ -270,7 +270,7 @@ def run_tests():
         setup_workspace_mount()
         health = check_workspace_health()
         assert health["is_healthy"], f"Workspace health check failed: {health}"
-        assert health["total_skills"] == 18, f"Expected 18 skills in .agents/skills, got {health['total_skills']}"
+        assert health["total_skills"] == 19, f"Expected 19 skills in .agents/skills, got {health['total_skills']}"
 
         # 2. 报告模板存在性
         assert TEMPLATE_PATH.exists(), f"Report template path does not exist: {TEMPLATE_PATH}"

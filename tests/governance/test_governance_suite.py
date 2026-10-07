@@ -64,11 +64,11 @@ def registry():
 
 
 class TestSkillRegistryCore:
-    """Test 18 skills loading, schema generation, validation, and execution gates."""
+    """Test 19 skills loading, schema generation, validation, and execution gates."""
 
-    def test_all_18_skills_loaded(self, registry: SkillRegistry):
+    def test_all_19_skills_loaded(self, registry: SkillRegistry):
         skills = registry.list_skills()
-        assert len(skills) == 18, f"Expected 18 skills, found {len(skills)}"
+        assert len(skills) == 19, f"Expected 19 skills, found {len(skills)}"
 
         skill_ids = [s.id for s in skills]
         assert "astock-data-feed" in skill_ids
@@ -227,7 +227,7 @@ class TestGovernanceRESTEndpoints:
             resp = client.get("/api/skills")
             assert resp.status_code == 200
             skills = resp.json()
-            assert len(skills) == 18
+            assert len(skills) == 19
 
             # Filter by category
             resp_data = client.get("/api/skills?category=data")

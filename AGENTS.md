@@ -4,7 +4,7 @@
 
 > [!IMPORTANT]
 > **零全局污染原则 (Zero Global Pollution)**：
-> 本项目的全部 18 项技能及底层量化引擎**完全就地运行在当前工作区内**。
+> 本项目的全部 19 项技能及底层量化引擎**完全就地运行在当前工作区内**。
 > **严禁**将本项目的技能或配置复制到系统全局目录（如 `~/.gemini/config/skills`、`~/.hermes/skills` 或系统级路径）。无论在 Antigravity、Hermes、Codex 还是 Claude Code 中，直接在本项目工作区内就地按需调用即可。
 
 ---
@@ -56,7 +56,7 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 
 ---
 
-## 🧭 18 项就地技能全景清单与意图路由 (Skills Manifest)
+## 🧭 19 项就地技能全景清单与意图路由 (Skills Manifest)
 
 当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** [`.agents/skills/<skill_id>/SKILL.md`](file:///Users/handy/workon/a_stock_agents/.agents/skills) 或 [`config/skills_manifest.json`](file:///Users/handy/workon/a_stock_agents/config/skills_manifest.json)。
 
@@ -80,6 +80,7 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 | **`astock-meta-routing`** | 任务路由、大模型选型策略 | `astock tips --json` | 纯分析 vs 代码执行的任务分流规范与模型推荐 |
 | **`astock-knowledge-tips`** | 避坑指南、集合竞价、防被封技巧 | `astock tips --json` | 历史实战踩坑经验、数据源降级策略与风控心法 |
 | **`astock-model-validation`** | 外部AI时序模型检验、样本外回测 | `astock validate-model --json` | 外部时序模型（TimesFM/Kronos）的滚动样本外回测标准 |
+| **`astock-selection-model`** | 智能选股、选股模型、层级漏斗、条件树、模型版本、选股调度、结果研究、跟踪评估 | `astock funnel validate --json`<br>`astock funnel run --stage <阶段> --assemble --json` | SPEC-ALGO-ISS-001 配置化智能选股系统：模型编译、版本仓库、交易日调度与结果研究跟踪评估 |
 
 
 ---

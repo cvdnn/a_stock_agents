@@ -1,7 +1,7 @@
 {
   "platform": "A-Stock-Agents-Universal",
   "version": "v3",
-  "total_skills": 18,
+  "total_skills": 19,
   "skills": [
     {
       "id": "astock-data-feed",
@@ -340,6 +340,27 @@
       "entry_point": ".agents/skills/astock-strategy-chenxiaoqun/scripts/chenxiaoqun_check.py",
       "cli_command": "astock pattern chenxiaoqun {code}",
       "skill_doc": ".agents/skills/astock-strategy-chenxiaoqun/SKILL.md",
+      "recommended_model": "inherit"
+    },
+    {
+      "id": "astock-selection-model",
+      "name": "astock-selection-model",
+      "title": "配置化智能选股系统（ISS）与层级漏斗引擎",
+      "category": "screener",
+      "description": "SPEC-ALGO-ISS-001 智能选股系统：模型类型注册、条件树/漏斗模型编译为统一层级计划、草稿-发布-激活版本仓库、交易日调度与运行锁、结果研究与持续跟踪评估。",
+      "triggers": [
+        "智能选股",
+        "选股模型",
+        "层级漏斗",
+        "条件树",
+        "模型版本",
+        "选股调度",
+        "结果研究",
+        "跟踪评估"
+      ],
+      "entry_point": "core/selection_models/__init__.py",
+      "cli_command": "astock funnel validate",
+      "skill_doc": ".agents/skills/astock-selection-model/SKILL.md",
       "recommended_model": "inherit"
     }
   ]
