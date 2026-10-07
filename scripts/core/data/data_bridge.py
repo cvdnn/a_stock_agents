@@ -261,8 +261,10 @@ class DataBridge:
                 # §7.7.7: 缺失→None（W-10 缺失禁置零）；历史缺陷未透传此键，
                 # 导致下游 sync_today_snapshot 读 q["pb"] 恒取默认值 0
                 "pb": parsed["pb"],
-                "circulating_market_cap": round(parsed["circulating_market_cap"], 2) if parsed["circulating_market_cap"] is not None else 0,  # 单位: 亿元
-                "total_market_cap": round(parsed["total_market_cap"], 2) if parsed["total_market_cap"] is not None else 0,  # 单位: 亿元
+                # W-09 单位口径: 本层沿用腾讯快照原值，单位亿元（入库层单点 ×1e8 换算为元）
+                # W-10 缺失禁置零: 缺失一律 None，不得以 0 参与比较（0 市值不成立）
+                "circulating_market_cap": round(parsed["circulating_market_cap"], 2) if parsed["circulating_market_cap"] else None,  # 单位: 亿元
+                "total_market_cap": round(parsed["total_market_cap"], 2) if parsed["total_market_cap"] else None,  # 单位: 亿元
                 "amplitude": round(parsed["amplitude"], 2) if parsed["amplitude"] is not None else 0,
                 "o_ratio": round(o_ratio, 1),
                 "time": parsed["time"],

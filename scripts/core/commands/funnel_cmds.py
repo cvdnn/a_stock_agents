@@ -9,7 +9,18 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from core.data.data_assembler import GATE_WAITING_DATA, STATUS_OK, DataAssembler
 from core.data.sync_engine import DB_PATH, TradeCalendar
-from core.strategy.stock_funnel import StockFunnelPipeline, derive_open_gap
+from core.selection_models.model_compiler import compile_definition
+from core.selection_models.run_lock import RunLockManager
+from core.selection_models.run_repository import RunRepository
+from core.selection_models.paths import log_dir
+from core.selection_models.scheduler import SelectionScheduler
+from core.selection_models.schemas import load_definition
+from core.selection_models.signal_latch import SignalLatch
+from core.strategy.stock_funnel import (
+    DEFAULT_CONFIG_PATH,
+    StockFunnelPipeline,
+    derive_open_gap,
+)
 
 #: 消费收盘定盘数据的阶段：一律前置 §11.4 水位门禁（手工喂 stdin 亦不豁免）
 WATERMARK_GATED_STAGES = ("post_close",)
@@ -108,7 +119,7 @@ def _attach_intraday(
     return merged
 
 
-def cmd_funnel(args) -> None:
+def _cmd_funnel_run_or_validate(args) -> None:
     config_path = Path(args.config).resolve() if getattr(args, "config", None) else None
     pipeline = StockFunnelPipeline(config_path=config_path)
     action = getattr(args, "funnel_cmd", None)
@@ -227,6 +238,126 @@ def cmd_funnel(args) -> None:
         target = pipeline.save_result(payload, trade_date=getattr(args, "trade_date", None))
         payload["saved_to"] = str(target)
     _emit(payload)
+
+
+# ---------------------------------------------------------------- 调度（B1：tick / daemon）
+def _compile_funnel_plan(config_path: Optional[Path]) -> Any:
+    """把漏斗 YAML 编译为 `CompiledSelectionPlan`（调度只执行已编译计划）。"""
+    definition, _warnings = load_definition(config_path or DEFAULT_CONFIG_PATH)
+    return compile_definition(definition)
+
+
+def _load_run_context(args) -> Dict[str, Any]:
+    context: Dict[str, Any] = {}
+    if getattr(args, "context", None):
+        loaded = _read_json(args.context)
+        if not isinstance(loaded, dict):
+            raise ValueError("context JSON must be an object")
+        context = loaded
+    return context
+
+
+def _build_records_provider(assembler: DataAssembler, pipeline: StockFunnelPipeline, args):
+    """调度 Tick 的按阶段输入装配器；数据不足返回 `None`（失败关闭，不产码）。
+
+    收盘阶段（schedule 起点 ≥ 15:00）取 `finalized_local` 定盘日线；早盘阶段在同一批
+    记录上（可选）叠加 `intraday_capture` 分钟/盘口，`opening_gap` 额外派生 `gap_pct`。
+    """
+    if not getattr(args, "assemble", False):
+        return None
+    as_of = getattr(args, "as_of", None)
+    allow_degraded = bool(getattr(args, "allow_degraded", False))
+    use_capture = bool(getattr(args, "assemble_intraday", False))
+    lookback = int(getattr(args, "lookback", 70) or 70)
+    codes = _split_codes(getattr(args, "codes", None))
+    all_market = bool(getattr(args, "all_market", False))
+    algorithm_version = _algorithm_version(pipeline)
+
+    def provider(window) -> Optional[List[Dict[str, Any]]]:
+        universe = assembler.resolve_universe(codes=codes, all_market=all_market)
+        built = assembler.assemble_daily(
+            universe, as_of=as_of, lookback=lookback,
+            allow_degraded=allow_degraded, algorithm_version=algorithm_version,
+        )
+        if built["status"] != STATUS_OK:
+            return None
+        records: List[Dict[str, Any]] = list(built["records"])
+        if str(window.start) < "15:00":  # 早盘阶段
+            if use_capture:
+                ids = [str(item.get("code")) for item in records if item.get("code")]
+                attached = assembler.assemble_intraday(
+                    ids, trade_date=getattr(args, "intraday_date", None) or as_of,
+                    algorithm_version=algorithm_version,
+                )
+                if attached["status"] != STATUS_OK:
+                    return None
+                records = _attach_intraday(records, attached["records"])
+            if window.stage_id == "opening_gap":
+                records = derive_open_gap(records)
+        return records
+
+    return provider
+
+
+def _cmd_funnel_schedule(args, *, once: bool) -> None:
+    config_path = Path(args.config).resolve() if getattr(args, "config", None) else None
+    pipeline = StockFunnelPipeline(config_path=config_path)
+    plan = _compile_funnel_plan(config_path)
+    db_path = Path(getattr(args, "db", None) or DB_PATH)
+    assembler = DataAssembler(
+        db_path=db_path,
+        snapshot_root=Path(args.snapshot_root) if getattr(args, "snapshot_root", None) else None,
+        intraday_root=Path(args.intraday_root) if getattr(args, "intraday_root", None) else None,
+    )
+    provider = _build_records_provider(assembler, pipeline, args)
+    context = _load_run_context(args)
+    calendar_meta = TradeCalendar.local_calendar_version(db_path)
+    context.setdefault("calendar_version", calendar_meta["calendar_version"])
+    context.setdefault("calendar_available", calendar_meta["calendar_available"])
+
+    scheduler = SelectionScheduler(
+        plan,
+        db_path=db_path,
+        run_repository=RunRepository(),
+        lock_manager=RunLockManager(),
+        signal_latch=SignalLatch(),
+    )
+    if once:
+        _emit(scheduler.tick(records_provider=provider, context=context))
+        return
+
+    def _log_tick(result: Mapping[str, Any]) -> None:
+        heartbeat = result.get("heartbeat") or {}
+        line = (
+            f"[selection-scheduler] {heartbeat.get('tick_at')} minute={heartbeat.get('minute')} "
+            f"status={result.get('status')} due={result.get('due_stages')}\n"
+        )
+        sys.stderr.write(line)
+        # §21.2：调度日志按交易日沉淀到 log/selection-models/<date>/scheduler.log，不只在 stderr
+        try:
+            target = log_dir(str(heartbeat.get("trade_date") or "")) / "scheduler.log"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with open(target, "a", encoding="utf-8") as fh:
+                fh.write(line)
+        except (OSError, ValueError):
+            pass
+
+    summary = scheduler.run_forever(
+        interval_s=getattr(args, "interval", None),
+        max_ticks=getattr(args, "tick_max", None),
+        records_provider=provider,
+        context=context,
+        on_tick=_log_tick,
+    )
+    _emit(summary)
+
+
+def cmd_funnel(args) -> None:
+    action = getattr(args, "funnel_cmd", None)
+    if action in ("tick", "daemon"):
+        _cmd_funnel_schedule(args, once=(action == "tick") or bool(getattr(args, "once", False)))
+        return
+    _cmd_funnel_run_or_validate(args)
 
 
 __all__ = ["cmd_funnel"]

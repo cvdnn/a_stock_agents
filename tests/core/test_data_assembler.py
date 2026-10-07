@@ -505,3 +505,24 @@ def test_funnel_run_attaches_minute_points_without_fabricating_signals(tmp_path,
                  if item["candidate"]["code"] == "sh600002"]
     assert unmatched and unmatched[0]["candidate_verdict"] == "UNKNOWN"
     assert payload["run_metadata"]["data_snapshots"][-1]["access_mode"] == "intraday_capture"
+
+
+# ------------------------------------------------------------------ B5 覆盖率硬门禁（R-03/A-05/D-12）
+def test_manifest_exposes_candidate_pool_watermark_and_coverage_gate(assembler, db):
+    """R-03/A-05：清单须含候选池 UniverseWatermark 与覆盖率门禁结论（主口径标的数）。"""
+    eligible_universe(db)
+    out = assembler.assemble_daily(["sh600001"], as_of=AS_OF)
+    gate = out["manifest"]["coverage_gate"]
+    assert gate["passed"] is True and gate["threshold"] == 1.0
+    watermark = out["manifest"]["candidate_pool_watermark"]
+    assert watermark["coverage"] == 1.0 and watermark["healthy"] == 1
+    assert out["coverage_gate"]["passed"] is True
+
+
+def test_coverage_gate_flags_degraded_when_candidate_pool_incomplete(assembler, db):
+    """D-12：候选池覆盖不足即整场降级，标记 degraded（不得作为正式信号）。"""
+    eligible_universe(db)
+    out = assembler.assemble_daily(["sh600001", "sh600099"], as_of=AS_OF)
+    gate = out["manifest"]["coverage_gate"]
+    assert gate["passed"] is False and gate["degraded"] is True
+    assert out["manifest"]["candidate_pool_watermark"]["missing_codes"] == ["sh600099"]

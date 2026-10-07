@@ -81,6 +81,7 @@ from core.commands import (
     cmd_tips,
     cmd_validate_model,
     cmd_funnel,
+    cmd_screen_model,
     cmd_trapped,
     cmd_trade_dispatch,
     cmd_vol_breakout,
@@ -127,6 +128,7 @@ __all__ = [
     "cmd_tips",
     "cmd_validate_model",
     "cmd_funnel",
+    "cmd_screen_model",
     "cmd_report",
     "cmd_trade_dispatch",
 ]
@@ -453,11 +455,77 @@ def build_parser() -> argparse.ArgumentParser:
     p_funnel_run.add_argument("--allow-degraded", action="store_true", help="允许水位 degraded 的观察运行；产物不得作为正式信号")
     p_funnel_run.add_argument("--db", default=None, help="本地市场数据库路径")
     p_funnel_run.add_argument("--intraday-root", default=None, help="盘中归档切片根目录（默认 local/cache/intraday）")
-    p_funnel_run.add_argument("--snapshot-root", default=None, help="运行快照清单根目录（默认 output/snapshots/selection）")
+    p_funnel_run.add_argument("--snapshot-root", default=None, help="运行快照清单根目录（默认 output/cache/selection-models/snapshots，§13.10）")
     p_funnel_run.add_argument("--context", default=None, help="可选的独立上下文JSON路径")
     p_funnel_run.add_argument("--config", default=None, help="自定义漏斗YAML路径")
     p_funnel_run.add_argument("--save", action="store_true", help="将阶段结果归档到 output/pools/funnel/")
     p_funnel_run.add_argument("--trade-date", default=None, help="归档交易日标签 YYYYMMDD")
+
+    # 调度：Scheduler Tick（每分钟入口）与常驻 daemon（O-01）
+    def _add_schedule_args(parser_) -> None:
+        parser_.add_argument("--config", default=None, help="自定义漏斗YAML路径")
+        parser_.add_argument("--db", default=None, help="本地市场数据库路径")
+        parser_.add_argument("--as-of", default=None, help="业务时间 YYYY-MM-DD；缺省按交易日历解析")
+        parser_.add_argument("--intraday-date", default=None, help="盘中归档交易日 YYYY-MM-DD；缺省同 --as-of")
+        parser_.add_argument("--codes", default=None, help="装配 Universe 代码（逗号分隔）；缺省取已登记标的")
+        parser_.add_argument("--all-market", action="store_true", help="Universe 取本地 daily_kline 全市场标的")
+        parser_.add_argument("--lookback", type=int, default=70, help="日线装配回溯交易日数（默认 70）")
+        parser_.add_argument("--assemble", action="store_true", help="Tick 执行时由 DataAssembler 装配输入（缺省失败关闭不产码）")
+        parser_.add_argument("--assemble-intraday", action="store_true", help="早盘阶段附加盘中归档切片（§11.5）")
+        parser_.add_argument("--allow-degraded", action="store_true", help="允许水位 degraded 的观察运行；产物不得作为正式信号")
+        parser_.add_argument("--intraday-root", default=None, help="盘中归档切片根目录（默认 local/cache/intraday）")
+        parser_.add_argument("--snapshot-root", default=None, help="运行快照清单根目录")
+        parser_.add_argument("--context", default=None, help="可选的独立上下文JSON路径")
+
+    p_funnel_tick = funnel_sub.add_parser("tick", help="执行一次调度 Tick（交易日门控+分层幂等+运行锁）", parents=[common_parser])
+    _add_schedule_args(p_funnel_tick)
+    p_funnel_daemon = funnel_sub.add_parser("daemon", help="常驻调度守护进程（每分钟 Tick，SIGINT/SIGTERM 优雅退出）", parents=[common_parser])
+    _add_schedule_args(p_funnel_daemon)
+    p_funnel_daemon.add_argument("--once", action="store_true", help="只执行一次 Tick 后退出（等价 tick）")
+    p_funnel_daemon.add_argument("--interval", type=int, default=60, help="Tick 轮询间隔秒（默认 60）")
+    p_funnel_daemon.add_argument("--tick-max", type=int, default=None, help="最多执行多少次 Tick 后退出（默认无限）")
+
+    # screen-model：ISS 阶段 E 结果研究（assess / track / evaluate / tune）
+    p_sm = subparsers.add_parser("screen-model", help="智能选股系统（ISS）结果研究：评估/跟踪/评价/调优", parents=[common_parser])
+    sm_sub = p_sm.add_subparsers(dest="screen_model_cmd")
+
+    p_sm_assess = sm_sub.add_parser("assess", help="为已落盘运行生成逐候选结果研究评估", parents=[common_parser])
+    p_sm_assess.add_argument("--run", required=True, help="运行 ID")
+    p_sm_assess.add_argument("--records", default=None, help="候选行情切片 JSON 路径；使用 - 从 stdin 读取（含 code/dates/closes）")
+    p_sm_assess.add_argument("--account-equity", type=float, default=None, help="账户总权益（用于仓位研究方案）")
+    p_sm_assess.add_argument("--risk-per-trade-pct", type=float, default=None, help="单笔风险占比（默认 1.0）")
+    p_sm_assess.add_argument("--initial-cash", type=float, default=None, help="策略回测初始本金（默认 1000000）")
+    p_sm_assess.add_argument("--as-of", default=None, help="业务时间 YYYY-MM-DD")
+    p_sm_assess.add_argument("--horizons", default=None, help="markout 观察周期，逗号分隔（默认 1,3,5,10,20）")
+
+    p_sm_track = sm_sub.add_parser("track", help="实时 / T+N 持续跟踪（create / status / tick）", parents=[common_parser])
+    track_sub = p_sm_track.add_subparsers(dest="screen_model_track_cmd")
+
+    p_sm_track_create = track_sub.add_parser("create", help="创建跟踪计划", parents=[common_parser])
+    p_sm_track_create.add_argument("--run", required=True, help="运行 ID")
+    p_sm_track_create.add_argument("--codes", default=None, help="候选代码，逗号分隔（缺省取运行最终候选）")
+    p_sm_track_create.add_argument("--mode", choices=["t_plus_n", "realtime"], default="t_plus_n", help="跟踪模式")
+    p_sm_track_create.add_argument("--periods", default=None, help="观察周期，逗号分隔（默认 1,3,5,10,20）")
+    p_sm_track_create.add_argument("--benchmark", default=None, help="比较基准（默认取市场配置）")
+    p_sm_track_create.add_argument("--base-prices-json", default=None, help="基准价格 JSON 字符串或文件路径 {code: price}")
+
+    p_sm_track_status = track_sub.add_parser("status", help="查询跟踪计划与观察序列", parents=[common_parser])
+    p_sm_track_status.add_argument("--tracking-id", required=True, help="跟踪计划 ID")
+
+    track_sub.add_parser("tick", help="执行一次到期跟踪 Tick（水位未就绪失败关闭）", parents=[common_parser])
+
+    p_sm_eval = sm_sub.add_parser("evaluate", help="按模型版本生成综合评价", parents=[common_parser])
+    p_sm_eval.add_argument("--model", required=True, help="模型 ID")
+    p_sm_eval.add_argument("--version", type=int, default=None, help="模型版本（缺省取已激活版本）")
+    p_sm_eval.add_argument("--period", type=int, default=None, help="限定 T+N 观察周期")
+    p_sm_eval.add_argument("--min-samples", type=int, default=None, help="样本数下限（默认 30）")
+    p_sm_eval.add_argument("--min-observation-days", type=int, default=None, help="最短观察周期下限（默认 20）")
+    p_sm_eval.add_argument("--benchmark", default=None, help="比较基准（默认沪深300）")
+
+    p_sm_tune = sm_sub.add_parser("tune", help="生成只读优化建议（不自动改版）", parents=[common_parser])
+    p_sm_tune.add_argument("--model", required=True, help="模型 ID")
+    p_sm_tune.add_argument("--version", type=int, default=None, help="模型版本（缺省取已激活版本）")
+    p_sm_tune.add_argument("--period", type=int, default=None, help="限定 T+N 观察周期")
 
     # server
     p_srv = subparsers.add_parser("server", help="Web AIChat & 治理服务网关", parents=[common_parser])
@@ -678,6 +746,8 @@ def main():
         cmd_validate_model(args)
     elif cmd == "funnel":
         cmd_funnel(args)
+    elif cmd == "screen-model":
+        cmd_screen_model(args)
     elif cmd == "server":
         server_cmd = getattr(args, "server_cmd", None)
         if server_cmd == "start":

@@ -141,7 +141,7 @@ def cmd_data_quote(args):
                 print(
                     f"{r.get('code',''):<8} {r.get('name',''):<10} {r.get('price',0):>7.2f} "
                     f"{r.get('change_pct',0):>+6.2f}% {(r.get('pe') if r.get('pe') is not None else 0):>6.1f} {r.get('turnover_pct',0):>6.2f}% "
-                    f"{r.get('circulating_market_cap',0):>12.1f} {r.get('o_ratio',0):>5.1f}% {chg_color}"
+                    f"{(r.get('circulating_market_cap') or 0):>12.1f} {(r.get('o_ratio') or 0):>5.1f}% {chg_color}"
                 )
 
 

@@ -81,6 +81,11 @@ _POST_CLOSE_BATCH_TIME = dt_time(15, 35)
 
 ALGORITHM_VERSION = "data_assembler@v1"
 
+#: 覆盖率硬门禁默认阈值（D-12：正式信号默认 100%，不达标整场降级）。
+COVERAGE_THRESHOLD_DEFAULT = 1.0
+#: 候选池覆盖率的必需字段（主口径 R-03：有值标的数 ÷ 候选池标的数）。
+COVERAGE_REQUIRED_FIELDS = ("daily_kline",)
+
 #: 判定 `ts` 是否显式携带日期（用于剔除"明确属于另一交易日"的归档行）
 _DATE_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
@@ -92,6 +97,86 @@ def _canonical(value: Any) -> str:
 def content_hash(value: Any) -> str:
     """内容哈希：对规范化 JSON 取 sha256，前缀显式声明算法。"""
     return "sha256:" + hashlib.sha256(_canonical(value).encode("utf-8")).hexdigest()
+
+
+def layer_denominator(
+    scope: str,
+    input_universe: Sequence[str],
+    upstream_codes: Optional[Sequence[str]] = None,
+) -> List[str]:
+    """分层覆盖率分母（A-05）：
+
+    - `universe_gate` 层分母 = **该层输入 Universe**（P3 目标股票池）；
+    - `candidate_filter` 层分母 = **上层输出池**（无上游输出时退化为本层输入 Universe）。
+    """
+    if str(scope) == "universe_gate":
+        return sorted({str(item) for item in input_universe if str(item)})
+    if upstream_codes is not None:
+        return sorted({str(item) for item in upstream_codes if str(item)})
+    return sorted({str(item) for item in input_universe if str(item)})
+
+
+def build_universe_watermark(
+    records: Sequence[Mapping[str, Any]],
+    universe: Sequence[str],
+    *,
+    required_fields: Sequence[str] = COVERAGE_REQUIRED_FIELDS,
+    scope: str = "candidate_pool",
+    coverage_threshold: float = COVERAGE_THRESHOLD_DEFAULT,
+    mv_field: Optional[str] = "circulating_market_cap",
+) -> Dict[str, Any]:
+    """按 R-03/A-05 计算分层 `UniverseWatermark` 与覆盖率门禁结论。
+
+    - 主口径 = 有值标的数 / **候选池标的数**（硬门禁，默认 100%）；
+    - 同时记录流通市值加权覆盖率作**参考观测**，不参与门禁判定（R-03）；
+    - 缺失标的逐字段留痕，不得用 0 或默认值填充（§11.6）。
+    """
+    denominator = sorted({str(item) for item in universe if str(item)})
+    by_code = {str(rec.get("code") or ""): rec for rec in records}
+    missing_by_field: Dict[str, List[str]] = {str(field): [] for field in required_fields}
+    healthy = 0
+    for code in denominator:
+        record = by_code.get(code)
+        status = dict(record.get("field_status") or {}) if record else {}
+        ok = record is not None
+        for field in required_fields:
+            if status.get(field) != FIELD_PRESENT:
+                missing_by_field[str(field)].append(code)
+                ok = False
+        if ok:
+            healthy += 1
+    expected = len(denominator)
+    coverage = round(healthy / expected, 6) if expected else 0.0
+
+    mv_weighted: Optional[float] = None
+    if mv_field:
+        total_mv = 0.0
+        covered_mv = 0.0
+        for code in denominator:
+            record = by_code.get(code) or {}
+            value = record.get(mv_field)
+            if value is None:
+                continue
+            total_mv += float(value)
+            if (record.get("field_status") or {}).get(mv_field) == FIELD_PRESENT:
+                covered_mv += float(value)
+        mv_weighted = round(covered_mv / total_mv, 6) if total_mv else None
+
+    missing_codes = sorted({code for codes in missing_by_field.values() for code in codes})
+    passed = bool(expected) and coverage >= float(coverage_threshold)
+    return {
+        "scope": str(scope),
+        "expected": expected,
+        "healthy": healthy,
+        "coverage": coverage,
+        "coverage_threshold": float(coverage_threshold),
+        "passed": passed,
+        "missing_codes": missing_codes,
+        "missing_by_field": {key: sorted(value) for key, value in missing_by_field.items()},
+        "coverage_mv_weighted": mv_weighted,
+        "mv_weighted_role": "reference_only",
+        "rule": "R-03/A-05：主口径=有值标的数÷候选池标的数（硬门禁）；mv 加权仅参考观测",
+    }
 
 
 def _chunks(items: Sequence[str], size: int = _READ_CHUNK) -> Iterable[Sequence[str]]:
@@ -122,7 +207,11 @@ class DataAssembler:
         intraday_root: Optional[Path] = None,
     ) -> None:
         self.db_path = Path(db_path) if db_path else DB_PATH
-        self.snapshot_root = Path(snapshot_root) if snapshot_root else OUTPUT_DIR / "snapshots" / "selection"
+        # §13.10 落盘规范：默认落在 output/cache/selection-models/ 三桶范围内
+        self.snapshot_root = (
+            Path(snapshot_root) if snapshot_root
+            else OUTPUT_DIR / "cache" / "selection-models" / "snapshots"
+        )
         self.intraday_root = Path(intraday_root) if intraday_root else INTRADAY_CACHE_ROOT
 
     # ---------------------------------------------------------------- 通用
@@ -282,7 +371,13 @@ class DataAssembler:
         manifest["snapshot_path"] = str(self._snapshot_dir(manifest))
         self.stamp_records(records, manifest)
         self.persist_snapshot(manifest, records)
-        return {"status": STATUS_OK, "gate": gate, "records": records, "manifest": manifest}
+        return {
+            "status": STATUS_OK,
+            "gate": gate,
+            "coverage_gate": manifest["coverage_gate"],
+            "records": records,
+            "manifest": manifest,
+        }
 
     def _snapshot_dir(self, manifest: Dict[str, Any]) -> Path:
         return self.snapshot_root / str(manifest["data_snapshot_id"])
@@ -495,6 +590,14 @@ class DataAssembler:
             for rec in records
         ]
         calendar_meta = TradeCalendar.local_calendar_version(self.db_path)
+        # R-03/A-05：候选池覆盖率硬门禁（主口径=有值标的数÷候选池标的数；mv 加权仅参考观测）
+        candidate_watermark = build_universe_watermark(
+            records,
+            universe,
+            required_fields=COVERAGE_REQUIRED_FIELDS,
+            scope="candidate_filter:post_close",
+            coverage_threshold=COVERAGE_THRESHOLD_DEFAULT,
+        )
         core = {
             "access_mode": ACCESS_FINALIZED_LOCAL,
             "as_of": as_of,
@@ -521,6 +624,15 @@ class DataAssembler:
             "sync_meta": sync_meta,
             "integrity_status": gate["integrity_status"],
             "universe_watermark": gate["datasets"],
+            "candidate_pool_watermark": candidate_watermark,
+            "coverage_gate": {
+                "passed": candidate_watermark["passed"],
+                "coverage": candidate_watermark["coverage"],
+                "threshold": candidate_watermark["coverage_threshold"],
+                "scope": candidate_watermark["scope"],
+                "degraded": not candidate_watermark["passed"],
+                "rule": candidate_watermark["rule"],
+            },
             "universe_coverage": {
                 "requested": len(universe),
                 "assembled": len(records),
@@ -854,6 +966,8 @@ __all__ = [
     "ACCESS_FINALIZED_LOCAL",
     "ACCESS_INTRADAY_CAPTURE",
     "ALGORITHM_VERSION",
+    "COVERAGE_REQUIRED_FIELDS",
+    "COVERAGE_THRESHOLD_DEFAULT",
     "DataAssembler",
     "GATE_OBSERVATION",
     "GATE_PASS",
@@ -861,5 +975,7 @@ __all__ = [
     "STATUS_OK",
     "STATUS_SOURCE_ERROR",
     "STATUS_WAITING_DATA",
+    "build_universe_watermark",
     "content_hash",
+    "layer_denominator",
 ]

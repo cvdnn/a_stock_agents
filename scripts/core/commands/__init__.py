@@ -59,6 +59,7 @@ from core.commands.trade_cmds import (
     cmd_trade_dispatch,
 )
 from core.commands.funnel_cmds import cmd_funnel
+from core.commands.screen_model_cmds import cmd_screen_model
 
 __all__ = [
     "cmd_data_dataset",
@@ -105,4 +106,5 @@ __all__ = [
     "cmd_pos_dispatch",
     "cmd_trade_dispatch",
     "cmd_funnel",
+    "cmd_screen_model",
 ]
