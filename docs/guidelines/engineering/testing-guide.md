@@ -54,7 +54,7 @@ tests/
 .agents/skills/*/scripts/test_*.py     # 技能自带脚本级自测（2 文件），由 testpaths 一并收集
 ```
 
-> 用例总数 **429**（`core/` + `server/` + `governance/` + 技能脚本）。目录分层描述"测什么"，
+> 用例总数 **430**（`core/` + `server/` + `governance/` + 技能脚本）。目录分层描述"测什么"，
 > 与下述档位分层（"多重要、多快"）是两个正交维度。
 
 ---
@@ -74,7 +74,7 @@ tests/
 | 档位 | 用例数 | 判定标准 |
 | :--- | ---: | :--- |
 | **`core`** | **132** | **P0 契约门禁**：错了会直接产出假结论或造成资金/安全后果——数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
-| `p1` | 258 | 重要回归：服务端 REST 契约、设置持久化与接线披露、18 项技能契约、治理与质量门禁 |
+| `p1` | 259 | 重要回归：服务端 REST 契约、设置持久化与接线披露、18 项技能契约、治理与质量门禁 |
 | `p2` | 39 | 补充边界：文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
@@ -264,8 +264,8 @@ for f in tests/frontend/*.js; do node "$f" || echo "FAIL $f"; done
 | 全量耗时（串行） | 96.75s | 67.89s |
 | 全量耗时（`-n 4` 并行） | 不可用（未装 xdist） | 39.47s |
 | P0 核心门禁 | 无此概念 | **12.74s / 132 例** |
-| 离线可跑全量 | 25 例必失败或依赖外网 | 63.02s / `not network` **394 passed** |
-| 失败用例 | **29 failed** | **0 failed**（离线 394 passed · 35 deselected；0 skipped · 0 xfail） |
+| 离线可跑全量 | 25 例必失败或依赖外网 | 64.24s / `not network` **395 passed** |
+| 失败用例 | **29 failed** | **0 failed**（离线 395 passed · 35 deselected；0 skipped · 0 xfail） |
 | 静默丢失的用例 | 2（重复定义覆盖） | 0 |
 | 永不断言的用例 | 2（条件式空断言） | 0 |
 
@@ -344,3 +344,20 @@ for f in tests/frontend/*.js; do node "$f" || echo "FAIL $f"; done
 | `test_live_server_e2e.py` 整文件与现行契约脱节 | ① 不带任何凭证，`/api/*` fail-closed 后除 `/api/health` 外全取 401 被 `status == 200` 判死；② 仍断言 `sentiment.score > 0`、`ranks.gainers` 非空、`analysis.sharpe_ratio > 0`、`monitor.is_monitoring is True`、`watchlist` 画像含数值 `capital_flow`——等于给已清除的伪造数据上锁；③ `urllib` 调用无 `from __future__ import annotations`，`dict \| None` 注解在 3.9 上直接 TypeError | 整体重写：以 `A_STOCK_SERVER_TOKEN` 走机器集成凭证（未设置即整组 skip，不假装通过），断言对齐 503/空态/stale/partial 契约，新增 `assert_no_fabricated_snapshot` 反向哨兵与"匿名必须 401"的门禁 |
 | SSRF 用例依赖真实 DNS 与虚构域名 | 必 400 或随网络漂移 | 桩化 `getaddrinfo` 为公网 IP，仍完整走校验分支 |
 | `_OVERRIDE_TAGS` 曾用 `item.name` 拼键 | 类内用例永不命中（`item.name` 不含类名） | 改用 `nodeid` 匹配 |
+
+### 8.5 防复现哨兵（AST 级，2026-10-07 增）
+
+`tests/governance/test_production_authenticity.py::test_market_projection_has_no_hardcoded_market_values`
+把"零虚假数据"从**逐串黑名单**升级为**语法树判定**：
+
+- 只解析 `Dict` 字面量中被列为"市场事实 / 账户事实"的键（`price`/`change_pct`/`sparkline`/
+  `net_inflow`/`capital_flow`/`total_assets`/`today_pnl`/`annualized_return_pct` … 共 50 个）；
+- 取值若展开后含**数字字面量**或**形似金额的字符串**（`328.56`、`'+1.28亿'`、`"+¥1,850.00"`、
+  `[3941.39, …]`、`{"main_net": "+5.82亿"}`）即判失败；`None`、空容器、以及来自计算/数据源的
+  表达式（`round(...)`、条件式、f-string、变量）一律放行；
+- 因此缺陷档案里对历史假值的**文字叙述**写在 docstring/注释里不会误报，而把这些值重新写回
+  响应装配代码会立刻红——旧黑名单"恰好不含任何一条"的漏检模式（见前端审计第 7 项）从此不再依赖
+  人工记得补串。
+
+自检口径：8 条历史伪造写法全部被抓出，7 条合法写法（含 `f"{x:.2f}万手" if x else None`、
+`spark[:-1] + [price]`）全部放行。
