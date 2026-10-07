@@ -14,15 +14,17 @@
 
 | 编号 | 事项 | 优先级 | 状态 | 阻塞条件 |
 |---|---|---|---|---|
-| G1 | 登记 `screen-model` / `funnel` 至技能清单 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 G-01 |
+| G1 | 登记 `screen-model` / `funnel` 至技能清单 | 低 | ✅ 已实现（2026-10-07） | 阻塞解除 · 裁定 G-01 |
 | G2 | 兼容 CLI 数据准入水印 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 P-08 |
-| G3 | `selection_model:debug` 权限 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 G-02 |
-| B1 | Web 启停权限 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 D-07 |
+| G3 | `selection_model:debug` 权限 | 低 | ✅ 已实现（批次三） | 阻塞解除 · 裁定 G-02 |
+| B1 | Web 启停权限 | 低 | ✅ 已实现（批次三） | 阻塞解除 · 裁定 D-07 |
 | B2 | 通知渠道 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 D-08 |
 | B3 | 跨维度分数引用 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 D-09 |
 | B4 | 模型可见性 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 D-10 |
 | B5 | T+N 标记价口径 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 D-14 |
-| B6 | 评价最小样本量 | 低 | 已裁定，待实现 | 阻塞解除 · 裁定 D-16 |
+| B6 | 评价最小样本量 | 低 | ✅ 已实现（批次四） | 阻塞解除 · 裁定 D-16 |
+
+> **状态对齐（2026-10-07）**：本表原登记落后于批次交付。经代码核验，G1（技能登记，本次补齐）、G3（`:debug` 仅 `super_admin`）、B1（模型启停走 `selection.activate`）、B6（评价阈值默认 ≥30 样本 / ≥20 交易日 / 沪深300）已随批次三/四落地并转"已实现"；其余未交付项状态不变。G1 落地依据见 [selection-system-plan.md](selection-system-plan.md) §六 G-01 与本文件 §一 G1。
 
 第 1 批裁定（2026-09-21）后，生效规则基线为：新高周期可配置（快捷 10/20/30/60 日 + 自定义，默认 20 日）；高开幅度可配置（默认 1%～2%）；涨幅上限可配置（默认主板 7% / 20cm 12%）；大盘门禁固定上证综指 MA20；通知仅 Web 站内。数据准入不设默认替代。31 项裁定原文见 [`selection-system-plan.md`](selection-system-plan.md) §六。
 
@@ -30,11 +32,11 @@
 
 ## 一、governance（已裁定，待实现）
 
-### G1 · 登记 `screen-model` / `funnel` 至技能清单
+### G1 · 登记 `screen-model` / `funnel` 至技能清单 · ✅ 已完成（2026-10-07）
 
-- **现状（已核验）**：`AGENTS.md` 的 18 项技能清单、`config/skills_manifest.json`、`.agents/manifests/skills_manifest.json` 三处均**无** `funnel` / `screen-model` 条目；漏斗能力已存在代码与 CLI，但未进入技能资产登记。
-- **裁定结论（G-01）**：登记为**新技能 `astock-selection-model`**（能力 ID `astock_selection_model`），CLI 入口挂 `funnel` 子命令族（T-08）；不改动既有 18 项技能 ID，登记后技能清单计数由 18 增至 19。
-- **待做**：`AGENTS.md`、`config/skills_manifest.json`、`.agents/manifests/skills_manifest.json` 三处同步登记能力 ID、适用场景与统一 CLI 入口。
+- **现状（原核验）**：`AGENTS.md` 的技能清单、`config/skills_manifest.json`、`.agents/manifests/skills_manifest.json` 三处原本均**无** `funnel` / `screen-model` 条目；漏斗能力已存在代码与 CLI，但未进入技能资产登记。
+- **裁定结论（G-01）**：登记为新技能 `astock-selection-model`（能力 ID `astock_selection_model`），CLI 入口挂 `funnel` 子命令族（T-08）；不改动既有 18 项技能 ID，登记后技能清单计数由 18 增至 19。
+- **落地结果（2026-10-07）**：三处清单（`AGENTS.md` / `config/skills_manifest.json` / `.agents/manifests/skills_manifest.json`，另同步两处 `.yaml` 变体）均已登记能力 ID、适用场景与统一 CLI 入口（`astock funnel validate`），计数 18→19；新增技能文档 `.agents/skills/astock-selection-model/SKILL.md`；同步登记 `core/governance/skill_registry.py` 参数 Schema 与 `server/agent/tools.py` 能力映射（`astock_selection_model` / `astock-selection-model`）；契约与治理用例计数同步更新。
 - **验收标准**：三处清单内容一致；`astock` CLI 帮助可列出对应子命令；清单校验脚本通过。
 
 ### G2 · 兼容 CLI 数据准入水印
@@ -152,7 +154,7 @@
 |:--:|---|---|
 | D-23 | 止损口径不收敛 | 三套互斥口径并存（`config.py` -3%/-5%、`risk_position_manager.py` `HARD_STOP_LOSS_PCT=-6.0`、`AGENTS.md` -3/-5/-8），数值不可审计 |
 | S-03 | 悲观锁而非乐观锁 | 浏览器异常关闭将残留死锁，须配套超时释放与解锁入口 |
-| D-11 | 三类数据持久化 | 工期与存储成本上升；若增量同步未就绪，D-12 的 100% 覆盖率门槛将长期不达标而阻断全部正式信号 |
+| D-11 | 三类数据持久化 | 工期与存储成本上升；若增量同步未就绪，D-12 的 100% 覆盖率门槛将长期不达标而阻断全部正式信号。**已立项**（批次五）：见 [selection-system-plan.md](selection-system-plan.md) §七「关键路径立项 · D-11 数据持久化」 |
 
 ---
 
@@ -296,3 +298,25 @@
 - **code-cleanup**：`funnel_engine` 一等 verdict、`stock_funnel` 三态求值、`data_bridge` PE 拆除。
 - **A 方案（SSOT 收敛）**：新建 `tencent_fields.py` 权威解析器；6 处腾讯 L1 解析（`data_bridge` / `fetch_realtime` / `market_data` / `ta_analyze` / `data_layer` 两处）全部收敛为 import 复用；`data_layer` 保留自身输出契约并经适配层转换；PE/PB 缺失→`None`、负值（亏损）原样保留（§7.7.7）。验证：4 套件 **57 passed**，实测 `600519` `pe=19.3`、`600115` `pe=-31.63`（亏损保留）。
 - **规范-代码缺口**：`earliest_possible_hit_time` 编译期推导（§5.5 第 5 条 / §11.5）、`calendar_version` 接入运行元数据且不入 `plan_hash`（§11.2 / §11.7）。
+
+---
+
+## 九、批次一已完成项注销（2026-10-07）
+
+> 依据：批次一（A1～A8 / M-02）交付，详见 [`selection-system-plan.md`](selection-system-plan.md) §八 变更日志与审查文档 [`2026-10-07-selection-system-implementation-review.md`](../../audits/2026-10-07-selection-system-implementation-review.md) §十一。
+> 下列条目**已实现并可验证**，自待办清单注销；未列出的条目状态不变。
+
+| 编号 | 事项 | 注销依据 |
+|:--:|---|---|
+| S-01 | v2 + v1→v2 迁移器 + 加载告警 | `selection_models/schemas.py`：`migrate_to_v2` 幂等、返回 WARNING 级告警、原文件不改写（T-06 一致） |
+| S-02 | 三级版本标识与哈希 | `selection_models/hash.py`：规范化 JSON + SHA-256，`definition_hash`/`plan_hash`（含 `compiler_version` 与数据契约），`calendar_version` 不入哈希 |
+| S-03 | 草稿悲观锁配套 | `file_lock.py` + `definition_repository.py`：超时释放（进程异常由 OS 释放）、显式解锁、锁持有者可见 |
+| S-04 | 安全 AST 白名单与 `NOT` 语义 | `funnel_engine`：`and/or/not` 白名单 + `kleene_not`（`NOT UNKNOWN = UNKNOWN`） |
+| S-05 | 嵌套深度与叶子上限 | `funnel_engine.validate_expression`：深度 ≤3、叶子 ≤200，编译期报错 |
+| S-06 | 参数 Schema 元数据 | `rule_registry.py`：11 类规则 JSON Schema 2020-12 子集 + `x-ui-widget`/`x-quick-presets`/`x-unit`/`x-default`；**前端按注解渲染表单仍属批次三** |
+| T-01 | AST 就地升级（含深度/叶子校验与向后兼容） | `funnel_engine` 升级后 `all/any` 仍为合法快捷写法，存量 `funnel_strategy.yaml` 与底座用例全绿 |
+| T-02 | 哈希规范落地 | `hash.py`（同 S-02）；发布门禁 9 已含不可变校验 |
+| T-06 | v1→v2 内存迁移 | `schemas.load_definition` 加载期自动迁移；显式回写子命令仍属批次二 |
+| T-07 | 悲观锁载体（跨平台文件锁） | `file_lock.py`（`fcntl`/`msvcrt` 封装 + 持有者旁车记录）；锁文件按 `model_id` 标识，`draft_revision` 记入持有者信息 |
+
+> **仍未注销**：G1～G3、B1～B6、D-11/D-23（技术债）、W-09/W-10（高危）及批次二/三/四全部条目状态不变。
