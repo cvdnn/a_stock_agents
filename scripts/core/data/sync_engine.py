@@ -127,6 +127,34 @@ class TradeCalendar:
         return cls.is_trading_day(d, db_path=db_path)
 
     @classmethod
+    def last_trading_day(
+        cls,
+        d: Optional[Union[str, date, datetime]] = None,
+        db_path: Optional[Path] = None,
+        max_lookback: int = 30,
+    ) -> Optional[str]:
+        """解析 <= d 的最近一个交易日，返回 'YYYY-MM-DD'；d 为空时以系统当日为起点。
+
+        水位与门控判定必须使用本方法而非裸日历日：周末与法定节假日不存在当日批次，
+        按裸日历日查询会永久落空（例如国庆长假期间 post_close 恒判 not ready）。
+        连续休市超出 max_lookback 天时返回 None，如实表达"无法解析"，不猜测日期。
+        """
+        if d is None:
+            cur = datetime.now().date()
+        elif isinstance(d, str):
+            cur = datetime.strptime(d.strip()[:10], "%Y-%m-%d").date()
+        elif isinstance(d, datetime):
+            cur = d.date()
+        else:
+            cur = d
+
+        for _ in range(max(1, int(max_lookback))):
+            if cls.is_trading_day(cur, db_path=db_path):
+                return cur.strftime("%Y-%m-%d")
+            cur -= timedelta(days=1)
+        return None
+
+    @classmethod
     def is_trading_hour(cls, dt: Optional[datetime] = None) -> bool:
         """判断当前是否处于连续竞价时段 (09:30-11:30, 13:00-15:00)"""
         now_dt = dt or datetime.now()

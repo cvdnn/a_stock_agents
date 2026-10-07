@@ -4,6 +4,8 @@ Unit tests for A-Stock Data Sync Engine & SQLite Store
 """
 from datetime import datetime
 from pathlib import Path
+import json
+import os
 import sqlite3
 import sys
 import unittest
@@ -26,6 +28,12 @@ class TestDataSyncEngine(unittest.TestCase):
             self.test_db_path.unlink()
         self.store = MarketDataStore(db_path=self.test_db_path)
         self.engine = DataSyncEngine(store=self.store)
+        # 守护定盘时刻取自持久化设置文件，测试须与开发者本机设置隔离：
+        # 固定指向不存在的路径，使 resolve_daemon_schedule 走内置默认 15:35 / 15:40。
+        self.absent_settings = self.test_db_path.parent / "test_absent_settings.json"
+        env_patch = patch.dict(os.environ, {"A_STOCK_DATA_SYNC_SETTINGS_FILE": str(self.absent_settings)})
+        env_patch.start()
+        self.addCleanup(env_patch.stop)
 
     def tearDown(self):
         if self.test_db_path.exists():
@@ -33,6 +41,13 @@ class TestDataSyncEngine(unittest.TestCase):
                 self.test_db_path.unlink()
             except Exception:
                 pass
+        for name in ("test_daemon_settings.json", "test_broken_settings.json", "test_partial_settings.json"):
+            artifact = self.test_db_path.parent / name
+            if artifact.exists():
+                try:
+                    artifact.unlink()
+                except Exception:
+                    pass
 
     def test_trade_calendar(self):
         # 2026-06-01 (周一) 到 2026-06-07 (周日)
@@ -445,6 +460,126 @@ class TestDataSyncEngine(unittest.TestCase):
             res_waiting = daemon.run_once()
             self.assertEqual(res_waiting["status"], "waiting")
             self.assertEqual(res_waiting["reason"], "before_settlement_window")
+
+    def test_last_trading_day_resolves_across_holidays_and_weekends(self):
+        """水位归属交易日必须回退到上一交易日；裸日历日会让 post_close 门控永久落空。"""
+        self.assertEqual(TradeCalendar.last_trading_day("2026-10-06"), "2026-09-30")  # 国庆长假
+        self.assertEqual(TradeCalendar.last_trading_day("2026-10-04"), "2026-09-30")  # 假期内周末
+        self.assertEqual(TradeCalendar.last_trading_day("2026-09-30"), "2026-09-30")  # 本身即交易日
+        self.assertEqual(TradeCalendar.last_trading_day("2026-01-01"), "2025-12-31")  # 跨年元旦
+        # 回溯上限耗尽 → None，如实表达"无法解析"而非猜测一个日期
+        self.assertIsNone(TradeCalendar.last_trading_day("2026-10-06", max_lookback=3))
+
+    def test_watermark_trade_date_falls_back_to_last_trading_day(self):
+        """节假日写入与查询水位须同口径归属上一交易日，否则门控恒判 not ready。"""
+        from core.data import dataset_sync
+
+        wm = dataset_sync.write_universe_watermark(
+            self.store, "daily_kline", covered=3, total=3,
+            availability="finalized", trade_date="2026-10-06",
+        )
+        self.assertEqual(wm["trade_date"], "2026-09-30")
+        self.assertEqual(wm["status"], "finalized")
+
+        # 落库 batch_date 必须与 payload.trade_date 同口径，否则按交易日查询查不到本批次
+        with sqlite3.connect(str(self.test_db_path)) as conn:
+            row = conn.execute(
+                "SELECT batch_date FROM dataset_audit WHERE dataset_key='daily_kline'"
+            ).fetchone()
+        self.assertEqual(row[0], "2026-09-30")
+
+        ready = dataset_sync.check_post_close_ready(
+            trade_date="2026-10-06", db_path=self.test_db_path, required_keys=("daily_kline",)
+        )
+        self.assertEqual(ready["trade_date"], "2026-09-30")
+        self.assertEqual(ready["missing"], [])
+        self.assertTrue(ready["ready"])
+
+    def test_daemon_schedule_reads_persisted_settings(self):
+        """CLI 守护定盘时刻必须与 Web 控制台设置同源，不得再写死 15:35 / 15:40。"""
+        from datetime import time as dt_time
+        from core.data import sync_daemon
+
+        settings = self.test_db_path.parent / "test_daemon_settings.json"
+        settings.write_text(json.dumps({
+            # enabled=False 属"服务内巡检"开关；CLI 守护是独立运行主体，不受其门控
+            "daemon": {"p0_time": "16:30", "p1_time": "17:05", "enabled": False},
+        }), encoding="utf-8")
+
+        with patch.dict(os.environ, {"A_STOCK_DATA_SYNC_SETTINGS_FILE": str(settings)}):
+            sched = sync_daemon.resolve_daemon_schedule()
+            self.assertEqual(sched["p0_time"], dt_time(16, 30))
+            self.assertEqual(sched["p1_time"], dt_time(17, 5))
+            self.assertEqual(sched["source"], "settings")
+
+            daemon = sync_daemon.DataSyncDaemon(pools=["holdings"])
+            snapshot = daemon.schedule_snapshot()
+            self.assertEqual(snapshot["p0_time"], "16:30")
+            self.assertEqual(snapshot["p1_time"], "17:05")
+            self.assertEqual(snapshot["source"], "settings")
+
+    def test_daemon_schedule_falls_back_per_field_and_reports_source(self):
+        """设置缺失/损坏/非法时逐项回退默认并如实标注来源，绝不静默沿用硬编码时刻。"""
+        from datetime import time as dt_time
+        from core.data import sync_daemon
+
+        tmp_dir = self.test_db_path.parent
+
+        # 1) 文件不存在 → 全默认
+        sched = sync_daemon.resolve_daemon_schedule()
+        self.assertEqual((sched["p0_time"], sched["p1_time"]), (dt_time(15, 35), dt_time(15, 40)))
+        self.assertEqual(sched["source"], "default")
+        self.assertIn("未找到", sched["note"])
+
+        # 2) JSON 损坏 → 全默认且说明原因
+        broken = tmp_dir / "test_broken_settings.json"
+        broken.write_text("{not json", encoding="utf-8")
+        with patch.dict(os.environ, {"A_STOCK_DATA_SYNC_SETTINGS_FILE": str(broken)}):
+            sched = sync_daemon.resolve_daemon_schedule()
+        self.assertEqual(sched["source"], "default")
+        self.assertIn("不可解析", sched["note"])
+
+        # 3) 逐项回退：p0 非法走默认、p1 合法即生效
+        partial = tmp_dir / "test_partial_settings.json"
+        partial.write_text(json.dumps({"daemon": {"p0_time": "25:99", "p1_time": "14:05"}}), encoding="utf-8")
+        with patch.dict(os.environ, {"A_STOCK_DATA_SYNC_SETTINGS_FILE": str(partial)}):
+            sched = sync_daemon.resolve_daemon_schedule()
+        self.assertEqual(sched["p0_time"], dt_time(15, 35))
+        self.assertEqual(sched["p1_time"], dt_time(14, 5))
+        # 一项生效一项回退 = partial（不是 settings），且 note 必须点名回退项与原因
+        self.assertEqual(sched["source"], "partial")
+        self.assertIn("p1_time=14:05", sched["note"])
+        self.assertIn("p0_time→15:35", sched["note"])
+        self.assertIn("格式非法", sched["note"])
+
+    def test_dataset_windows_not_deferred_by_late_p0_time(self):
+        """p0_time 调晚后，§5.1 数据集窗口仍须按点触发，不得被池同步时刻推迟。"""
+        from datetime import time as dt_time
+        from core.data import sync_daemon
+
+        daemon = sync_daemon.DataSyncDaemon(
+            pools=["holdings"], p0_time=dt_time(20, 0), p1_time=dt_time(20, 5),
+        )
+        self.assertEqual(daemon.schedule_source, "explicit")
+
+        mock_phase = {
+            "phase": "POST_CLOSE", "phase_label": "盘后定盘完成",
+            "is_trading_day": True, "is_market_open": False,
+            "is_settled": True, "time_str": "16:00:00", "date_str": "2026-06-01",
+        }
+        dataset_row = {"key": "valuation", "status": "ok", "rows": 1, "source": "test"}
+        with patch.object(TradeCalendar, "get_market_phase", return_value=mock_phase), \
+                patch("core.data.sync_daemon.datetime") as mock_dt, \
+                patch("core.data.dataset_sync.run_due_datasets", return_value=[dataset_row]) as mock_run:
+            mock_dt.now.return_value = datetime(2026, 6, 1, 16, 0, 0)
+            res = daemon.run_once()
+
+        mock_run.assert_called_once()
+        self.assertEqual(res["status"], "executed")
+        self.assertEqual(res["datasets"], ["valuation"])
+        # 16:00 未到 p0_time 20:00，池同步不触发，但数据集窗口已如实交付
+        self.assertEqual(res["executed_pools"], [])
+        self.assertEqual(res["schedule"]["p0_time"], "20:00")
 
 
 if __name__ == "__main__":

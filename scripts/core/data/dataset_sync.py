@@ -61,6 +61,16 @@ def _today() -> str:
     return date.today().isoformat()
 
 
+def _trade_date(ref: Optional[str] = None) -> str:
+    """批次/水位归属交易日：非交易日回退到上一交易日。
+
+    水位写入 (dataset_audit.batch_date) 与 post_close 门控查询必须同口径，
+    否则节假日运行的批次既写不进当日、也查不到节前批次，门控永久判 not ready。
+    日历无法解析时（连续休市超出回溯上限）退回裸日历日，不静默造出一个交易日。
+    """
+    return TradeCalendar.last_trading_day(ref) or (ref or _today())
+
+
 def _norm(symbol: str) -> str:
     return DataBridge.normalize_symbol(str(symbol), with_prefix=True)
 
@@ -113,12 +123,13 @@ def _result(key: str, status: str, rows: int = 0, source: str = "", failed: Opti
             "failed": failed or [], "audit": audit or {}}
 
 
-def _write_audit(store: MarketDataStore, key: str, audit: Dict[str, Any]) -> None:
+def _write_audit(store: MarketDataStore, key: str, audit: Dict[str, Any],
+                 batch_date: Optional[str] = None) -> None:
     with store._get_conn() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO dataset_audit (dataset_key, batch_date, covered, total, missing, state, detail, updated_at)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (key, _today(), audit.get("covered"), audit.get("total"), audit.get("missing"),
+            (key, batch_date or _trade_date(), audit.get("covered"), audit.get("total"), audit.get("missing"),
              audit.get("state"), audit.get("detail", ""), _stamp()),
         )
         conn.commit()
@@ -162,7 +173,9 @@ def write_universe_watermark(
       （finalized/degraded/undetected），两侧由本函数单点换算，禁止各自派生；
     - status 须由稽核结果派生，不接受调用方直接指定。
     """
-    trade_date = trade_date or _today()
+    # 归属交易日统一经日历解析：非交易日（含调用方误传的节假日）回退到上一交易日，
+    # 并以此作为 dataset_audit.batch_date，保证写入与门控查询同口径。
+    trade_date = _trade_date(trade_date)
     covered, total = int(covered or 0), int(total or 0)
     status = _watermark_status(covered, total, availability)
     coverage_pct = round(covered / total * 100, 2) if total else 0.0
@@ -184,7 +197,7 @@ def write_universe_watermark(
     _write_audit(store, dataset_key, {
         "covered": covered, "total": total, "missing": max(total - covered, 0),
         "state": state_col, "detail": json.dumps(payload, ensure_ascii=False),
-    })
+    }, batch_date=trade_date)
     return payload
 
 
@@ -241,8 +254,11 @@ def check_post_close_ready(
     """post_close 门控判定：每个必需数据集水位 status == finalized（含主口径 100%）。
 
     任一缺失/未达标 → ready=False；degraded 只允许观察运行（产物须携带 not_eligible_for_signal）。
+    trade_date 缺省时按交易日历解析归属交易日（非交易日回退上一交易日），
+    使返回的 trade_date 与实际查询口径一致，不在节假日谎报一个不存在的交易日。
     """
-    watermarks = get_universe_watermark(required_keys, trade_date=trade_date, db_path=db_path)
+    resolved_date = _trade_date(trade_date)
+    watermarks = get_universe_watermark(required_keys, trade_date=resolved_date, db_path=db_path)
     missing = [key for key, wm in watermarks.items() if wm is None]
     not_finalized = [
         key for key, wm in watermarks.items()
@@ -250,7 +266,7 @@ def check_post_close_ready(
     ]
     return {
         "ready": not missing and not not_finalized,
-        "trade_date": trade_date or _today(),
+        "trade_date": resolved_date,
         "required_keys": list(required_keys),
         "missing": missing,
         "not_finalized": not_finalized,
@@ -275,35 +291,48 @@ def sync_stock_basic(db_path=DB_PATH) -> Dict[str, Any]:
         return _result("base_calendar", "unavailable", source="akshare 未安装")
     store = MarketDataStore(db_path)
     rows, failed = [], []
+    # akshare 1.18.x 上交所接口按中文键查表（{"主板A股":"1","主板B股":"2","科创板":"8"}），
+    # 传内部代码 "1" 会 KeyError 整表丢失；科创板须单独取一次。
     fetchers = (
-        ("sh", lambda: ak.stock_info_sh_name_code(symbol="1")),
+        ("sh", lambda: ak.stock_info_sh_name_code(symbol="主板A股")),
+        ("sh", lambda: ak.stock_info_sh_name_code(symbol="科创板")),
         ("sz", lambda: ak.stock_info_sz_name_code(symbol="A股列表")),
         ("bj", lambda: ak.stock_info_bj_name_code()),
     )
     for market, fetch in fetchers:
         try:
-            for rec in _records(fetch()):
+            fetched = _records(fetch())
+            picked = 0
+            for rec in fetched:
                 code = _pick(rec, "证券代码", "代码", "A股代码")
-                name = _pick(rec, "证券简称", "简称", "名称")
+                # 深交所列名为 A股简称/A股上市日期，缺键会把整表静默过滤成 0 行
+                name = _pick(rec, "证券简称", "简称", "名称", "A股简称")
                 if not code or not name:
                     continue
                 rows.append((_norm(code), str(name), market,
-                             str(_pick(rec, "上市日期", "上市时间") or "") or None, _stamp()))
+                             str(_pick(rec, "上市日期", "上市时间", "A股上市日期") or "") or None, _stamp()))
+                picked += 1
+            if fetched and not picked:
+                # 取到数据却一行不可用 = 源列名漂移，必须记失败而非当作 0 覆盖放行
+                failed.append(f"{market}:列名不匹配({len(fetched)}行全弃)")
         except Exception as exc:
             failed.append(f"{market}:{exc.__class__.__name__}")
     written = _upsert(store, "INSERT OR REPLACE INTO stock_basic (symbol, name, market, list_date, updated_at) VALUES (?, ?, ?, ?, ?)", rows)
-    registered = _resolve_registered()
+    # D1 口径为**个股**基础资料：指数不在交易所股票列表内（无证券简称/上市日期），
+    # 计入分母会让 post_close 门控永久 degraded，故按口径剔除并在水位 note 中显式披露。
+    indices = {_norm(i) for i in DataSyncEngine.DEFAULT_INDICES}
+    universe = [s for s in _resolve_registered() if s not in indices]
     with store._get_conn() as conn:
         covered = conn.execute(
-            f"SELECT COUNT(*) FROM stock_basic WHERE symbol IN ({','.join('?' * len(registered))}) AND name IS NOT NULL AND list_date IS NOT NULL",
-            registered,
-        ).fetchone()[0] if registered else 0
-    missing = max(len(registered) - covered, 0)
+            f"SELECT COUNT(*) FROM stock_basic WHERE symbol IN ({','.join('?' * len(universe))}) AND name IS NOT NULL AND list_date IS NOT NULL",
+            universe,
+        ).fetchone()[0] if universe else 0
+    missing = max(len(universe) - covered, 0)
     watermark = write_universe_watermark(
-        store, "base_calendar", covered, len(registered),
-        availability="finalized" if registered and missing == 0 else "degraded",
+        store, "base_calendar", covered, len(universe),
+        availability="finalized" if universe and missing == 0 else "degraded",
         blocking_fields=["stock_basic"] if missing else [],
-        note=f"交易所列表 {written} 只",
+        note=f"交易所列表 {written} 只 · 分母为个股 {len(universe)} 只（已剔除指数 {len(indices)} 只）",
     )
     return _result("base_calendar", "ok" if not failed else "degraded", written,
                    "交易所官方列表(akshare)", failed, watermark)
@@ -458,7 +487,7 @@ def sync_index_members(db_path=DB_PATH) -> Dict[str, Any]:
     if ak is None:
         return _result("index_members", "unavailable", source="akshare 未安装")
     store = MarketDataStore(db_path)
-    batch_date = _today()
+    batch_date = _trade_date()
     written, failed = 0, []
     for index in DataSyncEngine.DEFAULT_INDICES:
         cs_code = CSINDEX_MAP.get(_norm(index))
@@ -556,7 +585,9 @@ def sync_capital(symbols: Optional[Iterable[str]] = None, db_path=DB_PATH) -> Di
     if not codes:
         codes = _resolve_registered()
     bridge = DataBridge()
-    batch_date = _today()
+    # 行级 date 必须与水位 batch_date 同口径：快照取到的是最近交易日收盘态，
+    # 节假日若盖裸日历日，下游按水位日期回查命中 0 行而水位仍报 100%。
+    batch_date = _trade_date()
     written, failed = 0, []
     for start in range(0, len(codes), 60):
         chunk = codes[start:start + 60]
@@ -662,7 +693,7 @@ def sync_capital_flow(symbols: Optional[Iterable[str]] = None, db_path=DB_PATH) 
     exact_symbols = {row[0] for row in exact_rows}
     fallback_codes = [c for c in codes if c not in exact_symbols]
     if fallback_codes:
-        batch_date = _today()
+        batch_date = _trade_date()  # 同上：代理档亦为最近交易日收盘态
         for start in range(0, len(fallback_codes), 60):
             chunk = fallback_codes[start:start + 60]
             try:
@@ -679,8 +710,8 @@ def sync_capital_flow(symbols: Optional[Iterable[str]] = None, db_path=DB_PATH) 
                 volume = _num(quote.get("volume_hands"))    # 手
                 if not symbol or price is None or price <= 0:
                     continue
-                if outer is None or inner is None:
-                    net_inflow = None
+                if outer is None or inner is None or not (outer or inner):
+                    net_inflow = None  # 内外盘双零（指数/休市快照）= 无证据，0 不等于缺失
                 else:
                     vwap = (amount / (volume * 100)) if amount and volume else price
                     net_inflow = round((outer - inner) * 100 * vwap, 2)
@@ -739,7 +770,7 @@ def sync_daily_kline_watermark(trade_date: Optional[str] = None, db_path=DB_PATH
     不在本水位口径内，note 字段显式声明范围以防误读。
     """
     store = MarketDataStore(db_path)
-    target = trade_date or _today()
+    target = _trade_date(trade_date)
     registered = _resolve_registered()
     if not registered:
         watermark = write_universe_watermark(
@@ -771,7 +802,7 @@ def sync_industry(symbols: Iterable[str], db_path=DB_PATH) -> Dict[str, Any]:
     if ak is None:
         return _result("industry", "unavailable", source="akshare 未安装")
     store = MarketDataStore(db_path)
-    batch_date = _today()
+    batch_date = _trade_date()
     symbols = list(symbols)
     written, failed = 0, []
     for symbol in symbols:
