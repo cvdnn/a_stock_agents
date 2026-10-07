@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>成长优选模型 · 漏斗选股工作台</title>
+  <style>
+    :root{font-family:Inter,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif;color:#101b33;background:#f5f9fc;font-synthesis:none}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;overflow-x:hidden}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    .app{width:2040px;min-height:1284px;padding:22px 24px 28px;background:linear-gradient(110deg,#f4f9fc,#f7fbfd 60%,#f1f7fa);transform-origin:top left}
+    .topbar,.panel{background:#fff;border:1px solid #ecf2f7;border-radius:9px;box-shadow:0 2px 12px rgba(30,69,111,.018)}
+    .topbar{height:116px;display:flex;align-items:center;justify-content:space-between;padding:0 29px 0 33px;margin-bottom:21px}
+    .identity{display:flex;align-items:center;gap:26px;white-space:nowrap}
+    h1{font-size:40px;line-height:1.15;letter-spacing:.5px;margin:0;font-weight:750;color:#081226}
+    .status{display:inline-flex;align-items:center;gap:13px;border-radius:32px;padding:11px 22px;background:#dff8ed;color:#069a5e;font-size:24px;font-weight:650}
+    .status-dot{width:18px;height:18px;background:#03a75d;border-radius:50%;box-shadow:0 0 0 3px rgba(1,161,89,.08)}
+    .actions{display:flex;gap:22px;align-items:center}
+    .action{height:72px;min-width:220px;background:#fff;border:2px solid #e3ebf5;color:#293e62;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:18px;font-size:25px;font-weight:520;white-space:nowrap}
+    .action svg{width:31px;height:31px;stroke:#304b75;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .action.danger{border-color:#ffd0d0;color:#f01818}
+    .action.danger svg{fill:#f00;stroke:#f00;width:25px;height:25px}
+    .action:hover{background:#f8fbff}
+    .action.danger:hover{background:#fff6f6}
+    .workspace{display:grid;grid-template-columns:minmax(0,922fr) minmax(0,1054fr);gap:16px;min-height:1096px}
+    .panel{min-width:0;overflow:hidden}
+    .funnel-panel{padding:31px 8px 26px 42px}
+    .panel-heading{height:73px;display:flex;align-items:flex-start;gap:45px;white-space:nowrap}
+    h2{font-size:32px;line-height:1.3;margin:0;font-weight:730;color:#09162b}
+    .subtle{font-size:26px;color:#687b9c;margin-top:6px}
+    .stages{position:relative;margin-left:54px;margin-right:0}
+    .stages:before{content:"";position:absolute;z-index:0;left:-26px;top:66px;bottom:100px;border-left:2px dotted #cad8e8}
+    .stage{height:185px;position:relative;display:flex;align-items:flex-start}
+    .stage-number{position:absolute;z-index:3;left:-54px;top:57px;width:59px;height:59px;border-radius:50%;display:grid;place-items:center;background:#0964ed;color:white;border:2px solid #eaf3ff;box-shadow:0 1px 2px rgba(0,66,160,.12);font-size:26px;font-weight:550}
+    .stage.muted .stage-number{background:#768294;border-color:#e9edf1}
+    .stage-card{height:175px;width:100%;position:relative;display:grid;grid-template-columns:400px minmax(0,1fr);align-items:center;border-radius:11px;background:linear-gradient(100deg,#fff 0%,#f6fbff 52%,#f5faff 100%)}
+    .stage.active .stage-card{height:177px;border:2px solid #176afa;background:linear-gradient(90deg,#f0faff,#f2f8ff 65%,#f8fbff);box-shadow:0 0 0 3px rgba(28,113,244,.13),0 8px 21px rgba(20,88,180,.13)}
+    .funnel-shape{height:162px;position:relative;margin:auto;display:flex;align-items:center;justify-content:center;flex-direction:column;color:white;filter:drop-shadow(0 5px 7px rgba(17,69,142,.15));clip-path:polygon(0 0,100% 0,91% 100%,9% 100%);border-radius:10px}
+    .stage.active .funnel-shape{height:171px;width:100%;margin-left:0;background:linear-gradient(115deg,#09a5fa 0%,#0069f5 65%,#004bf1 100%)}
+    .stage.two .funnel-shape{width:82%;background:linear-gradient(125deg,#30bafa,#2385f2 60%,#1abbe6)}
+    .stage.three .funnel-shape{width:73%;background:linear-gradient(135deg,#00c985,#00a76d 66%,#079c6b)}
+    .stage.four .funnel-shape{width:67%;background:linear-gradient(165deg,#ffb128,#ff7838 68%,#ff5b34)}
+    .stage.five .funnel-shape{width:62%;background:linear-gradient(120deg,#d5dce8,#c8d0de)}
+    .funnel-shape:after{content:"";position:absolute;inset:2px;clip-path:polygon(0 0,100% 0,91% 100%,9% 100%);border-top:2px solid rgba(255,255,255,.7);pointer-events:none}
+    .shape-label{font-size:30px;line-height:1.25;font-weight:560;white-space:nowrap;text-shadow:0 1px 3px rgba(0,39,122,.18)}
+    .shape-count{font-size:49px;line-height:1.15;font-weight:670;margin-top:14px;letter-spacing:1px;text-shadow:0 2px 4px rgba(0,35,110,.17)}
+    .stage.five .funnel-shape{color:#425a78;filter:none}
+    .stage.five .shape-count{font-size:38px;margin-top:17px;text-shadow:none}
+    .stage.five .shape-label{text-shadow:none}
+    .stage-detail{padding:0 6px 0 18px;min-width:0;display:grid;gap:12px;font-size:25px;line-height:1.35;white-space:nowrap}
+    .detail-line{display:grid;grid-template-columns:128px minmax(0,1fr);gap:2px;align-items:baseline}
+    .detail-line .label{color:#687997}
+    .detail-line .value{color:#71809e;overflow:hidden;text-overflow:ellipsis}
+    .detail-line .strong{color:#0d1829;font-weight:630}
+    .stage.active .stage-detail{padding-left:18px}
+    .stage-chevron{position:absolute;right:18px;top:77px;width:19px;height:19px;border-right:3px solid #0065e9;border-top:3px solid #0065e9;transform:rotate(45deg)}
+    .stock-panel{padding:22px 28px 22px}
+    .stock-heading{height:82px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+    .stock-heading h2{font-size:29px;line-height:64px;white-space:nowrap;font-weight:700}
+    .stock-heading h2 span{font-weight:450;color:#263750}
+    .search{width:337px;height:65px;border:2px solid #e4ecf5;border-radius:9px;display:flex;align-items:center;gap:17px;padding:0 16px;flex:none;color:#64779a}
+    .search svg{width:31px;height:31px;stroke:#5a6c91;stroke-width:2.6;fill:none;stroke-linecap:round}
+    .search input{border:0;outline:0;width:100%;min-width:0;background:transparent;font-size:25px;color:#263750}
+    .search input::placeholder{color:#7d8da8;opacity:1}
+    table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:25px}
+    th{background:#f2f7fb;color:#101a2e;height:68px;font-weight:680;text-align:left;white-space:nowrap}
+    th:first-child{border-radius:6px 0 0 0}
+    th:last-child{border-radius:0 6px 0 0}
+    td{height:77px;border-bottom:2px solid #edf2f6;color:#283b5b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    th:nth-child(1),td:nth-child(1){width:11%;padding-left:10px;text-align:center}
+    th:nth-child(2),td:nth-child(2){width:16%}
+    th:nth-child(3),td:nth-child(3){width:20%}
+    th:nth-child(4),td:nth-child(4){width:18%;text-align:center}
+    th:nth-child(5),td:nth-child(5){width:17%;text-align:center}
+    th:nth-child(6),td:nth-child(6){width:18%;padding-left:18px}
+    td.up{color:#f32127}td.down{color:#08c567}
+    tbody tr:hover{background:#f9fcff}
+    .pagination{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:68px;color:#788bad;font-size:25px;white-space:nowrap}
+    .total{margin-right:23px}
+    .page,.page-size{height:64px;min-width:53px;border:2px solid #e4edf7;background:white;border-radius:9px;color:#293b5d;display:inline-flex;align-items:center;justify-content:center;padding:0 14px}
+    .page.current{color:white;background:#0665f6;border-color:#0665f6;box-shadow:0 0 0 2px rgba(4,102,246,.17)}
+    .page.arrow{color:#657c9e;font-size:35px;font-weight:300;line-height:1}
+    .ellipsis{padding:0 12px}
+    .page-size{margin-left:20px;min-width:170px;gap:18px;font-size:24px}
+    .page-size svg{width:17px;height:17px;fill:none;stroke:#6d82a3;stroke-width:2}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(18,37,70,.28);display:none;align-items:center;justify-content:center;z-index:20}
+    .modal-backdrop.open{display:flex}
+    .modal{width:min(560px,calc(100vw - 40px));padding:28px 32px;background:#fff;border-radius:14px;box-shadow:0 18px 60px rgba(22,43,83,.2);font-size:18px}
+    .modal h3{margin:0 0 18px;font-size:25px}.modal p{margin:9px 0;color:#536684}.modal footer{text-align:right;margin-top:25px}
+    .modal button{border:1px solid #dbe7f4;background:#f8fbff;border-radius:7px;padding:9px 18px;color:#263d65}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="identity"><h1>成长优选模型</h1><span class="status"><span class="status-dot"></span>运行中</span></div>
+      <div class="actions">
+        <button class="action danger" id="stop"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"/></svg>停止运行</button>
+        <button class="action" id="logs"><svg viewBox="0 0 32 32"><path d="M8 3h12l6 6v20H8z"/><path d="M20 3v7h6M12 16h10M12 21h10M12 26h7"/></svg>查看日志</button>
+        <button class="action" id="export"><svg viewBox="0 0 32 32"><path d="M16 3v19m-7-7 7 7 7-7M4 23v5h24v-5"/></svg>导出结果</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel funnel-panel" aria-label="漏斗运行图">
+        <div class="panel-heading"><h2>漏斗运行图</h2><span class="subtle">共 5 层筛选</span></div>
+        <div class="stages">
+          <div class="stage active one">
+            <span class="stage-number">1</span>
+            <div class="stage-card">
+              <div class="funnel-shape"><span class="shape-label">全市场股票池</span><span class="shape-count">5,432</span></div>
+              <div class="stage-detail">
+                <div class="detail-line"><span class="label">运行信息</span><span class="value">定时触发 14:30</span></div>
+                <div class="detail-line"><span class="label">筛选条件</span><span class="value">剔除ST、北交所等</span></div>
+                <div class="detail-line"><span class="label">筛选后</span><span class="value strong">3,821&nbsp; (70.4%)</span></div>
+              </div><span class="stage-chevron" aria-hidden="true"></span>
+            </div>
+          </div>
+          <div class="stage two">
+            <span class="stage-number">2</span>
+            <div class="stage-card">
+              <div class="funnel-shape"><span class="shape-label">基本面筛选</span><span class="shape-count">3,821</span></div>
+              <div class="stage-detail">
+                <div class="detail-line"><span class="label">运行信息</span><span class="value">定时触发 14:30</span></div>
+                <div class="detail-line"><span class="label">筛选条件</span><span class="value">营业收入 &gt; 20%</span></div>
+                <div class="detail-line"><span class="label">筛选后</span><span class="value strong">1,243&nbsp; (32.5%)</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="stage three">
+            <span class="stage-number">3</span>
+            <div class="stage-card">
+              <div class="funnel-shape"><span class="shape-label">行业筛选</span><span class="shape-count">1,243</span></div>
+              <div class="stage-detail">
+                <div class="detail-line"><span class="label">运行信息</span><span class="value">定时触发 14:30</span></div>
+                <div class="detail-line"><span class="label">筛选条件</span><span class="value">行业集中度前 60</span></div>
+                <div class="detail-line"><span class="label">筛选后</span><span class="value strong">386&nbsp; (31.1%)</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="stage four">
+            <span class="stage-number">4</span>
+            <div class="stage-card">
+              <div class="funnel-shape"><span class="shape-label">技术面筛选</span><span class="shape-count">386</span></div>
+              <div class="stage-detail">
+                <div class="detail-line"><span class="label">运行信息</span><span class="value">定时触发 14:30</span></div>
+                <div class="detail-line"><span class="label">筛选条件</span><span class="value">MA 多头排列</span></div>
+                <div class="detail-line"><span class="label">筛选后</span><span class="value strong">98&nbsp; (25.4%)</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="stage five muted">
+            <span class="stage-number">5</span>
+            <div class="stage-card">
+              <div class="funnel-shape"><span class="shape-label">组合优化</span><span class="shape-count">--</span></div>
+              <div class="stage-detail">
+                <div class="detail-line"><span class="label">运行信息</span><span class="value">--</span></div>
+                <div class="detail-line"><span class="label">筛选条件</span><span class="value">--</span></div>
+                <div class="detail-line"><span class="label">筛选后</span><span class="value">--</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel stock-panel" aria-label="筛选后股票列表">
+        <div class="stock-heading"><h2>筛选后股票列表 <span>（第 1 层：全市场股票池）</span></h2>
+          <label class="search"><svg viewBox="0 0 32 32"><circle cx="14" cy="14" r="9"/><path d="m21 21 8 8"/></svg><input id="search" type="search" placeholder="按股票名称/代码搜索" aria-label="按股票名称或代码搜索"></label>
+        </div>
+        <table aria-label="筛选后股票列表">
+          <thead><tr><th>序号</th><th>代码</th><th>股票名称</th><th>最新价</th><th>涨跌幅</th><th>所属行业</th></tr></thead>
+          <tbody id="stocks">
+            <tr><td>1</td><td>600519</td><td>贵州茅台</td><td>1,682.30</td><td class="up">+0.45%</td><td>食品饮料</td></tr>
+            <tr><td>2</td><td>300750</td><td>宁德时代</td><td>257.88</td><td class="up">+1.20%</td><td>电力设备</td></tr>
+            <tr><td>3</td><td>600036</td><td>招商银行</td><td>33.21</td><td class="down">-0.30%</td><td>银行</td></tr>
+            <tr><td>4</td><td>000858</td><td>五 粮 液</td><td>162.15</td><td class="up">+0.52%</td><td>食品饮料</td></tr>
+            <tr><td>5</td><td>601318</td><td>中国平安</td><td>48.73</td><td class="down">-0.18%</td><td>非银金融</td></tr>
+            <tr><td>6</td><td>600900</td><td>长江电力</td><td>28.85</td><td class="up">+0.35%</td><td>公用事业</td></tr>
+            <tr><td>7</td><td>000333</td><td>美的集团</td><td>72.38</td><td class="up">+0.21%</td><td>家用电器</td></tr>
+            <tr><td>8</td><td>002594</td><td>比 亚 迪</td><td>245.60</td><td class="up">+1.56%</td><td>汽车</td></tr>
+            <tr><td>9</td><td>601728</td><td>中国电信</td><td>6.12</td><td class="down">-0.49%</td><td>通信</td></tr>
+            <tr><td>10</td><td>600276</td><td>恒瑞医药</td><td>47.91</td><td class="up">+0.78%</td><td>医药生物</td></tr>
+          </tbody>
+        </table>
+        <nav class="pagination" aria-label="分页">
+          <span class="total">共 3,821 条</span><button class="page arrow" aria-label="上一页">‹</button><button class="page current">1</button><button class="page">2</button><button class="page">3</button><button class="page">4</button><button class="page">5</button><span class="ellipsis">···</span><button class="page">255</button><button class="page arrow" aria-label="下一页">›</button><button class="page-size">10 条/页 <svg viewBox="0 0 16 16"><path d="m2 5 6 6 6-6"/></svg></button>
+        </nav>
+      </section>
+    </main>
+  </div>
+  <div class="modal-backdrop" id="dialog"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><h3 id="dialog-title"></h3><div id="dialog-body"></div><footer><button id="close-dialog">关闭</button></footer></div></div>
+  <script>
+    const app=document.querySelector('.app');
+    const DESIGN_WIDTH=2040;
+    const DESIGN_HEIGHT=1284;
+    function fitLayout(){
+      const scale=Math.min(1,window.innerWidth/DESIGN_WIDTH,window.innerHeight/DESIGN_HEIGHT);
+      const layoutWidth=Math.max(DESIGN_WIDTH,window.innerWidth/scale);
+      app.style.width=`${Math.ceil(layoutWidth)}px`;
+      app.style.transform=`scale(${scale})`;
+      document.body.style.height=`${Math.ceil(app.scrollHeight*scale)}px`;
+    }
+    window.addEventListener('resize',fitLayout);
+    window.addEventListener('load',fitLayout);
+    fitLayout();
+    const dialog=document.getElementById('dialog');
+    function showDialog(title,body){document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-body').innerHTML=body;dialog.classList.add('open')}
+    document.getElementById('close-dialog').onclick=()=>dialog.classList.remove('open');
+    dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.classList.remove('open')});
+    document.getElementById('logs').onclick=()=>showDialog('运行日志','<p>14:30 定时任务触发，开始执行成长优选模型。</p><p>第 1 层全市场股票池：5,432 条，筛选后 3,821 条。</p><p>第 2 至 4 层已完成；第 5 层等待运行。</p>');
+    document.getElementById('stop').onclick=()=>showDialog('停止运行','<p>这是页面还原演示。模型运行状态未接入后端服务。</p>');
+    document.getElementById('export').onclick=()=>{const rows=[...document.querySelectorAll('table tr')].map(tr=>[...tr.children].map(c=>'"'+c.textContent.trim().replaceAll('"','""')+'"').join(','));const blob=new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='成长优选模型_筛选结果.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+    const allRows=[...document.querySelectorAll('#stocks tr')];
+    document.getElementById('search').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();allRows.forEach(row=>row.hidden=!row.textContent.toLowerCase().includes(q));document.querySelector('.total').textContent=q?'共 '+allRows.filter(row=>!row.hidden).length+' 条':'共 3,821 条'});
+  </script>
+</body>
+</html>
