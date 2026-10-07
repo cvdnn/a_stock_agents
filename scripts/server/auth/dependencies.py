@@ -121,3 +121,45 @@ def require_menu(code: str):
         return ctx
 
     return _dep
+
+
+#: 选股模型权限码（SPEC-ALGO-ISS-001 §20.1，10 项）→ 菜单 code 映射。
+#: 落地机制（C-04）复用既有 `role_menus` 的「menu + action 两段式」：
+#: 父菜单 `selection`，动作菜单 `selection.<action>`，不新建权限子系统。
+SELECTION_PERMISSION_MENU: dict = {
+    "view": "selection.view",
+    "create": "selection.create",
+    "edit": "selection.edit",
+    "publish": "selection.publish",
+    "activate": "selection.activate",
+    "run": "selection.run",
+    "track": "selection.track",
+    "evaluate": "selection.evaluate",
+    "admin": "selection.admin",
+    "debug": "selection.debug",
+}
+SELECTION_PERMISSIONS = tuple(SELECTION_PERMISSION_MENU)
+
+
+def require_selection(action: str):
+    """Dependency factory: 校验选股模型动作权限（`:debug` 仅超级管理员，G-02）。"""
+    if action not in SELECTION_PERMISSION_MENU:
+        raise ValueError(f"unknown selection permission: {action}")
+    menu_code = SELECTION_PERMISSION_MENU[action]
+
+    def _dep(ctx: AuthContext = Depends(require_auth)) -> AuthContext:
+        if action == "debug":
+            if not ctx.is_super_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"error": "forbidden", "message": "调试运行仅限超级管理员（selection_model:debug）"},
+                )
+            return ctx
+        if not ctx.has_menu(menu_code):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": "forbidden", "message": f"无选股模型 {action} 权限（{menu_code}）"},
+            )
+        return ctx
+
+    return _dep

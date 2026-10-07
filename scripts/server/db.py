@@ -1329,6 +1329,7 @@ def _seed_user_system(conn: sqlite3.Connection) -> None:
             # 一级菜单
             {"code": "dashboard",    "name": "投研助手",   "path": "dashboard",    "icon": "🤖", "parent_id": 0, "sort_order": 10},
             {"code": "watchlist",    "name": "自选个股",   "path": "watchlist",    "icon": "⭐", "parent_id": 0, "sort_order": 20},
+            {"code": "selection",    "name": "策略选股",   "path": "selection",    "icon": "🎯", "parent_id": 0, "sort_order": 25},
             {"code": "returns",      "name": "收益分析",   "path": "returns",      "icon": "📈", "parent_id": 0, "sort_order": 30},
             {"code": "skills",       "name": "技能治理",   "path": "skills",       "icon": "🧩", "parent_id": 0, "sort_order": 40},
             {"code": "datasync",     "name": "数据同步",   "path": "datasync",     "icon": "🔄", "parent_id": 0, "sort_order": 45},
@@ -1337,6 +1338,17 @@ def _seed_user_system(conn: sqlite3.Connection) -> None:
             {"code": "system.users",    "name": "用户管理",   "path": "system.users",    "icon": "👥", "parent_id": "system", "sort_order": 51},
             {"code": "system.roles",    "name": "角色管理",   "path": "system.roles",    "icon": "🔐", "parent_id": "system", "sort_order": 52},
             {"code": "system.menus",    "name": "菜单管理",   "path": "system.menus",    "icon": "📋", "parent_id": "system", "sort_order": 53},
+            # 策略选股下的动作权限（C-04 两段式：menu + action，复用 role_menus）
+            {"code": "selection.view",     "name": "查看模型",   "path": "selection.view",     "icon": "👁", "parent_id": "selection", "sort_order": 61},
+            {"code": "selection.create",   "name": "创建模型",   "path": "selection.create",   "icon": "➕", "parent_id": "selection", "sort_order": 62},
+            {"code": "selection.edit",     "name": "编辑草稿",   "path": "selection.edit",     "icon": "✏️", "parent_id": "selection", "sort_order": 63},
+            {"code": "selection.publish",  "name": "发布版本",   "path": "selection.publish",  "icon": "🚀", "parent_id": "selection", "sort_order": 64},
+            {"code": "selection.activate", "name": "激活版本",   "path": "selection.activate", "icon": "🔛", "parent_id": "selection", "sort_order": 65},
+            {"code": "selection.run",      "name": "发起运行",   "path": "selection.run",      "icon": "▶️", "parent_id": "selection", "sort_order": 66},
+            {"code": "selection.track",    "name": "结果跟踪",   "path": "selection.track",    "icon": "🧭", "parent_id": "selection", "sort_order": 67},
+            {"code": "selection.evaluate", "name": "模型评价",   "path": "selection.evaluate", "icon": "📊", "parent_id": "selection", "sort_order": 68},
+            {"code": "selection.admin",    "name": "选股系统管理", "path": "selection.admin",  "icon": "🛠", "parent_id": "selection", "sort_order": 69},
+            {"code": "selection.debug",    "name": "调试运行",   "path": "selection.debug",    "icon": "🐞", "parent_id": "selection", "sort_order": 70},
         ]
         menu_id_by_code: Dict[str, int] = {}
         for m in default_menus:
@@ -1354,10 +1366,15 @@ def _seed_user_system(conn: sqlite3.Connection) -> None:
                 )
                 menu_id_by_code[m["code"]] = cur.lastrowid
 
-        # 2) 默认角色: 超级管理员 (全菜单) + 普通用户 (默认仅含非系统管理菜单)
+        # 2) 默认角色: 超级管理员 (全菜单) + 普通用户 (默认仅含非系统管理菜单) + 模型作者 (选股作者权)
+        model_author_menus = (
+            "selection", "selection.view", "selection.create", "selection.edit",
+            "selection.run", "selection.track", "selection.evaluate",
+        )
         default_roles = [
             {"code": "super_admin", "name": "超级管理员", "description": "拥有全部菜单权限，系统内置不可删除", "all_menus": True},
             {"code": "researcher",  "name": "投研用户",   "description": "默认普通用户角色，可访问投研助手/自选/收益/技能", "all_menus": False},
+            {"code": "model_author", "name": "模型作者",  "description": "选股模型作者：可创建/编辑/运行本人模型并跟踪评价，不含发布/激活/管理/调试（C-03/W-02）", "menus": model_author_menus},
         ]
         role_id_by_code: Dict[str, int] = {}
         for r in default_roles:
@@ -1372,20 +1389,40 @@ def _seed_user_system(conn: sqlite3.Connection) -> None:
                 )
                 role_id_by_code[r["code"]] = cur.lastrowid
                 # 分配菜单
-                if r["all_menus"]:
+                if r.get("all_menus"):
                     for mid in menu_id_by_code.values():
                         cur.execute(
                             "INSERT OR IGNORE INTO role_menus (role_id, menu_id) VALUES (?, ?);",
                             (role_id_by_code[r["code"]], mid),
                         )
                 else:
-                    for code in ("dashboard", "watchlist", "returns", "skills"):
+                    seed_codes = r.get("menus") or ("dashboard", "watchlist", "returns", "skills")
+                    for code in seed_codes:
                         mid = menu_id_by_code.get(code)
                         if mid:
                             cur.execute(
                                 "INSERT OR IGNORE INTO role_menus (role_id, menu_id) VALUES (?, ?);",
                                 (role_id_by_code[r["code"]], mid),
                             )
+
+        # 2.1) 幂等补齐选股权限绑定（存量库已建角色不会重走上面的"新建"分支）：
+        #      - 模型作者：view/create/edit/run/track/evaluate（不含 publish/activate/admin/debug）；
+        #      - 投研用户：仅 view/track（C-03）。
+        for role_code, menu_codes in (
+            ("super_admin", tuple(menu_id_by_code.keys())),
+            ("model_author", model_author_menus),
+            ("researcher", ("selection", "selection.view", "selection.track")),
+        ):
+            rid = role_id_by_code.get(role_code)
+            if not rid:
+                continue
+            for code in menu_codes:
+                mid = menu_id_by_code.get(code)
+                if mid:
+                    cur.execute(
+                        "INSERT OR IGNORE INTO role_menus (role_id, menu_id) VALUES (?, ?);",
+                        (rid, mid),
+                    )
 
         # 3) 同步本地配置文件中的超级管理员账号到数据库
         try:

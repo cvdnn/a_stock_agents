@@ -846,6 +846,32 @@ def _sync_astock_meta_routing(task_description: str, **kwargs: Any) -> Dict[str,
     }
 
 
+def _sync_astock_selection_model(action: str = "validate", **kwargs: Any) -> Dict[str, Any]:
+    """配置化智能选股系统（ISS）能力入口。
+
+    ISS 为重运行时系统（依赖本地数据水位与已发布并激活的模型版本），能力层不代为执行，
+    而是返回统一 CLI 参考，交由用户/编排层按真实数据链路调用，避免伪造选股结果。
+    """
+    commands = {
+        "validate": "astock funnel validate --json",
+        "run": "astock funnel run --stage <stage> --assemble --json",
+        "tick": "astock funnel tick --json",
+        "assess": "astock screen-model assess --run <run_id> --json",
+        "track": "astock screen-model track --run <run_id> --json",
+        "evaluate": "astock screen-model evaluate --model <model_id> --json",
+        "tune": "astock screen-model tune --model <model_id> --json",
+    }
+    return {
+        "status": "success",
+        "type": "reference",
+        "skill": "astock-selection-model",
+        "action": action,
+        "cli_command": commands.get(action, "astock funnel validate --json"),
+        "spec": "SPEC-ALGO-ISS-001",
+        "note": "ISS 运行依赖本地数据水位与已激活模型版本；请通过统一 CLI 执行，能力层不代为产出选股结果。",
+    }
+
+
 # ── Async Dispatcher ──────────────────────────────────────────────────────────
 
 TOOL_MAP: Dict[str, Callable[..., Any]] = {
@@ -892,6 +918,8 @@ TOOL_MAP: Dict[str, Callable[..., Any]] = {
     "astock-meta-routing": _sync_astock_meta_routing,
     "astock_strategy_chenxiaoqun": _sync_astock_strategy_chenxiaoqun,
     "astock-strategy-chenxiaoqun": _sync_astock_strategy_chenxiaoqun,
+    "astock_selection_model": _sync_astock_selection_model,
+    "astock-selection-model": _sync_astock_selection_model,
 }
 
 

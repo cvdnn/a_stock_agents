@@ -23,6 +23,7 @@ from server.api import (
     menus_router,
     models_mgmt_router,
     roles_router,
+    selection_models_router,
     sessions_router,
     skills_router,
     tasks_router,
@@ -296,6 +297,7 @@ def create_app() -> FastAPI:
     app.include_router(models_mgmt_router)
     app.include_router(market_data_router)
     app.include_router(data_sync_router)
+    app.include_router(selection_models_router)
 
     # Mount Static Web UI & Assets
     web_dir = Path(__file__).resolve().parent.parent.parent / "web"
