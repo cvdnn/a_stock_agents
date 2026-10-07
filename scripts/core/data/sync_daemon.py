@@ -2,19 +2,22 @@
 """A-Stock 本地行情自动化定时同步守护进程 (DataSyncDaemon)
 
 核心职责:
-1. 时钟驱动与定盘监听: 依据 TradeCalendar 时钟状态机，精确在交易所定盘归档期 (>= 15:35) 触发增量同步；
-2. 分级标的池调度:
-   - 15:35 优先触发 P0 核心持仓池 (holdings) 定盘同步；
-   - 15:40 触发 P1 重点自选与关注池 (watchlist / focus) 及核心大盘指数同步；
+1. 时钟驱动与定盘监听: 依据 TradeCalendar 时钟状态机，在交易所定盘归档期触发增量同步；
+2. 分级标的池调度（定盘时刻取自持久化设置 daemon.p0_time / p1_time，与 Web 控制台同源，
+   缺省回落 15:35 / 15:40，严禁再写死时刻）:
+   - P0 核心持仓池 (holdings) 定盘同步；
+   - P1 重点自选与关注池 (watchlist / focus) 及核心大盘指数同步；
+   - 数据集登记册窗口 (SPEC-DATA §5.1) 独立判定，不被 P0/P1 时刻推迟；
 3. 当日幂等防重: 记录当日成功同步状态，同一交易日定盘数据不重复拉取；
 4. 规范日志沉淀: 严格遵守工作区规范，日志统一写入 log/sync_daemon.log；
 5. 优雅退出支持: 响应 SIGINT / SIGTERM 信号安全停机。
+
+运行主体边界: 本 CLI 守护与 server 进程内的 `_market_post_settle_cron` 巡检是**两个独立主体**，
+前者按本文件解析的定盘时刻运行，后者受 daemon.enabled 开关门控，二者不互相控制。
 """
 
 from datetime import datetime, time as dt_time
-import json
 import logging
-import os
 from pathlib import Path
 import signal
 import sys
@@ -24,12 +27,14 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 try:
     from core.config import PROJECT_ROOT, LOG_DIR, get_logger
+    from core.data import sync_settings
     from core.data.sync_engine import DataSyncEngine, TradeCalendar
 except ImportError:
     PROJECT_ROOT = Path(__file__).resolve().parents[3]
     LOG_DIR = PROJECT_ROOT / "log"
     import logging
     get_logger = logging.getLogger
+    from scripts.core.data import sync_settings
     from scripts.core.data.sync_engine import DataSyncEngine, TradeCalendar
 
 logger = get_logger("core.data.sync_daemon")
@@ -119,6 +124,80 @@ def parse_hhmm(value: str) -> Optional[dt_time]:
         return None
 
 
+# ---------------------------------------------------------------------------
+# CLI 守护进程的定盘时刻解析（与 Web 控制台设置同源）
+#
+# 读取逻辑统一委托 core.data.sync_settings（core 层只读访问器），
+# 避免与 data_bridge 的选源解析各写一份路径/ENV 契约而产生漂移。
+# ---------------------------------------------------------------------------
+DEFAULT_P0_TIME = dt_time(15, 35)
+DEFAULT_P1_TIME = dt_time(15, 40)
+
+#: resolve_settle_time 的来源标注 → 可读原因（用于日志与 --json 如实披露）
+_SCHEDULE_FALLBACK_REASONS = {
+    "settings_missing": "未找到持久化设置文件",
+    "settings_corrupt": "设置文件不可解析",
+    "settings_invalid": "设置文件结构非法",
+    "no_daemon_section": "设置缺少 daemon 配置域",
+}
+
+
+def settings_file_path() -> Path:
+    """持久化设置文件路径（与 server 侧同一契约，测试可用环境变量重定向）。"""
+    return sync_settings.settings_file_path()
+
+
+def resolve_daemon_schedule() -> Dict[str, Any]:
+    """解析 CLI 守护实际使用的 P0/P1 定盘时刻。
+
+    取值优先级：持久化设置 `daemon.p0_time` / `daemon.p1_time` → 内置默认 15:35 / 15:40。
+    文件缺失、不可解析或时间非法时**逐项**回退默认，并在 `source` / `note` 中如实标注，
+    绝不静默沿用与 Web 控制台不一致的硬编码时刻。
+
+    source 取值：`settings`（两项均来自设置）/ `partial`（仅一项生效）/ `default`（全部回退）。
+
+    注意：`daemon.enabled` 是"服务内自动巡检"的开关。按规范二者是**两个独立运行主体**，
+    用户显式启动 CLI 守护即表达运行意图，故本函数不用该开关门控 CLI 守护进程。
+    """
+    result: Dict[str, Any] = {
+        "p0_time": DEFAULT_P0_TIME,
+        "p1_time": DEFAULT_P1_TIME,
+        "source": "default",
+        "settings_file": str(sync_settings.settings_file_path()),
+        "note": "",
+    }
+    defaults = {"p0_time": DEFAULT_P0_TIME, "p1_time": DEFAULT_P1_TIME}
+    applied: List[str] = []
+    fallbacks: List[str] = []
+
+    for field in ("p0_time", "p1_time"):
+        default_hhmm = defaults[field].strftime("%H:%M")
+        hhmm, source = sync_settings.resolve_settle_time(field, default_hhmm)
+        parsed = parse_hhmm(hhmm)
+        if parsed is not None:
+            result[field] = parsed
+        if source == "settings":
+            applied.append(f"{field}={hhmm}")
+        else:
+            reason_key = source.split(":", 1)[-1] if ":" in source else source
+            # missing_p0_time / invalid_p1_time 之类逐项原因，还原成可读文案
+            if reason_key.startswith("missing_") or reason_key.startswith("invalid_"):
+                kind, _, fname = reason_key.partition("_")
+                reason = f"{fname} {'未配置' if kind == 'missing' else '格式非法'}"
+            else:
+                reason = _SCHEDULE_FALLBACK_REASONS.get(reason_key, reason_key)
+            fallbacks.append(f"{field}→{default_hhmm}（{reason}）")
+
+    result["source"] = "settings" if applied and not fallbacks else ("partial" if applied else "default")
+    notes: List[str] = []
+    if applied:
+        notes.append("已按持久化设置应用 " + ", ".join(applied))
+    if fallbacks:
+        notes.append("回退内置默认 " + ", ".join(fallbacks))
+    result["note"] = "；".join(notes) or "使用内置默认定盘时刻"
+    return result
+
+
 def is_auto_tier_due(now, tier: str, eff_settings: Dict[str, Any], executed_dates: Dict[str, str]) -> bool:
     """纯判定：某层级定时自动同步当前是否到期且今日尚未执行（交易日判断由调用方负责）。
 
@@ -187,7 +266,7 @@ def apply_sync_runtime_control(
         SERVER_SYNC_RUNTIME["enabled"] = False
         SERVER_SYNC_RUNTIME["skipped_reason"] = "服务内自动巡检已被暂停"
         record_sync_runtime_event(
-            "服务内自动巡检已暂停（API 控制）：15:35 定盘同步不再自动执行", "info",
+            "服务内自动巡检已暂停（API 控制）：盘后定盘同步不再自动执行", "info",
         )
     return sync_runtime_snapshot()
 
@@ -203,6 +282,8 @@ class DataSyncDaemon:
         check_interval: int = 60,
         max_workers: int = 4,
         log_file: Optional[Path] = None,
+        p0_time: Optional[dt_time] = None,
+        p1_time: Optional[dt_time] = None,
     ):
         self.pools = pools or list(self.DEFAULT_POOLS)
         self.check_interval = max(5, check_interval)
@@ -210,6 +291,14 @@ class DataSyncDaemon:
         self.engine = DataSyncEngine()
         self._stop_requested = False
         self._synced_dates: Dict[str, str] = {}
+
+        # 定盘时刻与 Web 控制台设置同源；显式入参仅用于测试与编程调用
+        schedule = resolve_daemon_schedule()
+        self.p0_time = p0_time or schedule["p0_time"]
+        self.p1_time = p1_time or schedule["p1_time"]
+        self.schedule_source = schedule["source"] if not (p0_time or p1_time) else "explicit"
+        self.schedule_note = schedule["note"]
+        self.settings_file = schedule["settings_file"]
 
         # 确保日志文件落于 log/
         LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -237,6 +326,16 @@ class DataSyncDaemon:
             logger.info(message)
             self.file_logger.info(message)
 
+    def schedule_snapshot(self) -> Dict[str, Any]:
+        """当前生效的定盘时刻与来源，供 CLI --json 与日志如实披露（不隐藏回退）。"""
+        return {
+            "p0_time": self.p0_time.strftime("%H:%M"),
+            "p1_time": self.p1_time.strftime("%H:%M"),
+            "source": self.schedule_source,
+            "settings_file": self.settings_file,
+            "note": self.schedule_note,
+        }
+
     def run_once(self) -> Dict[str, Any]:
         """单次时钟检查并执行到期的同步任务"""
         phase_info = TradeCalendar.get_market_phase()
@@ -254,32 +353,60 @@ class DataSyncDaemon:
                 "reason": "non_trading_day",
                 "date": today,
                 "phase": phase_info["phase"],
+                "schedule": self.schedule_snapshot(),
                 "message": msg,
             }
 
         now_dt = datetime.now()
         t = now_dt.time()
 
-        # 2. 判断是否已到定盘同步窗口 (15:35 之后)
-        t_p0 = dt_time(15, 35)
-        t_p1 = dt_time(15, 40)
+        # 2. 定盘时刻由持久化设置解析（与 Web 控制台同源），非硬编码
+        t_p0 = self.p0_time
+        t_p1 = self.p1_time
 
+        # 3. 数据集登记册同步先行：§5.1 固定窗口是独立事实来源，不得被 P0/P1 定盘时刻推迟
+        #    （例如用户把 p0_time 调到 16:30 时，15:35 起的数据集窗口仍须按点触发）
+        from core.data import dataset_sync
+        dataset_results = dataset_sync.run_due_datasets(
+            now_dt, self._synced_dates, db_path=self.engine.store.db_path
+        )
+        for res in dataset_results:
+            self.log(f"    数据集同步 {res['key']}: {res['status']} · rows={res['rows']} · source={res['source']}")
+
+        # 4. 未到 P0 定盘时刻：池同步等待下次轮询，仅交付本轮已到窗口的数据集
         if t < t_p0:
-            msg = f"当前时段 ({now_time_str} · {phase_label}) 尚未到达盘后定盘同步窗口 (15:35 开启)"
+            msg = (
+                f"当前时段 ({now_time_str} · {phase_label}) 尚未到达盘后定盘同步窗口 "
+                f"(P0 {t_p0.strftime('%H:%M')} 开启 · 时刻来源: {self.schedule_source})"
+            )
+            if not dataset_results:
+                return {
+                    "status": "waiting",
+                    "reason": "before_settlement_window",
+                    "date": today,
+                    "time": now_time_str,
+                    "phase": phase_info["phase"],
+                    "schedule": self.schedule_snapshot(),
+                    "message": msg,
+                }
+            self.log(msg)
             return {
-                "status": "waiting",
-                "reason": "before_settlement_window",
+                "status": "executed",
                 "date": today,
                 "time": now_time_str,
                 "phase": phase_info["phase"],
+                "executed_pools": [],
+                "datasets": [res["key"] for res in dataset_results],
+                "details": {},
+                "schedule": self.schedule_snapshot(),
                 "message": msg,
             }
 
-        # 3. 达到定盘窗口，按优先级调度
+        # 5. 达到定盘窗口，按优先级调度池同步
         executed_pools = []
         batch_results = {}
 
-        # 3.1 P0 核心持仓同步 (>= 15:35)
+        # 5.1 P0 核心持仓同步 (>= P0 定盘时刻)
         if "holdings" in self.pools:
             if self._synced_dates.get("holdings") != today:
                 self.log(f"--> 触发 P0 核心持仓池定盘同步 (Holdings)... [时钟: {now_time_str}]")
@@ -295,7 +422,7 @@ class DataSyncDaemon:
             else:
                 self.log(f"    P0 持仓池今日 ({today}) 已完成定盘同步，跳过重复拉取")
 
-        # 3.2 P1 重点自选与关注池同步 (>= 15:40)
+        # 5.2 P1 重点自选与关注池同步 (>= P1 定盘时刻)
         if t >= t_p1:
             for p in ["watchlist", "focus"]:
                 if p in self.pools:
@@ -314,12 +441,6 @@ class DataSyncDaemon:
                     else:
                         self.log(f"    P1 {p} 池今日 ({today}) 已完成定盘同步，跳过重复拉取")
 
-        # 3.3 数据集登记册同步 (SPEC-DATA §5.1 固定窗口，每日一次)
-        from core.data import dataset_sync
-        dataset_results = dataset_sync.run_due_datasets(now_dt, self._synced_dates, db_path=self.engine.store.db_path)
-        for res in dataset_results:
-            self.log(f"    数据集同步 {res['key']}: {res['status']} · rows={res['rows']} · source={res['source']}")
-
         if executed_pools or dataset_results:
             return {
                 "status": "executed",
@@ -328,18 +449,26 @@ class DataSyncDaemon:
                 "executed_pools": executed_pools,
                 "datasets": [res["key"] for res in dataset_results],
                 "details": batch_results,
+                "schedule": self.schedule_snapshot(),
             }
         else:
             return {
                 "status": "up_to_date",
                 "date": today,
                 "time": now_time_str,
+                "schedule": self.schedule_snapshot(),
                 "message": f"今日 ({today}) 所有关注股池定盘同步已全部就绪，无需额外拉取",
             }
 
     def run_forever(self):
         """常驻后台循环轮询"""
-        self.log(f"=== A-Stock 数据同步守护进程启动 (间隔: {self.check_interval}s, 标的池: {self.pools}, 并发: {self.max_workers}) ===")
+        self.log(
+            f"=== A-Stock 数据同步守护进程启动 (间隔: {self.check_interval}s, 标的池: {self.pools}, 并发: {self.max_workers}) ==="
+        )
+        self.log(
+            f"    定盘时刻: P0 {self.p0_time.strftime('%H:%M')} / P1 {self.p1_time.strftime('%H:%M')}"
+            f" · 来源: {self.schedule_source} · {self.schedule_note}"
+        )
 
         def _handle_signal(signum, frame):
             self.log(f"接收到终止信号 ({signum})，正在优雅停止守护进程...")

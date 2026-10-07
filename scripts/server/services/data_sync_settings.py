@@ -418,6 +418,44 @@ def reset_to_defaults() -> Dict[str, Any]:
     return save_settings(copy.deepcopy(DEFAULTS))
 
 
+# ---------------------------------------------------------------------------
+# 设置项生效范围如实披露（杜绝"可保存但不生效"的静默死配置误导用户）
+#
+# wired        —— 已接入执行层，保存后真实影响后续行为；
+# persist_only —— 仅做白名单校验与持久化，当前无执行层消费者，保存不产生实际效果。
+# 新增设置项必须在此登记归类；把 persist_only 项接线后应移入 wired。
+# ---------------------------------------------------------------------------
+EXECUTION_WIRING: Dict[str, List[str]] = {
+    "wired": [
+        "base.concurrency",             # → SERVER_SYNC_RUNTIME.workers / sync_batch(max_workers)
+        "base.timeout_seconds",         # → tasks.create_task 未显式指定时的默认超时
+        "daemon.enabled",               # → 服务内巡检协程门控（不控独立 CLI 守护进程）
+        "daemon.interval_seconds",      # → 服务内巡检轮询间隔
+        "daemon.p0_time",               # → 服务内巡检与 CLI 守护的 P0 定盘时刻
+        "daemon.p1_time",               # → 服务内巡检与 CLI 守护的 P1 定盘时刻
+        "p3.enabled",                   # → P3 交易日自动增量门控
+        "p3.time",                      # → P3 自动执行时刻
+        "p3.concurrency",               # → P3 分批并发
+        "p3.batch_size",                # → P3 分批大小
+        "external_sources.order",       # → data_bridge 取数降级链顺序
+        "external_sources.enabled.*",   # → data_bridge 取数降级链逐源启停
+        "cooperation.tdx_target_pool",  # → 通达信导入未指定时的默认目标股池
+    ],
+    "persist_only": [
+        "base.mode",                    # 同步模式由各任务入参决定，不读全局默认
+        "base.retries",                 # 取数链尚无按设置计数的重试实现
+        "p3.retries",
+        "integrity.auto_audit",         # 审计/修复仅由显式任务参数触发，无自动挂钩
+        "integrity.auto_repair",
+        "workspace.common.*",           # 新工作台目标范围，执行层尚未支持
+        "workspace.history.*",
+        "workspace.quality.*",
+        "workspace.performance.*",      # 与 external_sources 功能重叠；选源一律以 external_sources 为准
+        "workspace.import_rules.*",     # 导入参数取自请求体，不回读本设置
+    ],
+}
+
+
 def apply_to_runtime(settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """把有效设置回灌到服务内自动巡检运行时（每轮调度前调用，保证设置真实生效）。"""
     from core.data.sync_daemon import SERVER_SYNC_RUNTIME
@@ -439,4 +477,5 @@ def settings_summary_for_ui() -> Dict[str, Any]:
         "persisted_status": status,  # ok | missing | corrupt —— 如实反映，不伪装
         "defaults": copy.deepcopy(DEFAULTS),
         "provider_labels": dict(_PROVIDER_LABELS),
+        "execution_wiring": copy.deepcopy(EXECUTION_WIRING),
     }

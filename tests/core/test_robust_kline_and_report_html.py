@@ -29,30 +29,30 @@ def test_get_kline_robust_cache_hit():
     assert k1 == k2
 
 
-def test_get_kline_robust_fallback_with_quote(monkeypatch):
-    """模拟腾讯与新浪外部网络均失败时，能够基于行情快照合成兜底 K 线"""
+def test_get_kline_robust_never_synthesizes_from_quote(monkeypatch):
+    """外部源全失败时不得用行情快照合成 K 线（零虚假数据铁律）。
+
+    历史缺陷：`get_kline_robust` 曾接受 `quote` 参数并据此合成兜底走势，
+    使断网也能"出数"。现口径：该参数已移除，降级只能落到本地 SQLite 的真实历史，
+    本地同样无数据时如实返回空列表，绝不凭快照价格编造 K 线。
+    """
+    import inspect
+
+    assert "quote" not in inspect.signature(DataBridge.get_kline_robust).parameters
+
     monkeypatch.setattr(DataBridge, "tencent_kline", lambda code, count=120: [])
     monkeypatch.setattr(DataBridge, "sina_kline", lambda code, count=120: [])
+    monkeypatch.setattr(DataBridge, "eastmoney_kline", lambda code, count=120: [])
     import scripts.core.data.Ashare as AshareModule
     monkeypatch.setattr(AshareModule, "get_price", lambda *args, **kwargs: None)
     # 清空对应缓存
     norm = DataBridge.normalize_symbol("000002")
     DataBridge._KLINE_CACHE.pop(norm, None)
 
-    fake_quote = {
-        "code": "000002",
-        "name": "万科A",
-        "price": 8.50,
-        "open": 8.45,
-        "prev_close": 8.40,
-        "high": 8.60,
-        "low": 8.35,
-        "volume": 2000000,
-    }
-    klines = DataBridge.get_kline_robust("000002", count=35, quote=fake_quote)
-    assert len(klines) >= 26
-    # 今日收盘价应与 quote 一致
-    assert float(klines[-1][2]) == 8.50
+    klines = DataBridge.get_kline_robust("000002", count=35)
+    assert isinstance(klines, list)
+    # 8.50 是原伪造用例注入的快照收盘价：任何降级路径都不得凭空产出该值
+    assert all(float(row[2]) != 8.50 for row in klines)
 
 
 def test_astock_report_html_contains_three_principles():

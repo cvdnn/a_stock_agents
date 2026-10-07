@@ -321,7 +321,7 @@ def _sync_astock_evaluate(code: str) -> Dict[str, Any]:
         code = raw_code_str.split(":")[0].split("@")[0].strip()
     bridge = DataBridge()
     q = bridge.get_realtime_quote(code)
-    klines = bridge.get_kline_robust(code, count=120, quote=q)
+    klines = bridge.get_kline_robust(code, count=120)
     if not klines or len(klines) < 15:
         return {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"股票 {code} 历史K线不足或标的不存在，无法完成全面诊断。"}
 
@@ -750,7 +750,7 @@ def _sync_astock_report_html(code: str, output: Optional[str] = None) -> Dict[st
 
         bridge = DataBridge()
         quote = bridge.get_realtime_quote(code)
-        klines = bridge.get_kline_robust(code, count=120, quote=quote)
+        klines = bridge.get_kline_robust(code, count=120)
 
         if (not quote or not quote.get("price")) and klines and len(klines) > 0:
             last_k = klines[-1]
@@ -766,8 +766,6 @@ def _sync_astock_report_html(code: str, output: Optional[str] = None) -> Dict[st
             }
 
         name = (quote and quote.get("name")) or code
-        if not klines or len(klines) < 10:
-            klines = bridge.get_kline_robust(code, count=120, quote=quote)
 
         tech = calc_all(klines)
         scorer = ComboScorer()

@@ -20,8 +20,11 @@ router = APIRouter(prefix="/api/tasks", tags=["Async Tasks"])
 @router.post("", response_model=TaskResponse)
 async def create_task(req: TaskCreateRequest):
     """Enqueue a long-running quantitative research or debate task."""
+    from server.services.data_sync_settings import effective_settings
+
     # P3 单任务互斥 + 不抢占 P0/P1：创建前预检，冲突直接 409，不产生垃圾任务记录
-    timeout_seconds = req.timeout_seconds or 300
+    # 未显式指定超时时取有效设置 base.timeout_seconds（此前恒为硬编码 300，控制台设置形同虚设）
+    timeout_seconds = req.timeout_seconds or int(effective_settings()["base"]["timeout_seconds"])
     if req.task_type == "data_sync_batch":
         manager = get_task_manager()
         active = next((task for task in manager.list_tasks(limit=50)

@@ -407,10 +407,15 @@ def cmd_data_daemon(args):
             st = res.get("status")
             icon = "✅" if st in ["executed", "up_to_date"] else ("ℹ️" if st == "skipped" else "⏳")
             print(f"{icon} [定时守护单次检测] 状态: {st} | 消息: {res.get('message', '执行完毕')}")
+            sched = res.get("schedule") or daemon.schedule_snapshot()
+            print(f"   └─ 定盘时刻: P0 {sched['p0_time']} / P1 {sched['p1_time']} (来源: {sched['source']})")
             if res.get("executed_pools"):
                 print(f"   └─ 已同步标的池: {', '.join(res['executed_pools'])}")
     else:
         if not is_json:
+            sched = daemon.schedule_snapshot()
             print(f"🚀 正在启动 A-Stock 数据同步守护进程 (轮询间隔: {interval}s, 并发: {workers})...")
+            print(f"   └─ 定盘时刻: P0 {sched['p0_time']} / P1 {sched['p1_time']} (来源: {sched['source']})")
+            print(f"   └─ {sched['note']}")
             print("💡 按 Ctrl+C 可安全优雅停机。日志沉淀在: log/sync_daemon.log")
         daemon.run_forever()

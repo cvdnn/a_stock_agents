@@ -38,3 +38,12 @@
 - 唯一仍属"待接入"的：外部行情源优先级排序对取数执行层的实际驱动、以及市场级范围的全量重构/审计/修复组合。
 
 验收证据与状态以[实施看板](../specs/ui/market-data-sync-control-console-plan.md)为准。
+
+## 修订注记（2026-10-07，追加不改原文）
+
+上文 2026-10-04 注记列出的「唯一仍属待接入」两项，现状更正为：
+
+- **外部行情源优先级排序对取数执行层的驱动：已接入。** 新增 core 层只读设置访问器 `scripts/core/data/sync_settings.py`，`resolve_provider_order()` 解析 `external_sources.order` 与 `external_sources.enabled.*`（全禁用时回退内置默认并标注 `default:all_disabled`），`data_bridge.fetch_remote_kline_strictly` / `get_kline_robust` / 新增 `eastmoney_kline` 按该链遍历，失败日志携带 `chain_source`；`Ashare` 为多源聚合器，保留为不参与排序的末端兜底。
+- **市场级范围的全量重构/审计/修复组合：仍保持禁用（fail-closed）。** 该组合对全市场属破坏性操作，继续按原设计不放开。
+
+另：`base.timeout_seconds` 已接入任务创建、`cooperation.tdx_target_pool` 已接入通达信导入；其余仅持久化未接线的设置项由 `data_sync_settings.EXECUTION_WIRING` 常量逐项归类（`wired` / `persist_only`）并经 `GET /api/data-sync/settings` 的 `execution_wiring` 键对外披露，不再存在静默死配置。

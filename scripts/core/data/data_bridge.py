@@ -38,6 +38,13 @@ try:
 except ImportError:
     from data.tencent_fields import parse_tencent_quote
 
+# 外部行情源优先级（external_sources.order / enabled）的 core 层只读入口：
+# 使控制台配置的降级顺序真正驱动本文件的取数执行层，而非仅作 UI 回显。
+try:
+    from core.data import sync_settings
+except ImportError:
+    from data import sync_settings
+
 
 def _validate_stock_code(code: str) -> str:
     """白名单校验股票代码，支持纯代码、带市场前缀/后缀代码及常用指数别名，防范命令注入。"""
@@ -324,31 +331,83 @@ class DataBridge:
             logger.debug(f"[L2] 新浪日K线降级获取失败 ({code}): {e}")
         return []
 
+    @staticmethod
+    def eastmoney_kline(code: str, count: int = 120) -> List[List]:
+        """获取东方财富前复权日K线（零依赖，push2his 公开接口）
+        返回: [[date, open, close, high, low, volume], ...]
+
+        secid 市场前缀：沪市/沪指数为 1，深市/深指数与北交所为 0；
+        fqt=1 前复权、klt=101 日线，与腾讯 qfqday 口径对齐，保证降级源之间可直接互换。
+        """
+        norm = DataBridge.normalize_symbol(code)
+        digits = norm[-6:]
+        secid = f"{'1' if norm.startswith('sh') else '0'}.{digits}"
+        url = (
+            "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+            f"?secid={secid}&fields1=f1,f2,f3,f4,f5,f6"
+            "&fields2=f51,f52,f53,f54,f55,f56,f57"
+            f"&klt=101&fqt=1&end=20500101&lmt={count}"
+        )
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = urllib.request.urlopen(req, timeout=6)
+            data = json.loads(resp.read().decode("utf-8"))
+            klines = (data.get("data") or {}).get("klines") or []
+            result = []
+            for line in klines:
+                # fields2 顺序: f51日期 f52开 f53收 f54高 f55低 f56量 f57额
+                parts = str(line).split(",")
+                if len(parts) < 6:
+                    continue
+                result.append([parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]])
+            return result
+        except Exception as e:
+            logger.debug(f"[L3] 东方财富日K线降级获取失败 ({code}): {e}")
+        return []
+
     @classmethod
-    def fetch_remote_kline_strictly(cls, code: str, count: int = 120) -> List[List]:
+    def kline_fetcher(cls, provider: str):
+        """external_sources.order 中的 provider key → 真实取数实现（无对应实现返回 None）。"""
+        return {
+            "tencent": cls.tencent_kline,
+            "sina": cls.sina_kline,
+            "eastmoney": cls.eastmoney_kline,
+        }.get(provider)
+
+    @classmethod
+    def fetch_remote_kline_strictly(
+        cls, code: str, count: int = 120, providers: Optional[List[str]] = None
+    ) -> List[List]:
         """严格从远程外部数据源获取真实日K线数据，专供数据同步底座使用。
 
+        取数顺序由设置 `external_sources.order` / `enabled` 驱动（`providers` 可显式覆盖），
+        控制台配置的行情源优先级在此真正生效；设置不可用时回落默认链 腾讯→新浪→东财。
+
         遵循零虚假数据原则：
-        1. 腾讯直连接口（多域名备选）
-        2. 新浪日K线接口降级
-        3. Ashare/本地脚本历史数据
+        1. 按配置顺序遍历已启用的外部行情源
+        2. Ashare 多源聚合器作为不参与排序的末端兜底
         【铁律】：严禁从本地 SQLite 数据库回读（防止同步自旋死循环），严禁合成任何伪造假数据！
         若外部数据源均不可用，记录告警并直接返回空列表 []。
         """
         clean_code = str(code).strip()
         norm = cls.normalize_symbol(clean_code)
 
-        # Step 1: 腾讯接口
-        res = cls.tencent_kline(clean_code, count=count)
-        if res and len(res) >= 1:
-            return res
+        chain, chain_source = sync_settings.resolve_provider_order(providers)
 
-        # Step 2: 新浪接口降级
-        res_sina = cls.sina_kline(clean_code, count=count)
-        if res_sina and len(res_sina) >= 1:
-            return res_sina
+        # Step 1..N: 按配置的行情源优先级依次尝试，前级无数据即平滑下切
+        for provider in chain:
+            fetcher = cls.kline_fetcher(provider)
+            if fetcher is None:
+                continue
+            try:
+                res = fetcher(clean_code, count=count)
+            except Exception as e:
+                logger.debug(f"[RemoteStrict] {provider} 取数异常 ({clean_code}): {e}")
+                continue
+            if res and len(res) >= 1:
+                return res
 
-        # Step 3: Ashare 降级
+        # 末端兜底: Ashare 多源聚合器（非单一 provider，不纳入优先级排序配置）
         try:
             from .Ashare import get_price
             df = get_price(norm, count=count, frequency='1d')
@@ -369,17 +428,19 @@ class DataBridge:
         except Exception as e:
             logger.debug(f"[RemoteStrict] Ashare 降级读取失败: {e}")
 
-        logger.warning(f"[RemoteStrict] 标的 {clean_code} 外部数据源均无法访问或无数据，返回空切片（严禁伪造数据）")
+        logger.warning(
+            f"[RemoteStrict] 标的 {clean_code} 外部数据源均无法访问或无数据"
+            f"（已按 {chain_source} 顺序尝试 {','.join(chain)} + Ashare），返回空切片（严禁伪造数据）"
+        )
         return []
 
     @classmethod
-    def get_kline_robust(cls, code: str, count: int = 120, quote: Optional[Dict] = None) -> List[List]:
+    def get_kline_robust(cls, code: str, count: int = 120) -> List[List]:
         """多级降级坚固日K线获取管道：
         0. 进程内 10 分钟 TTL 内存缓存
-        1. 腾讯直连接口（多域名备选）
-        2. 新浪日K线接口降级
-        3. Ashare/本地脚本历史数据
-        3.5 本地 SQLite 同步库真实历史数据降级
+        1. 按设置 `external_sources.order` / `enabled` 遍历外部行情源（腾讯/新浪/东财）
+        2. Ashare 多源聚合器（不参与优先级排序配置）
+        3. 本地 SQLite 同步库真实历史数据降级
         【零虚假数据原则】：严禁伪造任何数学正弦波或合成走势！全不可用时返回空列表 []
         """
         clean_code = str(code).strip()
@@ -391,19 +452,22 @@ class DataBridge:
         if cached and (now_ts - cached.get("ts", 0) < 600) and len(cached.get("data", [])) >= min(count, 30):
             return cached["data"][-count:]
 
-        # Step 1: 腾讯接口
-        res = cls.tencent_kline(clean_code, count=count)
-        if res and len(res) >= 15:
-            cls._KLINE_CACHE[norm] = {"ts": now_ts, "data": res}
-            return res
+        # Step 1: 按控制台配置的行情源优先级依次尝试（分析链路要求 >= 15 根方可用）
+        chain, _chain_source = sync_settings.resolve_provider_order()
+        for provider in chain:
+            fetcher = cls.kline_fetcher(provider)
+            if fetcher is None:
+                continue
+            try:
+                res = fetcher(clean_code, count=count)
+            except Exception as e:
+                logger.debug(f"[KlineRobust] {provider} 取数异常 ({clean_code}): {e}")
+                continue
+            if res and len(res) >= 15:
+                cls._KLINE_CACHE[norm] = {"ts": now_ts, "data": res}
+                return res
 
-        # Step 2: 新浪接口降级
-        res_sina = cls.sina_kline(clean_code, count=count)
-        if res_sina and len(res_sina) >= 15:
-            cls._KLINE_CACHE[norm] = {"ts": now_ts, "data": res_sina}
-            return res_sina
-
-        # Step 3: Ashare / fetch_history.py 降级
+        # Step 2: Ashare / fetch_history.py 降级
         try:
             from .Ashare import get_price
             df = get_price(norm, count=count, frequency='1d')
@@ -425,7 +489,7 @@ class DataBridge:
         except Exception as e:
             logger.debug(f"[L3] Ashare 降级读取失败: {e}")
 
-        # Step 3.5: 从本地同步数据库读取 (保障断网/降级下使用真实历史K线)
+        # Step 3: 从本地同步数据库读取 (保障断网/降级下使用真实历史K线)
         try:
             from core.data.sync_engine import MarketDataStore
             store = MarketDataStore()
