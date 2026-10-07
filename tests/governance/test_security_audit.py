@@ -196,18 +196,13 @@ def test_auth_middleware_flow(app):
         server_settings.api_token = original_token
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "生产缺陷（非用例问题）：`A_STOCK_SERVER_TOKEN` 静态 API Token 已完全失效——中间件"
-        "app.py:257-267 在'携带了 Bearer 但不是有效会话 token'时直接 return 401，"
-        "永远走不到第 269 行的静态 token 分支；而不带 Authorization 的请求又因 "
-        "`if auth_header and ...` 恒为假而同样 401。即机器集成（无浏览器会话）已无任何合法入口，"
-        "该分支为不可达死代码。恢复静态 token 兜底后本用例转 PASS，strict 会以 XPASS 提醒移除标记。"
-    ),
-)
 def test_static_api_token_still_authenticates_machine_integrations(app):
-    """静态 API Token 必须仍可用于无浏览器会话的机器集成。"""
+    """静态 API Token 必须仍可用于无浏览器会话的机器集成。
+
+    回归自生产缺陷档案：中间件曾在"携带 Bearer 但非有效会话 token"时直接 401，
+    使静态 token 分支成为不可达死代码——cron/CLI 等无会话客户端持长期 token 也一律 401。
+    修复只允许"逐字节命中配置值"这一条路径，错误 token 仍须 401（防把兜底做成旁路）。
+    """
     from server.config import server_settings
 
     anon = TestClient(app)
@@ -216,6 +211,14 @@ def test_static_api_token_still_authenticates_machine_integrations(app):
         server_settings.api_token = "test-secret-token-9988"
         res = anon.get("/api", headers={"Authorization": "Bearer test-secret-token-9988"})
         assert res.status_code == 200
+
+        res_wrong = anon.get("/api", headers={"Authorization": "Bearer wrong-token"})
+        assert res_wrong.status_code == 401
+        assert res_wrong.json()["detail"]["error"] == "invalid_token"
+
+        res_missing = anon.get("/api")
+        assert res_missing.status_code == 401
+        assert res_missing.json()["detail"]["error"] == "unauthorized"
     finally:
         server_settings.api_token = original_token
 

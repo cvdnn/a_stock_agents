@@ -115,8 +115,7 @@ _TAGS_BY_PATH = {
 # 某些文件绝大多数用例离线可跑，只有个别分支真的走外网，若不点名就无法被
 # `-m "not network"` 精准摘除，只能整文件一起丢，反而扩大了盲区。
 _OVERRIDE_TAGS = {
-    # 指数与 K 线端点直连腾讯实时行情
-    "tests/server/test_market_data_api.py::test_market_indices_returns_live_or_fallback_data": {"network"},
+    # K 线端点直连腾讯实时行情
     "tests/server/test_market_data_api.py::test_market_kline_is_implemented_and_never_synthesizes": {"network"},
     # /api/watchlist 内部调用 DataBridge.tencent_quote 批量取现价
     "tests/server/test_server_suite.py::TestFastAPIRoutes::test_watchlist_no_duplicate_stocks": {"network"},

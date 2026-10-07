@@ -28,69 +28,6 @@ INDEX_DEFINITIONS = [
     {"code": "000688", "symbol": "sh000688", "name": "科创50", "market_type": "科创"},
 ]
 
-BASELINE_INDICES = [
-    {
-        "name": "上证指数",
-        "code": "000001",
-        "market_type": "主板",
-        "price": 3888.11,
-        "change": -46.29,
-        "change_pct": -1.18,
-        "open": 3910.92,
-        "high": 3912.32,
-        "low": 3852.03,
-        "pre_close": 3934.40,
-        "turnover_amount": "9582亿",
-        "volume": "5.79亿手",
-        "sparkline": [3941.39, 3942.09, 3930.12, 3932.7, 3940.55, 3951.51, 3934.4, 3888.11],
-    },
-    {
-        "name": "深证成指",
-        "code": "399001",
-        "market_type": "深市",
-        "price": 13471.26,
-        "change": -146.41,
-        "change_pct": -1.08,
-        "open": 13483.63,
-        "high": 13522.30,
-        "low": 13263.35,
-        "pre_close": 13617.67,
-        "turnover_amount": "10137亿",
-        "volume": "6.36亿手",
-        "sparkline": [13611.55, 13625.12, 13516.97, 13774.91, 13703.21, 13723.32, 13617.67, 13471.26],
-    },
-    {
-        "name": "创业板指",
-        "code": "399006",
-        "market_type": "成长",
-        "price": 3322.04,
-        "change": -16.38,
-        "change_pct": -0.49,
-        "open": 3310.01,
-        "high": 3335.81,
-        "low": 3261.10,
-        "pre_close": 3338.42,
-        "turnover_amount": "4577亿",
-        "volume": "1.65亿手",
-        "sparkline": [3312.24, 3312.54, 3286.55, 3398.68, 3359.72, 3354.97, 3338.42, 3322.04],
-    },
-    {
-        "name": "科创50",
-        "code": "000688",
-        "market_type": "科创",
-        "price": 1553.39,
-        "change": -15.83,
-        "change_pct": -1.01,
-        "open": 1548.70,
-        "high": 1556.68,
-        "low": 1516.20,
-        "pre_close": 1569.22,
-        "turnover_amount": "779亿",
-        "volume": "0.10亿手",
-        "sparkline": [1617.6, 1611.17, 1577.36, 1615.53, 1591.0, 1580.06, 1569.22, 1553.39],
-    },
-]
-
 _indices_cache: Dict[str, Any] = {
     "last_updated": 0.0,
     "data": None,
@@ -140,7 +77,13 @@ def _unavailable(capability: str) -> JSONResponse:
 
 @router.get("/market/indices")
 async def get_market_indices() -> Dict[str, Any]:
-    """获取 A股四大核心大盘指数（上证、深证、创业板、科创50）实时行情与走势"""
+    """A股四大核心指数实时行情与走势（只交付真实抓取或真实缓存）。
+
+    历史缺陷：源不可达时整块回落 `BASELINE_INDICES` 冻结快照（上证 3888.11 / 深证 13471.26 …）
+    并标 `status="success"`，把某一天的收盘画面当成"今日实时行情"喂给前端；无日K时还用
+    昨收/开/低/中点/高 拼一条假的 sparkline。快照与拼线均已删除：无源即 `unavailable` + 空数组，
+    有缓存即 `stale` 并给出陈旧时长，前端据此走 `markMarketIndicesUnavailable()` 诚实空态。
+    """
     import time
     now = time.time()
     if _indices_cache["data"] and (now - _indices_cache["last_updated"] < 5.0):
@@ -177,11 +120,9 @@ async def get_market_indices() -> Dict[str, Any]:
             else:
                 volume = "--"
 
+            # 走势只来自真实日K收盘序列；取不到就留空，严禁用 昨收/开/低/中点/高 拼一条"看起来像"的曲线
             spark = list(cached_sparks.get(code) or [])
-            if spark:
-                sparkline = spark[:-1] + [price] if len(spark) >= 2 else spark + [price]
-            else:
-                sparkline = [prev_close, open_p, low_p, round((open_p + high_p) / 2, 2), high_p, price]
+            sparkline = (spark[:-1] + [price]) if len(spark) >= 2 else []
 
             indices.append({
                 "name": defn["name"],
@@ -199,12 +140,13 @@ async def get_market_indices() -> Dict[str, Any]:
                 "sparkline": sparkline,
             })
 
-        if len(indices) >= 4:
+        if indices:
             payload = {
-                "status": "success",
-                "source": "data_bridge.tencent_index",
+                "status": "success" if len(indices) == len(INDEX_DEFINITIONS) else "partial",
+                "source": "data_bridge.tencent_quote",
                 "as_of": _as_of(),
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "count": len(indices),
                 "indices": indices,
             }
             _indices_cache["data"] = payload
@@ -214,15 +156,25 @@ async def get_market_indices() -> Dict[str, Any]:
     except Exception:
         pass
 
-    if _indices_cache["data"]:
-        return _indices_cache["data"]
+    cached = _indices_cache["data"]
+    if cached:
+        # 缓存来自上一次真实抓取，可以复用，但必须显式标注为陈旧而不是"实时"
+        return {
+            **cached,
+            "status": "stale",
+            "stale": True,
+            "cached_as_of": cached["as_of"],
+            "cache_age_seconds": round(now - _indices_cache["last_updated"], 1),
+        }
 
     return {
-        "status": "success",
-        "source": "baseline_fallback",
+        "status": "unavailable",
+        "source": "empty",
         "as_of": _as_of(),
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "indices": BASELINE_INDICES,
+        "count": 0,
+        "indices": [],
+        "message": "指数实时源不可达且无可用缓存；按零虚假数据铁律不回落任何静态快照，前端显示 '--'。",
     }
 
 
@@ -319,67 +271,59 @@ async def get_market_ranks():
     return _unavailable("market.ranks")
 
 
+def _money(value: Optional[float]) -> Optional[str]:
+    """金额格式化；无数据源即 None，由前端显示 '--'，绝不格式化一个编造出来的数。"""
+    return None if value is None else f"¥{value:,.2f}"
+
+
 @router.get("/portfolio/overview")
 async def get_portfolio_overview() -> Dict[str, Any]:
-    """获取投资组合资产总览、持仓分布与风控状态"""
+    """持仓总览：只交付 positions.csv 与实时行情能够证实的口径。
+
+    历史缺陷：① 汇总读的是 `h["price"]` / `h["shares"]`，而 position_manager 的真实字段是
+    `cur_price` / `qty` / `market_value`，键名不匹配使持仓市值恒为 ¥0.00、仓位占比恒为 0%；
+    ② 现金写死 100000、今日盈亏写死 `+¥1,850.00 / 1.45%`、总收益 18.5%、年化 22.3%，
+    空仓分支照样报"总资产 ¥100,000.00、可用现金 100%"。
+    账户级现金与逐日净值序列在本端点没有任何已接入数据源，现一律留 None；
+    只保留能由真实持仓成本与现价推出的市值、成本与浮动盈亏。
+    """
     holdings = get_open_positions(enrich_quote=True)
-    if not holdings:
-        # 空持仓状态：严格按照空数据规范返回
-        return {
-            "status": "empty",
-            "source": "core.strategy.position_manager.get_open_positions",
-            "as_of": _as_of(),
-            "count": 0,
-            "total_assets": "¥100,000.00",
-            "position_market_value": "¥0.00",
-            "position_ratio": 0.0,
-            "available_cash": "¥100,000.00",
-            "cash_ratio": 100.0,
-            "today_pnl": "¥0.00",
-            "today_pnl_pct": 0.0,
-            "total_return_pct": 0.0,
-            "annualized_return_pct": 0.0,
-            "risk_status": "空仓观望",
-            "cushion_desc": "当前无持仓暴露，资金安全边际充足",
-            "holdings": [],
-            "donut_data": [
-                {"name": "可用现金", "value": 100.0, "color": "#165DFF"}
-            ],
-        }
 
-    # 有持仓时汇总计算
-    total_val = 0.0
-    for h in holdings:
-        price = float(h.get("price") or h.get("cost_price") or 0.0)
-        shares = int(h.get("shares") or 0)
-        total_val += price * shares
-
-    cash = 100000.0
-    total_assets = total_val + cash
-    pos_ratio = round((total_val / total_assets) * 100, 1) if total_assets > 0 else 0.0
-    cash_ratio = round(100.0 - pos_ratio, 1)
+    market_value = round(sum(float(h.get("market_value") or 0.0) for h in holdings), 2)
+    cost = round(sum(
+        float(h.get("cost") or (float(h.get("buy_price") or 0.0) * int(h.get("qty") or 0)))
+        for h in holdings
+    ), 2)
+    floating_pnl = round(market_value - cost, 2)
 
     return {
-        "status": "success",
+        "status": "empty" if not holdings else "success",
         "source": "core.strategy.position_manager.get_open_positions",
         "as_of": _as_of(),
         "count": len(holdings),
-        "total_assets": f"¥{total_assets:,.2f}",
-        "position_market_value": f"¥{total_val:,.2f}",
-        "position_ratio": pos_ratio,
-        "available_cash": f"¥{cash:,.2f}",
-        "cash_ratio": cash_ratio,
-        "today_pnl": "+¥1,850.00",
-        "today_pnl_pct": 1.45,
-        "total_return_pct": 18.5,
-        "annualized_return_pct": 22.3,
-        "risk_status": "正常持仓",
-        "cushion_desc": "整体止损垫与安全边际充足",
         "holdings": holdings,
-        "donut_data": [
-            {"name": "持仓市值", "value": pos_ratio, "color": "#165DFF"},
-            {"name": "可用现金", "value": cash_ratio, "color": "#14C9C9"},
-        ],
+        # 持仓侧：成本与市值来自 positions.csv 真实字段 + 实时现价
+        "position_cost": _money(cost),
+        "position_market_value": _money(market_value),
+        "floating_pnl": floating_pnl,
+        "floating_pnl_pct": round(floating_pnl / cost * 100, 2) if cost > 0 else None,
+        # 账户侧：现金台账与净值序列未接入本端点（模拟盘账户是另一套 SQLite 账本），
+        # 因此总资产、可用资金、仓位占比、当日与累计/年化收益一律不可知
+        "account_state": "not_wired",
+        "total_assets": None,
+        "available_cash": None,
+        "position_ratio": None,
+        "cash_ratio": None,
+        "today_pnl": None,
+        "today_pnl_pct": None,
+        "total_return_pct": None,
+        "annualized_return_pct": None,
+        "donut_data": [],
+        "risk_status": "空仓观望" if not holdings else None,
+        "cushion_desc": (
+            "positions.csv 中当前无持仓记录" if not holdings
+            else "风控判定需止损位与账户暴露口径，尚未接入"
+        ),
     }
 
 
@@ -416,109 +360,142 @@ def _configured_pool_entries(config: Dict[str, Any]) -> List[Dict[str, str]]:
     return entries
 
 
+#: 自选列表唯一声明式来源；股池为空时如实上报该来源为空，不得伪造标的
+WATCHLIST_POOL_SOURCE = "config/stock_pools.yaml"
+
+
+def _quote_number(quote: Dict[str, Any], key: str, *, positive_only: bool = False) -> Optional[float]:
+    """取行情字段为定点数；缺失/非法/（可选）非正一律 None，交由前端显示 '--'。"""
+    raw = quote.get(key)
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if positive_only and value <= 0:
+        return None
+    return round(value, 2)
+
+
+def _active_stock_detail(
+    active_code: str,
+    stocks: List[Dict[str, Any]],
+    quote_lookup,
+) -> Optional[Dict[str, Any]]:
+    """当前选中个股画像：只装配行情真实返回的字段，无来源者一律留 None。
+
+    取不到现价时返回 None，让前端 Hero 卡按"数据源不可用"渲染；
+    绝不用演示价与演示系数合成 OHLC 冒充真实盘口。
+    """
+    target_code = str(active_code or "").strip() or (stocks[0]["code"] if stocks else "")
+    if not target_code:
+        return None
+    tq = quote_lookup(target_code)
+    price = _quote_number(tq, "price", positive_only=True)
+    if price is None:
+        return None
+
+    name = str(tq.get("name") or next(
+        (s["name"] for s in stocks if s["code"] == target_code), target_code
+    ))
+    volume_hands = _quote_number(tq, "volume_hands", positive_only=True)
+    amount_wan = _quote_number(tq, "amount_wan", positive_only=True)
+    circ_cap = _quote_number(tq, "circulating_market_cap", positive_only=True)
+    total_cap = _quote_number(tq, "total_market_cap", positive_only=True)
+    pe = _quote_number(tq, "pe")
+
+    return {
+        "code": target_code,
+        "name": name,
+        "badge": name[:2] if len(name) >= 2 else target_code[:2],
+        "badgeBg": "#003B99" if "宁德" in name else "#1677FF",
+        "price": price,
+        "change": _quote_number(tq, "change"),
+        "change_pct": _quote_number(tq, "change_pct"),
+        "open": _quote_number(tq, "open", positive_only=True),
+        "high": _quote_number(tq, "high", positive_only=True),
+        "low": _quote_number(tq, "low", positive_only=True),
+        "pre_close": _quote_number(tq, "prev_close", positive_only=True),
+        "volume": f"{volume_hands / 10000:.2f}万手" if volume_hands else None,
+        "amount": f"{amount_wan / 10000:.2f}亿元" if amount_wan else None,
+        "quote_time": tq.get("time"),
+        "circ_market_val": f"{circ_cap:,.2f}亿" if circ_cap else None,
+        "total_market_val": f"{total_cap:,.2f}亿" if total_cap else None,
+        "pe_ttm": pe,
+        # 以下口径当前没有任何已接入的真实数据源（行业/概念/PB/52周/均线/资金流/
+        # 北向/主力持仓），必须留 None 由前端显示 '--'，严禁写死演示值。
+        "industry": None,
+        "concepts": None,
+        "pb": None,
+        "high_52w": None,
+        "low_52w": None,
+        "ma": None,
+        "capital_flow": None,
+        "northbound": None,
+        "main_control": None,
+    }
+
+
 @router.get("/watchlist")
 async def get_watchlist(active_code: str = Query(default="")) -> Dict[str, Any]:
-    """获取自选股池列表及当前选中股票的深度画像"""
+    """自选股池列表及当前选中股票画像（零虚假数据：只交付可证实字段）。
+
+    历史缺陷：池为空时回填 8 只硬编码"核心自选候选"，并对取到的行情缺失项兜底成
+    328.56 / 2.77 / '+1.28亿'，active_detail 更写死 volume/amount/industry/pe/pb/ma
+    与资金流、北向、主力持仓全套画像，把"没有数据"伪装成"数据很好"。
+    """
     pool_entries = _configured_pool_entries(load_stock_pools())
     if not pool_entries:
-        # 默认高流动性核心自选候选
-        pool_entries = [
-            {"code": "300750", "name": "宁德时代", "pool_type": "watchlist"},
-            {"code": "600519", "name": "贵州茅台", "pool_type": "watchlist"},
-            {"code": "002594", "name": "比亚迪", "pool_type": "watchlist"},
-            {"code": "688981", "name": "中芯国际", "pool_type": "watchlist"},
-            {"code": "002475", "name": "立讯精密", "pool_type": "watchlist"},
-            {"code": "600036", "name": "招商银行", "pool_type": "watchlist"},
-            {"code": "601318", "name": "中国平安", "pool_type": "watchlist"},
-            {"code": "000001", "name": "平安银行", "pool_type": "watchlist"},
-        ]
+        return {
+            "status": "empty",
+            "source": WATCHLIST_POOL_SOURCE,
+            "as_of": _as_of(),
+            "count": 0,
+            "stocks": [],
+            "active_stock_detail": None,
+        }
 
-    # 尝试批量通过 DataBridge 获取实时行情
+    # 批量拉取实时行情；失败即视为无行情，对应字段留 None（不降级为假值）
     symbols = [DataBridge.normalize_symbol(s["code"], with_prefix=True) for s in pool_entries]
-    quotes = {}
     try:
-        quotes = DataBridge.tencent_quote(symbols)
+        quotes = DataBridge.tencent_quote(symbols) or {}
     except Exception:
-        pass
+        quotes = {}
 
-    stocks = []
+    def quote_lookup(code: str) -> Dict[str, Any]:
+        sym = DataBridge.normalize_symbol(code, with_prefix=True)
+        return quotes.get(sym) or quotes.get(code) or {}
+
+    stocks: List[Dict[str, Any]] = []
     seen_codes = set()
     for s in pool_entries:
         c = s["code"]
         if not c or c in seen_codes:
             continue
         seen_codes.add(c)
-        sym = DataBridge.normalize_symbol(c, with_prefix=True)
-        q = quotes.get(sym) or quotes.get(c) or {}
-        price = float(q.get("price") or 0.0)
-        change_pct = float(q.get("change_pct") or 0.0)
-        name = q.get("name") or s.get("name") or c
+        q = quote_lookup(c)
+        price = _quote_number(q, "price", positive_only=True)
+        name = str(q.get("name") or s.get("name") or c)
         stocks.append({
             "code": c,
             "name": name,
             "pool": s.get("pool_type", "watchlist"),
-            "price": price if price > 0 else 328.56,
-            "change_pct": change_pct if price > 0 else 2.77,
+            "price": price,
+            "change_pct": _quote_number(q, "change_pct") if price is not None else None,
             "badge": name[:2] if len(name) >= 2 else c[:2],
             "badgeBg": "#003B99" if "宁德" in name else "#1677FF",
-            "net_inflow": "+1.28亿",
+            "net_inflow": None,
         })
-
-    # 当前激活个股深度画像
-    target_code = active_code if active_code else (stocks[0]["code"] if stocks else "300750")
-    target_sym = DataBridge.normalize_symbol(target_code, with_prefix=True)
-    tq = quotes.get(target_sym) or quotes.get(target_code) or {}
-    t_price = float(tq.get("price") or 328.56)
-    t_change = float(tq.get("change") or 8.39)
-    t_chg_pct = float(tq.get("change_pct") or 2.77)
-    t_open = float(tq.get("open") or t_price * 0.99)
-    t_high = float(tq.get("high") or t_price * 1.02)
-    t_low = float(tq.get("low") or t_price * 0.98)
-    t_prev = float(tq.get("prev_close") or (t_price - t_change))
-    t_name = tq.get("name") or next((s["name"] for s in stocks if s["code"] == target_code), "宁德时代")
-
-    active_detail = {
-        "code": target_code,
-        "name": t_name,
-        "badge": t_name[:2] if len(t_name) >= 2 else "股票",
-        "badgeBg": "#003B99",
-        "price": round(t_price, 2),
-        "change": round(t_change, 2),
-        "change_pct": round(t_chg_pct, 2),
-        "open": round(t_open, 2),
-        "high": round(t_high, 2),
-        "low": round(t_low, 2),
-        "pre_close": round(t_prev, 2),
-        "volume": "42.36万手",
-        "amount": "138.66亿元",
-        "industry": "动力电池及新能源",
-        "concepts": "新能源车、锂电池、储能、固态电池",
-        "circ_market_val": "7,654.32亿",
-        "total_market_val": "9,832.17亿",
-        "pe_ttm": 18.76,
-        "pb": 4.32,
-        "high_52w": 332.80,
-        "low_52w": 169.80,
-        "ma": {"ma5": 320.45, "ma10": 315.32, "ma20": 308.76, "ma60": 291.23},
-        "capital_flow": {
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "main_net": "+5.82亿",
-            "super_large": "+3.45亿",
-            "large": "+2.37亿",
-            "medium": "-1.12亿",
-            "small": "-4.70亿",
-        },
-        "northbound": {"sh_flow": "+3.25亿", "sz_flow": "+4.86亿"},
-        "main_control": {"holding": "72.5%", "ratio": "机构重仓"},
-    }
 
     return {
         "status": "success",
-        "source": "watchlist_engine",
+        "source": WATCHLIST_POOL_SOURCE,
+        "quote_source": "data_bridge.tencent_quote" if quotes else "empty",
         "as_of": _as_of(),
         "count": len(stocks),
         "stocks": stocks,
-        "active_stock_detail": active_detail,
+        "active_stock_detail": _active_stock_detail(active_code, stocks, quote_lookup),
     }
 
 

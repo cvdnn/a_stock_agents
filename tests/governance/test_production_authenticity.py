@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -225,3 +226,83 @@ def test_selection_workbench_is_fail_closed_not_fabricated() -> None:
             continue
         assert "非生产设计原型" in html_path.read_text(encoding="utf-8"), \
             f"备份/原型页面未声明非生产身份: {html_path.relative_to(ROOT)}"
+
+
+#: 这些响应键代表"市场事实"或"账户事实"，只能来自计算结果、真实数据源或 None；
+#: 在投影层里把它们写成源码字面量，就等于把"没有数据"伪装成"数据很好"。
+MARKET_VALUE_KEYS = frozenset({
+    "price", "change", "change_pct", "open", "high", "low", "pre_close", "prev_close",
+    "turnover_amount", "volume", "volume_hands", "amount", "amount_wan",
+    "vol_ratio", "turnover_pct", "amplitude", "o_ratio", "pe", "pe_ttm", "pb",
+    "circ_market_val", "total_market_val", "high_52w", "low_52w", "sparkline",
+    "net_inflow", "main_net", "super_large", "large", "medium", "small",
+    "sh_flow", "sz_flow", "ma", "capital_flow", "northbound", "main_control",
+    "total_assets", "available_cash", "position_ratio", "cash_ratio",
+    "position_market_value", "position_cost", "today_pnl", "today_pnl_pct",
+    "total_return_pct", "annualized_return_pct", "sharpe_ratio", "win_rate",
+    "indices",
+})
+
+_MONEYISH = re.compile(r"^\s*(?:[-+]\s*[¥$]?|[¥$]\s*[-+]?)?\s*\d[\d,]*(?:\.\d+)?\s*(?:亿|万|%)?")
+
+
+def _literal_market_values(node: ast.expr) -> list[object]:
+    """展开字面量取值：允许直接是数字/字符串，也允许是列表·元组·集合·字典字面量
+    （`"sparkline": [3941.39, 3888.11]` 与 `"capital_flow": {"main_net": "+5.82亿"}`
+    都属写死市场数值，必须一并抓到）。调用/下标/条件表达式等来自计算的取值返回空。"""
+    if isinstance(node, ast.Constant):
+        return [node.value]
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        found: list[object] = []
+        for element in node.elts:
+            found.extend(_literal_market_values(element))
+        return found
+    if isinstance(node, ast.Dict):
+        found = []
+        for value in node.values:
+            found.extend(_literal_market_values(value))
+        return found
+    return []
+
+
+def test_market_projection_has_no_hardcoded_market_values() -> None:
+    """`scripts/server/api/market_data.py` 不得把行情/资金/收益数值写成源码字面量。
+
+    刻意走 AST 只检查 dict 字面量的**取值**：docstring 与注释里的历史假值（3888.11、328.56、
+    '+1.28亿'、'+¥1,850.00' 等缺陷叙述）不参与判定，因此既能长期留档成因，又不会误报；
+    而一旦有人把这些值重新写回响应装配代码，本用例立刻红。
+    `None` 是合法取值（明确表示"无数据源"，由前端渲染 `--`）。
+
+    历史缺陷（均已修，本用例防复现）：
+    - `BASELINE_INDICES` 冻结指数快照冒充"今日实时行情"（3888.11 / 13471.26 / …）；
+    - 缺日K 时用 昨收/开/低/(开+高)/2/高/现价 拼 6 点假分时；
+    - `/api/portfolio/overview` 写死现金 100000、今日盈亏 +¥1,850.00 / 1.45%、收益 18.5% / 年化 22.3%；
+    - `/api/watchlist` 写死 price 328.56、net_inflow '+1.28亿' 与 volume/amount/industry/pe/pb/ma
+      及资金流、北向、主力持仓全套画像。
+    """
+    source = (ROOT / "scripts/server/api/market_data.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    offenders: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        for key, value in zip(node.keys, node.values):
+            if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                continue
+            if key.value not in MARKET_VALUE_KEYS:
+                continue
+            # 变量、下标、函数调用、条件表达式等"来自计算或数据源"的写法展开后为空，自然放行；
+            # None / 空容器也放行（明确表示"无数据源"，由前端渲染 `--`）
+            for literal in _literal_market_values(value):
+                if literal is None or isinstance(literal, bool):
+                    continue
+                if isinstance(literal, (int, float)) or (
+                    isinstance(literal, str) and _MONEYISH.match(literal)
+                ):
+                    offenders.append(f"{key.value} = {literal!r}（行 {value.lineno}）")
+
+    assert not offenders, (
+        "REST 投影层把市场/账户数值写成了源码字面量，违反《零虚假数据原则》；"
+        "这些键只允许是计算结果、真实数据源或 None：\n" + "\n".join(sorted(offenders))
+    )

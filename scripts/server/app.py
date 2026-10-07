@@ -4,6 +4,7 @@ server.app - FastAPI application factory with lifespan and CORS configuration.
 """
 from __future__ import annotations
 
+import hmac
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator, Optional
@@ -258,31 +259,22 @@ def create_app() -> FastAPI:
             record = lookup_auth_token(provided_token)
             if record:
                 return await call_next(request)
-            # token 存在但无效 → 401（不要静默 fallback 到静态 token，避免泄漏）
-            from fastapi.responses import JSONResponse
-            return JSONResponse(
-                status_code=401,
-                content={"detail": {"error": "invalid_token", "message": "会话已过期，请重新登录"}},
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # 3. 兜底：可选静态 API Token（兼容旧版机器集成）
-        static_token = getattr(server_settings, "api_token", None)
-        if static_token:
-            if auth_header and (
-                (auth_header.startswith("Bearer ") and auth_header[7:].strip() == static_token)
-                or (auth_header.startswith("bearer ") and auth_header[7:].strip() == static_token)
-                or auth_header.strip() == static_token
+            # 会话不成立时，才允许静态 API Token 兜底：无浏览器会话的机器集成
+            # (cron/CLI/外部编排) 只能持有一个长期 Token，没有任何途径获得会话。
+            # 此处不构成降级放行——必须逐字节命中配置值，且用常数时间比较防时序侧信道。
+            static_token = getattr(server_settings, "api_token", None)
+            if static_token and hmac.compare_digest(
+                provided_token.encode("utf-8"), str(static_token).encode("utf-8")
             ):
                 return await call_next(request)
             from fastapi.responses import JSONResponse
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Unauthorized: Invalid or missing Bearer token"},
+                content={"detail": {"error": "invalid_token", "message": "会话已过期或凭据无效，请重新登录"}},
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # 4. 没有任何凭证可用 → 401
+        # 3. 没有携带任何凭证 → 401（fail-closed，静态 Token 也必须显式携带）
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=401,
