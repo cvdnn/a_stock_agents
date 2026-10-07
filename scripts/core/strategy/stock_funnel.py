@@ -12,6 +12,9 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import yaml
 
 from scripts.core.workspace import OUTPUT_DIR, PROJECT_ROOT
+#: 分钟时间戳原因码的唯一权威定义在装配层（`data_layer`），规则层只引用不重定义，
+#: 否则「超出范围」会在两处各有一份字面量，任一处改动即令两端原因码静默分叉。
+from core.data.data_layer import MINUTE_TS_OUT_OF_RANGE
 from core.strategy.funnel_engine import (
     VERDICT_FAIL,
     VERDICT_PASS,
@@ -22,6 +25,15 @@ from core.strategy.funnel_engine import (
 )
 
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "funnel_strategy.yaml"
+
+#: 信号定性档位（A-04 / §7.4）：候选 ≠ 正式信号。`selected_codes` 为观察候选清单，
+#: 只有不携带 `not_eligible_for_signal` 的候选才可作为正式信号发布。
+SIGNAL_CLASS_FORMAL = "formal_signal_candidate"
+SIGNAL_CLASS_OBSERVATION = "observation_candidate"
+
+#: 代理口径数据源（§7.5 第2条）：缺真实主动买卖量/盘口契约时以分钟涨跌量透明代理，
+#: 只允许调试预演。引擎强制标记 `not_eligible_for_signal`，不得进入正式候选列表。
+PROXY_FLOW_SOURCES = frozenset({"price_direction_volume_proxy"})
 
 
 def _path_get(data: Mapping[str, Any], path: str) -> Any:
@@ -190,8 +202,24 @@ def rule_market_above_sma(record: Mapping[str, Any], spec: Mapping[str, Any], _:
 
 
 MINUTE_TS_NOT_NORMALIZED = "MINUTE_TIMESTAMP_NOT_NORMALIZED"
-MINUTE_TS_OUT_OF_RANGE = "MINUTE_TIMESTAMP_OUT_OF_RANGE"
 MINUTE_BAR_NOT_FINALIZED = "MINUTE_BAR_NOT_FINALIZED"
+
+#: 分钟窗口起止的唯一默认值来源（§11.5 / T-04）：编译期推导、取点窗口与规则求值三处必须同源。
+#: 三处各写一份字面量时，同一份配置会出现"编译期推得的可命中时点"与"运行期实际窗口"不一致。
+DEFAULT_MINUTE_WINDOW: Dict[str, str] = {
+    "window_start": "09:30",
+    "window_end": "09:40",
+    "pullback_end": "09:35",
+    "confirm_start": "09:35",
+}
+
+#: 拐点窗口判定参数默认值（T-04）：均价回溯点数与量能对比窗口，均可由 stage spec 覆盖。
+#: 默认值与参数化之前的字面量逐一对应（3 / 2 / 2），改参数不影响既有默认口径。
+DEFAULT_TURNING_POINT_PARAMS: Dict[str, int] = {
+    "price_mean_window": 3,
+    "flow_recent_window": 2,
+    "flow_baseline_window": 2,
+}
 
 # 拐点规则的 UNKNOWN 原因码（§7.7.2：原 status 退化为 reason_code，不承担布尔语义）。
 MINUTE_POINTS_UNAVAILABLE = "MINUTE_POINTS_UNAVAILABLE"
@@ -261,8 +289,10 @@ def derive_earliest_possible_hit_time(spec: Mapping[str, Any]) -> Optional[str]:
     """
     if not is_minute_window_spec(spec):
         return None
-    window_start = str(spec.get("window_start", "09:30"))
-    confirm_start = str(spec.get("confirm_start", window_start))
+    window_start = str(spec.get("window_start", DEFAULT_MINUTE_WINDOW["window_start"]))
+    # 确认段起点的默认值必须与运行期规则同源（DEFAULT_MINUTE_WINDOW），否则编译期会按
+    # "从窗口起点开始确认"推导，而运行期实际从 09:35 起算，earliest_possible_hit_time 被低估。
+    confirm_start = str(spec.get("confirm_start", DEFAULT_MINUTE_WINDOW["confirm_start"]))
     # 起点合法性先行校验：即使该项无约束，未归一化的起点也会让窗口比较静默失效。
     for base in (window_start, confirm_start):
         reason = _minute_timestamp_reason(base)
@@ -292,8 +322,8 @@ def _minute_points(
     points = _path_get(record, str(spec.get("points_field", "minute_points")))
     if not isinstance(points, list):
         raise ValueError("minute_points 必须是列表")
-    start = str(spec.get("window_start", "09:30"))
-    end = str(spec.get("window_end", "09:40"))
+    start = str(spec.get("window_start", DEFAULT_MINUTE_WINDOW["window_start"]))
+    end = str(spec.get("window_end", DEFAULT_MINUTE_WINDOW["window_end"]))
     result = []
     dropped = []
     for point in points:
@@ -358,8 +388,8 @@ def rule_intraday_turning_point(record: Mapping[str, Any], spec: Mapping[str, An
             metrics=diagnostics,
         )
 
-    pullback_end = str(spec.get("pullback_end", "09:35"))
-    confirm_start = str(spec.get("confirm_start", "09:35"))
+    pullback_end = str(spec.get("pullback_end", DEFAULT_MINUTE_WINDOW["pullback_end"]))
+    confirm_start = str(spec.get("confirm_start", DEFAULT_MINUTE_WINDOW["confirm_start"]))
     pullback = [p for p in points if p["time"] <= pullback_end]
     confirm = [p for p in points if p["time"] >= confirm_start]
     min_pullback_points = int(spec.get("min_pullback_points", 3))
@@ -388,14 +418,26 @@ def rule_intraday_turning_point(record: Mapping[str, Any], spec: Mapping[str, An
     max_pullback = float(spec.get("max_pullback_pct", 2.0))
     pullback_ok = peak_idx < len(pullback) - 1 and min_pullback <= drawdown_pct <= max_pullback
 
+    # T-04 全量参数化：以下三处窗口长度全部由 stage spec 配置，默认值与参数化前一致。
+    price_mean_window = int(spec.get("price_mean_window", DEFAULT_TURNING_POINT_PARAMS["price_mean_window"]))
+    flow_recent_window = int(spec.get("flow_recent_window", DEFAULT_TURNING_POINT_PARAMS["flow_recent_window"]))
+    flow_baseline_window = int(spec.get("flow_baseline_window", DEFAULT_TURNING_POINT_PARAMS["flow_baseline_window"]))
+    if min(price_mean_window, flow_recent_window, flow_baseline_window) < 1:
+        raise ValueError("price_mean_window / flow_recent_window / flow_baseline_window 必须为正整数")
+    # 判定窗口长度下界：价格反转至少需 2 根 Bar 比较，量能对比至少需 近端段+基线段 的合长。
+    flow_span = flow_recent_window + flow_baseline_window
+    needed_points = max(2, flow_span)
+    if len(points) < needed_points:
+        raise ValueError(f"分钟点不足以构成判定窗口: {len(points)} < {needed_points}")
+
     prices = [p["price"] for p in points]
-    price_reversal = prices[-1] > prices[-2] and prices[-1] > mean(prices[-3:])
+    price_reversal = prices[-1] > prices[-2] and prices[-1] > mean(prices[-price_mean_window:])
 
     # Prefer explicit active buy/sell volume.  If unavailable, use up/down
     # minute volume as a transparent proxy rather than fabricating order flow.
-    recent = points[-2:]
-    previous = points[-4:-2]
-    explicit_flow = all("buy_volume" in p and "sell_volume" in p for p in points[-4:])
+    recent = points[-flow_recent_window:]
+    previous = points[-flow_span:-flow_recent_window]
+    explicit_flow = all("buy_volume" in p and "sell_volume" in p for p in points[-flow_span:])
     if explicit_flow:
         sell_ratio = _ratio([float(p["sell_volume"]) for p in recent], [float(p["sell_volume"]) for p in previous])
         buy_ratio = _ratio([float(p["buy_volume"]) for p in recent], [float(p["buy_volume"]) for p in previous])
@@ -513,12 +555,121 @@ def build_stock_rule_registry() -> RuleRegistry:
     return registry
 
 
+#: 阶段 `schedule` 的形态为 `HH:MM-HH:MM`。声明了却不被任何代码读取的时间窗等于死配置，
+#: 因此加载期即读取并校验，避免"看起来生效、实际无人读"。
+def _is_hhmm(value: str) -> bool:
+    return (
+        len(value) == 5
+        and value[2] == ":"
+        and value[:2].isdigit()
+        and value[3:].isdigit()
+        and 0 <= int(value[:2]) <= 23
+        and 0 <= int(value[3:]) <= 59
+    )
+
+
+def _validate_stage_schedule(stage_id: str, schedule: Any) -> None:
+    if not isinstance(schedule, str) or schedule.count("-") != 1:
+        raise ValueError(f"stage {stage_id}: schedule 必须是 'HH:MM-HH:MM' 形态，实际 {schedule!r}")
+    start, end = schedule.split("-")
+    if not _is_hhmm(start) or not _is_hhmm(end):
+        raise ValueError(f"stage {stage_id}: schedule 起止时间不是合法 HH:MM，实际 {schedule!r}")
+    if end <= start:
+        raise ValueError(f"stage {stage_id}: schedule 结束时间不得早于或等于开始时间，实际 {schedule!r}")
+
+
+#: 规则级策略键的合法取值：读取并校验，不得作为无人读的装饰性配置留下。
+RULE_POLICY_VALUES: Dict[str, frozenset] = {
+    "output_policy": frozenset({"converge_at_window_end"}),
+    "metric_policy": frozenset({"real_only_for_signal"}),
+}
+
+
+def _validate_rule_policies(stage_id: str, rule: Mapping[str, Any]) -> None:
+    for key, allowed in RULE_POLICY_VALUES.items():
+        if key not in rule:
+            continue
+        if rule[key] not in allowed:
+            raise ValueError(
+                f"stage {stage_id} rule {rule.get('id')}: {key}={rule[key]!r} 不在允许取值 {sorted(allowed)} 内"
+            )
+
+
+#: 与 stages 同级、已冻结但引擎尚未实现对应 Stage 的参数块（参数蓝本 §9）。
+#: 引擎落地前只登记不执行，但必须被读取：缺失或未标注 `status: declared` 即失败关闭。
+DECLARED_BLOCK_KEYS = ("ranking", "risk_exit")
+DECLARED_STATUS = "declared"
+
+
+def _read_declared_blocks(config: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
+    declared: Dict[str, Dict[str, Any]] = {}
+    for key in DECLARED_BLOCK_KEYS:
+        block = config.get(key)
+        if block is None:
+            continue
+        if not isinstance(block, Mapping):
+            raise ValueError(f"declared block {key} 必须是映射结构")
+        if block.get("status") != DECLARED_STATUS:
+            raise ValueError(
+                f"declared block {key}: status 必须为 {DECLARED_STATUS!r}，实际 {block.get('status')!r}"
+            )
+        declared[key] = {
+            "status": DECLARED_STATUS,
+            "name": block.get("name"),
+            "stage": block.get("stage"),
+        }
+    return declared
+
+
 def load_funnel_config(path: Optional[Path] = None) -> Dict[str, Any]:
     config_path = Path(path or DEFAULT_CONFIG_PATH)
     data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     if not isinstance(data.get("stages"), list) or not data["stages"]:
         raise ValueError("funnel config requires a non-empty stages list")
+    # 逐阶段读取 schedule 与规则级策略键：声明即被读取，不允许静默留存无人消费的配置项。
+    for stage in data["stages"]:
+        stage_id = str(stage.get("id", ""))
+        if "schedule" in stage:
+            _validate_stage_schedule(stage_id, stage["schedule"])
+        for rule in stage.get("rules") or []:
+            _validate_rule_policies(stage_id, rule)
+    data["declared_blocks"] = _read_declared_blocks(data)
     return data
+
+
+def _record_flow_sources(record: Mapping[str, Any]) -> List[str]:
+    """汇总候选在全部阶段留痕中的 `flow_source`（规则 metrics，§7.5）。"""
+    audits: List[Mapping[str, Any]] = []
+    history = record.get("_funnel_history")
+    if isinstance(history, list):
+        audits.extend(item for item in history if isinstance(item, Mapping))
+    current = record.get("_funnel")
+    if isinstance(current, Mapping):
+        audits.append(current)
+    sources: List[str] = []
+    for audit in audits:
+        for rule in audit.get("rules") or []:
+            if not isinstance(rule, Mapping):
+                continue
+            metrics = rule.get("metrics")
+            if not isinstance(metrics, Mapping):
+                continue
+            source = metrics.get("flow_source")
+            if source is not None:
+                sources.append(str(source))
+    return sources
+
+
+def classify_signal_record(record: Mapping[str, Any]) -> Tuple[str, bool]:
+    """引擎强制的信号定性（A-04 / §7.4 / §7.5 第2条），不随配置开关绕过。
+
+    返回 `(signal_class, not_eligible_for_signal)`：候选留痕中一旦出现代理口径
+    （`flow_source` ∈ `PROXY_FLOW_SOURCES`），即为观察候选并强制携带
+    `not_eligible_for_signal=True`，在发布阶段被阻断，不得作为正式信号下发。
+    """
+    if any(source in PROXY_FLOW_SOURCES for source in _record_flow_sources(record)):
+        return SIGNAL_CLASS_OBSERVATION, True
+    return SIGNAL_CLASS_FORMAL, False
 
 
 class StockFunnelPipeline:
@@ -552,6 +703,20 @@ class StockFunnelPipeline:
     def stage_ids(self) -> List[str]:
         return list(self._stages)
 
+    @property
+    def stage_schedules(self) -> Dict[str, Any]:
+        """各阶段声明的时间窗：加载期已读取并校验形态，此处供 CLI/Web 展示。"""
+        return {
+            stage_id: stage.get("schedule")
+            for stage_id, stage in self._stages.items()
+            if stage.get("schedule")
+        }
+
+    @property
+    def declared_blocks(self) -> Dict[str, Dict[str, Any]]:
+        """声明态参数块（ranking/risk_exit）：已冻结但尚未参与执行，读取后原样登记。"""
+        return dict(self.config.get("declared_blocks") or {})
+
     def run_stage(
         self,
         stage_id: str,
@@ -562,11 +727,24 @@ class StockFunnelPipeline:
             raise ValueError(f"unknown stage {stage_id}; available: {', '.join(self.stage_ids)}")
         result = self.engine.run_stage(self._stages[stage_id], records, context)
         payload = result.to_dict()
-        payload["selected_codes"] = [
-            str(item.get("code", ""))
-            for item in payload["passed_records"]
-            if item.get("code")
-        ]
+        # 信号定性（A-04 / §7.4 / §7.5 第2条）：逐候选显式标注档位；代理档在发布阶段
+        # 即阻断——只进入观察清单，不进入正式候选 `eligible_signal_codes`。
+        selected_codes: List[str] = []
+        eligible_signal_codes: List[str] = []
+        for item in payload["passed_records"]:
+            signal_class, not_eligible = classify_signal_record(item)
+            item["signal_class"] = signal_class
+            item["not_eligible_for_signal"] = not_eligible
+            code = str(item.get("code", ""))
+            if not code:
+                continue
+            selected_codes.append(code)
+            if not not_eligible:
+                eligible_signal_codes.append(code)
+        payload["selected_codes"] = selected_codes
+        payload["eligible_signal_codes"] = eligible_signal_codes
+        # 输出整体携带降级标记（§7.4）：清单内存在任一不可下单项即置 True。
+        payload["not_eligible_for_signal"] = len(eligible_signal_codes) != len(selected_codes)
         payload["strategy"] = self.config.get("strategy", {})
         payload["generated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
         # 编译期计划输出（§5.5/§11.5）：由规则参数推导，Web 与文档不得手工填写。
@@ -613,9 +791,17 @@ def derive_open_gap(records: Iterable[Mapping[str, Any]]) -> List[Dict[str, Any]
 
 
 __all__ = [
+    "DECLARED_BLOCK_KEYS",
     "DEFAULT_CONFIG_PATH",
+    "DEFAULT_MINUTE_WINDOW",
+    "DEFAULT_TURNING_POINT_PARAMS",
+    "PROXY_FLOW_SOURCES",
+    "RULE_POLICY_VALUES",
+    "SIGNAL_CLASS_FORMAL",
+    "SIGNAL_CLASS_OBSERVATION",
     "StockFunnelPipeline",
     "build_stock_rule_registry",
+    "classify_signal_record",
     "derive_earliest_possible_hit_time",
     "derive_open_gap",
     "is_minute_window_spec",

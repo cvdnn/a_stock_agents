@@ -12,6 +12,7 @@ strategy:
     - 拐点双轨：本期无主动买卖量与盘口契约，sell_exhaustion/buy_strengthening/book_support 仅作预留，故 min_confirmations 设为0（形态版）。
     - 盘口契约落地后恢复供需版：须同时把 sell_exhaustion 放回 required，并将 min_confirmations 改为1；只改 min_confirmations 会被 book_support 单独满足，不能保证含真实主动买卖量。
     - 拐点在窗口结束（09:40）一次性收敛输出，窗口内命中只记为待定候选，不再即时锁存。
+    - 全量参数化（T-04）：拐点判定的三处窗口长度（price_mean_window / flow_recent_window / flow_baseline_window）均在规则内可调，默认 3/2/2 与参数化前口径一致，禁止再写死在代码中。
 
 stages:
   - id: post_close
@@ -119,6 +120,9 @@ stages:
         min_book_ratio: 1.20
         min_pullback_points: 3
         min_confirm_points: 2
+        price_mean_window: 3       # T-04：价格反转的均价回溯点数（默认与参数化前一致）
+        flow_recent_window: 2      # T-04：涨跌量/主动量的近端窗口长度
+        flow_baseline_window: 2    # T-04：涨跌量/主动量的基线窗口长度
         required: [pullback, price_reversal]
         confirmations: [sell_exhaustion, buy_strengthening, book_support]
         min_confirmations: 0

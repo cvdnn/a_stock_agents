@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
+import pytest
+import yaml
+
 from core.data.data_layer import (
     MINUTE_TS_OUT_OF_RANGE,
     MINUTE_TS_UNPARSABLE,
     normalize_minute_timestamp,
 )
 from core.strategy.funnel_engine import (
+    REASON_RULE_INPUT_MISSING,
     VERDICT_FAIL,
     VERDICT_PASS,
     VERDICT_UNKNOWN,
@@ -12,12 +16,18 @@ from core.strategy.funnel_engine import (
     kleene_any,
 )
 from core.strategy.stock_funnel import (
+    DEFAULT_MINUTE_WINDOW,
+    DEFAULT_TURNING_POINT_PARAMS,
     MINUTE_BAR_NOT_FINALIZED,
     MINUTE_POINTS_INSUFFICIENT,
     MINUTE_POINTS_UNAVAILABLE,
     MINUTE_SEGMENT_INSUFFICIENT,
+    PROXY_FLOW_SOURCES,
     REQUIRED_CONFIRMATION_UNAVAILABLE,
+    SIGNAL_CLASS_FORMAL,
+    SIGNAL_CLASS_OBSERVATION,
     StockFunnelPipeline,
+    classify_signal_record,
     derive_earliest_possible_hit_time,
     derive_open_gap,
     load_funnel_config,
@@ -434,3 +444,183 @@ def test_calendar_version_lands_in_run_metadata_and_not_in_plan():
     )
     assert gated["status"] == "BLOCKED"
     assert gated["run_metadata"]["calendar_version"] == "cal-aaaaaaaaaaaa"
+
+
+# ------------------------------------------------------------ P0-4 信号定性
+def _proxy_turning_record():
+    """形态版拐点：缺主动买卖量 → 引擎回落分钟涨跌量代理口径（§7.5 第2条）。"""
+    record = turning_record()
+    for point in record["minute_points"]:
+        point.pop("buy_volume")
+        point.pop("sell_volume")
+    return record
+
+
+def test_proxy_flow_candidate_is_marked_not_eligible_for_signal():
+    """P0-4 / A-04 / §7.5：代理档通过后必须显式标记，且在发布阶段被阻断。"""
+    result = StockFunnelPipeline().run_stage("turning_point", [_proxy_turning_record()])
+    assert result["output_count"] == 1
+    candidate = result["passed_records"][0]
+    assert candidate["_funnel"]["rules"][0]["metrics"]["flow_source"] == "price_direction_volume_proxy"
+    assert candidate["signal_class"] == SIGNAL_CLASS_OBSERVATION
+    assert candidate["not_eligible_for_signal"] is True
+    # 观察候选仍在清单内（不静默丢弃），但不得进入正式候选
+    assert result["selected_codes"] == ["600001"]
+    assert result["eligible_signal_codes"] == []
+    assert result["not_eligible_for_signal"] is True
+
+
+def test_active_flow_candidate_is_eligible_for_signal():
+    """真实主动买卖量档（flow_source=active_buy_sell）方可进入正式候选。"""
+    result = StockFunnelPipeline().run_stage("turning_point", [turning_record()])
+    assert result["output_count"] == 1
+    candidate = result["passed_records"][0]
+    assert candidate["_funnel"]["rules"][0]["metrics"]["flow_source"] == "active_buy_sell"
+    assert candidate["signal_class"] == SIGNAL_CLASS_FORMAL
+    assert candidate["not_eligible_for_signal"] is False
+    assert result["selected_codes"] == ["600001"]
+    assert result["eligible_signal_codes"] == ["600001"]
+    assert result["not_eligible_for_signal"] is False
+
+
+def test_non_intraday_stage_candidates_are_signal_eligible():
+    """无代理口径的阶段（收盘初筛）候选默认可发布，且输出整体不带降级标记。"""
+    result = StockFunnelPipeline().run_stage("post_close", [eligible_daily_record()])
+    assert result["passed_records"][0]["signal_class"] == SIGNAL_CLASS_FORMAL
+    assert result["passed_records"][0]["not_eligible_for_signal"] is False
+    assert result["selected_codes"] == result["eligible_signal_codes"] == ["600001"]
+    assert result["not_eligible_for_signal"] is False
+
+
+def test_classify_signal_record_is_engine_enforced_not_config_gated():
+    """定性由留痕中的 flow_source 决定，出现在历史阶段同样生效，配置无法绕过。"""
+    proxy_audit = {
+        "stage": "turning_point",
+        "verdict": VERDICT_PASS,
+        "rules": [{"rule_id": "r", "metrics": {"flow_source": "price_direction_volume_proxy"}}],
+    }
+    assert classify_signal_record({"_funnel": proxy_audit}) == (SIGNAL_CLASS_OBSERVATION, True)
+    assert classify_signal_record({"_funnel_history": [proxy_audit], "_funnel": {"rules": []}}) == (
+        SIGNAL_CLASS_OBSERVATION,
+        True,
+    )
+    # 真实档与无 flow_source 的普通阶段均为可发布候选
+    assert classify_signal_record(
+        {"_funnel": {"rules": [{"rule_id": "r", "metrics": {"flow_source": "active_buy_sell"}}]}}
+    ) == (SIGNAL_CLASS_FORMAL, False)
+    assert classify_signal_record({"_funnel": {"rules": [{"rule_id": "r", "metrics": {}}]}}) == (
+        SIGNAL_CLASS_FORMAL,
+        False,
+    )
+    assert "price_direction_volume_proxy" in PROXY_FLOW_SOURCES
+
+
+# ------------------------------------------------------------ T-04 全量参数化 / YAML 死配置消除
+def _turning_point_rule(config):
+    for stage in config["stages"]:
+        if stage["id"] == "turning_point":
+            return stage["rules"][0]
+    raise AssertionError("turning_point 阶段缺失")
+
+
+def test_turning_point_windows_are_configurable_not_hardcoded():
+    """T-04：prices[-3:] / points[-2:] / points[-4:-2] 收敛为 spec 参数，默认 3/2/2 与旧口径一致。
+
+    参数若未被读取，改窗口不会改变任何结论；因此逐项验证"改参数即改结果"。
+    """
+    assert DEFAULT_TURNING_POINT_PARAMS == {
+        "price_mean_window": 3,
+        "flow_recent_window": 2,
+        "flow_baseline_window": 2,
+    }
+
+    baseline = StockFunnelPipeline().run_stage("turning_point", [turning_record()])
+    metrics = baseline["passed_records"][0]["_funnel"]["rules"][0]["metrics"]
+    assert metrics["flow_source"] == "active_buy_sell"
+    assert metrics["sell_ratio"] == 0.5          # 近2根均量 140 / 前2根均量 280
+    assert metrics["confirmations"]["price_reversal"] is True
+
+    # price_mean_window=1 → "高于近1根均线"退化为"高于自身"，price_reversal 必须转 FAIL
+    config = load_funnel_config()
+    _turning_point_rule(config)["price_mean_window"] = 1
+    degraded = StockFunnelPipeline(config=config).run_stage("turning_point", [turning_record()])
+    assert degraded["output_count"] == 0
+    assert degraded["rejected_records"][0]["failed_rules"][0]["observed"]["price_reversal"] is False
+
+    # flow_baseline_window=1 → 基线段由 2 根缩为 1 根，sell_ratio 随之改变（140/240）
+    config = load_funnel_config()
+    _turning_point_rule(config)["flow_baseline_window"] = 1
+    windowed = StockFunnelPipeline(config=config).run_stage("turning_point", [turning_record()])
+    assert windowed["passed_records"][0]["_funnel"]["rules"][0]["metrics"]["sell_ratio"] == 0.5833
+
+
+def test_turning_point_window_params_fail_closed_on_invalid_length():
+    """非法窗口长度必须失败关闭为 UNKNOWN（规则输入缺失），不得崩溃或静默回退默认值。"""
+    config = load_funnel_config()
+    _turning_point_rule(config)["flow_recent_window"] = 0
+    result = StockFunnelPipeline(config=config).run_stage("turning_point", [turning_record()])
+    unknown = result["rejected_records"][0]["unknown_rules"][0]
+    assert unknown["verdict"] == VERDICT_UNKNOWN
+    assert unknown["reason_code"] == REASON_RULE_INPUT_MISSING
+
+
+def test_minute_window_defaults_are_single_sourced():
+    """T-04 收尾：09:30/09:40/09:35 默认值单一来源，且编译期与运行期同源。
+
+    若编译期按"确认段自窗口起点开始"推导、运行期却从 09:35 起算，
+    earliest_possible_hit_time 会被低估，违反 §14"与首次实际可命中时点一致"。
+    """
+    assert DEFAULT_MINUTE_WINDOW == {
+        "window_start": "09:30",
+        "window_end": "09:40",
+        "pullback_end": "09:35",
+        "confirm_start": "09:35",
+    }
+    # window_start+min_points=09:36；confirm_start(默认 09:35)+min_confirm_points=09:37 → 取 09:37
+    assert derive_earliest_possible_hit_time(
+        {"window_start": "09:30", "min_points": 6, "min_confirm_points": 2}
+    ) == "09:37"
+
+
+def test_stage_schedule_and_declared_blocks_are_read_not_dead_config():
+    """建议5：schedule / ranking / risk_exit 必须被真实读取，不得留下无人消费的配置项。"""
+    pipeline = StockFunnelPipeline()
+    assert pipeline.stage_schedules == {
+        "post_close": "15:35-23:59",
+        "market_gate": "09:30-09:35",
+        "opening_gap": "09:30-09:31",
+        "turning_point": "09:36-09:40",
+    }
+    assert pipeline.declared_blocks == {
+        "ranking": {"status": "declared", "name": "盘后候选排序截断", "stage": "stage1_5_rank"},
+        "risk_exit": {"status": "declared", "name": "持仓风控离场", "stage": "stage4_exit"},
+    }
+
+
+def _write_config(config, tmp_path):
+    payload = dict(config)
+    payload.pop("declared_blocks", None)
+    target = tmp_path / "funnel.yaml"
+    target.write_text(yaml.safe_dump(payload, allow_unicode=True), encoding="utf-8")
+    return target
+
+
+def test_funnel_config_fails_closed_on_malformed_schedule(tmp_path):
+    config = load_funnel_config()
+    config["stages"][0]["schedule"] = "15:35~23:59"
+    with pytest.raises(ValueError, match="schedule"):
+        load_funnel_config(_write_config(config, tmp_path))
+
+
+def test_funnel_config_fails_closed_on_unmarked_declared_block(tmp_path):
+    config = load_funnel_config()
+    del config["risk_exit"]["status"]
+    with pytest.raises(ValueError, match="risk_exit"):
+        load_funnel_config(_write_config(config, tmp_path))
+
+
+def test_funnel_config_fails_closed_on_unknown_rule_policy(tmp_path):
+    config = load_funnel_config()
+    _turning_point_rule(config)["metric_policy"] = "whatever"
+    with pytest.raises(ValueError, match="metric_policy"):
+        load_funnel_config(_write_config(config, tmp_path))

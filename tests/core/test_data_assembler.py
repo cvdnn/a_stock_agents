@@ -331,6 +331,9 @@ def test_funnel_run_assemble_emits_candidates_with_snapshot_trace(tmp_path, db, 
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "PASSED"
     assert payload["selected_codes"] == ["sh600001"]
+    # P0-4：收盘初筛无代理口径，候选同时进入正式候选清单且输出不带降级标记
+    assert payload["eligible_signal_codes"] == ["sh600001"]
+    assert payload["not_eligible_for_signal"] is False
     assert payload["run_metadata"]["data_gate"]["state"] == GATE_PASS
     snapshots = payload["run_metadata"]["data_snapshots"]
     assert snapshots[0]["access_mode"] == "finalized_local"

@@ -19,7 +19,13 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.data.data_bridge import DataBridge
-from core.data.sync_engine import DataSyncEngine, MarketDataStore, TradeCalendar
+from core.data.sync_engine import (
+    DataSyncEngine,
+    MarketDataStore,
+    TradeCalendar,
+    is_index_symbol,
+    resolve_adjust,
+)
 
 
 class TestDataSyncEngine(unittest.TestCase):
@@ -570,6 +576,144 @@ class TestDataSyncEngine(unittest.TestCase):
         # 16:00 未到 p0_time 20:00，池同步不触发，但数据集窗口已如实交付
         self.assertEqual(res["executed_pools"], [])
         self.assertEqual(res["schedule"]["p0_time"], "20:00")
+
+    # ---------------------------------------------------------------- P0-1 快照字段契约
+    @staticmethod
+    def _settled_phase():
+        return {
+            "phase": "SETTLED", "phase_label": "盘后定盘完成",
+            "is_trading_day": True, "is_market_open": False,
+            "is_settled": True, "time_str": "15:40:00", "date_str": "2026-06-01",
+        }
+
+    def test_tencent_quote_passes_through_pb_and_keeps_volume_hands(self):
+        """P0-1: 行情快照必须透传 pb 并保留 volume_hands 键（历史缺陷漏 pb、成交量键名不符）。"""
+        parsed = {
+            "code_raw": "600519", "name": "贵州茅台", "price": 1680.0, "change": 10.0,
+            "change_pct": 0.6, "prev_close": 1670.0, "open": 1670.0, "high": 1685.0, "low": 1660.0,
+            "volume_hands": 12345, "outer": 1, "inner": 2, "amount": 100.0, "amount_wan": 1.0,
+            "vol_ratio": 1.0, "turnover_pct": 0.98, "pe": 31.5, "pb": 8.7,
+            "circulating_market_cap": 1.0, "total_market_cap": 2.0, "amplitude": 1.0,
+            "order_book": {"bid_volume": 1, "ask_volume": 2}, "time": "15:00:00",
+        }
+
+        class _Resp:
+            def read(self_inner):
+                return b"v_sh600519=1"
+
+        with patch("core.data.data_bridge.parse_tencent_quote", return_value=parsed), \
+                patch("core.data.data_bridge.urllib.request.urlopen", return_value=_Resp()):
+            result = DataBridge.tencent_quote(["sh600519"])
+        item = result.get("600519")
+        self.assertIsNotNone(item)
+        self.assertEqual(item["pb"], 8.7)
+        self.assertEqual(item["volume_hands"], 12345)
+
+    def test_sync_today_snapshot_uses_volume_hands_and_persists_pb_pe(self):
+        """P0-1: 当日快照须写真实成交量(手)与 pb/pe，而非因键名不符恒落 0。"""
+        quote = {
+            "code": "600519", "price": 1680.0, "open": 1670.0, "high": 1685.0, "low": 1660.0,
+            "volume_hands": 12345, "amount": 2073600.0, "pe": 31.5, "pb": 8.7, "turnover_pct": 0.98,
+        }
+        with patch.object(TradeCalendar, "get_market_phase", return_value=self._settled_phase()), \
+                patch.object(DataBridge, "fetch_batch_snapshot", return_value=[quote]):
+            res = self.engine.sync_today_snapshot(["sh600519"])
+
+        self.assertEqual(res["status"], "success")
+        self.assertEqual(res["updated_count"], 1)
+        self.assertEqual(res["incomplete_count"], 0)
+        self.assertTrue(res["is_settled"])
+        row = self.store.get_klines("sh600519")[-1]
+        self.assertEqual(row["volume"], 12345)   # 单位: 手（§11.2）
+        self.assertEqual(row["pe"], 31.5)
+        self.assertEqual(row["pb"], 8.7)
+        self.assertEqual(row["is_settled"], 1)
+        self.assertEqual(row["adjust"], "qfq")
+
+    def test_sync_today_snapshot_keeps_missing_pe_pb_null(self):
+        """W-10: pe/pb 缺失不得置 0，须落 NULL 由规则层判 UNKNOWN。"""
+        quote = {"code": "600519", "price": 1680.0, "volume_hands": 100}
+        with patch.object(TradeCalendar, "get_market_phase", return_value=self._settled_phase()), \
+                patch.object(DataBridge, "fetch_batch_snapshot", return_value=[quote]):
+            self.engine.sync_today_snapshot(["sh600519"])
+        row = self.store.get_klines("sh600519")[-1]
+        self.assertIsNone(row["pe"])
+        self.assertIsNone(row["pb"])
+
+    def test_sync_today_snapshot_marks_incomplete_rows_unsettled(self):
+        """§11.4: 到点不等于定盘；快照缺成交量键属结构残缺，绝不标记 is_settled=1。"""
+        quote = {"code": "600519", "price": 1680.0, "open": 1670.0, "high": 1685.0, "low": 1660.0}
+        with patch.object(TradeCalendar, "get_market_phase", return_value=self._settled_phase()), \
+                patch.object(DataBridge, "fetch_batch_snapshot", return_value=[quote]):
+            res = self.engine.sync_today_snapshot(["sh600519"])
+        self.assertEqual(res["incomplete_count"], 1)
+        self.assertFalse(res["is_settled"])
+        self.assertEqual(len(self.store.get_klines("sh600519")), 1)
+        self.assertEqual(self.store.get_klines("sh600519")[-1]["is_settled"], 0)
+
+    # ---------------------------------------------------------------- P0-2 复权口径隔离
+    def test_resolve_adjust_tags_indices_as_unadjusted(self):
+        """§11.1: 个股默认 qfq，指数不复权；未知来源不冒充 qfq。"""
+        self.assertTrue(is_index_symbol("sh000001"))
+        self.assertTrue(is_index_symbol("sz399006"))
+        self.assertFalse(is_index_symbol("sh600519"))
+        self.assertEqual(resolve_adjust("sh000001", "tencent"), "none")
+        self.assertEqual(resolve_adjust("sh600519", "tencent"), "qfq")
+        self.assertEqual(resolve_adjust("sh600519", "sina"), "none")
+        self.assertIsNone(resolve_adjust("sh600519", None))
+
+    def test_daily_kline_records_adjust_and_rejects_cross_convention_overwrite(self):
+        """P0-2: 日K须记录复权口径；不同口径不得覆盖同一标的（qfq vs 不复权）。"""
+        self.store.upsert_klines(
+            "sh600519",
+            [{"date": "2026-06-01", "open": 1600, "close": 1620, "high": 1630, "low": 1590, "volume": 10000}],
+            adjust="qfq",
+        )
+        # 不复权批次整批被拒，绝不覆盖已入库的 qfq 行
+        written = self.store.upsert_klines(
+            "sh600519",
+            [{"date": "2026-06-01", "open": 1600, "close": 9999, "high": 9999, "low": 1590, "volume": 10000}],
+            adjust="none",
+        )
+        self.assertEqual(written, 0)
+        row = self.store.get_klines("sh600519")[0]
+        self.assertEqual(row["close"], 1620.0)
+        self.assertEqual(row["adjust"], "qfq")
+
+        # 同口径可正常刷新
+        self.store.upsert_klines(
+            "sh600519",
+            [{"date": "2026-06-01", "open": 1600, "close": 1625, "high": 1630, "low": 1590, "volume": 10500}],
+            adjust="qfq",
+        )
+        self.assertEqual(self.store.get_klines("sh600519")[0]["close"], 1625.0)
+
+    def test_sync_symbol_reports_adjust_conflict_on_unadjusted_fallback(self):
+        """P0-2: 取数链回落不复权源时，sync_symbol 必须报 adjust_conflict 而非静默混写。"""
+        self.store.upsert_klines(
+            "sh600519",
+            [{"date": "2026-06-01", "open": 1600, "close": 1620, "high": 1630, "low": 1590, "volume": 10000}],
+            adjust="qfq",
+        )
+        # 模拟链路回落新浪（不复权），并回传其口径
+        fallback = ([["2026-06-02", "1620", "1630", "1635", "1615", "20000"]], "sina")
+        with patch.object(DataBridge, "fetch_remote_kline_strictly", return_value=fallback):
+            res = self.engine.sync_symbol("sh600519", mode="full")
+
+        self.assertEqual(res["status"], "adjust_conflict")
+        self.assertEqual(res["synced_count"], 0)
+        # 本地仍只有 qfq 的历史行，未被不复权数据污染
+        rows = self.store.get_klines("sh600519")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["adjust"], "qfq")
+
+    def test_sync_symbol_tags_adjust_from_hit_provider(self):
+        """P0-2: 命中前复权源时，落库行须携带 qfq 口径。"""
+        mock = ([["2026-06-01", "1600", "1620", "1630", "1590", "10000"]], "tencent")
+        with patch.object(DataBridge, "fetch_remote_kline_strictly", return_value=mock):
+            res = self.engine.sync_symbol("sh600519", mode="full")
+        self.assertEqual(res["status"], "success")
+        self.assertEqual(self.store.get_klines("sh600519")[0]["adjust"], "qfq")
 
 
 if __name__ == "__main__":

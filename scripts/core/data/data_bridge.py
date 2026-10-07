@@ -20,7 +20,7 @@ import urllib.request
 from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
     from core.config import PROJECT_ROOT, CONFIG_DIR, SKILLS_DIR, GLOBAL_CONFIG, get_logger
@@ -258,6 +258,9 @@ class DataBridge:
                 "turnover_pct": round(parsed["turnover_pct"], 2) if parsed["turnover_pct"] is not None else 0,
                 # §7.7.7: 缺失→None；负值(亏损) 原样保留由规则层显式判定
                 "pe": parsed["pe"],
+                # §7.7.7: 缺失→None（W-10 缺失禁置零）；历史缺陷未透传此键，
+                # 导致下游 sync_today_snapshot 读 q["pb"] 恒取默认值 0
+                "pb": parsed["pb"],
                 "circulating_market_cap": round(parsed["circulating_market_cap"], 2) if parsed["circulating_market_cap"] is not None else 0,  # 单位: 亿元
                 "total_market_cap": round(parsed["total_market_cap"], 2) if parsed["total_market_cap"] is not None else 0,  # 单位: 亿元
                 "amplitude": round(parsed["amplitude"], 2) if parsed["amplitude"] is not None else 0,
@@ -376,8 +379,8 @@ class DataBridge:
 
     @classmethod
     def fetch_remote_kline_strictly(
-        cls, code: str, count: int = 120, providers: Optional[List[str]] = None
-    ) -> List[List]:
+        cls, code: str, count: int = 120, providers: Optional[List[str]] = None, with_meta: bool = False
+    ) -> Union[List[List], Tuple[List[List], Optional[str]]]:
         """严格从远程外部数据源获取真实日K线数据，专供数据同步底座使用。
 
         取数顺序由设置 `external_sources.order` / `enabled` 驱动（`providers` 可显式覆盖），
@@ -388,6 +391,9 @@ class DataBridge:
         2. Ashare 多源聚合器作为不参与排序的末端兜底
         【铁律】：严禁从本地 SQLite 数据库回读（防止同步自旋死循环），严禁合成任何伪造假数据！
         若外部数据源均不可用，记录告警并直接返回空列表 []。
+
+        `with_meta=True` 时返回 `(rows, provider)`，`provider` 为实际命中的行情源 key
+        （`tencent`/`sina`/`eastmoney`/`ashare`，无数据为 `None`），供落库层标注复权口径（§11.1）。
         """
         clean_code = str(code).strip()
         norm = cls.normalize_symbol(clean_code)
@@ -405,6 +411,8 @@ class DataBridge:
                 logger.debug(f"[RemoteStrict] {provider} 取数异常 ({clean_code}): {e}")
                 continue
             if res and len(res) >= 1:
+                if with_meta:
+                    return res, provider
                 return res
 
         # 末端兜底: Ashare 多源聚合器（非单一 provider，不纳入优先级排序配置）
@@ -424,6 +432,8 @@ class DataBridge:
                         str(row.get("volume", 0)),
                     ])
                 if len(res_ashare) >= 1:
+                    if with_meta:
+                        return res_ashare, "ashare"
                     return res_ashare
         except Exception as e:
             logger.debug(f"[RemoteStrict] Ashare 降级读取失败: {e}")
@@ -432,6 +442,8 @@ class DataBridge:
             f"[RemoteStrict] 标的 {clean_code} 外部数据源均无法访问或无数据"
             f"（已按 {chain_source} 顺序尝试 {','.join(chain)} + Ashare），返回空切片（严禁伪造数据）"
         )
+        if with_meta:
+            return [], None
         return []
 
     @classmethod

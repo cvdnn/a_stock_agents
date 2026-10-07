@@ -54,6 +54,8 @@ def _waiting_data(
         "input_count": 0,
         "output_count": 0,
         "selected_codes": [],
+        "eligible_signal_codes": [],
+        "not_eligible_for_signal": False,
         "passed_records": [],
         "rejected_records": [],
         "data_gate": gate,
@@ -119,6 +121,9 @@ def cmd_funnel(args) -> None:
             "registered_rule_types": pipeline.registry.names,
             # 编译期输出：earliest_possible_hit_time 由规则参数推导，Web 不得手工填写（§5.5/§11.5）
             "earliest_possible_hit_time": pipeline.earliest_possible_hit_times,
+            # 声明即可见：阶段时间窗与声明态参数块（ranking/risk_exit）均被真实读取，供配置端展示与校验
+            "stage_schedules": pipeline.stage_schedules,
+            "declared_blocks": pipeline.declared_blocks,
         }
         _emit(payload)
         return

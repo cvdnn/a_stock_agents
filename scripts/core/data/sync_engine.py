@@ -39,6 +39,44 @@ MARKET_DATA_DIR = LOCAL_DIR / "market_data"
 DB_PATH = MARKET_DATA_DIR / "astock_data.db"
 CACHE_DATA_LAYER_DIR = LOCAL_DIR / "cache" / "data_layer"
 
+# 复权口径标签（选股规范 §11.1）：个股日K默认前复权 qfq，指数不复权；
+# 同一条规则的全部输入必须同一口径，禁止混用。落库层据此隔离不同口径，禁止互相覆盖。
+ADJUST_QFQ = "qfq"
+ADJUST_NONE = "none"
+#: 各外部行情源的实际复权口径：腾讯(qfqday)/东财(fqt=1) 前复权；新浪与 Ashare 主路径(money.finance.sina)
+#: 均取不复权日线，故标注 none，避免与 qfq 序列静默混用。
+ADJUST_BY_PROVIDER = {
+    "tencent": ADJUST_QFQ,
+    "eastmoney": ADJUST_QFQ,
+    "sina": ADJUST_NONE,
+    "ashare": ADJUST_NONE,
+}
+
+
+def is_index_symbol(symbol: str) -> bool:
+    """指数代码判定：沪市 sh000xxx、深市 sz399xxx 为指数，其余按个股处理（§11.1）。"""
+    norm = DataBridge.normalize_symbol(symbol, with_prefix=True)
+    return norm.startswith("sh000") or norm.startswith("sz399")
+
+
+def resolve_adjust(symbol: str, provider: Optional[str]) -> Optional[str]:
+    """解析本次取数实际的复权口径；未知来源返回 None（未标注，绝不冒充 qfq）。"""
+    if is_index_symbol(symbol):
+        return ADJUST_NONE
+    if provider is None:
+        return None
+    return ADJUST_BY_PROVIDER.get(provider)
+
+
+def _as_float_or_none(value: Any) -> Optional[float]:
+    """缺失（None / 不可解析）一律返回 None，交由 SQLite 落 NULL（W-10：0 ≠ 缺失）。"""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
 
 class TradeCalendar:
     """A股交易日历与时钟状态机权威工具类，支持交易日判断、休市过滤与标准交易日序列生成"""
@@ -406,6 +444,7 @@ class MarketDataStore:
                     pe REAL DEFAULT 0.0,
                     pb REAL DEFAULT 0.0,
                     is_settled INTEGER DEFAULT 1,
+                    adjust TEXT,
                     PRIMARY KEY (symbol, date)
                 )
             """)
@@ -547,6 +586,9 @@ class MarketDataStore:
                         pass
 
             _ensure_column("daily_kline", "is_settled", "INTEGER DEFAULT 1")
+            # 复权口径列（§11.1）：不设默认值，历史遗留行为 NULL（未标注），
+            # 由首次带口径写入确立该标的的口径，避免把指数误标为 qfq。
+            _ensure_column("daily_kline", "adjust", "TEXT")
             _ensure_column("sync_meta", "is_settled", "INTEGER DEFAULT 1")
             _ensure_column("sync_meta", "sync_phase", "TEXT DEFAULT 'SETTLED'")
             _ensure_column("sync_meta", "snapshot_time", "TEXT")
@@ -561,38 +603,64 @@ class MarketDataStore:
         sync_phase: str = "SETTLED",
         is_settled: int = 1,
         snapshot_time: Optional[str] = None,
+        adjust: Optional[str] = None,
     ) -> int:
+        """写入日K；同一标的的复权口径不得混用（§11.1）。
+
+        复权口径隔离：本次来源口径**已确认**（qfq/none）且该标的本地已确认口径与之不一致时，
+        **整批拒绝**（返回 0），绝不静默覆盖——混用 qfq 与不复权会让新高/均线等规则输入口径不一致。
+        `adjust=None` 表示来源口径未确认（如人工导入文件），仅落 NULL 不声明确认口径。
+        """
         if not klines:
             return 0
         norm_symbol = DataBridge.normalize_symbol(symbol, with_prefix=True)
-        max_date_in_klines = max(k["date"] for k in klines)
-
-        records = []
-        for k in klines:
-            d = k["date"]
-            # 仅最新一根柱子由当前时钟阶段判定定盘状态，之前所有历史日K一律定盘
-            rec_settled = is_settled if d == max_date_in_klines else 1
-            records.append((
-                norm_symbol,
-                d,
-                float(k.get("open", 0.0)),
-                float(k.get("close", 0.0)),
-                float(k.get("high", 0.0)),
-                float(k.get("low", 0.0)),
-                float(k.get("volume", 0.0)),
-                float(k.get("amount", 0.0)),
-                float(k.get("turnover_pct", 0.0)),
-                float(k.get("pe", 0.0)),
-                float(k.get("pb", 0.0)),
-                rec_settled,
-            ))
 
         with closing(self._get_conn()) as conn:
             cursor = conn.cursor()
+
+            # 复权口径隔离校验：仅当本次口径已确认才拒绝跨口径覆盖（未标注来源不声明确认口径）
+            if adjust is not None:
+                cursor.execute(
+                    "SELECT DISTINCT adjust FROM daily_kline WHERE symbol = ? AND adjust IS NOT NULL",
+                    (norm_symbol,),
+                )
+                stored_adjusts = {row[0] for row in cursor.fetchall()}
+                if stored_adjusts and (len(stored_adjusts) > 1 or adjust not in stored_adjusts):
+                    logger.warning(
+                        "拒绝写入 %s：本地已为复权口径 [%s]，本次为 [%s]，禁止混用（选股规范 §11.1）",
+                        norm_symbol, "/".join(sorted(stored_adjusts)), adjust,
+                    )
+                    return 0
+
+            max_date_in_klines = max(k["date"] for k in klines)
+
+            records = []
+            for k in klines:
+                d = k["date"]
+                # 仅最新一根柱子由当前时钟阶段判定定盘状态，之前所有历史日K一律定盘
+                rec_settled = is_settled if d == max_date_in_klines else 1
+                records.append((
+                    norm_symbol,
+                    d,
+                    float(k.get("open", 0.0)),
+                    float(k.get("close", 0.0)),
+                    float(k.get("high", 0.0)),
+                    float(k.get("low", 0.0)),
+                    float(k.get("volume", 0.0)),
+                    float(k.get("amount", 0.0)),
+                    float(k.get("turnover_pct", 0.0)),
+                    # W-10: 缺失禁置零 —— pe/pb 为 None 时落 NULL，绝不以 0 参与比较
+                    _as_float_or_none(k.get("pe")),
+                    _as_float_or_none(k.get("pb")),
+                    rec_settled,
+                    adjust,
+                ))
+
             cursor.executemany("""
                 INSERT INTO daily_kline (
-                    symbol, date, open, close, high, low, volume, amount, turnover_pct, pe, pb, is_settled
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    symbol, date, open, close, high, low, volume, amount,
+                    turnover_pct, pe, pb, is_settled, adjust
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(symbol, date) DO UPDATE SET
                     open=excluded.open,
                     close=excluded.close,
@@ -603,7 +671,8 @@ class MarketDataStore:
                     turnover_pct=excluded.turnover_pct,
                     pe=excluded.pe,
                     pb=excluded.pb,
-                    is_settled=excluded.is_settled
+                    is_settled=excluded.is_settled,
+                    adjust=excluded.adjust
             """, records)
 
             cursor.execute("SELECT COUNT(*), MIN(date), MAX(date) FROM daily_kline WHERE symbol = ?", (norm_symbol,))
@@ -643,7 +712,7 @@ class MarketDataStore:
     ) -> List[Dict[str, Any]]:
         norm_symbol = DataBridge.normalize_symbol(symbol, with_prefix=True)
         query = """
-            SELECT date, open, close, high, low, volume, amount, turnover_pct, pe, pb, is_settled
+            SELECT date, open, close, high, low, volume, amount, turnover_pct, pe, pb, is_settled, adjust
             FROM daily_kline WHERE symbol = ?
         """
         params: List[Any] = [norm_symbol]
@@ -803,12 +872,20 @@ class DataSyncEngine:
         return sorted(list(symbols))
 
     def fetch_remote_klines(self, symbol: str, count: int = 250) -> List[Dict[str, Any]]:
-        """从外部真实数据源拉取K线（严格隔离本地库自循环，严禁合成假数据）"""
+        """从外部真实数据源拉取K线（严格隔离本地库自循环，严禁合成假数据）。
+
+        每根K线附带 `adjust`（本次实际命中的行情源复权口径，§11.1），供落库层标注与隔离。
+        """
         norm_symbol = DataBridge.normalize_symbol(symbol, with_prefix=True)
-        raw_klines = DataBridge.fetch_remote_kline_strictly(norm_symbol, count=count)
+        raw = DataBridge.fetch_remote_kline_strictly(norm_symbol, count=count, with_meta=True)
+        if isinstance(raw, tuple):
+            raw_klines, provider = raw
+        else:  # 兼容测试桩直接返回行列表的情形：口径未知
+            raw_klines, provider = raw, None
         if not raw_klines:
             return []
 
+        adjust = resolve_adjust(norm_symbol, provider)
         formatted = []
         for item in raw_klines:
             if len(item) < 6:
@@ -838,6 +915,7 @@ class DataSyncEngine:
                     "low": l,
                     "volume": v,
                     "amount": round(amt, 2),
+                    "adjust": adjust,
                 })
             except (ValueError, TypeError):
                 continue
@@ -928,13 +1006,30 @@ class DataSyncEngine:
 
         # 4. 落盘入库并注入定盘状态与时段标记
         # 历史K线永远定盘 (is_settled=1)，今日K线由当前时钟阶段动态决定
+        batch_adjust = remote_data[0].get("adjust") if remote_data else None
         inserted = self.store.upsert_klines(
             norm_symbol,
             remote_data,
             sync_phase=sync_phase,
             is_settled=1 if is_today_settled else 0,
             snapshot_time=snapshot_time,
+            adjust=batch_adjust,
         )
+        # 复权口径隔离：本地已有确认口径而本次来源口径不一致 → 整批被拒，绝不错报 success
+        if inserted == 0:
+            return {
+                "symbol": norm_symbol,
+                "status": "adjust_conflict",
+                "error": (
+                    f"本次取数复权口径 [{batch_adjust}] 与本地已入库口径不一致，"
+                    f"按 §11.1 拒绝混用写入；如确需切换口径请先清理该标的历史批次"
+                ),
+                "synced_count": 0,
+                "total_count": (meta.get("row_count", 0) if meta else 0),
+                "last_date": meta.get("last_sync_date", "") if meta else "",
+                "adjust": batch_adjust,
+                "is_settled": False,
+            }
         updated_meta = self.store.get_sync_meta(norm_symbol) or {}
 
         # 5. 组装人类可读与机器结构化输出
@@ -976,6 +1071,8 @@ class DataSyncEngine:
 
         quotes = self.bridge.fetch_batch_snapshot(symbols)
         updated_count = 0
+        incomplete_count = 0
+        adjust_conflict_count = 0
         is_settled = 1 if phase_info["is_settled"] else 0
 
         for q in quotes:
@@ -990,14 +1087,25 @@ class DataSyncEngine:
             open_p = float(q.get("open") or price)
             high_p = float(q.get("high") or price)
             low_p = float(q.get("low") or price)
-            vol = float(q.get("volume") or 0.0)
+            # P0-1: 快照成交量的权威键为 volume_hands（单位: 手，§11.2）；
+            # 历史缺陷读 q["volume"]（键不存在）导致当日K线成交量恒 0。
+            raw_vol = q.get("volume_hands")
+            vol = float(raw_vol or 0.0)
             amt = float(q.get("amount") or 0.0)
-            pe = float(q.get("pe") or 0.0)
-            pb = float(q.get("pb") or 0.0)
+            # W-10: pe/pb 缺失一律落 None（→ NULL），不得以 0 参与比较
+            pe = q.get("pe")
+            pb = q.get("pb")
             turnover = float(q.get("turnover_pct") or 0.0)
 
             # 优先从快照中提取真实交易日期，而非简单盲写
             rec_date = q.get("date") or today_str
+
+            # §11.4: 到达定盘时点不等于数据已定盘。快照未携带成交量键即结构残缺，
+            # 绝不标记 is_settled=1，否则残缺行会被"仅统计定盘行"的水位门禁消费。
+            record_complete = raw_vol is not None
+            rec_settled = is_settled if record_complete else 0
+            if not record_complete:
+                incomplete_count += 1
 
             record = [{
                 "date": rec_date,
@@ -1011,23 +1119,30 @@ class DataSyncEngine:
                 "pe": pe,
                 "pb": pb,
             }]
-            self.store.upsert_klines(
+            written = self.store.upsert_klines(
                 norm_symbol,
                 record,
                 sync_phase=phase_info["phase"],
-                is_settled=is_settled,
+                is_settled=rec_settled,
                 snapshot_time=phase_info["time_str"],
+                adjust=resolve_adjust(norm_symbol, "tencent"),
             )
-            updated_count += 1
+            if written:
+                updated_count += 1
+            else:
+                adjust_conflict_count += 1
 
         return {
             "status": "success",
             "date": today_str,
             "sync_phase": phase_info["phase"],
             "phase_label": phase_info["phase_label"],
-            "is_settled": bool(is_settled),
+            # 到点但存在残缺行时，本批次不算"已定盘"
+            "is_settled": bool(is_settled) and incomplete_count == 0,
             "snapshot_time": phase_info["time_str"],
             "updated_count": updated_count,
+            "incomplete_count": incomplete_count,
+            "adjust_conflict_count": adjust_conflict_count,
             "total_requested": len(symbols),
         }
 
