@@ -2,7 +2,7 @@
 
 > 规范编号：`SPEC-UI-003`
 > 权威定义 (SSOT)：[`market-data-sync-control-console-specification.md`](../../guidelines/ui/market-data-sync-control-console-specification.md)
-> **实施状态**：实施中（矩阵 1–10 已完成；外部源排序执行层接入、浏览器人工核验与前端 Node 回归执行待完成）
+> **实施状态**：实施中（矩阵 1–10、12 已完成；剩余：外部源排序接入取数执行层、浏览器人工核验）
 
 ## 一、规范核心定位摘要
 
@@ -26,7 +26,7 @@
 | 定时守护每轮读取有效设置并遵守 P0/P1/P3 启停、时间与优先级 | `scripts/core/data/sync_daemon.py`、`scripts/server/app.py` | ✅ 已完成 |
 | 实现 P3 单任务互斥、批次进度和 P0/P1 优先资源仲裁（SYNC_ARBITER + 创建前 409 预检；执行器共享、让路式仲裁） | `scripts/core/data/sync_daemon.py`、`scripts/server/tasks/task_manager.py` | ✅ 已完成 |
 | 将外部行情源优先级与本地 SQLite 数据层配置分离（设置模型已独立并校验；排序接入取数执行层为后续项） | `scripts/server/services/data_sync_settings.py`、`web/index.html` | 🟨 部分完成 |
-| 建立前端结构、交互、无 AI 与失败恢复测试 | `tests/frontend/` | 🟨 断言已升级，本环境无 Node 未执行 |
+| 建立前端结构、交互、无 AI 与失败恢复测试 | `tests/frontend/` | ✅ 已完成（Node v24.21.0 实测 29/29 通过） |
 | 建立设置校验、概览真实性、P3 调度与互斥测试（23 项） | `tests/server/test_data_sync_settings.py` | ✅ 已完成 |
 | 更新 UI 权威规范、实施矩阵和项目总索引 | `docs/guidelines/`、`docs/specs/`、`docs/index.md` | 🟨 进行中 |
 
@@ -56,9 +56,9 @@ timeline
 | P3 手动任务支持市场/代码范围选择，全量模式必须二次确认；市场级范围仅增量、北交所 fail-closed | `tests/frontend/`、`tests/server/` | 🟨 后端已验证（bj/审计组合拒绝），前端断言待 Node 环境执行 |
 | P3 单任务互斥且不得抢占 P0/P1 任务（SYNC_ARBITER + 创建前 409） | `tests/server/` | ✅ 已验证 |
 | 新任务统一创建为 `data_sync`，历史 `sync` 记录仍可读取 | `tests/frontend/`、`tests/server/` | ✅ 已验证 |
-| 外部行情源与本地 SQLite 数据层在设置模型中相互独立 | `tests/frontend/`、`tests/server/` | 🟨 设置模型独立性已验证；取数执行层排序接入为后续项 |
+| 外部行情源与本地 SQLite 数据层在设置模型中相互独立 | `tests/frontend/`、`tests/server/` | ✅ 已验证（`external_sources.order` / `enabled.*` 经 `core/data/sync_settings.resolve_provider_order()` 驱动 `data_bridge` 降级链，失败日志带 `chain_source`；`Ashare` 保留为不参与排序的末端兜底） |
 | 窄屏无页面级横向滚动，键盘可切换 Tab | 浏览器核验、`tests/frontend/` | 🟨 自动化已验证，浏览器受认证遮罩阻断 |
-| 前端与后端相关回归测试通过 | `tests/frontend/`、`tests/server/` | 🟨 后端 45/45 通过（2026-10-04 实测）；前端 Node 测试本环境无运行时未执行 |
+| 前端与后端相关回归测试通过 | `tests/frontend/`、`tests/server/`、`tests/governance/` | ✅ 前端 29/29 通过（Node v24.21.0）；后端 `tests/core+server+governance` 337 passed / 29 failed，与 HEAD 基线 A/B（`git stash -u` 前后同环境对比）**新增失败为空**、另修复 3 项。29 项存量失败为鉴权 401 与历史遗留（`TEMP_DIR` 未定义、分钟时间戳归一化等），与本次改造无关。<br>⚠️ 原记录「唯一失败为 `astock.js` 既有伪造大盘数据」归因失真：伪造载体实为 `web/js/app.js`（`MarketFallbackData` 等），已于 2026-10-07 清除 |
 
 ## 五、变更日志
 
@@ -71,3 +71,9 @@ timeline
 | 2026-10-04 | 落地设置白名单校验与 `local/settings/data_sync.json` 0600 原子持久化（`server/services/data_sync_settings.py`），守护启停与并发设置写穿、重启不回跳；新增 `GET/PUT /api/data-sync/settings` 与 `GET /api/data-sync/overview` |
 | 2026-10-04 | 落地 P3 全市场/沪深增量枚举（新浪权威清单源，北交所无源拒绝）、交易日定时增量（默认 16:00 可配置）、SYNC_ARBITER 单任务互斥与不抢占 P0/P1、创建前 409 预检、分批进度与 degraded 如实上报；前端解除市场级范围封禁并接入有效设置回显 |
 | 2026-10-04 | 清理 `/api/monitor/stream` 最后一片硬编码假数据（示例事件/恒真监控/伪造 12ms 延迟），对齐既有 `not_running` 契约；新增后端回归 23 项（`tests/server/test_data_sync_settings.py`），同步域 45/45 通过 |
+| 2026-10-07 | 审查修复：CLI 守护进程 `DataSyncDaemon` 定盘时刻不再写死 15:35/15:40，改由 `resolve_daemon_schedule()` 读取持久化设置 `daemon.p0_time/p1_time`（core 层只读 JSON，不反向依赖 `server.services`），逐项回退默认并在 `--once` 输出与日志中如实披露来源；§5.1 数据集窗口同步解耦，不再被调晚的 P0 时刻推迟。`daemon.enabled` 仍仅门控服务内巡检，两个运行主体保持独立 |
+| 2026-10-07 | 审查修复：清除设置弹窗 `#sec-datafeed` 伪造降级面板（静态「● 运行中 (延迟 85ms)」「备用就绪」及并不存在的 Baostock/DuckDB 两级链路），改为四槽位真实探测，延迟一律取自 `GET /api/market_data/ping`，未测速前显示「○ 未检测」，展示顺序对齐 `data_bridge` 真实降级链（腾讯→新浪→东财→本地 SQLite）；新增治理回归 `test_datafeed_fallback_panel_is_probe_driven_not_static` 防止复现 |
+| 2026-10-07 | 验收证据更正：本环境实为 Node v24.21.0 可用，前端 `tests/frontend/` 全量 29/29 通过（原记录「本环境无 Node 未执行」失真）；后端同步域 99/100 通过 |
+| 2026-10-07 | 死配置接线：`external_sources.order` / `external_sources.enabled.*` 由仅持久化转为真实驱动取数执行层——新增 core 层只读设置访问器 `scripts/core/data/sync_settings.py`（core 不反向依赖 `server.services`），`data_bridge.fetch_remote_kline_strictly` / `get_kline_robust` 与新增 `eastmoney_kline` 按解析出的降级链遍历，失败日志携带 `chain_source`；`base.timeout_seconds` 接入任务创建、`cooperation.tdx_target_pool` 接入通达信导入。其余 10 项仅持久化设置由 `EXECUTION_WIRING` 常量逐项归类（`wired` / `persist_only`）并经 `GET /api/data-sync/settings` 的 `execution_wiring` 键如实披露，杜绝静默死配置。回归：`test_every_setting_is_classified_as_wired_or_persist_only`、`test_settings_summary_exposes_execution_wiring` |
+| 2026-10-07 | 零虚假数据修复（后端）：`/api/market/sentiment`、`/api/market/ranks`、`/api/portfolio/analysis` 三端点此前整块返回写死数值（78 分情绪、1.28 万亿成交、伪造涨跌榜、28.56% 收益）却谎称来自 `market_sentiment_engine` / `market_ranks_engine` / `quant_engine`，现统一走 `_unavailable()` fail-closed（503 `CAPABILITY_NOT_IMPLEMENTED`）；同时删除 `get_kline_robust` 的 `quote` 死参数（凭实时快照合成 K 线的入口）。回归：`test_unconnected_sentiment_and_ranks_never_fabricate_a_market_engine`、`test_market_kline_is_implemented_and_never_synthesizes`、`test_get_kline_robust_never_synthesizes_from_quote` |
+| 2026-10-07 | 零虚假数据修复（前端）：`web/js/app.js` 删除 `MarketFallbackData` / `WatchlistFallbackData` / `ReturnsFallbackData` / `generateKlines` / `defaultSpark` / `defaultNews`，以及目标 DOM id 已全不存在的 `initDashboardCharts` + `loadDashboardData`（227 行死代码，仍白发 5 个后端请求）；新增 `renderReturnsUnavailable` / `renderWatchHeroUnavailable` / `markMarketIndicesUnavailable` / `markMarketKlineUnavailable` 四组诚实空态与真实 `renderMarketKline`。`web/index.html` 清除静态指数点位、自选 Hero（宁德时代/300750）、事件时间轴、收益结论与北向比率等 17 处写死值，改骨架屏或 `datasync-detail-placeholder` 占位。治理回归：`test_workbench_panes_have_no_fabricated_fallback_data`、`test_index_html_has_no_static_fabricated_market_values`、`test_unconnected_market_endpoints_fail_closed_in_source`；`tests/frontend/test_market_adaptive_layout.js` 中原「强制要求伪造数据存在」的断言语义已反转 |
