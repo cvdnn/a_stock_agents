@@ -114,7 +114,7 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 2. **先征询再扩展**：确需跑 ③~⑧ 时，必须先说明「为什么核心门禁不足以覆盖本次改动」「预计耗时」「是否会触网或写盘」，得到确认后才执行。
 3. **门禁绿 ≠ 可交付**：改动落在 `p1` 覆盖面（服务端 API、设置接线、技能契约）时，须在结论中明确"建议追加执行 ③"，把决策权交回用户，既不自作主张跳过、也不自作主张全跑。
 4. **失败即止**：① 出现失败立刻停止并报告，不得用"全量里别的也挂了"稀释定位。
-5. **基线是 0 failed**（404 passed · 14 skipped · 2 xfailed）。2 个 `xfail(strict=True)` 是已登记的**生产缺陷档案**，禁止为了让看板变绿而删除/放宽断言或改测试迁就实现。
+5. **基线是 0 failed**（离线全量 `-m "not network"` 395 passed，430 例中 35 例需真实外网被排除）。曾以 `xfail(strict=True)` 登记的 2 个生产缺陷（`/api/watchlist` 捏造数据、静态 API Token 分支不可达）连同复查出的 2 个同源残留（`/api/market/indices` 静态指数快照回落、`/api/portfolio/overview` 演示资金与收益）已于 2026-10-07 全部修复并转为常驻回归用例，并由 AST 级数值哨兵 `test_market_projection_has_no_hardcoded_market_values` 防止写死行情/账户数值回流；新暴露的生产缺陷仍须先以 `xfail(strict=True)` 建档，禁止为了让看板变绿而删除/放宽断言或改测试迁就实现。
 
 **用例编写铁律（详见指南第四章，Review 逐条对照）：**
 断言必须必然执行（禁 `if 条件: assert`）；同文件禁重名 `def test_`（会静默覆盖）；HTTP 用例必须走 `client`/`anon_client`（裸建 TestClient 恒 401）；禁写 `output/`、`local/`、`cache/` 真实目录（用 `isolated_user_pools`/`tmp_path`）；外网与 DNS 必须桩化，确需保留则打 `network` 标签；昂贵流水线用 module fixture 只跑一次。

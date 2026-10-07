@@ -161,15 +161,21 @@ MOCK 分三层：① 后端 `market_data.py` 静态数据；② `api.js` 每个�
 
 | 后端接口 | `AStockAPI` 方法 | 加载器 | 渲染区块 |
 | :--- | :--- | :--- | :--- |
-| `GET /api/market/indices` | `getMarketIndices` | `loadDashboardData` / `loadMarketData` | 大盘指数 + sparkline |
-| `GET /api/market/sentiment` | `getMarketSentiment` | 同上 | 情绪仪表 + 板块热度 |
-| `GET /api/market/kline` | `getMarketKline` | `loadMarketData` | 指数 K 线 + 均线 |
-| `GET /api/market/ranks` | `getMarketRanks` | `loadMarketData` | 涨跌榜/北向/板块/要闻/概念 |
-| `GET /api/portfolio/overview` | `getPortfolioOverview` | `loadDashboardData` | 总资产/仓位/持仓分布 |
-| `GET /api/portfolio/analysis` | `getPortfolioAnalysis` | `loadReturnsData` | 收益 KPI/净值/月度盈亏/持仓表 |
-| `GET /api/watchlist` | `getWatchlist` | `loadWatchlistData` | 自选列表 + 个股深度研判 |
-| `GET /api/monitor/stream` | `getMonitorStream` | `loadDashboardData` | 盯盘监控流 + 策略开关 |
+| `GET /api/market/indices` | `getMarketIndices` | `loadMarketData` | 四大指数卡 + sparkline（源不可达且无缓存 → `markMarketIndicesUnavailable()` 显示 `--`；有缓存则按 `stale` 陈旧态渲染） |
+| `GET /api/market/sentiment` | `getMarketSentiment` | `loadMarketData` | 情绪仪表 + 板块热度——**后端现为结构化 503**（`market.sentiment` 无真实源），分值缺失即 `--`，表盘不绘制 |
+| `GET /api/market/kline` | `getMarketKline` | `loadMarketData` | 指数 K 线 + 均线（`warning` + `source=empty` 时清空画布，不合成走势） |
+| `GET /api/market/ranks` | `getMarketRanks` | `loadMarketData` | 涨跌榜/北向/板块——**后端现为结构化 503**（`market.ranks`），榜单如实呈现空态 |
+| `GET /api/portfolio/overview` | `getPortfolioOverview` | **暂无调用方**（原 `loadDashboardData` 已随零假数据整改删除） | 仅交付真实持仓口径（成本/市值/浮动盈亏）；总资产、可用资金、仓位占比、当日与累计/年化收益为 `null`（`account_state="not_wired"`） |
+| `GET /api/portfolio/analysis` | `getPortfolioAnalysis` | `loadReturnsData` | 收益 KPI/净值/月度盈亏——**后端现为结构化 503**（`portfolio.analysis`），前端走 `renderReturnsUnavailable()` |
+| `GET /api/watchlist` | `getWatchlist` | `loadWatchlistData` | 自选列表 + 个股 Hero 画像；池为空 → `status=empty` 登记引导，行情缺失字段与无真实来源的口径（行业/概念/MA/资金流/北向/主力）一律 `null` → `--` |
+| `GET /api/monitor/stream` | `getMonitorStream` | **暂无调用方** | 后端如实返回 `not_running` + 空事件与空策略（盘中采集未接入） |
 | `POST /api/chat/completions/stream` | `streamChatCompletions` | `streamAIResponse` | AI 分析结论（流式） |
+
+> 表中"暂无调用方"是指 `web/js/api.js` 仍导出该方法但 `app.js` 未接线（端点契约与用例仍在治理层守护，
+> 供智能体工具与后续接入使用）。历史版本此列写有 `loadDashboardData`——该加载器连同其 5 个白发请求
+> 与目标 DOM 已全部删除，见 [`docs/audits/frontend-hardcoded-data-audit.md`](../../audits/frontend-hardcoded-data-audit.md)。
+> 三个 `503 CAPABILITY_NOT_IMPLEMENTED` 端点是**有意的 fail-closed**，不是待补的 bug 现场：
+> 在真实数据源接入前，任何"先渲染默认值"的做法都违反《零虚假数据原则》。
 
 ### 3. AI 分析结论接入约定
 

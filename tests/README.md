@@ -1,6 +1,6 @@
 # A-Stock Agents 测试用例架构与回归测试规范
 
-本目录包含了 A-Stock Agents 项目的**全量功能回归测试套件**（Python 420 例 + Node.js 前端 29 脚本）。测试架构与系统工程架构全面对齐，划分为 **量化核心 (`core/`)**、**服务端与智能体 (`server/`)**、**架构与合规门禁 (`governance/`)** 以及 **前端交互 (`frontend/`)** 四大领域专属目录。
+本目录包含了 A-Stock Agents 项目的**全量功能回归测试套件**（Python 429 例 + Node.js 前端 29 脚本）。测试架构与系统工程架构全面对齐，划分为 **量化核心 (`core/`)**、**服务端与智能体 (`server/`)**、**架构与合规门禁 (`governance/`)** 以及 **前端交互 (`frontend/`)** 四大领域专属目录。
 
 设计原则：**无外部网络强依赖（桩隔离）**、**核心门禁秒级反馈**、**断言必然执行**。
 
@@ -36,7 +36,7 @@ tests/
 │   ├── test_stock_funnel.py               # 股票漏斗筛选阶段与分钟级时间戳校验
 │   └── test_strategy_suite.py             # 解套决策树、动作引擎真实契约与网格中轴算法
 │
-├── server/                       # 【服务端与智能体交互】对应 scripts/server/ — 17 文件 / 144 用例
+├── server/                       # 【服务端与智能体交互】对应 scripts/server/ — 17 文件 / 153 用例
 │   ├── test_access_and_thought_fix.py     # 前缀推导与思考链提取验证
 │   ├── test_agent_capability_execution.py # 智能体能力分发与执行链路
 │   ├── test_agent_tool_technical_summary.py # 工具返回技术面摘要格式兼容性
@@ -55,7 +55,7 @@ tests/
 │   ├── test_server_suite.py               # Web AIChat 后端数据库、会话与路由全套件
 │   └── test_session_memory.py             # 会话记忆系统与多轮对话隔离
 │
-├── governance/                   # 【合规门禁、安全审计与架构契约】 — 10 文件 / 89 用例
+├── governance/                   # 【合规门禁、安全审计与架构契约】 — 10 文件 / 90 用例
 │   ├── test_capability_truthfulness.py    # 真实性契约与虚假实现防护
 │   ├── test_decoupling_suite.py           # 架构分层解耦与防循环依赖
 │   ├── test_docs_suite.py                 # 文档真实性与反引号文件路径回归
@@ -112,23 +112,23 @@ tests/
 
 | 表 | 作用 | 键粒度 |
 | :--- | :--- | :--- |
-| `_TIER_BY_PATH` | 优先级 `core` / `p1` / `p2`（互斥且全覆盖 420 例） | 文件 |
+| `_TIER_BY_PATH` | 优先级 `core` / `p1` / `p2`（互斥且全覆盖 429 例） | 文件 |
 | `_TAGS_BY_PATH` | 能力标签 `slow` / `network` / `subprocess` / `e2e` / `live` | 文件 |
 | `_OVERRIDE_TAGS` | 精准点名个别用例（键为 pytest `nodeid`，**不是** `item.name`） | 单用例 |
 
 | 档位 | 用例数 | 判定标准 |
 | :--- | ---: | :--- |
 | **`core`** | **132** | **P0 契约门禁**——错了会直接产出假结论或造成资金/安全后果：数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
-| `p1` | 253 | 重要回归：服务端 REST 契约、设置持久化与接线披露、18 项技能契约、治理与质量门禁 |
-| `p2` | 35 | 补充边界：文档真实性、注册表辅助路径、自定义输出目录 |
+| `p1` | 258 | 重要回归：服务端 REST 契约、设置持久化与接线披露、18 项技能契约、治理与质量门禁 |
+| `p2` | 39 | 补充边界：文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
 | :--- | ---: | :--- |
-| `slow` | 90 | 单用例 > 1s（子进程冷启动、全市场扫描、完整辩论流水线） |
-| `network` | 32 | 触达真实外网（行情降级重试、实时现价批量） |
+| `slow` | 94 | 单用例 > 1s（子进程冷启动、全市场扫描、完整辩论流水线） |
+| `network` | 35 | 触达真实外网（行情降级重试、实时现价批量） |
 | `subprocess` | 10 | 以子进程执行 CLI/脚本的集成用例 |
 | `e2e` | 26 | 端到端链路（装配 → 规则 → 快照落盘） |
-| `live` | 14 | 需预先启动真实服务并显式开启 `A_STOCK_RUN_LIVE_E2E=1` |
+| `live` | 18 | 需预先启动真实服务，并显式开启 `A_STOCK_RUN_LIVE_E2E=1` 与 `A_STOCK_SERVER_TOKEN` |
 
 ### 2.2 执行顺序与确认门
 
@@ -162,10 +162,13 @@ tests/
 .venv/bin/python -m pytest -m core --durations=20
 ```
 
-> 实测耗时（420 例，含约 8s 收集期固定开销）：① 12.7s ｜ ② 12.1s ｜ ④ 63.9s ｜ ⑤ 67.9s ｜ ⑥ 39.5s。
+> 实测耗时（429 例，含约 8s 收集期固定开销）：① 12.5s ｜ ② 12.1s ｜ ④ 63.0s ｜ ⑤ 67.9s ｜ ⑥ 39.5s。
 > `--strict-markers` 已启用，拼错的标记直接报错而非被静默忽略。
-> **结果基线：0 failed**（404 passed · 14 skipped · 2 xfailed）。2 个 xfail 是 `strict` 钉住的
-> **生产缺陷**（`/api/watchlist` 捏造数据、静态 API Token 分支不可达），见测试指南 8.3。
+> **离线全量基线：0 failed**（394 passed · 35 例外网被 deselect · 0 skipped · 0 xfailed）。
+> 以 `strict` 钉住的 4 个**生产缺陷**（`/api/watchlist` 捏造数据、静态 API Token 分支不可达、
+> `/api/market/indices` 静态指数快照回落、`/api/portfolio/overview` 演示资金与收益）
+> 已于 2026-10-07 全部修复并转为常驻回归用例，见测试指南 8.3。
+> 含外网的 ⑤/⑥/⑦ 层需真实行情源，本轮未复跑，其数字为整改当期实测值。
 
 **按目录执行**（`pytest tests/core/` 等）属"整目录无差别执行"，等价于跨入确认门；
 日常请优先用 ①，仅在定位具体问题时使用单文件/单用例：

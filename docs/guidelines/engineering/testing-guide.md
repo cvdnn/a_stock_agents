@@ -47,14 +47,14 @@ tests/
 ├── conftest.py          # ★ 档位归属表 + 共享基座（鉴权/隔离/临时库），分层策略唯一改动点
 ├── README.md            # 目录级速查与执行入口
 ├── core/        (17 文件 / 182 用例)  # 量化底座：装配、漏斗、指标、模型、撮合、策略、同步
-├── server/      (17 文件 / 144 用例)  # 服务端：REST API、会话与记忆、LLM 就绪、数据同步控制台
-├── governance/  (10 文件 /  89 用例)  # 架构与合规门禁：解耦、真实性、安全审计、技能契约
+├── server/      (17 文件 / 153 用例)  # 服务端：REST API、会话与记忆、LLM 就绪、数据同步控制台
+├── governance/  (10 文件 /  91 用例)  # 架构与合规门禁：解耦、真实性、安全审计、技能契约
 └── frontend/    (29 文件 / Node.js)   # 前端 DOM 与交互仿真，不经 pytest 收集，单独 `node` 执行
 
 .agents/skills/*/scripts/test_*.py     # 技能自带脚本级自测（2 文件），由 testpaths 一并收集
 ```
 
-> 用例总数 **420**（`core/` + `server/` + `governance/` + 技能脚本）。目录分层描述"测什么"，
+> 用例总数 **429**（`core/` + `server/` + `governance/` + 技能脚本）。目录分层描述"测什么"，
 > 与下述档位分层（"多重要、多快"）是两个正交维度。
 
 ---
@@ -74,16 +74,16 @@ tests/
 | 档位 | 用例数 | 判定标准 |
 | :--- | ---: | :--- |
 | **`core`** | **132** | **P0 契约门禁**：错了会直接产出假结论或造成资金/安全后果——数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
-| `p1` | 253 | 重要回归：服务端 REST 契约、设置持久化与接线披露、18 项技能契约、治理与质量门禁 |
-| `p2` | 35 | 补充边界：文档真实性、注册表辅助路径、自定义输出目录 |
+| `p1` | 258 | 重要回归：服务端 REST 契约、设置持久化与接线披露、18 项技能契约、治理与质量门禁 |
+| `p2` | 39 | 补充边界：文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
 | :--- | ---: | :--- |
-| `slow` | 90 | 单用例 > 1s（子进程冷启动、全市场扫描、完整辩论流水线） |
-| `network` | 32 | 触达真实外网（行情降级重试、实时现价批量） |
+| `slow` | 94 | 单用例 > 1s（子进程冷启动、全市场扫描、完整辩论流水线） |
+| `network` | 35 | 触达真实外网（行情降级重试、实时现价批量） |
 | `subprocess` | 10 | 以子进程执行 CLI/脚本的集成用例 |
 | `e2e` | 26 | 端到端链路（装配 → 规则 → 快照落盘） |
-| `live` | 14 | 需预先启动真实服务并显式开启 `A_STOCK_RUN_LIVE_E2E=1` |
+| `live` | 18 | 需预先启动真实服务并显式开启 `A_STOCK_RUN_LIVE_E2E=1` 与 `A_STOCK_SERVER_TOKEN` |
 
 > `--strict-markers` 已启用：拼错的标记直接报错，不会被静默忽略。
 
@@ -264,8 +264,8 @@ for f in tests/frontend/*.js; do node "$f" || echo "FAIL $f"; done
 | 全量耗时（串行） | 96.75s | 67.89s |
 | 全量耗时（`-n 4` 并行） | 不可用（未装 xdist） | 39.47s |
 | P0 核心门禁 | 无此概念 | **12.74s / 132 例** |
-| 离线可跑全量 | 25 例必失败或依赖外网 | 63.85s / `not network` 全绿 |
-| 失败用例 | **29 failed** | **0 failed**（404 passed · 14 skipped · 2 xfail） |
+| 离线可跑全量 | 25 例必失败或依赖外网 | 63.02s / `not network` **394 passed** |
+| 失败用例 | **29 failed** | **0 failed**（离线 394 passed · 35 deselected；0 skipped · 0 xfail） |
 | 静默丢失的用例 | 2（重复定义覆盖） | 0 |
 | 永不断言的用例 | 2（条件式空断言） | 0 |
 
@@ -291,19 +291,45 @@ for f in tests/frontend/*.js; do node "$f" || echo "FAIL $f"; done
 2. `core/reporting/report_generator.py` — 非数值 `price`（`'100<script>'`）直接 `float()` 使整份报告
    生成崩溃；同时 `<title>` / `<h1>` 使用了**未转义**的 `raw_name`/`raw_code`，是真实 XSS 注入点。
 3. `tools/update.py` — 使用了未导入的 `TEMP_DIR`，导致 zip-slip 防护路径直接 `NameError`，防护形同虚设。
-
-**未修（以 `xfail(strict=True)` 钉住，需产品决策）**
-
-4. `GET /api/watchlist` **整端点捏造数据**：池为空时回填 8 只硬编码自选股，`price=0` 兜底 `328.56`、
-   `change_pct` 兜底 `2.77`、`net_inflow` 写死 `+1.28亿`，`active_detail` 更写死成交额/行业/PE/PB/均线
-   全套画像——违反《零虚假数据原则》。
+4. `server/api/market_data.py::GET /api/watchlist` **整端点捏造数据**（2026-10-07 修复）：池为空时回填
+   8 只硬编码自选股，`price=0` 兜底 `328.56`、`change_pct` 兜底 `2.77`、`net_inflow` 写死 `+1.28亿`，
+   `active_detail` 更写死成交额/行业/PE/PB/均线/资金流/北向/主力持仓全套画像——违反《零虚假数据原则》。
+   现改为：空池如实 `status=empty` + `source=config/stock_pools.yaml` + 空数组；行情缺失字段一律 `None`
+   由前端显示 `--`；无真实来源的口径（行业/概念/PB/52 周/MA/资金流/北向/主力）不再伪造，取不到现价时
+   `active_stock_detail=None`，让 Hero 卡走"数据源不可用"而不是伪装有效盘口。
    用例：`tests/server/test_market_data_api.py::test_empty_watchlist_is_a_sourced_empty_state`
-5. **静态 API Token（`A_STOCK_SERVER_TOKEN`）已完全失效**：`server/app.py` 中间件在"携带 Bearer 但非
-   有效会话"时直接 `return 401`，永不达静态分支；不带 `Authorization` 又因 `if auth_header and ...`
-   恒假而同样 401 → 无浏览器会话的机器集成已无任何合法入口，该分支为不可达死代码。
+5. `server/app.py` 鉴权中间件 — **静态 API Token（`A_STOCK_SERVER_TOKEN`）完全失效**（2026-10-07 修复）：
+   原实现在"携带 Bearer 但非有效会话 token"时直接 `return 401`，永不达静态分支；不带 `Authorization`
+   又因 `if auth_header and ...` 恒假而同样 401 → 无浏览器会话的机器集成（cron/CLI/外部编排）已无任何
+   合法入口，该分支为不可达死代码。现改为：会话校验不成立后，用 `hmac.compare_digest` 常数时间比对配置值，
+   命中才放行；错误 token 仍 `401 invalid_token`、无凭证仍 `401 unauthorized`（兜底不等于旁路）。
    用例：`tests/governance/test_security_audit.py::test_static_api_token_still_authenticates_machine_integrations`
 
-> 4 与 5 一旦修好，对应用例会以 **XPASS 失败**强制提醒移除标记，不会静默放行。
+6. `server/api/market_data.py::GET /api/market/indices` **静态指数快照回落**（2026-10-07 修复）：
+   实时源不可达时整块返回 `BASELINE_INDICES` 冻结快照（上证 3888.11 / 深证 13471.26 / 创业板 3322.04 /
+   科创50 1553.39 及各自的写死 sparkline），却标 `status="success"` + `source="baseline_fallback"`，
+   把某一天的收盘画面当成"今日实时行情"渲染；缺日K时还用 `[昨收, 今开, 最低, (今开+最高)/2, 最高, 现价]`
+   拼一条假分时曲线；只取到 1~3 路真报价时又因 `len(indices) >= 4` 把真数据整片丢弃去换假快照。
+   现改为：快照常量整体删除；有报价即交付（齐 4 路 `success`，不足则 `partial`），走势只在有真实日K时
+   以"收盘序列末点换现价"生成，否则为空数组；不可达但有缓存 → `status="stale"` + `cached_as_of` +
+   `cache_age_seconds`；两者皆无 → `unavailable` + 空数组。用例：
+   `tests/server/test_market_data_api.py::test_market_indices_fails_closed_without_snapshot_fallback`
+   等 5 例（含 `never_synthesizes_sparkline` / `appends_live_price_to_real_kline_series` /
+   `reuses_cache_only_as_labelled_stale` / `marks_partial_instead_of_throwing_away_real_quotes`）。
+7. `server/api/market_data.py::GET /api/portfolio/overview` **键名错配 + 演示资金收益**（2026-10-07 修复）：
+   汇总读 `h["price"]` / `h["shares"]`，而 `position_manager` 的真实字段是 `cur_price` / `qty` /
+   `market_value`，键名不匹配使持仓市值恒为 ¥0.00、仓位占比恒 0%；现金写死 `100000.0`，今日盈亏写死
+   `+¥1,850.00 / 1.45%`，总收益 `18.5%`、年化 `22.3%`，空仓分支照样报"总资产 ¥100,000.00、可用现金 100%"。
+   现改为：按真实字段汇总 `position_cost` / `position_market_value` / `floating_pnl(_pct)`；
+   账户级现金台账与逐日净值序列本端点无数据源，`total_assets` / `available_cash` / `position_ratio` /
+   `cash_ratio` / `today_pnl` / `total_return_pct` / `annualized_return_pct` / `risk_status` 一律 `None`
+   并以 `account_state="not_wired"` 明示，`donut_data` 为空数组。用例：
+   `tests/server/test_market_data_api.py::test_portfolio_overview_aggregates_real_position_fields`。
+
+> 6 与 7 属"复查 4/5 时发现的同源残留"，同一轮内一并修掉：它们同样违反《零虚假数据原则》，
+> 且 6 的旧用例 `test_market_indices_returns_live_or_fallback_data`（断言 `price > 3000`、
+> `len(sparkline) > 0`）**本身就在给假数据上锁**，已删除并由 5 个桩化用例取代
+> （顺带把该用例从 `network` 覆写表摘除，指数端点从此离线可验）。
 
 ### 8.4 测试自身的缺陷修复
 
@@ -315,5 +341,6 @@ for f in tests/frontend/*.js; do node "$f" || echo "FAIL $f"; done
 | `test_auth_middleware_flow` 断言已过时的"免鉴权兜底" | 与现行 fail-closed 设计相反 | 按现行契约重写（匿名 401 / 伪造 401 / 有效会话 200 / 白名单 / OPTIONS） |
 | `import_tdx` 用例写入用户真实自选池 | 污染私有数据 | 改用 `isolated_user_pools` 并断言落点 |
 | `test_action_plan_missing_code_defensive_behavior` 读真实持仓 | 断言随本机数据漂移而 FAIL | 隔离空池后断言必然执行 |
+| `test_live_server_e2e.py` 整文件与现行契约脱节 | ① 不带任何凭证，`/api/*` fail-closed 后除 `/api/health` 外全取 401 被 `status == 200` 判死；② 仍断言 `sentiment.score > 0`、`ranks.gainers` 非空、`analysis.sharpe_ratio > 0`、`monitor.is_monitoring is True`、`watchlist` 画像含数值 `capital_flow`——等于给已清除的伪造数据上锁；③ `urllib` 调用无 `from __future__ import annotations`，`dict \| None` 注解在 3.9 上直接 TypeError | 整体重写：以 `A_STOCK_SERVER_TOKEN` 走机器集成凭证（未设置即整组 skip，不假装通过），断言对齐 503/空态/stale/partial 契约，新增 `assert_no_fabricated_snapshot` 反向哨兵与"匿名必须 401"的门禁 |
 | SSRF 用例依赖真实 DNS 与虚构域名 | 必 400 或随网络漂移 | 桩化 `getaddrinfo` 为公网 IP，仍完整走校验分支 |
 | `_OVERRIDE_TAGS` 曾用 `item.name` 拼键 | 类内用例永不命中（`item.name` 不含类名） | 改用 `nodeid` 匹配 |
