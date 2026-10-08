@@ -980,16 +980,16 @@ const TabCopilotConfigs = {
   },
   'skills': {
     title: '您好！我是您的 量化技能治理与编排助手',
-    subtitle: '18项投研技能审计 · 契约门禁热插拔 · 多智能体协同链路诊断',
+    subtitle: '19项投研技能审计 · 契约门禁热插拔 · 多智能体协同链路诊断',
     desc: '统一管控数据源、策略引擎、风控动作及报告渲染中枢。支持<strong>一键健康度体检</strong>、<strong>实时在线调试</strong>与<strong>多智能体多空辩论演练</strong>。',
     quickActions: [
       {
         icon: '🧪',
-        title: '18项技能契约全量审计',
+        title: '19项技能契约全量审计',
         desc: '一键体检 >',
-        tooltip: '扫描全部 18 项技能就地状态、输入输出契约与依赖健康度',
-        action: '18项技能契约全量审计',
-        prompt: '请执行技能治理全量审计，检查 18 项量化投研技能的状态、契约规范与运行成功率。'
+        tooltip: '扫描全部 19 项技能就地状态、输入输出契约与依赖健康度',
+        action: '19项技能契约全量审计',
+        prompt: '请执行技能治理全量审计，检查 19 项量化投研技能的状态、契约规范与运行成功率。'
       },
       {
         icon: '⚡',
@@ -1323,7 +1323,7 @@ const ViewDescriptions = {
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
   'datasync': 'A股数据同步工作台（日 K 水位、任务追踪、完整性与定时配置）',
   'projected-action': '实战交易三原则指令单 (保本价试算器/三级止损)',
-  'skills': '18项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)',
+  'skills': '19项量化投研技能治理中枢 (元数据契约/动态热插拔/安全门禁/调用度量/在线调试)',
   'system': '系统管理 (用户 · 角色 · 菜单 · 登录审计)'
 };
 
@@ -1335,7 +1335,7 @@ const ViewHeaderInfo = {
   'returns': { title: '投资收益全景分析', icon: '💰', tag: '资产净值曲线与多因子归因' },
   'datasync': { title: 'A股数据同步工作台', icon: '🔄', tag: '查看真实日 K 水位 · 追踪更新任务 · 管理同步配置' },
   'projected-action': { title: '工作台 · 实战动作单', icon: '🛡️', tag: '保本价精算与三级风控指令' },
-  'skills': { title: '技能治理中心', icon: '🧩', tag: '18项量化投研技能生命周期管理' },
+  'skills': { title: '技能治理中心', icon: '🧩', tag: '19项量化投研技能生命周期管理' },
   'system': { title: '系统管理', icon: '🛡️', tag: '用户 · 角色 · 菜单 · 登录审计' }
 };
 
@@ -3205,10 +3205,10 @@ const PromptTemplates = {
     summary: '仓位动态平衡与分散化风险预算调控预案',
     body: '<p>正在根据市场波动率预期与组合风险目标，提供基于风险平价和分数凯利准则的资产配置调优建议。</p>'
   },
-  '18项技能契约全量审计': {
-    title: '18项量化投研技能就地运行与输入输出契约审计报告',
+  '19项技能契约全量审计': {
+    title: '19项量化投研技能就地运行与输入输出契约审计报告',
     summary: '零全局污染原则与技能元数据契约完整性审计',
-    body: '<p>正在对工作区 .agents/skills/ 下全部 18 项技能进行就地状态核查，检验统一 CLI 调用、降级机制与输入输出规范。</p>'
+    body: '<p>正在对工作区 .agents/skills/ 下全部 19 项技能进行就地状态核查，检验统一 CLI 调用、降级机制与输入输出规范。</p>'
   },
   '测试数据源4级降级链': {
     title: '数据源4级容灾降级压力测试与高可用诊断',
@@ -5214,7 +5214,7 @@ window.toggleStepDetail = toggleStepDetail;
 const USER_OPERATION_GUIDE_MD = `# 🧭 A-Stock Agents 量化投研与决策中枢 · 用户操作指南
 
 > [!NOTE]
-> 欢迎使用 **A-Stock Agents**。本系统是一套高内聚、自包含、生产就绪的 A 股全流程量化投研与实战决策系统。系统内置 18 项全链路量化技能与多智能体协同对抗研判引擎，严格遵循实战风控铁律，赋能投资全生命周期。
+> 欢迎使用 **A-Stock Agents**。本系统是一套高内聚、自包含、生产就绪的 A 股全流程量化投研与实战决策系统。系统内置 19 项全链路量化技能与多智能体协同对抗研判引擎，严格遵循实战风控铁律，赋能投资全生命周期。
 
 ---
 
@@ -8657,7 +8657,7 @@ function showToast(msg) {
 }
 
 // --------------------------------------------------------------------------
-// 9. 18项量化投研技能治理中心 (Skill Governance Subsystem Controller)
+// 9. 19项量化投研技能治理中心 (Skill Governance Subsystem Controller)
 // --------------------------------------------------------------------------
 
 const BuiltinSkillsManifest = [
@@ -9002,6 +9002,25 @@ const BuiltinSkillsManifest = [
     require_confirmation: false,
     enabled: true,
     sample_params: { task_type: "analysis" }
+  },
+  {
+    id: "astock-selection-model",
+    name: "astock-selection-model",
+    title: "配置化智能选股系统（ISS）与层级漏斗引擎",
+    category: "screener",
+    categoryName: "智能选股",
+    risk_level: "readonly",
+    riskName: "只读研判",
+    description: "配置化创建、编译、发布和调度选股模型，并研究结果与持续跟踪表现。",
+    triggers: ["智能选股", "选股模型", "层级漏斗", "条件树", "模型版本", "选股调度", "结果研究", "跟踪评估"],
+    cli_command: "astock funnel validate",
+    entry_point: "scripts/core/selection_models/__init__.py",
+    skill_doc: ".agents/skills/astock-selection-model/SKILL.md",
+    recommended_model: "inherit",
+    timeout_seconds: 60,
+    require_confirmation: false,
+    enabled: true,
+    sample_params: { action: "validate" }
   }
 ];
 
@@ -9050,7 +9069,7 @@ async function initSkillsGovernance() {
 
 function refreshSkillsGovernance() {
   initSkillsGovernance().then(() => {
-    showToast('已同步最新 18 项技能治理清单与调用度量数据');
+    showToast('已同步最新 19 项技能治理清单与调用度量数据');
   });
 }
 
@@ -9067,7 +9086,7 @@ function bulkEnableAllSkills() {
     }).catch(() => {});
   });
 
-  showToast('⚡ 成功启用全部 18 项投研技能');
+  showToast('⚡ 成功启用全部 19 项投研技能');
 }
 
 function renderSkillsGovernance() {

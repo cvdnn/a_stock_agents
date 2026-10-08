@@ -76,7 +76,7 @@ portfolio_risk:
 
 # ─── 依赖技能路径 ────────────────────────────
 skills:
-  # 留空则自动探测 skills/<name>
+  # 留空则从项目权威目录 .agents/skills/<name> 自动探测
   a_share_data: ""
   paper_trading: ""
   dashboard: ""

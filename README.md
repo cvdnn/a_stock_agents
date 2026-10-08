@@ -69,7 +69,7 @@
 
 ---
 
-### 2. 17 个标准化 Agent 技能清单 (6+1 现代分层架构)
+### 2. 19 个标准化 Agent 技能清单 (6+1 现代分层架构)
 
 | 技能 ID | 技能名称 | 分层 | 核心能力描述 | CLI 快速入口 |
 | :--- | :--- | :---: | :--- | :--- |
@@ -169,19 +169,19 @@ docker compose ps
 
 #### A. Google Antigravity (原生工作区支持)
 - **开箱即用**：
-  - Antigravity 官方工作区定制根为 `.agents/`。本项目已跨平台自动挂载 `.agents/skills -> skills`。
-  - 只需在 Antigravity 中将本项目作为工作区（Open Workspace）打开，系统原生技能列表即可**原地自动挂载 18 项技能**。
+  - Antigravity 官方工作区定制根为 `.agents/`。本项目的技能权威源位于 `.agents/skills/`。
+  - 只需在 Antigravity 中将本项目作为工作区（Open Workspace）打开，系统原生技能列表即可**原地自动挂载 19 项技能**。
   - 对话中直接说“帮我查茅台行情”或“5A选股”，Antigravity 会自动激活对应技能，并通过 `run_command` 执行 `./bin/astock ... --json`。
 
 #### B. Hermes Agent (会话级挂载)
 - **免参数/免复制运行**：
-  - 直接在项目根目录下启动：`hermes --skills-dir ./skills`
-  - Hermes 自动扫描 `./skills/*/SKILL.md`，并在子进程中调用当前工作区的 `./bin/astock`。
+  - 直接在项目根目录下启动：`hermes --skills-dir ./.agents/skills`
+  - Hermes 自动扫描 `./.agents/skills/*/SKILL.md`，并在子进程中调用当前工作区的 `./bin/astock`。
 
 #### C. OpenAI Codex / Claude Code / Cursor (规约驱动)
 - **规则自动注入**：
   - 项目根目录已提供标准化 [`AGENTS.md`](AGENTS.md) 与 [`CLAUDE.md`](CLAUDE.md)。
-  - Agent 在打开工作区后首要阅读 `AGENTS.md`，自动获知 17 个技能的意图触发词与 CLI 命令行契约，严禁私写网络爬虫，确保输出结果确定、合规。
+  - Agent 在打开工作区后首要阅读 `AGENTS.md`，自动获知 19 个技能的意图触发词与 CLI 命令行契约，严禁私写网络爬虫，确保输出结果确定、合规。
 
 ---
 
@@ -330,7 +330,7 @@ python bin/update.py --rollback backup_20260902_174003
 flowchart TB
     subgraph Frontend["Web 前端交互系统 (现代响应式 UI)"]
         UI_Chat["AIChat 交互对话台\n(SSE流式打字机 / Tool 调用进度折叠卡片)"]
-        UI_Gov["Skill 治理控制台\n(18项技能看板 / 动态启停 / 契约Schema / 耗时审计)"]
+UI_Gov["Skill 治理控制台\n(19项技能看板 / 动态启停 / 契约Schema / 耗时审计)"]
         UI_Report["交互式研报预览中心\n(K线缩放 / 5A雷达图 / 实时筹码 / 保本操作单)"]
     end
 

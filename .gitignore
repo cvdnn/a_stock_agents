@@ -77,6 +77,3 @@ temp/**
 *.zip
 *.tar.gz
 
-# Tool scratch & brainstorming workspaces
-.superpowers/
-

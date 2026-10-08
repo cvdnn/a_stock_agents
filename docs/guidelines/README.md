@@ -49,7 +49,7 @@ docs/guidelines/
 
 | 规范名称 | 类别 | 物理路径 | 对应实施看板 | 核心内容概述 |
 |:---|:---:|:---|:---:|:---|
-| **独立 Web AIChatUI 与 Skill 治理系统架构** | 架构 | [`architecture/web-aichat-architecture.md`](architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](../specs/architecture/arch-web-aichat-and-skill-governance.md) | 脱离第三方宿主的独立 Web 交互中枢、FastAPI 服务网关、18 项技能治理控制平面与多端部署 |
+| **独立 Web AIChatUI 与 Skill 治理系统架构** | 架构 | [`architecture/web-aichat-architecture.md`](architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](../specs/architecture/arch-web-aichat-and-skill-governance.md) | 脱离第三方宿主的独立 Web 交互中枢、FastAPI 服务网关、19 项技能治理控制平面与多端部署 |
 | **大模型双轨接入与多场景角色分配架构** | 架构 | [`architecture/llm-provider-architecture.md`](architecture/llm-provider-architecture.md) | [`SPEC-ARCH-002`](../specs/architecture/arch-llm-provider-and-role-allocation.md) | 物理接入轨 (Providers) 与逻辑角色轨 (Roles) 双轨解耦、网络延迟探测与防 CORS 代理 |
 | **Token 链路安全网关与审计 Agent 架构** | 架构 | [`architecture/token-security-architecture.md`](architecture/token-security-architecture.md) | [`SPEC-ARCH-003`](../specs/architecture/arch-token-security-gateway.md) | 控制平面与执行平面物理分离、请求上行脱敏、响应下行过滤、不可篡改指纹审计日志 |
 | **生产级 Agent 平台架构** | 架构 | [`architecture/production-agent-platform-architecture.md`](architecture/production-agent-platform-architecture.md) | [`SPEC-ARCH-004`](../specs/architecture/production-agent-platform-plan.md) | 生产级 Agent 运行时的真实性、安全与可观测性架构，及 P0 止血到稳态演进路径 |

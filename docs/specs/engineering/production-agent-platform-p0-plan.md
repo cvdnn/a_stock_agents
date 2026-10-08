@@ -4,7 +4,7 @@
 > 权威定义 (SSOT)：[`production-agent-platform-architecture.md`](../../guidelines/architecture/production-agent-platform-architecture.md)
 > **实施状态**：已完成 (Completed) | 2026-09-10 完成，原始步骤清单保留用于审计；实际证据见 `docs/specs/engineering/eng-remediation-acceptance.md` 及本轮六个提交
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **智能体执行约束：** 按本计划逐项实施，并遵循项目 `AGENTS.md` 中的权限、测试分层和验证规约。步骤使用复选框（`- [ ]`）跟踪。
 
 **Goal:** Make production mode fail closed: no runtime Mock selection, synthetic market/account/analysis success, leaked provider credentials, permissive default CORS, or inaccurate completion claims.
 

@@ -13,7 +13,7 @@
 随着 A-Stock Agents 系统的快速迭代，前端核心控制文件 `web/js/app.js` 已膨胀至 **9,340 行**（约 400 KB），承担了全站 72.5% 的前端自定义逻辑。经深度语法与依赖审查，暴露出以下严重工程缺陷：
 
 * **单一职责原则严重违背 (SRP Violation)**：
-  单文件内混杂了数据通信（REST API/SSE 流）、Canvas 金融图表绘制、富文本输入控制（@操作符/#模型选择）、NLP 提问意图解析、任务分步执行树态导轨、Markdown/HTML 工作区双模渲染、大模型提供商密钥 CRUD，以及 18 项量化投研技能的在线沙箱调试控制台。
+  单文件内混杂了数据通信（REST API/SSE 流）、Canvas 金融图表绘制、富文本输入控制（@操作符/#模型选择）、NLP 提问意图解析、任务分步执行树态导轨、Markdown/HTML 工作区双模渲染、大模型提供商密钥 CRUD，以及 19 项量化投研技能的在线沙箱调试控制台。
 * **高频 Git 冲突与协作瓶颈**：
   由于全站核心逻辑均集中在单个文件，不同开发者或智能体在进行界面微调、指标增补或接口适配时，极易产生大面积的代码合并冲突。
 * **全局状态无序穿透 (State Mutation Chaos)**：
@@ -78,8 +78,8 @@ flowchart TB
         S_Role["model_roles.js (124行)\n7大角色矩阵映射绑定"]
     end
 
-    subgraph SkillsLayer["7. 18项量化技能治理 (web/js/skills/)"]
-        K_Man["skills_manifest.js (345行)\n18项技能元数据清单"]
+    subgraph SkillsLayer["7. 19项量化技能治理 (web/js/skills/)"]
+        K_Man["skills_manifest.js (345行)\n19项技能元数据清单"]
         K_Gov["skills_governance.js (356行)\n技能启闭与分类过滤"]
         K_Dbg["skills_debugger.js (223行)\n在线沙箱调试控制台"]
     end
@@ -226,7 +226,7 @@ AppState.set('activeRightTab', 'market');
   <script src="js/views/returns_view.js"></script>
   <script src="js/views/common_views.js"></script>
 
-  <!-- 5. 设置治理与 18 项量化技能系统 -->
+  <!-- 5. 设置治理与 19 项量化技能系统 -->
   <script src="js/settings/providers_manager.js"></script>
   <script src="js/settings/model_roles.js"></script>
   <script src="js/skills/skills_manifest.js"></script>
@@ -273,7 +273,7 @@ AppState.set('activeRightTab', 'market');
 3. 在 `web/js/chat/chat_engine.js` 的 `executeOperatorTask()` 中完善该策略的意图分流与后端参数组装。
 
 ### 3. 新增量化投研技能规范 (Register Quantitative Skill)
-若底层内核增加了第 18 项量化技能：
+若底层内核新增量化技能：
 1. 仅须在 `web/js/skills/skills_manifest.js` 中的 `BuiltinSkillsManifest` 数组中追加该技能的元数据（包含 `id`, `name`, `desc`, `params`, `sampleCli` 等）；
 2. 技能治理界面（`skills_governance.js`）与在线调试控制台（`skills_debugger.js`）将**全自动动态感知并完成渲染**，无须编写额外前端代码。
 

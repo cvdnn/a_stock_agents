@@ -17,6 +17,8 @@ import math
 import json
 from datetime import datetime, timedelta
 
+from ..workspace import PROJECT_ROOT
+
 
 class BacktestEngine:
     """A股回测引擎
@@ -49,15 +51,9 @@ class BacktestEngine:
         # 尝试从 config.yaml 加载
         cfg = {}
         if config_path is None:
-            # 自动探测默认路径
-            import os
-            for p in [
-                os.path.join(os.path.dirname(__file__), "..", "config.yaml"),
-                os.path.expanduser("skills/a-stocks/config.yaml"),
-            ]:
-                if os.path.exists(p):
-                    config_path = p
-                    break
+            default_config = PROJECT_ROOT / "config" / "config.yaml"
+            if default_config.exists():
+                config_path = str(default_config)
         if config_path:
             try:
                 import yaml

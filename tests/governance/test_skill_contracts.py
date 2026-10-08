@@ -16,6 +16,7 @@ from server.agent.tools import TOOL_MAP
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS_DIR = ROOT / ".agents" / "skills"
 MANIFEST_PATH = ROOT / "config" / "skills_manifest.json"
+WEB_APP_PATH = ROOT / "web" / "js" / "app.js"
 
 
 def _manifest() -> dict:
@@ -39,6 +40,15 @@ def test_all_19_skills_have_explicit_schema_and_tool_mapping() -> None:
     chen_schema = SKILL_SCHEMAS["astock-strategy-chenxiaoqun"]
     assert chen_schema["required"] == ["code"]
     assert {"code", "cost", "shares", "count"} <= set(chen_schema["properties"])
+
+
+def test_frontend_fallback_manifest_contains_all_project_skills() -> None:
+    manifest_ids = {item["id"] for item in _manifest()["skills"]}
+    app_source = WEB_APP_PATH.read_text(encoding="utf-8")
+    fallback_block = app_source.split("const BuiltinSkillsManifest = [", 1)[1].split("];", 1)[0]
+    fallback_ids = set(re.findall(r'\bid:\s*"([^"]+)"', fallback_block))
+
+    assert fallback_ids == manifest_ids
 
 
 def test_manifest_cli_contracts_parse_with_canonical_examples() -> None:
@@ -145,6 +155,7 @@ def test_skill_runtime_assets_do_not_reference_global_runtime_roots() -> None:
         ".AI-Platform",
         "AppData/Local/AI-Platform",
         "a-share-dashboard/data",
+        "skills/a-stocks",
         "skills/a-share-data",
     )
     violations: list[str] = []

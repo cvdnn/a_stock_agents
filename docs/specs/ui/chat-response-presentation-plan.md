@@ -4,7 +4,7 @@
 > 权威定义 (SSOT)：[`chat-response-presentation-guide.md`](../../guidelines/ui/chat-response-presentation-guide.md)
 > **实施状态**：实施中 | 纯渲染模块与 Node 单测已落地，回复卡片、执行时间线与工作台投射待完成
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **智能体执行约束：** 按本计划逐项实施，并遵循项目 `AGENTS.md` 中的权限、测试分层和验证规约。步骤使用复选框（`- [ ]`）跟踪。
 
 **Goal:** Render safe Markdown, show a concise answer in each AI chat card, expose expandable child-task results, place task errors inside the execution timeline, and show the full response in the right workbench.
 

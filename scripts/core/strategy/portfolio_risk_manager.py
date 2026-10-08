@@ -15,6 +15,8 @@ K线格式: [[date, open, close, high, low, volume], ...]
 import math
 import json
 
+from ..workspace import PROJECT_ROOT
+
 
 class PortfolioRiskManager:
     """组合级风险管理器
@@ -47,14 +49,9 @@ class PortfolioRiskManager:
         # 尝试从 config.yaml 加载
         cfg = {}
         if config_path is None:
-            import os
-            for p in [
-                os.path.join(os.path.dirname(__file__), "..", "config.yaml"),
-                os.path.expanduser("skills/a-stocks/config.yaml"),
-            ]:
-                if os.path.exists(p):
-                    config_path = p
-                    break
+            default_config = PROJECT_ROOT / "config" / "config.yaml"
+            if default_config.exists():
+                config_path = str(default_config)
         if config_path:
             try:
                 import yaml

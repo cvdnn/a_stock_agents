@@ -73,7 +73,7 @@ a_stock_agents/
 │   │   ├── aichat_system_prompt.md     # AIChat 自然语言系统提示词与意图路由
 │   │   ├── trading_action_prompts.md   # 实战动作单与风控指令提示词
 │   │   └── trapped_diagnostic_prompts.md # 被套解套诊断决策树提示词
-│   └── skills/              # 17 个标准化 Agent 就地技能 (6+1 现代分层架构)
+│   └── skills/              # 19 个标准化 Agent 就地技能 (6+1 现代分层架构)
 │       ├── astock-action-execution/    # 实战反应动作与精确保本价进位引擎
 │       ├── astock-agent-debate/        # 7大AI分析师多空对抗辩论与决议
 │       ├── astock-data-feed/           # A股全链路行情与技术指标数据引擎
@@ -206,7 +206,7 @@ a_stock_agents/
 │   │   ├── agent/           # 原生 ReAct 智能体运行时
 │   │   │   ├── react_runner.py # ReAct 循环、工具调用与思考过程解析
 │   │   │   ├── events.py       # 领域事件流解耦与 SSE 事件分发
-│   │   │   ├── tools.py        # 18 项技能转换为 Agent 可调用工具函数
+│   │   │   ├── tools.py        # 19 项技能转换为 Agent 可调用工具函数
 │   │   │   └── prompts.py      # 服务端 ReAct 提示词模版
 │   │   ├── api/             # RESTful API 路由模块
 │   │   │   ├── chat.py         # 对话与 SSE 流式输出接口 (/api/chat)
@@ -271,14 +271,14 @@ a_stock_agents/
 | 6 | **模拟盘撮合与事件驱动回测** | `scripts/core/paper_trading` | 多账户资金隔离、Almgren-Chriss 平方根冲击滑点、T+1 硬约束、单标的与多标的轮动回测。 |
 | 7 | **监控守护与告警系统** | `scripts/core/monitor` | 交易日历网关（开盘/盘中/闭市/周末状态机）、多渠道告警（Windows Toast / Webhook）。 |
 | 8 | **投资报告生成与归档** | `scripts/core/reporting` | 1344px 居中、亚光白背景、红涨绿跌单文件自包含 HTML 研报与多标的聚合归档流水线。 |
-| 9 | **Skill 治理与审计子系统** | `scripts/core/governance` | 18 项技能集中注册、OpenAI Function Schema 转换、动态启停、执行性能与安全熔断审计。 |
+| 9 | **Skill 治理与审计子系统** | `scripts/core/governance` | 19 项技能集中注册、OpenAI Function Schema 转换、动态启停、执行性能与安全熔断审计。 |
 | 10 | **Web 服务网关与 AIChat 前端** | `scripts/server` & `web` | FastAPI 异步网关、SSE 流式打字机、ReAct 智能体运行时、双模动态视口与现代浅色金融前端。 |
 
 ---
 
 ## 四、18 技能体系（6+1 现代分层架构）
 
-全部 18 项技能严格遵循**零全局污染原则**，完全就地存放在 [`.agents/skills/`](../.agents/skills) 目录下，通过统一清单 [`config/skills_manifest.json`](../config/skills_manifest.json) 驱动：
+全部 19 项技能严格遵循**零全局污染原则**，完全就地存放在 [`.agents/skills/`](../.agents/skills) 目录下，通过统一清单 [`config/skills_manifest.json`](../config/skills_manifest.json) 驱动：
 
 ```mermaid
 mindmap
@@ -453,7 +453,7 @@ flowchart TD
 ## 七、关键设计原则与工程铁律
 
 1. **零全局污染原则 (Zero Global Pollution)**：
-   - 本项目 18 项技能、提示词与量化引擎**完全就地运行在当前工作区内**。
+   - 本项目 19 项技能、提示词与量化引擎**完全就地运行在当前工作区内**。
    - 严禁将项目技能复制到系统全局目录（如 `~/.gemini/config/skills` 或系统路径）。
 2. **单一真理来源 (SSOT) 与物理路径解耦**：
    - 核心业务逻辑统一归集于 `scripts/core/`，服务网关归集于 `scripts/server/`，就地技能存放在 `.agents/skills/`。
@@ -492,7 +492,7 @@ flowchart TD
 | **界面指南** | [`guidelines/ui/app-js-modularization-guide.md`](guidelines/ui/app-js-modularization-guide.md) | [`SPEC-UI-002`](specs/ui/app-js-modularization-plan.md) | 前端巨石单体解耦为领域驱动模块、零构建工具依赖与兼容策略 |
 | **界面指南** | [`guidelines/ui/chat-response-presentation-guide.md`](guidelines/ui/chat-response-presentation-guide.md) | [`SPEC-UI-001`](specs/ui/chat-response-presentation-plan.md) | 对话回复卡片结构、执行时间线渲染契约与工作台投射规则 |
 | **界面指南** | [`guidelines/ui/market-data-sync-control-console-specification.md`](guidelines/ui/market-data-sync-control-console-specification.md) | [`SPEC-UI-003`](specs/ui/market-data-sync-control-console-plan.md) | 行情数据同步系统的跨域控制面；覆盖运行控制、任务记录、高级设置、P3 定时增量与手动范围选择，并保持无 AI 助手隔离 |
-| **系统架构** | [`guidelines/architecture/web-aichat-architecture.md`](guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 项技能治理系统架构 |
+| **系统架构** | [`guidelines/architecture/web-aichat-architecture.md`](guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 19 项技能治理系统架构 |
 | **系统架构** | [`guidelines/architecture/llm-provider-architecture.md`](guidelines/architecture/llm-provider-architecture.md) | [`SPEC-ARCH-002`](specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与 5 大业务场景角色绑定 (Roles) 架构 |
 | **系统架构** | [`guidelines/architecture/token-security-architecture.md`](guidelines/architecture/token-security-architecture.md) | [`SPEC-ARCH-003`](specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离、请求脱敏与指纹审计架构 |
 | **系统架构** | [`guidelines/architecture/production-agent-platform-architecture.md`](guidelines/architecture/production-agent-platform-architecture.md) | [`SPEC-ARCH-004`](specs/architecture/production-agent-platform-plan.md) | 生产级 Agent 平台分层架构、可靠性保障与演进路线 |

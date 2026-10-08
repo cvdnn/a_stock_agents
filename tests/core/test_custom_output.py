@@ -109,10 +109,6 @@ class TestCustomOutputIsolation(unittest.TestCase):
                 cand = ROOT / "scripts" / rel_path
                 if cand.exists():
                     return str(cand)
-            elif rel_path.startswith("skills/"):
-                cand = ROOT / ".agents" / rel_path
-                if cand.exists():
-                    return str(cand)
             return str(ROOT / rel_path)
 
         scripts_to_verify = [
@@ -122,13 +118,13 @@ class TestCustomOutputIsolation(unittest.TestCase):
             ("core position_manager list", [python_exec, _resolve("core/strategy/position_manager.py"), "list"], ["000001", "平安银行"]),
             ("core position_stop_monitor", [python_exec, _resolve("core/strategy/position_stop_monitor.py"), "--show"], ["000001", "平安银行"]),
             ("core investment_report selected", [python_exec, _resolve("core/reporting/investment_report.py"), "--pool", "selected"], ["000002", "万科A"]),
-            ("skills pool_manager list", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/pool_manager.py"), "list"], ["000002", "万科A"]),
-            ("skills position_manager list", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/position_manager.py"), "list"], ["000001", "平安银行"]),
-            ("skills sandbox", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/sandbox.py")], ["000001", "平安银行"]),
-            ("skills investment_report selected", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/investment_report.py"), "--pool", "selected"], ["000002", "万科A"]),
-            ("skills position_stop_monitor", [python_exec, _resolve("skills/astock-pool-dashboard/scripts/position_stop_monitor.py"), "--show"], ["000001", "平安银行"]),
-            ("skills ta_orchestrator check-pool", [python_exec, _resolve("skills/astock-agent-debate/scripts/ta_orchestrator.py"), "--mode", "check-pool"], ["000002", "万科A"]),
-            ("skills pool_audit", [python_exec, _resolve("skills/astock-pool-audit/scripts/pool_audit.py")], ["000063", "中兴通讯"]),
+            ("skills pool_manager list", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/pool_manager.py"), "list"], ["000002", "万科A"]),
+            ("skills position_manager list", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/position_manager.py"), "list"], ["000001", "平安银行"]),
+            ("skills sandbox", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/sandbox.py")], ["000001", "平安银行"]),
+            ("skills investment_report selected", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/investment_report.py"), "--pool", "selected"], ["000002", "万科A"]),
+            ("skills position_stop_monitor", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/position_stop_monitor.py"), "--show"], ["000001", "平安银行"]),
+            ("skills ta_orchestrator check-pool", [python_exec, _resolve(".agents/skills/astock-agent-debate/scripts/ta_orchestrator.py"), "--mode", "check-pool"], ["000002", "万科A"]),
+            ("skills pool_audit", [python_exec, _resolve(".agents/skills/astock-pool-audit/scripts/pool_audit.py")], ["000063", "中兴通讯"]),
         ]
 
 
