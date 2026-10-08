@@ -56,6 +56,7 @@ temp/**
 # 注意：cache/ 与 reports/ 必须锚定到仓库根（前导 /），否则会以“任意层级同名目录”
 # 匹配到 output/cache/、output/reports/，并在 negation 之后重新忽略它们，
 # 使 output/ 下的 .gitkeep / .example 占位无法纳入版本控制。
+/.tmp-ui-ux-cache/
 /cache/
 .data_cache/
 **/.data_cache/
