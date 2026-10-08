@@ -72,6 +72,7 @@
 | — | 算法治理整改计划 | [`algorithm/algo-governance-remediation-plan.md`](algorithm/algo-governance-remediation-plan.md) | [`algorithm-governance.md`](../guidelines/algorithm/algorithm-governance.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-001`（发现 G1）；按 G1→G3 顺序推进 |
 | — | 待办积压登记看板 | [`algorithm/pending-backlog-plan.md`](algorithm/pending-backlog-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`；四批 84 项已全部裁定（2026-09-21），实现零启动（整理日期 2026-09-20） |
 | — | D-11 数据持久化实施计划 | [`algorithm/d11-data-persistence-implementation-plan.md`](algorithm/d11-data-persistence-implementation-plan.md) | [`market-data-sync-specification.md`](../guidelines/data/market-data-sync-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`（D-11 关键路径）/ `SPEC-DATA-001`（数据侧载体）；映射 D1/D3/D10，E0–E3 任务矩阵，解锁 M-03/M-05 |
+| — | 智能选股工作区修复计划 | [`algorithm/selection-workbench-remediation-plan.md`](algorithm/selection-workbench-remediation-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`；修复 Web 闭环阻断、运行详情数据契约与状态显示，重验 M-04 |
 | 🗄️ 归档 | 历史 ADR / RFC / 审计报告（6 篇，不可变） | [`algorithm/archive/`](algorithm/archive/) | — | 🔒 已归档 | 保留 `YYYY-MM-DD-*.md` 日期前缀，豁免 `-plan.md` 命名规则，只增不改 |
 
 ### 7. 数据架构与同步机制设计 (`data/`)
