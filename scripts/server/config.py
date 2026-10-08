@@ -5,15 +5,16 @@ server.config - Server-wide settings and environment management.
 from __future__ import annotations
 
 import os
+import ipaddress
 from pathlib import Path
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
 # Root directory resolution
 SERVER_DIR = Path(__file__).resolve().parent
-from core.config import PROJECT_ROOT
+from core.config import LOCAL_SERVER_DIR, PROJECT_ROOT
 
-DEFAULT_DB_PATH = PROJECT_ROOT / "local" / "server" / "chats.db"
+DEFAULT_DB_PATH = LOCAL_SERVER_DIR / "chats.db"
 
 
 class ServerSettings(BaseModel):
@@ -52,13 +53,33 @@ class ServerSettings(BaseModel):
     request_timeout: float = Field(default=60.0, description="LLM request timeout in seconds")
 
 
+def ensure_safe_test_bind(host: str, runtime_mode: str) -> None:
+    """Refuse to expose an explicitly test-mode service beyond loopback.
+
+    Test mode may contain temporary accounts and deterministic providers.  It
+    is therefore an error to bind an official launcher to a LAN/public
+    address.  Production binding policy is unchanged.
+    """
+    if str(runtime_mode).strip().lower() != "test":
+        return
+    value = str(host or "").strip().lower()
+    if value == "localhost":
+        return
+    try:
+        if ipaddress.ip_address(value).is_loopback:
+            return
+    except ValueError:
+        pass
+    raise ValueError("test runtime must bind to a loopback host (127.0.0.1, ::1, or localhost)")
+
+
 def load_server_settings() -> ServerSettings:
     """Load settings from environment variables and defaults."""
     db_str = os.getenv("A_STOCK_DB_PATH")
     db_path = Path(db_str).resolve() if db_str else DEFAULT_DB_PATH
     # 兼容性平滑迁移: 若原 output/cache/chats.db 存在且当前不存在，自动迁移至 local/server
     legacy_chats = PROJECT_ROOT / "output" / "cache" / "chats.db"
-    if not db_path.exists() and legacy_chats.exists():
+    if not db_str and not db_path.exists() and legacy_chats.exists():
         try:
             import shutil
             db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -92,11 +113,15 @@ def load_server_settings() -> ServerSettings:
     token_str = os.getenv("A_STOCK_SERVER_TOKEN")
     api_token = token_str.strip() if token_str and token_str.strip() else None
 
+    host = os.getenv("A_STOCK_SERVER_HOST", "127.0.0.1")
+    runtime_mode = os.getenv("A_STOCK_RUNTIME_MODE", "production").strip().lower()
+    ensure_safe_test_bind(host, runtime_mode)
+
     return ServerSettings(
-        host=os.getenv("A_STOCK_SERVER_HOST", "127.0.0.1"),
+        host=host,
         port=int(os.getenv("A_STOCK_SERVER_PORT", "6300")),
         reload=os.getenv("A_STOCK_SERVER_RELOAD", "false").lower() in ("true", "1", "yes"),
-        runtime_mode=os.getenv("A_STOCK_RUNTIME_MODE", "production").strip().lower(),
+        runtime_mode=runtime_mode,
         cors_origins=cors_origins,
         db_path=db_path,
         api_token=api_token,

@@ -35,6 +35,9 @@ test = [
     # 纯可选——未安装时 `pytest` 照常工作，只是失去 -n 参数。
     "pytest-xdist>=3.5.0",
 ]
+browser-test = [
+    "playwright>=1.48.0",
+]
 
 [project.scripts]
 astock = "core.cli:main"
@@ -59,5 +62,6 @@ markers = [
     "subprocess: 通过子进程执行 CLI/脚本的集成用例",
     "e2e: 端到端链路用例（真实装配→规则→输出）",
     "live: 需要预先启动真实服务并显式开启（A_STOCK_RUN_LIVE_E2E=1）",
+    "browser_e2e: 使用隔离服务和系统浏览器的登录后 UI 验收（A_STOCK_RUN_BROWSER_E2E=1）",
 ]
 

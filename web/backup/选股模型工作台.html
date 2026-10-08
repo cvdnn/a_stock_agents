@@ -10,6 +10,7 @@
     html,body{margin:0;width:100%;overflow-x:hidden}
     button,input,select{font:inherit}
     button{cursor:pointer}
+    .prototype-warning{position:fixed;z-index:9999;top:12px;left:50%;transform:translateX(-50%);padding:10px 18px;border:2px solid #b42318;border-radius:8px;background:#fff1f0;color:#b42318;font-size:18px;font-weight:700;box-shadow:0 4px 16px rgba(180,35,24,.18)}
     .app{width:2040px;min-height:1284px;padding:22px 24px 28px;background:linear-gradient(110deg,#f4f9fc,#f7fbfd 60%,#f1f7fa);transform-origin:top left}
     .topbar,.panel{background:#fff;border:1px solid #ecf2f7;border-radius:9px;box-shadow:0 2px 12px rgba(30,69,111,.018)}
     .topbar{height:116px;display:flex;align-items:center;justify-content:space-between;padding:0 29px 0 33px;margin-bottom:21px}
@@ -93,6 +94,7 @@
   </style>
 </head>
 <body>
+  <div class="prototype-warning" role="status">非生产设计原型 · 不连接真实数据或执行真实操作</div>
   <div class="app">
     <header class="topbar">
       <div class="identity"><h1>成长优选模型</h1><span class="status"><span class="status-dot"></span>运行中</span></div>

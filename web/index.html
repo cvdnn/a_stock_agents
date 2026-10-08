@@ -2974,6 +2974,15 @@
           // 已登录：填充头部信息
           hideGate();
           try { applyUserProfile(me.user); } catch (e) { /* ignore */ }
+          // 菜单可见性与服务端 RBAC 使用同一份 menu code；服务端仍是最终授权边界。
+          try {
+            if (!window.AstockAuth.isSuperAdmin()) {
+              document.querySelectorAll(".sidebar-nav-section .nav-item[data-tab]").forEach(function (entry) {
+                var code = entry.getAttribute("data-tab") || "";
+                entry.style.display = window.AstockAuth.hasMenu(code) ? "" : "none";
+              });
+            }
+          } catch (e) {}
           // 仅超管或被授权【系统管理】菜单的角色显示左侧菜单入口
           try {
             if (window.AstockAuth.isSuperAdmin() || window.AstockAuth.hasMenu("system")) {

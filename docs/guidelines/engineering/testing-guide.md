@@ -48,13 +48,14 @@ tests/
 ├── README.md            # 目录级速查与执行入口
 ├── core/        (17 文件 / 182 用例)  # 量化底座：装配、漏斗、指标、模型、撮合、策略、同步
 ├── server/      (17 文件 / 153 用例)  # 服务端：REST API、会话与记忆、LLM 就绪、数据同步控制台
-├── governance/  (10 文件 /  91 用例)  # 架构与合规门禁：解耦、真实性、安全审计、技能契约
-└── frontend/    (29 文件 / Node.js)   # 前端 DOM 与交互仿真，不经 pytest 收集，单独 `node` 执行
+├── governance/  (10 文件 /  92 用例)  # 架构与合规门禁：解耦、真实性、安全审计、技能契约
+├── browser/     ( 1 文件 /   7 用例)  # 隔离服务 + 系统 Edge 的真实登录后验收（显式启用）
+└── frontend/    (30 文件 / Node.js)   # 前端 DOM 与交互仿真，不经 pytest 收集，单独 `node` 执行
 
 .agents/skills/*/scripts/test_*.py     # 技能自带脚本级自测（2 文件），由 testpaths 一并收集
 ```
 
-> 用例总数 **430**（`core/` + `server/` + `governance/` + 技能脚本）。目录分层描述"测什么"，
+> 当前收集用例总数 **564**（`core/` + `server/` + `governance/` + `browser/` + 技能脚本）。目录分层描述"测什么"，
 > 与下述档位分层（"多重要、多快"）是两个正交维度。
 
 ---
@@ -68,14 +69,14 @@ tests/
 | 表 | 作用 | 键粒度 |
 | :--- | :--- | :--- |
 | `_TIER_BY_PATH` | 优先级归档 `core` / `p1` / `p2`（互斥全覆盖） | 文件 |
-| `_TAGS_BY_PATH` | 能力标签 `slow` / `network` / `subprocess` / `e2e` / `live` | 文件 |
+| `_TAGS_BY_PATH` | 能力标签 `slow` / `network` / `subprocess` / `e2e` / `live` / `browser_e2e` | 文件 |
 | `_OVERRIDE_TAGS` | 精准点名个别用例（键为 pytest `nodeid`，非 `item.name`） | 单用例 |
 
 | 档位 | 用例数 | 判定标准 |
 | :--- | ---: | :--- |
-| **`core`** | **132** | **P0 契约门禁**：错了会直接产出假结论或造成资金/安全后果——数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
-| `p1` | 259 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
-| `p2` | 39 | 补充边界：文档真实性、注册表辅助路径、自定义输出目录 |
+| **`core`** | **227** | **P0 契约门禁**：错了会直接产出假结论或造成资金/安全后果——数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
+| `p1` | 291 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
+| `p2` | 46 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
 | :--- | ---: | :--- |
@@ -84,6 +85,7 @@ tests/
 | `subprocess` | 10 | 以子进程执行 CLI/脚本的集成用例 |
 | `e2e` | 26 | 端到端链路（装配 → 规则 → 快照落盘） |
 | `live` | 18 | 需预先启动真实服务并显式开启 `A_STOCK_RUN_LIVE_E2E=1` 与 `A_STOCK_SERVER_TOKEN` |
+| `browser_e2e` | 7 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
 
 > `--strict-markers` 已启用：拼错的标记直接报错，不会被静默忽略。
 
@@ -93,7 +95,7 @@ tests/
 
 | 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
 | :--- | :--- | :--- | ---: | :--- |
-| ① | **P0 核心（必跑）** | `pytest -m core` | ~13s | 任何代码/测试改动后**无条件先跑**，作为唯一自动门禁 |
+| ① | **P0 核心（必跑）** | `pytest -m core` | 当前 Windows 基线约 80s | 任何代码/测试改动后**无条件先跑**，作为唯一自动门禁 |
 | ② | 核心离线子集（极速反馈） | `pytest -m "core and not slow and not network and not subprocess"` | ~12s | ①失败后定位时可自主使用 |
 | ③ | 核心 + 重要回归 | `pytest -m "core or p1"` | 介于 ① 与 ④ 之间 | **需人工确认**后执行 |
 | ④ | 离线全量 | `pytest -m "not network"` | ~64s | **需人工确认**后执行 |
@@ -101,11 +103,12 @@ tests/
 | ⑥ | 全量并行 | `pytest -n 4` | ~40s | **需人工确认**后执行（需 `pytest-xdist`） |
 | ⑦ | 含外网 | `pytest -m network` | 视网络 | **需人工确认**，且须先告知会触达真实行情源 |
 | ⑧ | 端到端真实服务 | `A_STOCK_RUN_LIVE_E2E=1 pytest -m live` | 视环境 | **需人工确认**，须先启动已配置的服务 |
+| ⑨ | 隔离浏览器 E2E | `A_STOCK_RUN_BROWSER_E2E=1 pytest -m browser_e2e` | 视环境 | **需人工确认**；临时配置/DB、回环随机端口、系统 Edge |
 
 **对代为执行测试的智能体的硬约束：**
 
 1. **禁止默认全量**：完成改动后只执行 ①；不得把 `pytest`（全量）、`pytest -n X`、`pytest -m "core or p1"` 当作默认动作。
-2. **必须先征询再扩展**：需要跑 ③~⑧ 时，先说明「为什么核心门禁不足以覆盖本次改动」「预计耗时」「是否会触网/写盘」，取得确认后才执行。
+2. **必须先征询再扩展**：需要跑 ③~⑨ 时，先说明「为什么核心门禁不足以覆盖本次改动」「预计耗时」「是否会触网/写盘」，取得确认后才执行。
 3. **核心门禁绿 ≠ 可以交付**：若改动落在 `p1` 覆盖面（服务端 API、设置接线、技能契约），必须在建议里明确指出"建议追加执行 ③"，把决策权交回用户，而非自行跳过或自行全跑。
 4. **失败即止**：① 出现失败时立刻停止并报告，不得用"全量里别的用例也挂了"来稀释定位。
 
@@ -204,14 +207,31 @@ Python 同名 `def` 后者覆盖前者，前者**永远不会执行**，而收�
 | `isolated_user_pools` | function | 临时**空**股票池目录，改绑所有模块级池路径常量 |
 
 进程级环境（在 import 前设定，测试与本机数据天然隔离）：
-`A_STOCK_RUNTIME_MODE=test` · `A_STOCK_DEFAULT_MODEL=mock` · `A_STOCK_DB_PATH` · `A_STOCK_DATA_SYNC_SETTINGS_FILE`。
+`A_STOCK_RUNTIME_MODE=test` · `A_STOCK_DEFAULT_MODEL=mock` · `A_STOCK_CONFIG_PATH` · `A_STOCK_DB_PATH` · `A_STOCK_OUTPUT_DIR` · `A_STOCK_LOG_DIR` · `A_STOCK_TEMP_DIR` · `A_STOCK_LOCAL_DIR` · `A_STOCK_DATA_SYNC_SETTINGS_FILE`。这些变量由共享基座强制覆盖到本轮临时根，禁止继承调用者可能指向真实数据的同名变量。
+
+### 5.1 浏览器 E2E 安全规范
+
+`tests/browser/` 是登录后 UI 验收，不是常规 API 回归。必须同时满足：
+
+1. **真实认证链：** 通过 `/api/auth/login` 建立数据库会话，并用 `/api/auth/me` 核对身份；禁止关闭中间件、万能 Header、URL 免登录参数和固定密码。
+2. **最小权限：** 临时超级管理员仅用于在隔离库创建普通测试用户；页面交互使用临时 `researcher` 等场景所需的最小角色。
+3. **物理隔离：** 配置、聊天库、行情 `local/`、输出、日志、临时文件和数据同步设置全部指向 pytest 临时根；显式数据库路径不得触发旧库迁移。
+4. **仅限回环：** `runtime_mode=test` 的官方启动入口遇到非回环 host 必须拒绝启动；浏览器服务使用随机空闲端口，不占用或连接用户 6300 服务。
+5. **显式启用：** 未设置 `A_STOCK_RUN_BROWSER_E2E=1` 时整组 skip；安装缺失或系统 Edge 不可用也必须明确 skip，不能伪装通过。根收集钩子对所有 `browser_e2e` 标记统一实施该开关，不能依赖测试恰好使用某个 fixture；P1 治理用例同时检查每个 `tests/browser/test_*.py` 是否显式登记为 `p2 + browser_e2e + slow + subprocess`。
+6. **确定性证据：** 等待 URL、`/api/auth/me` 和关键 DOM 状态，不把固定 sleep 当成功条件；通过注入测试 CSS 关闭动画，不向生产页面增加 `?test=1`。
+7. **浏览器出网封锁：** 浏览器上下文必须拒绝所有非回环 HTTP(S)/WebSocket 请求并禁用 Service Worker；只限制服务端 Python Socket 不算完成。
+8. **严格失败门禁：** `requestfailed`、意外 HTTP ≥400、控制台 error、页面异常任一出现即失败；不能只记录到 JSON。只允许逐 URL + 状态码登记的“真实数据不可用”只读接口 503，以及 iframe 保持无 `allow-same-origin` 时浏览器主动拒绝 Service Worker 的精确沙箱安全消息；两类事件须另行留证，禁止按错误类型或状态码整体放行，认证/RBAC/写接口错误永不在允许清单内。
+9. **脱敏与清理：** Token、密码不得出现在 URL、日志、DOM、截图名称或测试报告；`finally` 关闭浏览器和服务并删除含凭据的运行根，失败时只复制脱敏证据。
+10. **验收边界：** 静态 HTML、认证遮罩仍存在、API 被错误转向 6300、仅有非空 PNG、或只验证单一视口，均不算真实浏览器验收。
+
+2026-10-08 修复后基线：收集 564 例；P0 `227 passed, 337 deselected`，P0+P1 `518 passed, 46 deselected`，7 例系统 Microsoft Edge 浏览器矩阵 `7 passed, 557 deselected`。P1 与浏览器矩阵均在取得人工确认后执行；此前 2 例冒烟结果不再作为当前验收证据。
 
 ---
 
 ## 六、运行方式速查
 
 ```bash
-# ① P0 核心门禁（默认动作，约 13s）
+# ① P0 核心门禁（默认动作；当前 Windows 基线约 80s）
 .venv/bin/python -m pytest -m core
 
 # ② 核心离线极速（剔除子进程/外网/慢）
@@ -230,9 +250,12 @@ Python 同名 `def` 后者覆盖前者，前者**永远不会执行**，而收�
 .venv/bin/python -m pytest            # 全量串行
 .venv/bin/python -m pytest -n 4       # 全量并行（需 pytest-xdist，已在 [test] extras 声明）
 
-# 前端（Node.js，29 个独立脚本，不经 pytest 收集）
+# 前端（Node.js，30 个独立脚本，不经 pytest 收集）
 node tests/frontend/test_at_operator.js
 for f in tests/frontend/*.js; do node "$f" || echo "FAIL $f"; done
+
+# 登录后浏览器 E2E（需人工确认；使用系统 Edge）
+A_STOCK_RUN_BROWSER_E2E=1 .venv/bin/python -m pytest -m browser_e2e -q
 ```
 
 ---
@@ -242,7 +265,7 @@ for f in tests/frontend/*.js; do node "$f" || echo "FAIL $f"; done
 在发起 PR 或推送提交前，逐条自检：
 
 - [ ] 是否**先**在对应领域套件更新/新增用例，并观察到红灯？
-- [ ] `pytest -m core` 是否全绿（132 passed）？
+- [ ] `pytest -m core` 是否全绿（当前基线 227 passed）？
 - [ ] 若改动落在 `p1` 覆盖面，是否已就"追加执行 ③/⑤"征询过确认？
 - [ ] 新用例是否无外网强依赖？若确有，是否已打 `network` 标签？
 - [ ] 是否无同文件重名 `def test_`？（4.1）

@@ -196,6 +196,23 @@ def _load_dotenv():
 _load_dotenv()
 
 CONFIG_DIR = PROJECT_ROOT / "config"
+
+
+def resolve_config_file(explicit_path: Optional[str] = None) -> Path:
+    """Resolve the authoritative application config file.
+
+    Tests and isolated service instances may point at a dedicated file through
+    ``A_STOCK_CONFIG_PATH``.  A missing or malformed override never falls back
+    to the user's production config: callers receive defaults instead.
+    """
+    raw = explicit_path if explicit_path is not None else os.environ.get("A_STOCK_CONFIG_PATH")
+    if raw:
+        candidate = Path(raw).expanduser()
+        return candidate.resolve() if candidate.is_absolute() else (PROJECT_ROOT / candidate).resolve()
+    return (CONFIG_DIR / "config.yaml").resolve()
+
+
+CONFIG_FILE = resolve_config_file()
 SKILLS_DIR = PROJECT_ROOT / ".agents" / "skills" if (PROJECT_ROOT / ".agents" / "skills").exists() else (PROJECT_ROOT / "skills")
 DOCS_DIR = PROJECT_ROOT / "docs"
 PROMPTS_DIR = PROJECT_ROOT / ".agents" / "prompts" if (PROJECT_ROOT / ".agents" / "prompts").exists() else (PROJECT_ROOT / "prompts")
@@ -209,7 +226,7 @@ for p in [PROJECT_ROOT, SCRIPTS_DIR, SCRIPTS_DIR / "core", PROJECT_ROOT / "core"
 
 def load_config() -> dict:
     """Load config.yaml with fallback defaults."""
-    cfg_file = CONFIG_DIR / "config.yaml"
+    cfg_file = CONFIG_FILE
     if cfg_file.exists():
         try:
             with open(cfg_file, "r", encoding="utf-8") as f:
@@ -285,7 +302,7 @@ def _resolve_runtime_dir(env_var: str, default_rel: str) -> Path:
 
 LOG_DIR: Path = _resolve_runtime_dir("A_STOCK_LOG_DIR", "log")
 TEMP_DIR: Path = _resolve_runtime_dir("A_STOCK_TEMP_DIR", "temp")
-LOCAL_DIR: Path = PROJECT_ROOT / "local"
+LOCAL_DIR: Path = _resolve_runtime_dir("A_STOCK_LOCAL_DIR", "local")
 LOCAL_MARKET_DATA_DIR: Path = LOCAL_DIR / "market_data"
 LOCAL_CACHE_DIR: Path = LOCAL_DIR / "cache"
 LOCAL_SERVER_DIR: Path = LOCAL_DIR / "server"
@@ -293,8 +310,7 @@ LOCAL_SERVER_DIR: Path = LOCAL_DIR / "server"
 for p in [LOG_DIR, TEMP_DIR, LOCAL_DIR, LOCAL_MARKET_DATA_DIR, LOCAL_CACHE_DIR, LOCAL_SERVER_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
-import platform
-if platform.system() != "Windows":
+if os.name != "nt":
     try:
         os.chmod(LOCAL_DIR, 0o700)
     except Exception:
@@ -427,7 +443,7 @@ def save_market_config(commission_rate: float = None,
                        is_user_configured: bool = True) -> dict:
     """Update and persist market configuration to config.yaml and reload GLOBAL_CONFIG."""
     global GLOBAL_CONFIG
-    cfg_file = CONFIG_DIR / "config.yaml"
+    cfg_file = CONFIG_FILE
     cfg_data = {}
     if cfg_file.exists():
         try:
@@ -451,6 +467,7 @@ def save_market_config(commission_rate: float = None,
         cfg_data["market"]["is_user_configured"] = bool(is_user_configured)
         
     try:
+        cfg_file.parent.mkdir(parents=True, exist_ok=True)
         with open(cfg_file, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg_data, f, allow_unicode=True, sort_keys=False)
     except Exception as e:

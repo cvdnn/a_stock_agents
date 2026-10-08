@@ -105,14 +105,14 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 
 | 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
 | :--- | :--- | :--- | ---: | :--- |
-| ① | **P0 核心（132 例）** | `.venv/bin/python -m pytest -m core` | ~13s | 无条件先跑，唯一自动门禁 |
+| ① | **P0 核心（227 例）** | `.venv/bin/python -m pytest -m core` | 当前 Windows 基线约 80s | 无条件先跑，唯一自动门禁 |
 | ② | 核心离线极速 | `.venv/bin/python -m pytest -m "core and not slow and not network and not subprocess"` | ~12s | ① 失败定位时可自主使用 |
-| ③~⑧ | `core or p1` / `not network` / 全量 / `-n 4` / `network` / `live` | 见测试指南 3.2 | 40~68s | **必须先取得人工确认** |
+| ③~⑨ | `core or p1` / `not network` / 全量 / `-n 4` / `network` / `live` / `browser_e2e` | 见测试指南 3.2 | 40~68s 或视环境 | **必须先取得人工确认** |
 
 **硬约束（智能体必须遵守）：**
 
 1. **禁止默认全量**：不得把 `pytest`（无参数）、`pytest -n X`、`pytest -m "core or p1"`、`pytest tests/<目录>/` 当作默认动作。
-2. **先征询再扩展**：确需跑 ③~⑧ 时，必须先说明「为什么核心门禁不足以覆盖本次改动」「预计耗时」「是否会触网或写盘」，得到确认后才执行。
+2. **先征询再扩展**：确需跑 ③~⑨ 时，必须先说明「为什么核心门禁不足以覆盖本次改动」「预计耗时」「是否会触网或写盘」，得到确认后才执行。
 3. **门禁绿 ≠ 可交付**：改动落在 `p1` 覆盖面（服务端 API、设置接线、技能契约）时，须在结论中明确"建议追加执行 ③"，把决策权交回用户，既不自作主张跳过、也不自作主张全跑。
 4. **失败即止**：① 出现失败立刻停止并报告，不得用"全量里别的也挂了"稀释定位。
 5. **基线是 0 failed**（离线全量 `-m "not network"` 395 passed，430 例中 35 例需真实外网被排除）。曾以 `xfail(strict=True)` 登记的 2 个生产缺陷（`/api/watchlist` 捏造数据、静态 API Token 分支不可达）连同复查出的 2 个同源残留（`/api/market/indices` 静态指数快照回落、`/api/portfolio/overview` 演示资金与收益）已于 2026-10-07 全部修复并转为常驻回归用例，并由 AST 级数值哨兵 `test_market_projection_has_no_hardcoded_market_values` 防止写死行情/账户数值回流；新暴露的生产缺陷仍须先以 `xfail(strict=True)` 建档，禁止为了让看板变绿而删除/放宽断言或改测试迁就实现。

@@ -242,8 +242,8 @@ def test_canonical_paths_follow_ssot_1310():
     assert POOLS_ROOT.parts[-2:] == ("pools", "selection-models")
     assert LOG_ROOT.parts[-2:] == ("log", "selection-models")
     assert TEMP_ROOT.parts[-2:] == ("temp", "selection-models")
-    assert str(signal_date_dir(TRADING_DAY)).endswith("cache/selection-models/" + TRADING_DAY)
-    assert str(run_inputs_dir("selection_x")).endswith("selection_x/inputs")
+    assert signal_date_dir(TRADING_DAY).parts[-3:] == ("cache", "selection-models", TRADING_DAY)
+    assert run_inputs_dir("selection_x").parts[-2:] == ("selection_x", "inputs")
 
 
 def test_prune_removes_stale_cache_but_protects_signal_dates(tmp_path):

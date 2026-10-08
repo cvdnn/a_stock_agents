@@ -752,9 +752,11 @@ def main():
         server_cmd = getattr(args, "server_cmd", None)
         if server_cmd == "start":
             import uvicorn
+            from server.config import ensure_safe_test_bind, server_settings
             host = getattr(args, "host", "127.0.0.1")
             port = getattr(args, "port", 6300)
             reload = getattr(args, "reload", False)
+            ensure_safe_test_bind(host, server_settings.runtime_mode)
             if getattr(args, "json", False):
                 print(json.dumps({"status": "starting", "host": host, "port": port}, ensure_ascii=False))
             else:

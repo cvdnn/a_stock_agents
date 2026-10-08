@@ -26,7 +26,7 @@ for p in [PROJECT_ROOT, SCRIPTS_DIR]:
     if p.exists() and str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-from server.config import server_settings
+from server.config import ensure_safe_test_bind, server_settings
 from server.port_utils import find_free_port, remove_server_lockfile, write_server_lockfile
 
 
@@ -36,6 +36,7 @@ def main():
     parser.add_argument("--port", type=int, default=server_settings.port, help="Port to bind (default: 6300; use 0 for ephemeral auto-hunt)")
     parser.add_argument("--reload", action="store_true", default=server_settings.reload, help="Enable auto-reload")
     args = parser.parse_args()
+    ensure_safe_test_bind(args.host, server_settings.runtime_mode)
 
     # Dynamic port hunting if port is 0
     actual_port = args.port

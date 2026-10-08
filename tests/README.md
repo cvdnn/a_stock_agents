@@ -1,6 +1,6 @@
 # A-Stock Agents 测试用例架构与回归测试规范
 
-本目录包含了 A-Stock Agents 项目的**全量功能回归测试套件**（Python 430 例 + Node.js 前端 29 脚本）。测试架构与系统工程架构全面对齐，划分为 **量化核心 (`core/`)**、**服务端与智能体 (`server/`)**、**架构与合规门禁 (`governance/`)** 以及 **前端交互 (`frontend/`)** 四大领域专属目录。
+本目录包含了 A-Stock Agents 项目的**全量功能回归测试套件**（当前收集 Python 564 例 + Node.js 前端 30 脚本）。测试架构与系统工程架构全面对齐，划分为 **量化核心 (`core/`)**、**服务端与智能体 (`server/`)**、**架构与合规门禁 (`governance/`)**、**浏览器验收 (`browser/`)** 以及 **前端交互 (`frontend/`)** 五大领域专属目录。
 
 设计原则：**无外部网络强依赖（桩隔离）**、**核心门禁秒级反馈**、**断言必然执行**。
 
@@ -55,7 +55,7 @@ tests/
 │   ├── test_server_suite.py               # Web AIChat 后端数据库、会话与路由全套件
 │   └── test_session_memory.py             # 会话记忆系统与多轮对话隔离
 │
-├── governance/                   # 【合规门禁、安全审计与架构契约】 — 10 文件 / 91 用例
+├── governance/                   # 【合规门禁、安全审计与架构契约】 — 10 文件 / 92 用例
 │   ├── test_capability_truthfulness.py    # 真实性契约与虚假实现防护
 │   ├── test_decoupling_suite.py           # 架构分层解耦与防循环依赖
 │   ├── test_docs_suite.py                 # 文档真实性与反引号文件路径回归
@@ -67,7 +67,12 @@ tests/
 │   ├── test_security_suite.py             # HTML 报告 XSS 防御与 Zip Slip 路径穿越防御
 │   └── test_skill_contracts.py            # 18 项就地技能的输入/输出契约测试
 │
-└── frontend/                     # 【前端 UI / DOM 仿真与交互】对应 web/ (Node.js) — 29 个独立脚本，不经 pytest 收集
+├── browser/                      # 【真实登录后的系统 Edge 验收】— 1 文件 / 7 用例（显式启用）
+│   ├── conftest.py               # 隔离服务、临时身份、出网封锁、脱敏与清理基座
+│   ├── isolated_server.py        # 仅限回环网络的 Uvicorn 启动入口
+│   └── test_authenticated_workspace.py # 三视口、登录生命周期、DOM/截图审计
+│
+└── frontend/                     # 【前端 UI / DOM 仿真与交互】对应 web/ (Node.js) — 30 个独立脚本，不经 pytest 收集
     ├── test_at_operator.js                # @操作符浮窗布局、三池叠加排序与退格原子化删除
     ├── test_at_operator_null_safety.js    # @操作符空指针安全防御
     ├── test_chat_presentation.js          # 聊天卡片与交互式时间线渲染
@@ -112,15 +117,15 @@ tests/
 
 | 表 | 作用 | 键粒度 |
 | :--- | :--- | :--- |
-| `_TIER_BY_PATH` | 优先级 `core` / `p1` / `p2`（互斥且全覆盖 430 例） | 文件 |
-| `_TAGS_BY_PATH` | 能力标签 `slow` / `network` / `subprocess` / `e2e` / `live` | 文件 |
+| `_TIER_BY_PATH` | 优先级 `core` / `p1` / `p2`（互斥覆盖当前收集用例） | 文件 |
+| `_TAGS_BY_PATH` | 能力标签 `slow` / `network` / `subprocess` / `e2e` / `live` / `browser_e2e` | 文件 |
 | `_OVERRIDE_TAGS` | 精准点名个别用例（键为 pytest `nodeid`，**不是** `item.name`） | 单用例 |
 
 | 档位 | 用例数 | 判定标准 |
 | :--- | ---: | :--- |
-| **`core`** | **132** | **P0 契约门禁**——错了会直接产出假结论或造成资金/安全后果：数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
-| `p1` | 259 | 重要回归：服务端 REST 契约、设置持久化与接线披露、18 项技能契约、治理与质量门禁 |
-| `p2` | 39 | 补充边界：文档真实性、注册表辅助路径、自定义输出目录 |
+| **`core`** | **227** | **P0 契约门禁**——错了会直接产出假结论或造成资金/安全后果：数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
+| `p1` | 291 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
+| `p2` | 46 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
 | :--- | ---: | :--- |
@@ -129,6 +134,7 @@ tests/
 | `subprocess` | 10 | 以子进程执行 CLI/脚本的集成用例 |
 | `e2e` | 26 | 端到端链路（装配 → 规则 → 快照落盘） |
 | `live` | 18 | 需预先启动真实服务，并显式开启 `A_STOCK_RUN_LIVE_E2E=1` 与 `A_STOCK_SERVER_TOKEN` |
+| `browser_e2e` | 7 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
 
 ### 2.2 执行顺序与确认门
 
@@ -136,14 +142,15 @@ tests/
 
 | 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
 | :--- | :--- | :--- | ---: | :--- |
-| ① | **P0 核心（必跑）** | `-m core` | ~13s | 任何代码/测试改动后**无条件先跑**，唯一自动门禁 |
+| ① | **P0 核心（必跑）** | `-m core` | 当前 Windows 基线约 80s | 任何代码/测试改动后**无条件先跑**，唯一自动门禁 |
 | ② | 核心离线极速（121 例） | `-m "core and not slow and not network and not subprocess"` | ~12s | ① 失败后定位时可自主使用 |
-| ③ | 核心 + 重要回归（385 例） | `-m "core or p1"` | 介于 ①④ | **需人工确认** |
+| ③ | 核心 + 重要回归（518 例） | `-m "core or p1"` | 介于 ①④ | **需人工确认** |
 | ④ | 离线全量 | `-m "not network"` | ~64s | **需人工确认** |
 | ⑤ | 全量串行 | （无参数） | ~68s | **需人工确认** |
 | ⑥ | 全量并行 | `-n 4` | ~40s | **需人工确认**（需 `pytest-xdist`，已列入 `[test]` extras） |
 | ⑦ | 含外网 | `-m network` | 视网络 | **需人工确认**，且须先告知会触达真实行情源 |
 | ⑧ | 真实服务端 E2E | `A_STOCK_RUN_LIVE_E2E=1 pytest -m live` | 视环境 | **需人工确认**，须先启动已配置的服务 |
+| ⑨ | 隔离浏览器 E2E | `A_STOCK_RUN_BROWSER_E2E=1 pytest -m browser_e2e` | 视环境 | **需人工确认**；临时配置/DB、回环随机端口、系统 Edge |
 
 ```bash
 # ① 默认动作
@@ -162,7 +169,7 @@ tests/
 .venv/bin/python -m pytest -m core --durations=20
 ```
 
-> 实测耗时（430 例，含约 8s 收集期固定开销）：① 12.2s ｜ ② 12.1s ｜ ④ 64.2s ｜ ⑤ 67.9s ｜ ⑥ 39.5s。
+> 2026-10-08 当前 Windows 实测：收集 564 例，P0 为 227 passed / 337 deselected（52.34s），P0+P1 为 518 passed / 46 deselected（201.53s）。下方 430 例/12～68s 数据保留为 2026-10-07 历史基线，不再作为当前数量承诺。
 > `--strict-markers` 已启用，拼错的标记直接报错而非被静默忽略。
 > **离线全量基线：0 failed**（395 passed · 35 例外网被 deselect · 0 skipped · 0 xfailed）。
 > 以 `strict` 钉住的 4 个**生产缺陷**（`/api/watchlist` 捏造数据、静态 API Token 分支不可达、
@@ -180,12 +187,31 @@ tests/
 .venv/bin/python -m pytest "tests/core/test_stock_funnel.py::test_minute_timestamp_normalization_accepts_required_input_forms" -v
 ```
 
-**前端（Node.js）** 29 个独立脚本静态断言 `web/*.html|js`，不经 pytest 收集：
+**前端（Node.js）** 30 个独立脚本静态断言 `web/*.html|js`，不经 pytest 收集：
 
 ```bash
 node tests/frontend/test_at_operator.js
 for f in tests/frontend/*.js; do node "$f" || echo "FAIL $f"; done   # 全量遍历属确认门范围
 ```
+
+### 登录后浏览器 E2E（显式启用）
+
+浏览器套件位于 `tests/browser/`，默认整组跳过。它生成临时配置、聊天数据库、最小权限账号和短期会话，使用随机回环端口启动独立服务，再通过真实 `/api/auth/login` 驱动系统 Microsoft Edge。不得连接已运行的 6300 服务，也不得复用真实账号、静态机器 Token 或用户浏览器配置。
+
+```powershell
+# 安装可选依赖；使用系统 Edge，不下载浏览器内核
+uv pip install --python .\.venv\Scripts\python.exe -e ".[browser-test]"
+
+# 需人工确认后执行
+$env:A_STOCK_RUN_BROWSER_E2E = "1"
+& .\.venv\Scripts\python.exe -m pytest -m browser_e2e -q
+```
+
+安全契约：测试模式只允许 `127.0.0.1`、`::1` 或 `localhost`；浏览器上下文必须阻断所有非回环 HTTP(S)/WebSocket 请求并禁用 Service Worker；必须设置独立的 `A_STOCK_CONFIG_PATH`、`A_STOCK_DB_PATH`、`A_STOCK_LOCAL_DIR`、`A_STOCK_OUTPUT_DIR`、`A_STOCK_LOG_DIR` 和 `A_STOCK_TEMP_DIR`。意外 HTTP ≥400、`requestfailed`、控制台 error 或页面异常任一出现即失败。仅允许逐 URL + 状态码登记的真实数据不可用只读接口 503，以及 iframe 不授予 `allow-same-origin` 时浏览器产生的精确沙箱安全消息；两者单独留证，禁止放行认证、RBAC、写接口错误或整类 4xx/5xx。退出时必须关闭服务和浏览器、撤销或随临时数据库销毁会话，并删除含密码/Token 的运行根；失败证据只能脱敏保留。静态 HTML、未成功通过 `/api/auth/me`、仅有非空 PNG 或只验证单一视口，均不计为完整浏览器验收。
+
+收集契约：根 `tests/conftest.py` 对所有带 `browser_e2e` 标记的用例统一执行 `A_STOCK_RUN_BROWSER_E2E=1` 开关，不能依赖具体 fixture 才跳过。新增 `tests/browser/test_*.py` 必须同时在 `_TIER_BY_PATH` 登记为 `p2`，并在 `_TAGS_BY_PATH` 登记 `browser_e2e`、`slow`、`subprocess`；P1 治理用例会扫描并阻止漏登记文件合入。
+
+当前浏览器矩阵收集 7 例：错误密码、非回环阻断、1920×1080/1440×900/1280×720 三视口工作台、刷新与退出撤销、会话过期遮罩。2026-10-08 在取得确认后使用系统 Edge 最终实测 `7 passed, 557 deselected`（63.32s），截图目检通过；此前 2 例冒烟结果已失效。
 
 ---
 

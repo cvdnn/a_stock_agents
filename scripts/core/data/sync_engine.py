@@ -21,11 +21,12 @@ import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 try:
-    from core.config import PROJECT_ROOT, get_logger
+    from core.config import LOCAL_DIR, PROJECT_ROOT, get_logger
     from core.data.data_bridge import DataBridge
     from core.strategy.pool_manager import PoolManager
 except ImportError:
     PROJECT_ROOT = Path(__file__).resolve().parents[3]
+    LOCAL_DIR = PROJECT_ROOT / "local"
     import logging
     get_logger = logging.getLogger
     from scripts.core.data.data_bridge import DataBridge
@@ -34,7 +35,6 @@ except ImportError:
 logger = get_logger("core.data.sync_engine")
 
 # 存储路径约束规范: 统一归集至 local/ 保护目录下，阻断权限泄漏
-LOCAL_DIR = PROJECT_ROOT / "local"
 MARKET_DATA_DIR = LOCAL_DIR / "market_data"
 DB_PATH = MARKET_DATA_DIR / "astock_data.db"
 CACHE_DATA_LAYER_DIR = LOCAL_DIR / "cache" / "data_layer"

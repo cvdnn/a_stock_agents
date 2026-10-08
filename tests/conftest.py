@@ -15,6 +15,7 @@ Global pytest fixtures, sys.path initialization and case tiering.
 """
 import atexit
 import os
+import secrets
 import shutil
 import sys
 import tempfile
@@ -23,11 +24,29 @@ from pathlib import Path
 import pytest
 
 _TEST_RUNTIME_ROOT = Path(tempfile.mkdtemp(prefix="astock-pytest-"))
-os.environ.setdefault("A_STOCK_RUNTIME_MODE", "test")
-os.environ.setdefault("A_STOCK_DEFAULT_MODEL", "mock")
-os.environ.setdefault("A_STOCK_DB_PATH", str(_TEST_RUNTIME_ROOT / "chats.db"))
+_TEST_CONFIG_PATH = _TEST_RUNTIME_ROOT / "config.yaml"
+_TEST_ADMIN_USERNAME = "199" + "".join(str(secrets.randbelow(10)) for _ in range(8))
+_TEST_ADMIN_PASSWORD = secrets.token_urlsafe(24)
+_TEST_CONFIG_PATH.write_text(
+    "version: '3.0.0'\n"
+    "paths:\n"
+    f"  output_dir: '{(_TEST_RUNTIME_ROOT / 'output').as_posix()}'\n"
+    "user_system:\n"
+    f"  super_admin_username: '{_TEST_ADMIN_USERNAME}'\n"
+    f"  super_admin_password: '{_TEST_ADMIN_PASSWORD}'\n"
+    "  super_admin_role_code: 'super_admin'\n",
+    encoding="utf-8",
+)
+os.environ["A_STOCK_RUNTIME_MODE"] = "test"
+os.environ["A_STOCK_DEFAULT_MODEL"] = "mock"
+os.environ["A_STOCK_DB_PATH"] = str(_TEST_RUNTIME_ROOT / "chats.db")
+os.environ["A_STOCK_CONFIG_PATH"] = str(_TEST_CONFIG_PATH)
+os.environ["A_STOCK_OUTPUT_DIR"] = str(_TEST_RUNTIME_ROOT / "output")
+os.environ["A_STOCK_LOG_DIR"] = str(_TEST_RUNTIME_ROOT / "log")
+os.environ["A_STOCK_TEMP_DIR"] = str(_TEST_RUNTIME_ROOT / "temp")
+os.environ["A_STOCK_LOCAL_DIR"] = str(_TEST_RUNTIME_ROOT / "local")
 # 数据同步设置持久化文件默认落在测试临时根目录，避免回归测试污染真实 local/settings
-os.environ.setdefault("A_STOCK_DATA_SYNC_SETTINGS_FILE", str(_TEST_RUNTIME_ROOT / "settings" / "data_sync.json"))
+os.environ["A_STOCK_DATA_SYNC_SETTINGS_FILE"] = str(_TEST_RUNTIME_ROOT / "settings" / "data_sync.json")
 atexit.register(shutil.rmtree, _TEST_RUNTIME_ROOT, ignore_errors=True)
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -87,12 +106,14 @@ _TIER_BY_PATH = {
     "tests/server/test_agent_capability_execution.py": "p1",
     "tests/server/test_debate_and_quant_tools.py": "p1",
     "tests/server/test_access_and_thought_fix.py": "p1",
+    "tests/server/test_browser_e2e_security.py": "p1",
     # --- P2：辅助路径与文档型回归 ---
     "tests/core/test_algorithm_optimizations.py": "p2",
     "tests/core/test_custom_output.py": "p2",
     "tests/server/test_agent_tool_technical_summary.py": "p2",
     "tests/server/test_llm_stream_chunk_usage.py": "p2",
     "tests/governance/test_docs_suite.py": "p2",
+    "tests/browser/test_authenticated_workspace.py": "p2",
 }
 
 # 能力标签：标注真实耗时来源与外部依赖，供 `-m "not slow and not network"` 精准剔除。
@@ -115,6 +136,7 @@ _TAGS_BY_PATH = {
     "tests/governance/test_governance_suite.py": {"slow"},
     # 需预先启动真实服务并显式开启，默认整文件 skipif 跳过
     "tests/server/test_live_server_e2e.py": {"live", "network", "slow"},
+    "tests/browser/test_authenticated_workspace.py": {"browser_e2e", "slow", "subprocess"},
 }
 
 # 单用例能力标签覆写：键为 pytest `nodeid`（`文件::类::用例`）。用于整文件归档粒度不够细的场合——
@@ -132,13 +154,14 @@ def _relative_path(item) -> str:
     """取相对 ROOT 的文件路径，作为整文件档位/标签的匹配键。"""
     path = Path(str(item.location[0]))
     try:
-        return str(path.relative_to(ROOT))
+        return path.relative_to(ROOT).as_posix()
     except ValueError:
-        return str(path)
+        return path.as_posix()
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """把分层表落到用例上：未显式装饰的用例自动补齐优先级与能力标签。"""
+    """补齐分层标签，并统一关闭未显式启用的浏览器 E2E。"""
+    browser_e2e_enabled = os.getenv("A_STOCK_RUN_BROWSER_E2E") == "1"
     for item in items:
         rel = _relative_path(item)
         item.add_marker(getattr(pytest.mark, _TIER_BY_PATH.get(rel, "p2")))
@@ -152,6 +175,15 @@ def pytest_collection_modifyitems(session, config, items):
                 tags |= extra
         for tag in tags:
             item.add_marker(getattr(pytest.mark, tag))
+
+        # 在收集层统一执行显式开关，不能依赖某个具体 fixture 才触发 skip。
+        # 因而后续即使用例不请求 isolated_browser_server，也不会默认启动浏览器。
+        if item.get_closest_marker("browser_e2e") and not browser_e2e_enabled:
+            item.add_marker(
+                pytest.mark.skip(
+                    reason="browser E2E is opt-in; set A_STOCK_RUN_BROWSER_E2E=1"
+                )
+            )
 
 
 # ------------------------------------------------------------------ 共享测试基座

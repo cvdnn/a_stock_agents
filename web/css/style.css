@@ -4487,7 +4487,7 @@ input:checked + .slider:before {
   opacity: 0;
   transform: translateX(100%);
   visibility: hidden;
-  border-left: 1px solid transparent;
+  border-left: 0;
   pointer-events: none;
   overflow: hidden;
   box-shadow: none;
@@ -5409,6 +5409,7 @@ body.dark-mode .session-menu-item.session-menu-item-danger:hover {
 /* Right Detailed Content Column */
 .app-right-details {
   height: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: #F8FAFD;
@@ -12560,10 +12561,20 @@ body.dark-mode .chat-md-chip:hover {
 .sel-stop-square { width: 10px; height: 10px; border-radius: 2px; background: #F5222D; display: inline-block; }
 .sel-act-icon { display: inline-flex; flex-shrink: 0; }
 
-/* 漏斗运行图 + 筛选后股票列表 双卡片并排（左右布局保持不变，窄窗口下等比收紧） */
-.selection-detail-body { display: flex; gap: 12px; align-items: stretch; flex: 1; min-height: 0; }
+/* 漏斗与筛选结果同排，属性抽屉占满第二行。 */
+.selection-detail-body {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.45fr) minmax(320px, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
 .selection-funnel-card { flex: 0 0 44%; min-width: 0; display: flex; flex-direction: column; }
 .selection-result-card { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sel-property-drawer-card { min-width: 0; display: flex; flex-direction: column; }
+.sel-property-drawer { min-height: 0; overflow: auto; }
 
 .funnel-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
 .funnel-card-title { font-size: 16px; font-weight: 700; color: var(--text-title); }
@@ -12772,6 +12783,8 @@ body.dark-mode .chat-md-chip:hover {
   .selection-detail-model-name { font-size: 17px; }
   .sel-act-btn { font-size: 12.5px; padding: 6px 11px; }
   .selection-detail-body { gap: 10px; }
+  .selection-detail-body { grid-template-columns: minmax(240px, 44%) minmax(280px, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .sel-property-drawer-card { grid-column: 1 / -1; max-height: 180px; }
   .selection-funnel-card, .selection-result-card { padding: 12px; }
   .funnel-card-head { margin-bottom: 10px; }
   .funnel-card-title { font-size: 15px; }
@@ -12825,6 +12838,7 @@ body.dark-mode .chat-md-chip:hover {
   .funnel-bar-name { font-size: 12px; }
   .funnel-info-panel { padding: 5px 8px; gap: 4px; }
   .selection-result-table tbody td { padding: 7px 10px; }
+  .sel-property-drawer-card { max-height: 140px; }
 }
 
 /* 股票分析信息 */

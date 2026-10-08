@@ -89,6 +89,14 @@
     }
   }
 
+  function userWithMenus(payload) {
+    if (!payload || !payload.user) return null;
+    const menuCodes = (payload.menus || []).map(function (menu) {
+      return typeof menu === "string" ? menu : (menu && menu.code) || "";
+    }).filter(Boolean);
+    return Object.assign({}, payload.user, { menus: menuCodes });
+  }
+
   async function rawFetch(url, options) {
     options = options || {};
     const headers = Object.assign({}, options.headers || {});
@@ -169,7 +177,8 @@
     }
     if (payload && payload.token) {
       writeToken(payload.token);
-      if (payload.user) writeUser(payload.user);
+      const profile = userWithMenus(payload);
+      if (profile) writeUser(profile);
     }
     return payload;
   }
@@ -190,12 +199,18 @@
     if (early) {
       try {
         const resp = await early;
-        return await consumeResponse(resp, "/api/auth/me");
+        const payload = await consumeResponse(resp, "/api/auth/me");
+        const profile = userWithMenus(payload);
+        if (profile) writeUser(profile);
+        return payload;
       } catch (e) {
         // 网络层异常时回退到常规请求
       }
     }
-    return await apiFetch("/api/auth/me", { method: "GET" });
+    const payload = await apiFetch("/api/auth/me", { method: "GET" });
+    const profile = userWithMenus(payload);
+    if (profile) writeUser(profile);
+    return payload;
   }
 
   async function changePassword(oldPassword, newPassword) {

@@ -2,7 +2,10 @@
 /** Strict browser transport. Production data comes only from backend responses. */
 
 const AStockAPI = {
-  baseUrl: (typeof window !== 'undefined' && window.location && window.location.port && window.location.port !== '6300' && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'))
+  // The packaged UI is served by the API itself and must stay same-origin even
+  // when an isolated instance uses a non-default port.  Only the two supported
+  // frontend development servers proxy to the default backend on 6300.
+  baseUrl: (typeof window !== 'undefined' && window.location && ['3000', '5173'].includes(window.location.port) && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'))
     ? 'http://127.0.0.1:6300'
     : '',
 

@@ -2,6 +2,7 @@
 """
 Test Suite for Quantitative Algorithm Quality Gates & Overfitting Guard (ALCM Phase 2).
 """
+import ast
 import sys
 import unittest
 from pathlib import Path
@@ -21,6 +22,40 @@ from core.models.quality_gates import (
     QualityGateStatus,
 )
 from core.models.registry import AlgoRegistry, get_algo
+
+
+def _literal_assignment(source_path: Path, variable_name: str):
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if any(isinstance(target, ast.Name) and target.id == variable_name for target in node.targets):
+            return ast.literal_eval(node.value)
+    raise AssertionError(f"missing literal assignment: {variable_name}")
+
+
+def test_every_browser_e2e_file_has_explicit_tier_and_tags():
+    """New browser files must not silently disappear from the opt-in matrix."""
+    conftest_path = ROOT / "tests" / "conftest.py"
+    tiers = _literal_assignment(conftest_path, "_TIER_BY_PATH")
+    tags = _literal_assignment(conftest_path, "_TAGS_BY_PATH")
+    browser_test_paths = {
+        path.relative_to(ROOT).as_posix()
+        for path in (ROOT / "tests" / "browser").glob("test_*.py")
+    }
+
+    assert browser_test_paths, "tests/browser must contain at least one test module"
+    assert {
+        path: tiers.get(path)
+        for path in browser_test_paths
+        if tiers.get(path) != "p2"
+    } == {}
+    required_tags = {"browser_e2e", "slow", "subprocess"}
+    assert {
+        path: sorted(required_tags - set(tags.get(path, ())))
+        for path in browser_test_paths
+        if not required_tags.issubset(set(tags.get(path, ())))
+    } == {}
 
 
 class TestQualityGates(unittest.TestCase):

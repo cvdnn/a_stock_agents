@@ -1481,10 +1481,10 @@ def _load_user_system_config() -> Dict[str, Any]:
 
 
 def PROJECT_ROOT_CONFIG() -> Optional[str]:
-    """Resolve config/config.yaml path."""
+    """Resolve the authoritative config path, including isolated test overrides."""
     try:
-        from core.config import PROJECT_ROOT
-        return str(PROJECT_ROOT / "config" / "config.yaml")
+        from core.config import resolve_config_file
+        return str(resolve_config_file())
     except Exception:
         return None
 

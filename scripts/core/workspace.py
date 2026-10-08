@@ -8,7 +8,6 @@ can discover and execute skills without polluting global system skill directorie
 from __future__ import annotations
 
 import os
-import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -32,15 +31,23 @@ PROJECT_ROOT = _find_project_root()
 # output/  用户最终交付物唯一落盘区（报告/股池/持仓/回测/缓存）
 # log/     运行时观测唯一沉淀区（系统日志/CLI 轨迹/监控/审计）
 # temp/    可重建中间产物暂存区（导出/下载/临时缓存，会话结束清理）
-OUTPUT_DIR: Path = PROJECT_ROOT / "output"
-LOG_DIR: Path = PROJECT_ROOT / "log"
-TEMP_DIR: Path = PROJECT_ROOT / "temp"
-LOCAL_DIR: Path = PROJECT_ROOT / "local"
+def _runtime_dir(env_name: str, default_name: str) -> Path:
+    raw = os.environ.get(env_name)
+    if not raw:
+        return (PROJECT_ROOT / default_name).resolve()
+    candidate = Path(raw).expanduser()
+    return candidate.resolve() if candidate.is_absolute() else (PROJECT_ROOT / candidate).resolve()
+
+
+OUTPUT_DIR: Path = _runtime_dir("A_STOCK_OUTPUT_DIR", "output")
+LOG_DIR: Path = _runtime_dir("A_STOCK_LOG_DIR", "log")
+TEMP_DIR: Path = _runtime_dir("A_STOCK_TEMP_DIR", "temp")
+LOCAL_DIR: Path = _runtime_dir("A_STOCK_LOCAL_DIR", "local")
 
 
 def enforce_secure_permissions(path: Path) -> None:
     """保障 local 目录与内部文件安全，严格限制仅当前用户可读写 (0o700 / 0o600)，阻断权限泄漏。"""
-    if platform.system() != "Windows" and path.exists():
+    if os.name != "nt" and path.exists():
         try:
             os.chmod(path, 0o700)
             for root, dirs, files in os.walk(path):
@@ -106,7 +113,7 @@ def setup_workspace_mount() -> Tuple[bool, str]:
             except Exception:
                 pass
 
-        is_windows = platform.system() == "Windows"
+        is_windows = os.name == "nt"
         if is_windows:
             try:
                 cmd = f'cmd /c mklink /J "{mount_target}" "{root_skills}"'
@@ -140,7 +147,7 @@ def check_workspace_health() -> Dict[str, Any]:
     skills_manifest = PROJECT_ROOT / "config" / "skills_manifest.json"
     if not skills_manifest.exists():
         skills_manifest = PROJECT_ROOT / ".agents" / "manifests" / "skills_manifest.json"
-    cli_bin = PROJECT_ROOT / "bin" / ("astock.cmd" if platform.system() == "Windows" else "astock")
+    cli_bin = PROJECT_ROOT / "bin" / ("astock.cmd" if os.name == "nt" else "astock")
 
     status = {
         "agents_md": agents_md.exists(),

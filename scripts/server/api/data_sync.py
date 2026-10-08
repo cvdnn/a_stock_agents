@@ -13,12 +13,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 
+from server.auth.dependencies import require_menu
 from server.services import data_sync_settings as settings_service
 from server.services import data_sync_import as import_service
 
-router = APIRouter(prefix="/api/data-sync", tags=["Data Sync Console"])
+router = APIRouter(
+    prefix="/api/data-sync",
+    tags=["Data Sync Console"],
+    dependencies=[Depends(require_menu("datasync"))],
+)
 
 _SYNC_TASK_TYPES = ("data_sync", "sync")
 
