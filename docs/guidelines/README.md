@@ -44,6 +44,7 @@ docs/guidelines/
 | **智能选股系统 · 选股模型通用设计规范** | 规范 | [`algorithm/selection-model-general-specification.md`](algorithm/selection-model-general-specification.md) | [`SPEC-ALGO-003`](../specs/algorithm/general-selection-and-turning-point-plan.md) | 模型家族通用维度：通用选股 SFTC 阶段流水线、条件谓词模型、时点契约与拐点评分/回测治理口径（具体阈值均为示例口径） |
 | **智能选股系统 · 研究治理规则** | 治理 | [`algorithm/selection-research-governance.md`](algorithm/selection-research-governance.md) | [`SPEC-ALGO-ISS-001`](../specs/algorithm/selection-system-plan.md) | 模型评价触发阈值与优化建议闭环（建议不得自动改版） |
 | **智能选股系统 · 选股漏斗示例 1**（唯一示例） | 示例 | [`algorithm/selection-funnel-example-1.md`](algorithm/selection-funnel-example-1.md) | [`SPEC-ALGO-ISS-001`](../specs/algorithm/selection-system-plan.md) | 漏斗模型唯一示例（案例说明，非规范）：业务叙事与问财语句、配置驱动的“收盘突破 → 次日早盘拐点”四层漏斗口径、数据契约与参数化评估 |
+| **智能选股系统 · 第一期条件选股规则目录** | 规则目录 | [`algorithm/selection-condition-rule-catalog.md`](algorithm/selection-condition-rule-catalog.md) | [`SPEC-ALGO-ISS-001`](../specs/algorithm/intelligent-selection-funnel-redesign-plan.md) | 主流条件分类、首期通用意图、漏斗示例一覆盖矩阵及数据/语义准入边界 |
 
 ### 3. 系统核心架构设计 (`architecture/`)
 
