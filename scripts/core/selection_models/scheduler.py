@@ -33,6 +33,7 @@ except Exception:  # pragma: no cover
     _SHANGHAI_TZ = timezone(timedelta(hours=8))
 
 from core.data.sync_engine import DB_PATH, TradeCalendar
+from core.selection_models.catalog import ScheduleStore
 from core.selection_models.run_lock import RunLockManager
 from core.selection_models.run_repository import RunRepository
 from core.selection_models.signal_latch import SignalLatch, minute_of
@@ -105,6 +106,7 @@ class SelectionScheduler:
         signal_latch: Optional[SignalLatch] = None,
         now_fn: Optional[Callable[[], datetime]] = None,
         tick_interval_s: int = DEFAULT_TICK_INTERVAL_SECONDS,
+        schedule_store: Optional[ScheduleStore] = None,
     ) -> None:
         self.plan = plan
         self.db_path = Path(db_path) if db_path else DB_PATH
@@ -114,6 +116,7 @@ class SelectionScheduler:
         self.latch = signal_latch or SignalLatch()
         self._now = now_fn or _default_now
         self.tick_interval_s = int(tick_interval_s)
+        self.schedule_store = schedule_store
         model = dict(getattr(plan, "source_model", {}) or {})
         self.model_id = str(model.get("model_id") or "")
         self.model_version = int(model.get("model_version") or 0)
@@ -145,17 +148,29 @@ class SelectionScheduler:
 
     @property
     def windows(self) -> List[ScheduleWindow]:
-        return list(self._windows)
+        if self.schedule_store is None:
+            return list(self._windows)
+        overrides = self.schedule_store.load(self.model_id)["stages"]
+        windows = []
+        for window in self._windows:
+            spec = overrides.get(window.stage_id)
+            if spec is None:
+                windows.append(window)
+                continue
+            start, end = parse_schedule(spec, stage_id=window.stage_id)
+            windows.append(ScheduleWindow(window.stage_id, window.scope, start, end,
+                minute_of(start), minute_of(end), window.enabled))
+        return windows
 
     def due_windows(self, now: datetime) -> List[ScheduleWindow]:
         """当前分钟落在哪些启用阶段的时间窗内（闭区间）。"""
         minute = now.astimezone(_SHANGHAI_TZ).strftime("%H:%M")
-        return [window for window in self._windows if window.enabled and window.contains(minute)]
+        return [window for window in self.windows if window.enabled and window.contains(minute)]
 
     def next_run_at(self, now: datetime) -> Optional[str]:
         """今日下一个尚未到达的窗口开始时刻（供心跳/Web 显示）；无则 None。"""
         current = minute_of(now.astimezone(_SHANGHAI_TZ).strftime("%H:%M"))
-        upcoming = sorted(window.start_minute for window in self._windows if window.enabled and window.start_minute > current)
+        upcoming = sorted(window.start_minute for window in self.windows if window.enabled and window.start_minute > current)
         return f"{upcoming[0] // 60:02d}:{upcoming[0] % 60:02d}" if upcoming else None
 
     # ------------------------------------------------------------ Tick
@@ -178,6 +193,10 @@ class SelectionScheduler:
             "trade_date": trade_date,
             "minute": minute,
         }
+        if self.schedule_store is not None and self.schedule_store.load(self.model_id)["paused"]:
+            return {"status": "PAUSED", "reason_code": "SCHEDULE_PAUSED", "model_id": self.model_id,
+                    "model_version": self.model_version, "due_stages": [], "executed": [],
+                    "heartbeat": heartbeat, "next_run_at": None}
         if not self.is_trading_day(moment):
             # §10.4：非交易日不得运行早盘策略；不猜测开市、不补跑
             return {

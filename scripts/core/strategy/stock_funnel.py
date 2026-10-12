@@ -73,6 +73,8 @@ def _compare(left: Any, op: str, right: Any) -> bool:
 
 def rule_field_compare(record: Mapping[str, Any], spec: Mapping[str, Any], _: Mapping[str, Any]) -> RuleResult:
     field = str(spec["field"])
+    if spec.get("require_present") and (record.get("field_status") or {}).get(field) != "present":
+        raise ValueError(f"{field} 的数据状态不是 present")
     observed = _path_get(record, field)
     expected = spec.get("value")
     passed = _compare(observed, str(spec.get("op", "eq")), expected)
@@ -105,6 +107,26 @@ def rule_rolling_high(record: Mapping[str, Any], spec: Mapping[str, Any], _: Map
     strict = bool(spec.get("strict", True))
     passed = current > threshold if strict else current >= threshold
     return RuleResult.two_state("", passed, reason=f"最新收盘={current:.4f}, 前期高点={threshold:.4f}", observed=current, expected=threshold)
+
+
+def rule_close_new_high(record: Mapping[str, Any], spec: Mapping[str, Any], _: Mapping[str, Any]) -> RuleResult:
+    """收盘价严格高于此前 N 个完整交易日的收盘价；不改变旧 rolling_high 口径。"""
+    series = _numbers(_path_get(record, str(spec.get("field", "closes"))))
+    lookback = int(spec.get("lookback", 20))
+    if lookback < 2 or len(series) < lookback + 1:
+        raise ValueError(f"至少需要 {lookback + 1} 个收盘价数据点")
+    current = series[-1]
+    threshold = max(series[-lookback - 1:-1])
+    strict = bool(spec.get("strict", True))
+    passed = current > threshold if strict else current >= threshold
+    return RuleResult.two_state("", passed, reason=f"最新收盘={current:.4f}, 此前{lookback}日最高收盘={threshold:.4f}", observed=current, expected=threshold)
+
+
+def rule_market_include(record: Mapping[str, Any], spec: Mapping[str, Any], _: Mapping[str, Any]) -> RuleResult:
+    """仅按证券主数据中的交易所字段判断市场，不从代码前缀猜测。"""
+    market = str(_path_get(record, "market")).lower()
+    allowed = tuple(str(item).lower() for item in spec.get("markets", ("sh", "sz")))
+    return RuleResult.two_state("", market in allowed, reason=f"市场={market}", observed=market, expected=allowed)
 
 
 def rule_above_sma(record: Mapping[str, Any], spec: Mapping[str, Any], _: Mapping[str, Any]) -> RuleResult:
@@ -543,6 +565,8 @@ def build_stock_rule_registry() -> RuleRegistry:
         "symbol_prefix_exclude": rule_symbol_prefix_exclude,
         "text_exclude": rule_text_exclude,
         "rolling_high": rule_rolling_high,
+        "close_new_high": rule_close_new_high,
+        "market_include": rule_market_include,
         "above_sma": rule_above_sma,
         "sma_slope": rule_sma_slope,
         "series_compare": rule_series_compare,

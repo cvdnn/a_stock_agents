@@ -1374,7 +1374,7 @@ def _seed_user_system(conn: sqlite3.Connection) -> None:
         default_roles = [
             {"code": "super_admin", "name": "超级管理员", "description": "拥有全部菜单权限，系统内置不可删除", "all_menus": True},
             {"code": "researcher",  "name": "投研用户",   "description": "默认普通用户角色，可访问投研助手/自选/收益/技能", "all_menus": False},
-            {"code": "model_author", "name": "模型作者",  "description": "选股模型作者：可创建/编辑/运行本人模型并跟踪评价，不含发布/激活/管理/调试（C-03/W-02）", "menus": model_author_menus},
+            {"code": "model_author", "name": "模型作者",  "description": "选股模型作者：可创建/编辑/运行并跟踪评价；激活本人模型由 API 校验归属，不含通用发布/激活/管理/调试", "menus": model_author_menus},
         ]
         role_id_by_code: Dict[str, int] = {}
         for r in default_roles:

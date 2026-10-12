@@ -194,11 +194,15 @@ def test_selection_workbench_is_fail_closed_not_fabricated() -> None:
                  "switchSelPeriod", "exportFunnelResults", "openNewFunnelModelModal"):
         assert dead not in app_js, f"app.js 残留选股工作台伪造载体: {dead}"
 
-    # 删掉假数据必须同时补上诚实空态，否则只剩永久骨架屏
-    for honest in ("SELECTION_UNAVAILABLE_REASON", "SELECTION_EMPTY_PLACEHOLDER",
-                   "renderSelectionDetailHead", "renderSelectionModelList",
-                   "renderSelectionFunnel", "renderSelectionResults"):
-        assert honest in app_js, f"app.js 缺少选股工作台诚实空态要素: {honest}"
+    # 旧内存工作台必须退出；真实空态与错误态由 SelModels 统一渲染。
+    assert "SelectionWorkbench" not in app_js
+    selection_js = (ROOT / "web/js/selection-models/index.js").read_text(encoding="utf-8")
+    state_js = (ROOT / "web/js/selection-models/state_views.js").read_text(encoding="utf-8")
+    assert "global.SelModels.bootstrap = bootstrap" in selection_js
+    assert "stateViews.empty" in selection_js
+    assert "sel-state-error" in state_js
+    assert "filterFunnelResults" not in index_html
+    assert "refreshSelectionWorkbench" not in index_html
 
     pane = index_html.split('id="pane-selection"', 1)[1].split("<!-- View Pane", 1)[0]
 

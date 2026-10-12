@@ -380,13 +380,14 @@ def test_overview_endpoint_only_real_aggregates(auth_headers, isolated_settings_
         assert data["status"] == "success"
         assert {"market_phase", "daemon", "settings_summary", "pools", "recent_sync_tasks",
                 "latest_p3_task", "availability", "arbiter", "daily_health", "last_audit",
-                "dataset_coverage"} <= set(data)
+                "dataset_coverage", "market_daily"} <= set(data)
         # D1–D12 登记册（SPEC-DATA §5.1）：12 行与控制台覆盖表一一对应
         assert len(data["dataset_coverage"]) == 12
         assert all(entry["connected"] in (True, False) for entry in data["dataset_coverage"])
         assert set(data["daily_health"]["tiers"]) == {"P0", "P1", "P2"}
         assert data["daily_health"]["target_date"] <= data["market_phase"]["date"]
         assert isinstance(data["recent_sync_tasks"], list)
+        assert set(data["market_daily"]) == {"stored_symbols", "last_batch"}
         # 无 P3 任务时必须为 null，不得伪造演示任务
         assert data["latest_p3_task"] is None or data["latest_p3_task"]["tier"] == "P3"
         assert data["settings_summary"]["p3"]["batch_size"] in (500, 600, 800)  # 默认或测试补丁值

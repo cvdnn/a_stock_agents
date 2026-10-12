@@ -65,6 +65,50 @@ class TestDataSyncEngine(unittest.TestCase):
             symbols = self.engine.resolve_symbols(pools=["watchlist", "focus"])
         self.assertEqual(symbols, ["sh600519", "sz000001"])
 
+    def test_overview_pool_names_resolve_to_real_pool_files_and_sync_symbols(self):
+        from core.strategy.pool_manager import PoolManager
+
+        pools_dir = Path(self._tmp_root) / "pools"
+        pools_dir.mkdir()
+        (pools_dir / "selected_pool.csv").write_text("code,name\n000001,测试自选\n", encoding="utf-8")
+        manager = PoolManager(pools_dir=pools_dir)
+        with patch("core.strategy.position_manager.get_open_positions", return_value=[{"code": "600519"}]):
+            self.assertEqual([row["code"] for row in manager.get_pool("holdings")], ["600519"])
+            self.assertEqual([row["code"] for row in manager.get_pool("watchlist")], ["000001"])
+            with patch("core.data.sync_engine.PoolManager", return_value=manager):
+                self.assertEqual(self.engine.resolve_symbols(pools=["holdings", "watchlist"]),
+                                 ["sh600519", "sz000001"])
+
+    def test_market_summary_separates_stored_history_from_latest_batch_success(self):
+        from server.services.data_sync_overview import build_market_daily_summary
+
+        with sqlite3.connect(self.test_db_path) as conn:
+            conn.executemany(
+                "INSERT INTO sync_meta (symbol, row_count) VALUES (?, ?)",
+                [("sh600519", 1), ("sz000001", 1), ("sz000002", 0), ("sh000001", 1)],
+            )
+        task_db = Path(self._tmp_root) / "tasks.db"
+        with sqlite3.connect(task_db) as conn:
+            conn.execute("CREATE TABLE task_records (task_id TEXT, task_type TEXT, status TEXT, "
+                         "created_at TEXT, completed_at TEXT, result_json TEXT)")
+            conn.execute(
+                "INSERT INTO task_records VALUES (?, ?, ?, ?, ?, ?)",
+                ("batch-1", "data_sync_batch", "completed", "2026-10-09T08:00:00+00:00",
+                 "2026-10-09T08:05:00+00:00", json.dumps({
+                     "status": "degraded", "children": [
+                         {"label": "核心指数日 K", "total": 1, "success_count": 1, "failed_count": 0},
+                         {"label": "沪市日 K", "total": 1, "success_count": 1, "failed_count": 0},
+                         {"label": "深市日 K", "total": 2, "success_count": 1, "failed_count": 1},
+                     ],
+                 })),
+            )
+        summary = build_market_daily_summary(self.test_db_path, task_db)
+        self.assertEqual(summary["stored_symbols"], 2)
+        self.assertEqual(summary["last_batch"]["requested"], 3)
+        self.assertEqual(summary["last_batch"]["success"], 2)
+        self.assertEqual(summary["last_batch"]["failed"], 1)
+        self.assertEqual(summary["last_batch"]["status"], "degraded")
+
     def test_empty_explicit_pools_do_not_fall_back_to_holdings_and_indices(self):
         with patch("core.data.sync_engine.PoolManager") as manager:
             manager.return_value.get_pool.return_value = []
@@ -490,6 +534,71 @@ class TestDataSyncEngine(unittest.TestCase):
         self.assertEqual(ready["trade_date"], "2026-09-30")
         self.assertEqual(ready["missing"], [])
         self.assertTrue(ready["ready"])
+
+    def test_previous_trade_date_watermark_does_not_open_new_day_gate(self):
+        from core.data import dataset_sync
+
+        dataset_sync.write_universe_watermark(
+            self.store, "daily_kline", covered=3, total=3,
+            availability="finalized", trade_date="2026-10-08",
+        )
+        ready = dataset_sync.check_post_close_ready(
+            trade_date="2026-10-09", db_path=self.test_db_path,
+            required_keys=("daily_kline",),
+        )
+        self.assertFalse(ready["ready"])
+        self.assertEqual(ready["not_finalized"], ["daily_kline"])
+        self.assertEqual(ready["datasets"]["daily_kline"]["trade_date"], "2026-10-08")
+
+    def test_valuation_watermark_counts_only_requested_codes_with_float_value(self):
+        from core.data import dataset_sync
+
+        batch_date = dataset_sync._trade_date()
+        with sqlite3.connect(self.test_db_path) as conn:
+            conn.execute(
+                "INSERT INTO capital_snapshot (symbol,date,total_market_cap,float_market_cap)"
+                " VALUES (?,?,?,?)", ("sh600000", batch_date, 1e10, 8e9),
+            )
+        quotes = [{"code": "600519", "price": 100.0,
+                   "total_market_cap": 100.0, "circulating_market_cap": None}]
+        with patch.object(DataBridge, "fetch_batch_snapshot", return_value=quotes):
+            result = dataset_sync.sync_capital(["600519"], db_path=self.test_db_path)
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(result["audit"]["covered"], 0)
+        self.assertEqual(result["audit"]["universe_total"], 1)
+        self.assertIn("指定标的", result["audit"]["note"])
+
+    def test_required_post_close_sync_only_repairs_missing_stock_valuation(self):
+        from core.data import dataset_sync
+
+        today = dataset_sync._trade_date()
+        for key in ("base_calendar", "daily_kline"):
+            dataset_sync.write_universe_watermark(
+                self.store, key, covered=1, total=1,
+                availability="finalized", trade_date=today,
+            )
+        requested = []
+
+        def fake_valuation(symbols, db_path):
+            requested.extend(symbols)
+            wm = dataset_sync.write_universe_watermark(
+                self.store, "valuation", covered=1, total=1,
+                availability="finalized", trade_date=today,
+            )
+            return {"key": "valuation", "status": "ok", "audit": wm}
+
+        with patch.object(dataset_sync, "_resolve_registered", return_value=["sh600519", "sh000001"]), \
+                patch.object(dataset_sync, "sync_capital", side_effect=fake_valuation), \
+                patch.object(dataset_sync, "sync_stock_basic") as master_sync, \
+                patch.object(dataset_sync, "sync_daily_kline_watermark") as daily_sync:
+            first = dataset_sync.ensure_post_close_required(self.test_db_path)
+            second = dataset_sync.ensure_post_close_required(self.test_db_path)
+        self.assertTrue(first["ready"])
+        self.assertEqual([item["key"] for item in first["results"]], ["valuation"])
+        self.assertEqual(requested, ["sh600519"])
+        self.assertEqual(second["results"], [])
+        master_sync.assert_not_called()
+        daily_sync.assert_not_called()
 
     def test_daemon_schedule_reads_persisted_settings(self):
         """CLI 守护定盘时刻必须与 Web 控制台设置同源，不得再写死 15:35 / 15:40。"""

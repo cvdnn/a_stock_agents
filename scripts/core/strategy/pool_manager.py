@@ -81,13 +81,13 @@ class PoolManager:
     def get_pool(self, pool_type: str = "holding") -> List[Dict[str, Any]]:
         """获取指定类型的股票池标的列表。"""
         pt = str(pool_type or "holding").lower().strip()
-        if pt in ("holding", "positions", "持仓", "持仓池"):
+        if pt in ("holding", "holdings", "positions", "持仓", "持仓池"):
             try:
                 from core.strategy.position_manager import get_open_positions
                 return get_open_positions(enrich_quote=False)
             except Exception:
                 return _read_csv(self.positions_path)
-        elif pt in ("selected", "custom", "自选", "自选股", "自选池"):
+        elif pt in ("selected", "watchlist", "custom", "自选", "自选股", "自选池"):
             return _read_csv(self.selected_path)
         elif pt in ("watch", "focus", "关注", "关注股", "关注池"):
             return _read_csv(self.watch_path)

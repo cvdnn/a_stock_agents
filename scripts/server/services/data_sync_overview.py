@@ -2,6 +2,7 @@
 """Read-only daily K-line freshness summary for the data sync console."""
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
@@ -88,6 +89,70 @@ def build_daily_health(
         "tiers": {tier: summarize(symbols) for tier, symbols in tiers.items()},
         "availability": {"local_meta": path.is_file() and read_error is None, "reason": read_error},
     }
+
+
+def build_market_daily_summary(market_db_path: Path, task_db_path: Path) -> Dict[str, Any]:
+    """Report persisted Shanghai/Shenzhen stock bars and the last market batch separately.
+
+    Persisted symbols can include older history, so they are never presented as
+    the number successfully refreshed by the latest batch.
+    """
+    summary: Dict[str, Any] = {"stored_symbols": None, "last_batch": None}
+    market_path = Path(market_db_path)
+    if market_path.is_file():
+        try:
+            with sqlite3.connect(market_path.resolve().as_uri() + "?mode=ro", uri=True, timeout=5) as conn:
+                summary["stored_symbols"] = conn.execute(
+                    "SELECT COUNT(*) FROM sync_meta WHERE row_count > 0 AND "
+                    "(symbol LIKE 'sh%' OR symbol LIKE 'sz%') "
+                    "AND symbol NOT LIKE 'sh000%' AND symbol NOT LIKE 'sz399%'"
+                ).fetchone()[0]
+        except (sqlite3.Error, OSError):
+            pass
+
+    task_path = Path(task_db_path)
+    if not task_path.is_file():
+        return summary
+    try:
+        with sqlite3.connect(task_path.resolve().as_uri() + "?mode=ro", uri=True, timeout=5) as conn:
+            row = conn.execute(
+                "SELECT task_id, status, completed_at, result_json FROM task_records "
+                "WHERE task_type = 'data_sync_batch' ORDER BY created_at DESC LIMIT 1"
+            ).fetchone()
+    except (sqlite3.Error, OSError):
+        return summary
+    if row is None:
+        return summary
+
+    try:
+        result = json.loads(row[3]) if row[3] else {}
+    except (TypeError, json.JSONDecodeError):
+        result = {}
+    if not isinstance(result, dict):
+        result = {}
+    child_rows = result.get("children")
+    children = (
+        {child.get("label"): child for child in child_rows if isinstance(child, dict)}
+        if isinstance(child_rows, list) else {}
+    )
+
+    def count(child: Dict[str, Any] | None, key: str) -> int:
+        try:
+            return max(0, int((child or {}).get(key) or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    market_children = [children.get("沪市日 K"), children.get("深市日 K")]
+    complete_scope = all(count(child, "total") > 0 for child in market_children)
+    summary["last_batch"] = {
+        "task_id": row[0],
+        "status": (result.get("status") or "success") if row[1] == "completed" else row[1],
+        "completed_at": row[2],
+        "requested": sum(count(child, "total") for child in market_children) if complete_scope else None,
+        "success": sum(count(child, "success_count") for child in market_children) if complete_scope else None,
+        "failed": sum(count(child, "failed_count") for child in market_children) if complete_scope else None,
+    }
+    return summary
 
 
 #: 控制台覆盖表数据集登记册：顺序即展示顺序；planned_scope 仅作为“未接入”占位的规划说明，不作为真实水位

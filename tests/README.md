@@ -125,7 +125,7 @@ tests/
 | :--- | ---: | :--- |
 | **`core`** | **227** | **P0 契约门禁**——错了会直接产出假结论或造成资金/安全后果：数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
 | `p1` | 291 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
-| `p2` | 46 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
+| `p2` | 47 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
 | :--- | ---: | :--- |
@@ -134,7 +134,7 @@ tests/
 | `subprocess` | 10 | 以子进程执行 CLI/脚本的集成用例 |
 | `e2e` | 26 | 端到端链路（装配 → 规则 → 快照落盘） |
 | `live` | 18 | 需预先启动真实服务，并显式开启 `A_STOCK_RUN_LIVE_E2E=1` 与 `A_STOCK_SERVER_TOKEN` |
-| `browser_e2e` | 7 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
+| `browser_e2e` | 8 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
 
 ### 2.2 执行顺序与确认门
 
@@ -169,7 +169,7 @@ tests/
 .venv/bin/python -m pytest -m core --durations=20
 ```
 
-> 2026-10-08 当前 Windows 实测：收集 564 例，P0 为 227 passed / 337 deselected（52.34s），P0+P1 为 518 passed / 46 deselected（201.53s）。下方 430 例/12～68s 数据保留为 2026-10-07 历史基线，不再作为当前数量承诺。
+> 2026-10-08 当前 Windows 实测：收集 565 例，P0 为 227 passed / 338 deselected（70.91s）；新增的 R0 V-04 浏览器证据用例定向运行 1 passed（29.60s）。此前 564 例基线的 P0+P1 为 518 passed / 46 deselected（201.53s）；下方 430 例/12～68s 数据保留为 2026-10-07 历史基线，不再作为当前数量承诺。
 > `--strict-markers` 已启用，拼错的标记直接报错而非被静默忽略。
 > **离线全量基线：0 failed**（395 passed · 35 例外网被 deselect · 0 skipped · 0 xfailed）。
 > 以 `strict` 钉住的 4 个**生产缺陷**（`/api/watchlist` 捏造数据、静态 API Token 分支不可达、

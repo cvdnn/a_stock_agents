@@ -8,6 +8,7 @@
     funnel: [
       { id: 'blank', label: '空白漏斗' },
       { id: 'funnel_close_breakout', label: '收盘突破→早盘拐点模板' },
+      { id: 'funnel_example_1', label: '收盘突破→次日早盘拐点（完整示例 1）' },
     ],
     condition_tree: [
       { id: 'blank', label: '空白条件组' },
@@ -74,6 +75,7 @@
       template: modal.querySelector('#selWizardTemplate').value,
     };
     if (!payload.name) { global.showToast && global.showToast('请填写模型名称'); return; }
+    if (!global.SelModels.store.confirmDiscard()) return;
     try {
       const resp = await global.SelModels.api.createModel(payload);
       if (resp.status !== 'ok') { global.showToast && global.showToast(resp.message || '创建失败'); return; }

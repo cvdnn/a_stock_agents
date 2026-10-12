@@ -1,7 +1,7 @@
 // -*- coding: utf-8 -*-
 /**
  * 选股模型工作台 · 规则调试面板（正式运行与调试运行严格隔离，发布门禁 10）。
- * 只读取用户粘贴的记录做预演；不落正式运行目录、不发信号、水印标记为调试。
+ * 首层使用本地同步的市场股票，后续层使用上游通过候选；不落正式运行目录或发信号。
  */
 (function (global) {
   'use strict';
@@ -14,8 +14,11 @@
     if (!modelId) { global.showToast && global.showToast('请先选择模型'); return; }
     close();
     const def = global.SelModels.store.get().workingDefinition || {};
-    const ruleOptions = collectRules(def).map((r) => `<option value="${r.id}">${r.id} · ${r.type}</option>`).join('');
-    const stageOptions = collectStages(def).map((s) => `<option value="${s}">${s}</option>`).join('');
+    const stageOptions = collectStages(def).map((stage) => {
+      const name = stage.name || stage.id;
+      const label = name === stage.id ? name : `${name}（${stage.id}）`;
+      return `<option value="${escapeHtml(stage.id)}">${escapeHtml(label)}</option>`;
+    }).join('');
     const wrap = DOM().createElement('div');
     wrap.className = 'sel-modal-mask';
     wrap.id = 'selectionDebugModal';
@@ -32,9 +35,8 @@
           <label class="sel-field" id="selDebugNodeField"><span>阶段</span>
             <select id="selDebugStage">${stageOptions}</select></label>
           <label class="sel-field" id="selDebugRuleField" style="display:none"><span>规则</span>
-            <select id="selDebugRule">${ruleOptions}</select></label>
-          <label class="sel-field"><span>输入记录（JSON 数组）</span>
-            <textarea id="selDebugRecords" rows="6" placeholder='[{"code":"600001","closes":[...]}]'></textarea></label>
+            <select id="selDebugRule"></select></label>
+          <div class="sel-debug-note">首层读取本地已同步的市场股票；后续层读取前一层通过的候选。数据未就绪时会显示水位原因。</div>
           <div id="selDebugResult" class="sel-debug-result"></div>
         </div>
         <div class="sel-modal-foot">
@@ -47,55 +49,71 @@
       wrap.querySelector('#selDebugRuleField').style.display = isRule ? '' : 'none';
       wrap.querySelector('#selDebugNodeField').style.display = isRule ? 'none' : '';
     });
+    wrap.querySelector('#selDebugStage').addEventListener('change', () => updateRules(wrap, def));
+    updateRules(wrap, def);
     DOM().body.appendChild(wrap);
   }
 
-  function collectRules(def) {
+  function collectRules(def, stageId) {
     if (def.model && def.model.model_type === 'condition_tree') {
-      return (def.groups || []).flatMap((g) => g.rules || []);
+      return (def.groups || []).flatMap((g) => g.rules || []).filter((rule) => rule.enabled !== false);
     }
-    return (def.stages || []).flatMap((s) => s.rules || []);
+    const stage = (def.stages || []).find((item) => item.id === stageId);
+    return (stage ? stage.rules || [] : []).filter((rule) => rule.enabled !== false);
   }
 
   function collectStages(def) {
-    return (def.stages || []).map((s) => s.id);
+    if (def.model && def.model.model_type === 'condition_tree') {
+      return [{ id: 'condition_filter', name: '条件筛选' }];
+    }
+    return def.stages || [];
+  }
+
+  function updateRules(wrap, def) {
+    const stageId = wrap.querySelector('#selDebugStage').value;
+    wrap.querySelector('#selDebugRule').innerHTML = collectRules(def, stageId).map((rule) => {
+      const name = global.SelModels.ruleLibrary.displayName(rule);
+      return `<option value="${escapeHtml(rule.id)}">${escapeHtml(name)}（${escapeHtml(rule.id)}）</option>`;
+    }).join('');
   }
 
   async function run() {
     const modelId = global.SelModels.store.get().activeModelId;
     const out = DOM().getElementById('selDebugResult');
-    let records;
-    try {
-      records = JSON.parse(DOM().getElementById('selDebugRecords').value || '[]');
-      if (!Array.isArray(records)) throw new Error('记录必须是 JSON 数组');
-    } catch (err) {
-      global.SelModels.stateViews.error(out, { message: '输入记录解析失败：' + err.message });
+    const kind = DOM().getElementById('selDebugKind').value;
+    const stageId = DOM().getElementById('selDebugStage').value;
+    const ruleId = kind === 'rule' ? DOM().getElementById('selDebugRule').value : null;
+    if (!stageId || (kind === 'rule' && !ruleId)) {
+      global.SelModels.stateViews.error(out, { message: '请先选择可调试的阶段或规则' });
       return;
     }
-    const kind = DOM().getElementById('selDebugKind').value;
-    out.innerHTML = '<div class="sel-state sel-state-loading">调试中…</div>';
+    out.innerHTML = '<div class="sel-state sel-state-loading">正在读取同步数据并按层级预演…</div>';
     try {
-      let resp;
-      if (kind === 'rule') {
-        const ruleId = DOM().getElementById('selDebugRule').value;
-        const rule = collectRules(global.SelModels.store.get().workingDefinition || {}).find((r) => r.id === ruleId);
-        resp = await A().debugRule(modelId, rule, records);
-      } else {
-        const stageId = DOM().getElementById('selDebugStage').value;
-        resp = await A().debugNode(modelId, stageId, records);
+      const definition = global.SelModels.store.get().workingDefinition;
+      const resp = await A().debugNode(modelId, stageId, { definition, rule_id: ruleId });
+      if (resp.status !== 'ok') {
+        global.SelModels.stateViews.error(out, resp);
+        if (resp.data) out.innerHTML += `<div class="sel-debug-json"><pre>${escapeHtml(JSON.stringify(resp.data, null, 2))}</pre></div>`;
+        return;
       }
-      if (resp.status !== 'ok') { global.SelModels.stateViews.error(out, resp); return; }
       const d = resp.data;
-      out.innerHTML = `<div class="sel-debug-note">调试水印：eligible_for_signal=${resp.watermark.eligible_for_signal}</div>
-        <div class="sel-debug-summary">输入 ${d.input_count} · 通过 ${d.output_count} · 判定 ${d.verdict}</div>
-        <div class="sel-debug-json"><pre>${escapeHtml(JSON.stringify(d, null, 2))}</pre></div>`;
+      const snapshot = d.snapshot || {};
+      const current = d.result || {};
+      const stages = (d.stages || []).map((item) =>
+        `${item.name || item.stage_id}：输入 ${item.input_count}，通过 ${item.output_count}，${item.status}`).join(' → ');
+      out.innerHTML = `<div class="sel-debug-note">本地同步快照 ${escapeHtml(snapshot.trade_date || '日期未提供')} · 市场股票 ${escapeHtml(snapshot.input_count == null ? '未提供' : snapshot.input_count)} 条 · 水位 ${escapeHtml(snapshot.gate_state || '未提供')} · 覆盖率门禁 ${escapeHtml(snapshot.coverage_passed == null ? '未提供' : snapshot.coverage_passed ? '通过' : '未通过')} · 仅调试，不发正式信号</div>
+        <div class="sel-debug-summary">${escapeHtml(stages || '无已执行阶段')}</div>
+        <div class="sel-debug-summary">${d.status === 'NOT_REACHED' ? `所选层未执行：上游 ${escapeHtml(d.blocked_by || '未知')} 已停止` : `所选层输入 ${escapeHtml(current.input_count)} · 通过 ${escapeHtml(current.output_count)} · 判定 ${escapeHtml(current.verdict)}`}</div>
+        <div class="sel-debug-json"><pre>${escapeHtml(JSON.stringify(current.status ? current : d, null, 2))}</pre></div>`;
     } catch (err) {
       global.SelModels.stateViews.error(out, { message: err.message });
     }
   }
 
   function escapeHtml(value) {
-    return String(value).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    return String(value).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
   }
 
   function close() {

@@ -58,6 +58,7 @@ async def _market_post_settle_cron() -> None:
 
     executed_dates: dict = {}
     last_enabled = None
+    last_dataset_attempt = None
 
     while True:
         try:
@@ -127,6 +128,26 @@ async def _market_post_settle_cron() -> None:
                 else:
                     executed_dates["P1"] = today_str
                     record_sync_runtime_event(f"{today_str} P1/P2 池为空，跳过定盘同步（不伪造执行）", "info")
+
+            # 网页服务自身负责必需数据集水位；独立 CLI 守护进程并非前置依赖。
+            # D2 定盘窗口后才计算日线水位，失败每 30 分钟重试，避免每轮触网。
+            from core.data import dataset_sync
+            due_for_dataset = now.time() >= dataset_sync.DATASET_WINDOWS["daily_kline"]
+            retry_due = last_dataset_attempt is None or (now - last_dataset_attempt).total_seconds() >= 1800
+            if (due_for_dataset and executed_dates.get("POST_CLOSE_WATERMARKS") != today_str
+                    and retry_due):
+                last_dataset_attempt = now
+                outcome = await loop.run_in_executor(None, dataset_sync.ensure_post_close_required)
+                if outcome["ready"]:
+                    executed_dates["POST_CLOSE_WATERMARKS"] = today_str
+                result_labels = ", ".join(
+                    f"{item['key']}={item['status']}" for item in outcome["results"]
+                ) or "已有当日完整水位"
+                record_sync_runtime_event(
+                    f"{today_str} 选股数据水位：{result_labels}；"
+                    f"门禁{'就绪' if outcome['ready'] else '未就绪，30 分钟后重试'}",
+                    "success" if outcome["ready"] else "degraded",
+                )
 
             # P3 全市场定时增量（单任务互斥 + 不抢占；冲突时下一轮重试，不标记完成）
             if is_auto_tier_due(now, "P3", settings, executed_dates):

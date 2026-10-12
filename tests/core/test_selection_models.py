@@ -6,11 +6,14 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 
 import pytest
 
 from core.selection_models import schemas
+from core.selection_models.llm_rule_compiler import LLMRuleCompilerError, compile_llm_draft, split_clauses
+from core.selection_models.catalog import create_model
 from core.selection_models.definition_repository import (
     DefinitionRepository,
     DraftConflictError,
@@ -33,6 +36,7 @@ from core.selection_models.orchestrator import (
     STATUS_COMPLETED,
     STATUS_EMPTY,
     SelectionModelOrchestrator,
+    StageOutcome,
 )
 from core.selection_models.rule_registry import (
     RULE_METADATA,
@@ -63,6 +67,90 @@ from core.strategy.funnel_engine import (
 from core.strategy.stock_funnel import DEFAULT_CONFIG_PATH, build_stock_rule_registry
 
 
+def test_llm_rule_compiler_preserves_all_ten_night_filters_and_units():
+    text = ("沪深A股，非ST，非北交所，今日收盘价创近20个交易日收盘价新高，"
+            "今日收盘价大于60日均线，60日均线近5个交易日上升，今日成交量大于昨日成交量，"
+            "今日主力资金净流入大于0，流通市值大于30亿元，今日涨幅小于等于7%")
+    kinds = ["market_hs_a", "exclude_st", "exclude_bse", "close_new_high",
+             "close_above_sma", "sma_rising", "volume_gt_yesterday",
+             "main_net_inflow_positive", "float_market_cap_gt", "daily_change_lte"]
+    params = {3: {"window": 20}, 4: {"period": 60}, 5: {"period": 60, "lag": 5},
+              8: {"yuan": 3_000_000_000}, 9: {"percent": 7}}
+    assert len(split_clauses(text)) == len(kinds)
+    result = compile_llm_draft(text, {"clauses": [
+        {"id": i, "kind": kind, "params": params.get(i, {})}
+        for i, kind in enumerate(kinds)
+    ]}, model_name="stub-llm")
+    assert result["complete"] is True
+    assert result["activated"] is False
+    rules = result["definition"]["stages"][0]["rules"]
+    assert len(rules) == 10
+    assert rules[3]["type"] == "close_new_high" and rules[3]["lookback"] == 20
+    assert rules[5]["period"] == 60 and rules[5]["lag"] == 5
+    assert rules[8]["value"] == 3_000_000_000
+    assert rules[8]["require_present"] is True
+    assert rules[9]["op"] == "lte" and rules[9]["value"] == 7
+    assert compile_definition(result["definition"]).stages[0].id == "post_close"
+
+
+def test_llm_rule_compiler_rejects_missing_clause_and_invented_threshold():
+    text = "收盘价创20日新高，今日涨幅小于等于7%"
+    with pytest.raises(LLMRuleCompilerError) as missing:
+        compile_llm_draft(text, {"clauses": [
+            {"id": 0, "kind": "close_new_high", "params": {"window": 20}},
+        ]}, model_name="stub-llm")
+    assert missing.value.code == "MODEL_LLM_INVALID_OUTPUT"
+    with pytest.raises(LLMRuleCompilerError) as invented:
+        compile_llm_draft(text, {"clauses": [
+            {"id": 0, "kind": "close_new_high", "params": {"window": 20}},
+            {"id": 1, "kind": "daily_change_lte", "params": {"percent": 8}},
+        ]}, model_name="stub-llm")
+    assert invented.value.code == "MODEL_LLM_INVALID_OUTPUT"
+
+
+def test_llm_service_uses_provider_for_intents_and_returns_unactivated_draft(monkeypatch):
+    from server.llm.base import LLMStreamChunk
+    from server.services import selection_llm_compiler as service
+
+    class FakeProvider:
+        model_name = "configured-flash"
+
+        async def stream_chat(self, messages, **kwargs):
+            assert "今日涨幅小于等于7%" in messages[1]["content"]
+            assert kwargs["temperature"] == 0.1
+            yield LLMStreamChunk(delta_text=json.dumps({"clauses": [
+                {"id": 0, "kind": "daily_change_lte", "params": {"percent": 7}},
+            ]}))
+
+    monkeypatch.setattr(service.LLMProviderFactory, "get_provider", lambda **kwargs: FakeProvider())
+    result = asyncio.run(service.compile_text_with_llm("今日涨幅小于等于7%", model="configured-flash"))
+    assert result["model_name"] == "configured-flash"
+    assert result["prompt_version"] == "selection-intents-v1"
+    assert result["complete"] is True and result["activated"] is False
+    assert result["definition"]["stages"][0]["rules"][0]["value"] == 7
+
+
+def test_close_new_high_requires_twenty_complete_prior_bars():
+    rule = build_stock_rule_registry().get("close_new_high")
+    spec = {"id": "high", "type": "close_new_high", "lookback": 20, "field": "closes"}
+    assert rule({"closes": [11] + [1] * 19 + [10]}, spec, {}).verdict == VERDICT_FAIL
+    assert rule({"closes": [1] * 20 + [10]}, spec, {}).verdict == VERDICT_PASS
+    with pytest.raises(ValueError):
+        rule({"closes": [1] * 19 + [10]}, spec, {})
+
+
+def test_compiled_market_cap_rule_rejects_stale_snapshot():
+    rule = build_stock_rule_registry().get("field_compare")
+    spec = {"id": "cap", "type": "field_compare", "field": "circulating_market_cap",
+            "op": "gt", "value": 3_000_000_000, "require_present": True}
+    record = {"circulating_market_cap": 5_000_000_000,
+              "field_status": {"circulating_market_cap": "stale"}}
+    with pytest.raises(ValueError, match="present"):
+        rule(record, spec, {})
+    record["field_status"]["circulating_market_cap"] = "present"
+    assert rule(record, spec, {}).verdict == VERDICT_PASS
+
+
 # ------------------------------------------------------------------ 测试夹具
 def _pass_rule(record, spec, ctx):
     return RuleResult.two_state("", True)
@@ -86,6 +174,22 @@ def _engine_with(rules):
 def _migrated_config():
     definition, _ = schemas.load_definition(DEFAULT_CONFIG_PATH)
     return definition
+
+
+def test_full_funnel_example_template_creates_publishable_independent_draft(tmp_path):
+    source = _migrated_config()
+    created = create_model(
+        model_type="funnel", name="示例一副本", template="funnel_example_1",
+        base_dir=tmp_path / "models", operator="isolated_test",
+    )
+    definition = created["definition"]
+    assert created["base_version"] is None
+    assert definition["model"]["id"] == created["model_id"]
+    assert definition["model"]["id"] != source["model"]["id"]
+    assert definition["model"]["name"] == "示例一副本"
+    assert definition["stages"] == source["stages"]
+    assert definition["declared_blocks"] == source["declared_blocks"]
+    assert compile_definition(definition).stages[-1].id == "turning_point"
 
 
 def _condition_tree_definition():
@@ -419,6 +523,23 @@ def test_compiler_expands_condition_tree_and_detects_cycles():
         compile_definition(cyclic)
 
 
+def test_disabled_condition_group_is_preserved_but_cannot_be_referenced():
+    definition = _condition_tree_definition()
+    definition["groups"][1]["enabled"] = False
+    definition["expression"] = {"ref": definition["groups"][0]["id"]}
+    normalized, _ = schemas.migrate_to_v2(definition)
+    assert normalized["groups"][1]["enabled"] is False
+    plan = compile_definition(normalized)
+    assert [rule["id"] for rule in plan.stages[0].rules] == ["t1"]
+
+    normalized["expression"] = {"ref": normalized["groups"][1]["id"]}
+    with pytest.raises(ModelCompilerError, match="未声明的规则"):
+        compile_definition(normalized)
+    normalized["expression"] = {"ref": "r1"}
+    with pytest.raises(ModelCompilerError, match="未声明的规则"):
+        compile_definition(normalized)
+
+
 # ================================================================== A6
 def _repos(tmp_path):
     return (
@@ -588,6 +709,23 @@ def test_run_all_returns_empty_without_fabricating_candidates():
     assert result["status"] == STATUS_EMPTY
     assert result["selected_codes"] == []
     assert result["final_stage"] == "post_close"
+    stage = result["stages"][0]
+    assert stage["input_count"] == stage["passed_count"] + stage["rejected_count"] + stage["unknown_count"] + stage["forwarded_count"]
+    assert stage["rejected_count"] == 1
+
+
+def test_stage_count_contract_keeps_unknown_separate_from_rejected():
+    stage = StageOutcome("filter", "过滤", "filter", "NO_MATCH", "UNKNOWN", 3, 1,
+                         "wait", {"rejected_records": [
+                             {"candidate_verdict": "FAIL"}, {"candidate_verdict": "UNKNOWN"}]})
+    saved = stage.to_dict()
+    assert (saved["passed_count"], saved["rejected_count"], saved["unknown_count"],
+            saved["forwarded_count"]) == (1, 1, 1, 0)
+    assert saved["input_count"] == sum(saved[key] for key in (
+        "passed_count", "rejected_count", "unknown_count", "forwarded_count"))
+    skipped = StageOutcome("disabled", "停用", "filter", "SKIPPED", "UNKNOWN", 3, 3,
+                           "wait", {"forwarded_records": [{"code": "600001"}] * 3}).to_dict()
+    assert (skipped["passed_count"], skipped["forwarded_count"]) == (0, 3)
 
 
 def test_run_all_metadata_marks_calendar_without_fabrication():

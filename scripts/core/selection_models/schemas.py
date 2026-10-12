@@ -325,6 +325,7 @@ def _normalize_groups(groups: Any) -> List[Dict[str, Any]]:
         item: Dict[str, Any] = {
             "id": group_id,
             "name": str(group.get("name") or group_id),
+            "enabled": bool(group.get("enabled", True)),
             "logic": logic,
             "rules": [dict(rule) for rule in rules],
         }

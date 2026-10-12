@@ -51,8 +51,13 @@ class StageOutcome:
     output_count: int
     missing_data_policy: str
     result: Dict[str, Any] = field(default_factory=dict)
+    completed_at: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
+        rejected = self.result.get("rejected_records") or []
+        rejected_count = sum(item.get("candidate_verdict") == "FAIL" for item in rejected)
+        unknown_count = sum(item.get("candidate_verdict") == VERDICT_UNKNOWN for item in rejected)
+        forwarded_count = self.input_count if self.status == STATUS_SKIPPED else 0
         return {
             "stage_id": self.stage_id,
             "name": self.name,
@@ -61,6 +66,11 @@ class StageOutcome:
             "verdict": self.verdict,
             "input_count": self.input_count,
             "output_count": self.output_count,
+            "passed_count": self.output_count - forwarded_count,
+            "rejected_count": rejected_count,
+            "unknown_count": unknown_count,
+            "forwarded_count": forwarded_count,
+            "completed_at": self.completed_at,
             "missing_data_policy": self.missing_data_policy,
             "result": self.result,
         }
@@ -143,6 +153,8 @@ class SelectionModelOrchestrator:
                         input_count=len(stage_inputs),
                         output_count=len(stage_inputs),
                         missing_data_policy=stage.missing_data_policy,
+                        result={"forwarded_records": stage_inputs},
+                        completed_at=datetime.now().astimezone().isoformat(timespec="seconds"),
                     )
                 )
                 continue
@@ -160,6 +172,7 @@ class SelectionModelOrchestrator:
                     output_count=result.output_count,
                     missing_data_policy=stage.missing_data_policy,
                     result=result.to_dict(),
+                    completed_at=datetime.now().astimezone().isoformat(timespec="seconds"),
                 )
             )
             if stage.scope == "universe_gate" and result.status == "BLOCKED":

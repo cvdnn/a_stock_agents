@@ -213,6 +213,23 @@ class RunRepository:
         end = start + int(limit) if limit is not None else None
         return runs[start:end] if end is not None else runs[start:]
 
+    def list_recent_runs(self, *, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """跨模型列出最近的运行实例，供选股列表展示。"""
+        root = Path(self.cache_root)
+        if not root.is_dir():
+            return []
+        runs: List[Dict[str, Any]] = []
+        for meta in root.glob(f"*/{RUN_META_FILE}"):
+            try:
+                payload = json.loads(meta.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if payload.get("run_id") and payload.get("model_id"):
+                runs.append(payload)
+        runs.sort(key=lambda item: str(item.get("started_at") or item.get("created_at") or ""), reverse=True)
+        start = max(int(offset), 0)
+        return runs[start:start + max(int(limit), 0)]
+
     # ------------------------------------------------------------ 阶段与候选轨迹
     def save_run_stages(self, run_id: str, stages: Iterable[Dict[str, Any]]) -> Path:
         """逐阶段明细落 `<run_id>/stages.json`；与运行元数据同目录、互不覆盖。"""

@@ -26,7 +26,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="css/style.css?v=20261005-2">
+  <link rel="stylesheet" href="css/style.css?v=20261010-selection-evidence">
   <link rel="stylesheet" href="css/highlight-github.min.css">
 </head>
 <body>
@@ -446,11 +446,11 @@
 
           <!-- 2.1 策略选股专属功能按钮组 (仅在【策略选股】显示) -->
           <div class="header-action-group tab-actions-selection" id="actionsSelection" style="display: none; align-items: center; gap: 8px;">
-            <button type="button" class="btn-workbench-action btn-doc-meta-action" disabled title="漏斗模型编辑器尚未实现（无 selection_models 接口与持久化表），按规范不提供可点击的假编辑器">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="SelModels.main.openWizard()" title="创建选股模型草稿">
               <span class="meta-action-icon">➕</span>
               <span class="meta-action-text">新建模型</span>
             </button>
-            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="refreshSelectionWorkbench()" title="按真实数据源重新渲染工作台">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="SelModels.main.refresh()" title="重新读取选股模型状态">
               <span class="meta-action-icon">🔄</span>
               <span class="meta-action-text">刷新状态</span>
             </button>
@@ -959,21 +959,29 @@
         <div class="right-pane" id="pane-selection">
           <!-- 阶段 E 页签（结果研究 / 持续跟踪 / 模型评估）：数据只来自 /api/selection-models/*，无数据源一律如实空态 -->
           <div class="sel-stage-tabs" id="selStageTabs" role="tablist" aria-label="选股工作台页签">
-            <button type="button" class="sel-stage-tab active" id="selStageTabWorkbench" role="tab" aria-selected="true" aria-controls="selStagePanelWorkbench" onclick="SelModels.main.showStage('workbench')">漏斗工作台</button>
+            <button type="button" class="sel-stage-tab active" id="selStageTabWorkbench" role="tab" aria-selected="true" aria-controls="selStagePanelWorkbench" onclick="SelModels.main.showStage('workbench')">选股工作台</button>
             <button type="button" class="sel-stage-tab" id="selStageTabResearch" role="tab" aria-selected="false" aria-controls="selStagePanelResearch" onclick="SelModels.main.showStage('research')">结果研究</button>
             <button type="button" class="sel-stage-tab" id="selStageTabTracking" role="tab" aria-selected="false" aria-controls="selStagePanelTracking" onclick="SelModels.main.showStage('tracking')">持续跟踪</button>
             <button type="button" class="sel-stage-tab" id="selStageTabEvaluation" role="tab" aria-selected="false" aria-controls="selStagePanelEvaluation" onclick="SelModels.main.showStage('evaluation')">模型评估</button>
           </div>
+          <div id="selSelectionError" class="sel-state sel-state-error" role="alert" hidden></div>
           <div class="selection-workbench-layout sel-stage-panel" id="selStagePanelWorkbench">
 
-            <!-- Column 1: 模型案例列表 -->
+            <!-- Column 1: 选股记录与模型资产分开管理 -->
             <div class="selection-model-col" id="selectionModelCol">
               <div class="selection-panel-card selection-model-list-card">
+                <div class="sel-purpose-tabs" role="tablist" aria-label="选股与模型管理">
+                  <button type="button" id="selPurposeRuns" class="sel-purpose-tab active" role="tab" aria-selected="true" onclick="SelModels.main.switchMode('runs')">选股列表</button>
+                  <button type="button" id="selPurposeModels" class="sel-purpose-tab" role="tab" aria-selected="false" onclick="SelModels.main.switchMode('models')">模型管理</button>
+                </div>
                 <div class="selection-panel-head">
-                  <span class="selection-panel-title">📑 选股列表</span>
-                  <span class="selection-head-actions">
-                    <button type="button" class="selection-new-btn" onclick="SelModels.main.openTextDraft()" title="把中文选股文案解析为未激活草稿">📝 文案建模型</button>
-                    <button type="button" class="selection-new-btn" onclick="SelModels.main.openWizard()" title="从空白或模板创建选股模型草稿">＋新建</button>
+                  <span class="selection-panel-title" id="selListTitle">选股记录</span>
+                  <span class="selection-head-actions" data-sel-mode="runs">
+                    <button type="button" class="selection-new-btn" id="selNewSelectionButton" onclick="SelModels.main.openNewSelection()" title="选择已发布模型并直接运行" disabled>＋新建选股</button>
+                  </span>
+                  <span class="selection-head-actions" data-sel-mode="models" hidden>
+                    <button type="button" class="selection-new-btn" id="selTextDraftButton" onclick="SelModels.main.openTextDraft()" title="把中文选股文案解析为未激活草稿" disabled>📝 文案建模型</button>
+                    <button type="button" class="selection-new-btn" id="selNewModelButton" onclick="SelModels.main.openWizard()" title="从空白或模板创建选股模型草稿" disabled>＋新建模型</button>
                   </span>
                 </div>
                 <div class="selection-model-list" id="selectionModelList">
@@ -989,77 +997,64 @@
                 <div class="selection-detail-title-row">
                   <span class="selection-detail-model-name" id="selDetailModelName">--</span>
                   <span class="sel-status-badge status-pending" id="selDetailStatus">○ 无数据源</span>
-                  <span class="sel-head-meta">下一执行 <strong id="selNextRunAt">--</strong> · 数据水印 <strong id="selDataWatermark">--</strong></span>
+                  <span class="sel-head-meta" data-sel-mode="models">草稿 <strong id="selDraftState">--</strong> · 计划 <strong id="selPlanState">--</strong> · 守护 <strong id="selDaemonState">--</strong> · 最近运行 <strong id="selRunState">--</strong> · 下一窗口 <strong id="selNextRunAt">--</strong> · 数据水印 <strong id="selDataWatermark">--</strong></span>
+                  <span class="sel-head-meta" id="selSelectionHint" data-sel-mode="runs">选择已发布模型，即可直接运行</span>
                 </div>
                 <div class="selection-detail-actions">
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.createRun()" title="按已激活版本发起正式手工运行">▶ 运行</button>
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.validate()" title="编译期校验当前草稿">校验</button>
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.saveDraft()" title="保存当前草稿">保存草稿</button>
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.publish()" title="把校验通过的草稿发布为不可变新版本">发布</button>
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openVersions()" title="版本列表、差异、激活与归档">版本管理</button>
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openDebug()" title="调试运行（不产生正式信号）">调试</button>
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openSchedule()" title="查看时间窗、心跳与启停">调度中心</button>
+                  <button type="button" class="sel-act-btn primary" data-sel-mode="runs" data-sel-action="rerun" onclick="SelModels.main.createRun()" title="按当前选股记录使用的已发布版本再次运行">▶ 再次运行</button>
+                  <button type="button" class="sel-act-btn" data-sel-mode="runs" onclick="SelModels.main.editSelectedModel()" title="进入模型管理修改参数并发布新版本">修改参数</button>
+                  <button type="button" class="sel-act-btn" data-sel-mode="models" data-sel-action="edit" onclick="SelModels.main.validate()" title="编译期校验当前草稿">校验</button>
+                  <button type="button" class="sel-act-btn" data-sel-mode="models" data-sel-action="edit" onclick="SelModels.main.saveDraft()" title="保存当前草稿">保存草稿</button>
+                  <button type="button" class="sel-act-btn primary" data-sel-mode="models" data-sel-action="publish" onclick="SelModels.main.publish()" title="自动保存并校验，再发布不可变新版本">发布新版本</button>
+                  <button type="button" class="sel-act-btn" data-sel-mode="models" onclick="SelModels.main.openVersions()" title="版本列表、差异、激活与归档">版本管理</button>
+                  <button type="button" class="sel-act-btn" data-sel-mode="models" data-sel-action="debug" onclick="SelModels.main.openDebug()" title="调试运行（不产生正式信号）">调试</button>
+                  <button type="button" class="sel-act-btn" data-sel-mode="models" onclick="SelModels.main.openSchedule()" title="查看时间窗、心跳与启停">调度中心</button>
                   <button type="button" class="sel-act-btn" onclick="SelModels.main.openDataHealth()" title="本地数据网关水位与准入水印">数据诊断</button>
-                  <button type="button" class="sel-act-btn danger" onclick="SelModels.main.cancelRun()" title="取消正在运行的手工运行"><span class="sel-stop-square"></span> 停止运行</button>
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.openRunTimeline()" title="查看历史运行、阶段明细与事件流">
+                  <button type="button" class="sel-act-btn" data-sel-mode="runs" onclick="SelModels.main.openRunTimeline()" title="查看历史运行、阶段明细与事件流">
                     <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13"/><path d="M6 8h4M6 10.5h4"/></svg>
                     查看日志
                   </button>
-                  <button type="button" class="sel-act-btn" onclick="SelModels.main.exportResults()" title="导出正式结果为 CSV">
+                  <button type="button" class="sel-act-btn" data-sel-mode="runs" onclick="SelModels.main.exportResults()" title="导出运行记录中当前运行、当前层级和筛选条件的 CSV">
                     <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M5 6.5l3 3 3-3"/><path d="M2.5 13.5h11"/></svg>
-                    导出结果
+                    导出当前层
                   </button>
                 </div>
               </div>
 
-              <div class="selection-detail-body">
+              <section id="selRunWorkspace" class="sel-run-workspace" aria-label="选股运行详情" hidden>
+                <div class="sel-run-context">
+                  <label for="selRunSelect">运行记录</label>
+                  <select id="selRunSelect" class="sel-inline-select" onchange="SelModels.runWorkspace.selectRun(this.value)"><option value="">暂无运行</option></select>
+                  <span id="selRunContext" class="sel-run-context-text">请选择一次运行</span>
+                </div>
+                <div class="sel-run-workspace-grid">
+                  <section class="selection-panel-card sel-run-funnel-card" aria-label="运行阶段">
+                    <div class="funnel-card-head"><span class="funnel-card-title">运行阶段</span><span class="funnel-card-sub" id="selRunLayerCount">未运行</span></div>
+                    <div id="selRunFunnel" class="sel-run-funnel"></div>
+                  </section>
+                  <section class="selection-panel-card sel-run-results-card" aria-label="当前阶段候选">
+                    <div class="selection-result-head"><div class="selection-result-title-row"><span class="selection-result-title">当前阶段候选</span><span id="selResultLayerLabel" class="selection-result-sub">未选择阶段</span></div></div>
+                    <div class="sel-run-filters">
+                      <label for="selResultVerdict">判定</label><select id="selResultVerdict" class="sel-inline-select" onchange="SelModels.runWorkspace.applyFilters()"><option value="">全部</option><option value="PASS">通过</option><option value="FAIL">淘汰</option><option value="UNKNOWN">未知</option><option value="FORWARDED">跳过透传</option></select>
+                      <label for="selResultSearch">搜索</label><input type="search" id="selResultSearch" class="sel-inline-input" placeholder="代码或名称" aria-label="按股票代码或名称搜索" oninput="SelModels.runWorkspace.search(this.value)">
+                      <button type="button" class="sel-act-btn" onclick="SelModels.main.exportResults()">导出当前层 CSV</button>
+                    </div>
+                    <div id="selRunCandidateMeta" class="sel-run-candidate-meta"></div>
+                    <div id="selStageEvidence" class="sel-stage-evidence" aria-live="polite"></div>
+                    <div class="sel-run-table-scroll"><table class="sel-version-table"><thead><tr><th>代码</th><th>名称</th><th>行业</th><th>价格</th><th>涨跌幅</th><th>判定</th><th>筛选依据</th><th>数据时点</th></tr></thead><tbody id="selResultBody"><tr><td colspan="8">请选择一次运行和阶段</td></tr></tbody></table></div>
+                    <div class="selection-result-foot"><span>共 <strong id="selResultTotal">—</strong> 条</span><div class="sel-run-pages"><button type="button" id="selResultPrev" class="sel-act-btn" onclick="SelModels.runWorkspace.page(-1)" disabled>上一页</button><span id="selResultPage">— / —</span><button type="button" id="selResultNext" class="sel-act-btn" onclick="SelModels.runWorkspace.page(1)" disabled>下一页</button></div></div>
+                  </section>
+                </div>
+              </section>
+              <div class="selection-detail-body" id="selEditWorkspace" aria-label="模型编辑" hidden>
                 <!-- 左卡片：漏斗运行图 -->
                 <div class="selection-panel-card selection-funnel-card">
                   <div class="funnel-card-head">
-                    <span class="funnel-card-title">漏斗运行图</span>
-                    <span class="funnel-card-sub" id="selFunnelLayerCount">未运行</span>
+                    <span class="funnel-card-title">规则编排画布</span>
+                    <span class="funnel-card-sub" id="selFunnelLayerCount">无草稿</span>
                   </div>
                   <div class="selection-funnel" id="selectionFunnel">
                     <!-- 漏斗层由 JS 按真实接口渲染；无数据源时呈现如实空态 -->
-                  </div>
-                </div>
-
-                <!-- 右卡片：筛选后股票列表 -->
-                <div class="selection-panel-card selection-result-card">
-                  <div class="selection-result-head">
-                    <div class="selection-result-title-row">
-                      <span class="selection-result-title">筛选后股票列表</span>
-                      <span class="selection-result-sub" id="selResultLayerLabel">（未选择筛选层）</span>
-                    </div>
-                    <div class="sel-search-box">
-                      <svg class="sel-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
-                      <input type="text" placeholder="按股票名称/代码搜索" id="selResultSearch" oninput="filterFunnelResults(this.value)">
-                    </div>
-                  </div>
-                  <div class="selection-result-table-wrap">
-                    <table class="selection-result-table selection-result-head-table">
-                      <thead>
-                        <tr>
-                          <th>序号</th>
-                          <th>代码</th>
-                          <th>股票名称</th>
-                          <th class="num">最新价</th>
-                          <th class="num">涨跌幅</th>
-                          <th>所属行业</th>
-                        </tr>
-                      </thead>
-                    </table>
-                    <div class="selection-result-body-scroll">
-                      <table class="selection-result-table selection-result-body-table">
-                        <tbody id="selResultBody">
-                          <!-- 结果行由 JS 渲染 -->
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <div class="selection-result-foot">
-                    <span class="sel-total-note">共 <strong class="tabular-nums" id="selResultTotal">--</strong> 条</span>
-                    <span class="sel-page-note">分页与页长由真实筛选结果接口下发，无数据源时不提供假分页</span>
                   </div>
                 </div>
 
@@ -1078,7 +1073,7 @@
               <div class="selection-panel-card selection-analysis-card">
                 <div class="selection-panel-head">
                   <span class="selection-panel-title">🔵 股票分析信息</span>
-                  <button type="button" class="sel-close-btn" onclick="toggleSelectionAnalysis(false)">✕</button>
+                  <button type="button" class="sel-close-btn" onclick="SelModels.main.toggleAnalysis(false)">✕</button>
                 </div>
                 <div class="sel-stock-head">
                   <div class="sel-stock-name-row">
@@ -1209,8 +1204,8 @@
           </div>
 
           <div class="datasync-status-grid" id="datasyncStatusGrid" aria-label="数据同步状态摘要">
-            <div class="datasync-status-card"><span class="datasync-kpi-icon is-blue" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5"><ellipse cx="16" cy="7" rx="10" ry="4"/><path d="M6 7v8c0 2 4.5 4 10 4s10-2 10-4V7M6 15v8c0 2 4.5 4 10 4s10-2 10-4v-8"/></svg></span><div><span>数据覆盖</span><strong><b id="datasyncRegisteredCount">—</b> <em>只已登记</em></strong><small id="datasyncCoveredCount">正在读取本地水位</small></div></div>
-            <div class="datasync-status-card"><span class="datasync-kpi-icon is-orange" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 3h11l5 5v21H9zM20 3v6h5M13 15h8M13 20h8M13 25h5"/></svg></span><div><span>已登记范围待更新</span><strong><b id="datasyncPendingCount">—</b> <em>只</em></strong><small>按最近已定盘交易日判断</small></div></div>
+            <div class="datasync-status-card"><span class="datasync-kpi-icon is-blue" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5"><ellipse cx="16" cy="7" rx="10" ry="4"/><path d="M6 7v8c0 2 4.5 4 10 4s10-2 10-4V7M6 15v8c0 2 4.5 4 10 4s10-2 10-4v-8"/></svg></span><div><span>已登记股池与指数</span><strong><b id="datasyncRegisteredCount">—</b> <em>只已登记</em></strong><small id="datasyncCoveredCount">正在读取本地水位</small><small>待更新 <b id="datasyncPendingCount">—</b> 只（最近已定盘日）</small></div></div>
+            <div class="datasync-status-card"><span class="datasync-kpi-icon is-orange" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 3h11l5 5v21H9zM20 3v6h5M13 15h8M13 20h8M13 25h5"/></svg></span><div><span>沪深股票日线（本地）</span><strong><b id="datasyncMarketStoredCount">—</b> <em>只已存</em></strong><small id="datasyncMarketBatchSummary">最近市场批次：正在读取</small></div></div>
             <div class="datasync-status-card"><span class="datasync-kpi-icon is-red" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 3 30 28H2zM16 11v9M16 24v2"/></svg></span><div><span>异常缺漏</span><strong><b id="datasyncAuditGapCount">—</b> <em>处</em></strong><small id="datasyncLastAuditTime">尚无有效审计结果</small></div></div>
           </div>
 
@@ -2741,29 +2736,31 @@
   <script src="js/chat_presentation.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/admin.js"></script>
-  <script src="js/app.js?v=20261005-1"></script>
+  <script src="js/app.js?v=20261008-r1"></script>
   <!-- 策略选股 · 选股模型工作台（C5：21 个前端模块，数据只来自 /api/selection-models/*） -->
-  <script src="js/selection-models/api_client.js?v=20261007-1"></script>
-  <script src="js/selection-models/store.js?v=20261007-1"></script>
-  <script src="js/selection-models/state_views.js?v=20261007-1"></script>
-  <script src="js/selection-models/model_center.js?v=20261007-1"></script>
+  <script src="js/selection-models/api_client.js?v=20261010-llm1"></script>
+  <script src="js/selection-models/store.js?v=20261009-r2"></script>
+  <script src="js/selection-models/state_views.js?v=20261008-r1"></script>
+  <script src="js/selection-models/model_center.js?v=20261009-r2"></script>
   <script src="js/selection-models/overview.js?v=20261007-1"></script>
-  <script src="js/selection-models/wizard.js?v=20261007-1"></script>
-  <script src="js/selection-models/text_draft.js?v=20261007-1"></script>
-  <script src="js/selection-models/rule_library.js?v=20261007-1"></script>
-  <script src="js/selection-models/property_drawer.js?v=20261007-1"></script>
-  <script src="js/selection-models/condition_editor.js?v=20261007-1"></script>
-  <script src="js/selection-models/funnel_editor.js?v=20261007-1"></script>
-  <script src="js/selection-models/version_manager.js?v=20261007-1"></script>
-  <script src="js/selection-models/debug_panel.js?v=20261007-1"></script>
+  <script src="js/selection-models/wizard.js?v=20261009-r2"></script>
+  <script src="js/selection-models/text_draft.js?v=20261010-llm1"></script>
+  <script src="js/selection-models/rule_library.js?v=20261009-rule-labels-2"></script>
+  <script src="js/selection-models/property_drawer.js?v=20261009-rule-labels"></script>
+  <script src="js/selection-models/editor_helpers.js?v=20261009-r2"></script>
+  <script src="js/selection-models/condition_editor.js?v=20261009-rule-labels"></script>
+  <script src="js/selection-models/funnel_editor.js?v=20261009-rule-labels"></script>
+  <script src="js/selection-models/version_manager.js?v=20261009-r2"></script>
+  <script src="js/selection-models/debug_panel.js?v=20261009-cn-labels"></script>
   <script src="js/selection-models/scheduler.js?v=20261007-1"></script>
   <script src="js/selection-models/data_health.js?v=20261007-1"></script>
-  <script src="js/selection-models/candidate_trace.js?v=20261007-1"></script>
+  <script src="js/selection-models/candidate_trace.js?v=20261008-r1"></script>
+  <script src="js/selection-models/run_workspace.js?v=20261010-selection-evidence"></script>
   <script src="js/selection-models/run_timeline.js?v=20261007-1"></script>
   <script src="js/selection-models/result_assessment.js?v=20261007-1"></script>
   <script src="js/selection-models/tracking_center.js?v=20261007-1"></script>
   <script src="js/selection-models/model_evaluation.js?v=20261007-1"></script>
-  <script src="js/selection-models/index.js?v=20261007-1"></script>
+  <script src="js/selection-models/index.js?v=20261009-blankfix"></script>
 
   <!-- ========================================================================
        Login Gate Overlay (未登录时遮蔽工作台，强制跳转登录页)

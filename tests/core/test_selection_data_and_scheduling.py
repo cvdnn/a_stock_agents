@@ -24,6 +24,7 @@ from core.data.data_assembler import (
     layer_denominator,
 )
 from core.selection_models import schemas
+from core.selection_models.catalog import ScheduleStore
 from core.selection_models.model_compiler import compile_definition
 from core.selection_models.paths import (
     CACHE_ROOT,
@@ -41,6 +42,7 @@ from core.selection_models.scheduler import (
     SelectionScheduler,
     parse_schedule,
 )
+from core.selection_models.scheduler_heartbeat import SchedulerHeartbeatStore
 from core.selection_models.signal_latch import STATUS_LATCHED, STATUS_PENDING, SignalLatch
 from core.strategy.stock_funnel import DEFAULT_CONFIG_PATH
 
@@ -99,6 +101,25 @@ def test_scheduler_idle_outside_any_window(tmp_path):
     result = scheduler.tick(now=_moment(TRADING_DAY, 12, 0))
     assert result["status"] == STATUS_IDLE
     assert result["due_stages"] == []
+
+
+def test_scheduler_honors_saved_pause_and_window_and_records_real_tick(tmp_path):
+    plan = _plan()
+    model_id = plan.source_model["model_id"]
+    schedule = ScheduleStore(base_dir=tmp_path / "config")
+    schedule.save(model_id, {"stages": {"post_close": "15:40-15:45"}})
+    scheduler = SelectionScheduler(plan, db_path=tmp_path / "absent.db",
+        run_repository=RunRepository(cache_root=tmp_path / "cache", pools_root=tmp_path / "pools"),
+        lock_manager=RunLockManager(root=tmp_path / "locks"),
+        signal_latch=SignalLatch(root=tmp_path / "cache"), schedule_store=schedule)
+    assert scheduler.next_run_at(_moment(TRADING_DAY, 15, 36)) == "15:40"
+    assert scheduler.tick(now=_moment(TRADING_DAY, 15, 36))["due_stages"] == []
+    schedule.set_paused(model_id, True)
+    paused = scheduler.tick(now=_moment(TRADING_DAY, 15, 41))
+    assert paused["status"] == "PAUSED" and paused["executed"] == []
+    beat = SchedulerHeartbeatStore(tmp_path / "cache").record_tick(paused)
+    assert beat["tick_status"] == "PAUSED"
+    assert beat["last_execution_at"] is None
 
 
 def test_scheduler_executes_due_stage_then_dedupes_same_minute(tmp_path):

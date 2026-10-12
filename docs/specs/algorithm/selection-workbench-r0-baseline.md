@@ -67,3 +67,19 @@
 首次按工作区规则运行 .venv/Scripts/python.exe -m pytest -m core：收集 547 例，547 例全部 deselected，0 selected。原因是 tests/conftest.py 的档位表使用正斜杠，而 Windows 返回的相对路径含反斜杠；本次已把路径归一化为 POSIX 形式。再次运行同一 P0 命令时，pytest 在收集阶段触发 Windows fatal exception 0x8007000e，堆栈位于 Python platform._wmi_query，未得到用例结果；测试进程已停止。P0 状态为“未完成”，不能报告通过。没有执行 P1、全量、network 或 live 测试。
 
 补充验证再次运行 `.venv/Scripts/python.exe -m pytest -m core`：收集 547 例，320 deselected、**227 selected**，先前的 0 选中和 `0x8007000e` 未重现。进度到 44% 时 `tests/core/test_selection_data_and_scheduling.py` 出现 1 个失败，按“失败即止”立即中断，未得到完整通过数。按该文件测试顺序，失败位置疑似 `test_canonical_paths_follow_ssot_1310`：其中两处用 Windows 的 `str(Path)` 对比带正斜杠的后缀；因中断前未输出 traceback，此定位为待核实推断。P0 当前为**失败，不能标记通过**；没有执行 P1、全量、network 或 live。
+
+## R0 收口复验（2026-10-08 20:30 +0800）
+
+当前工作区 HEAD 为 `7b4e5265a6cf0234c2c14a69e0873a8159110a61`。该版本已将 `web/js/api.js` 的本机端口策略收敛为：仅 3000/5173 前端开发端口回指默认 6300，其余隔离服务端口保持同源；并将 Windows 路径断言改为比较 `Path.parts`。因此早期 V-02 临时覆盖和 V-05 路径失败已由正式代码替代。
+
+新增 `test_selection_r0_v04_error_and_request_order_evidence`，使用随机回环端口、临时 SQLite、临时选股仓库、最小权限 researcher 和两个管理员创建的隔离模型完成 V-04。定向系统 Edge 结果为 **1 passed / 0 failed，29.60s**，取证结果如下：
+
+| 类别 | HTTP / 浏览器事实 | 页面或控制台事实 | 归因 |
+|---|---|---|---|
+| 匿名请求 | `GET /api/selection-models` → 401，detail=`unauthorized / 请先登录` | 登录门禁保持可见 | HTTP 鉴权拒绝 |
+| researcher 越权创建 | `POST /api/selection-models` → 403 | toast 为 `[object Object]` | 权限拒绝有效；错误对象格式化缺陷保留给 R1-3 |
+| 业务错误 | 不存在 run_id → HTTP 200、`status=error`、`MODEL_RUN_NOT_FOUND` | 页面错误文本为“运行不存在: r0-v04-missing-run” | 后端业务拒绝，不是网络失败 |
+| 浏览器请求失败 | 隔离测试主动中断请求，`requestfailed=net::ERR_FAILED` | toast=`Failed to fetch`；console=`Failed to load resource: net::ERR_FAILED` | 浏览器传输失败，与 401/403/业务 error 分离 |
+| 模型切换 | 先请求目标模型详情，再请求该模型 versions/runs/schedule | 目标模型成为活动模型且详情非空 | 加载顺序可复现；首个模型残余并发响应也被记录，不误归到目标模型 |
+
+最终执行规定的 P0：收集 **565** 例，**227 passed / 338 deselected / 0 failed**，耗时 **70.91s**；仅有 2 条既有弃用警告，未出现 `0x8007000e`。V-01～V-05 至此全部完成。未执行 P1、全量、network 或 live 测试。

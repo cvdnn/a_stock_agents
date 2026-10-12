@@ -245,11 +245,11 @@ def _compile_condition_tree_stages(
     group_by_id: Dict[str, Mapping[str, Any]] = {}
     rules: List[Dict[str, Any]] = []
     seen_rule_ids: set = set()
+    enabled_rule_ids: set = set()
     for group in groups:
         group_id = str(group.get("id") or "").strip()
         if not group_id or group_id in group_by_id:
             raise ModelCompilerError("MODEL_CONFIG_INVALID", "condition_tree group.id 必须唯一且非空")
-        group_by_id[group_id] = group
         for rule in group.get("rules") or []:
             rule_id = str(rule.get("id") or "").strip()
             if not rule_id or rule_id in seen_rule_ids:
@@ -257,13 +257,20 @@ def _compile_condition_tree_stages(
                     "MODEL_CONFIG_INVALID", f"condition_tree 规则 ID 必须跨组唯一: {rule_id!r}"
                 )
             seen_rule_ids.add(rule_id)
-            rules.append(_validate_rule(rule, rule_registry))
+            validated = _validate_rule(rule, rule_registry)
+            if group.get("enabled", True):
+                rules.append(validated)
+                if validated.get("enabled", True):
+                    enabled_rule_ids.add(rule_id)
+        if not group.get("enabled", True):
+            continue
+        group_by_id[group_id] = group
 
     group_expressions = {group_id: _group_expression(group) for group_id, group in group_by_id.items()}
     _assert_acyclic(group_by_id, group_expressions)
     expanded = _expand_groups(root_expression, group_expressions, set())
     validate_expression(expanded)
-    _assert_expression_refs_known(expanded, seen_rule_ids)
+    _assert_expression_refs_known(expanded, enabled_rule_ids)
 
     stage = CompiledStage(
         id=CONDITION_STAGE_ID,

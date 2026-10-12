@@ -10,10 +10,12 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 from core.data.data_assembler import GATE_WAITING_DATA, STATUS_OK, DataAssembler
 from core.data.sync_engine import DB_PATH, TradeCalendar
 from core.selection_models.model_compiler import compile_definition
+from core.selection_models.catalog import ScheduleStore
 from core.selection_models.run_lock import RunLockManager
 from core.selection_models.run_repository import RunRepository
 from core.selection_models.paths import log_dir
 from core.selection_models.scheduler import SelectionScheduler
+from core.selection_models.scheduler_heartbeat import SchedulerHeartbeatStore
 from core.selection_models.schemas import load_definition
 from core.selection_models.signal_latch import SignalLatch
 from core.strategy.stock_funnel import (
@@ -321,12 +323,14 @@ def _cmd_funnel_schedule(args, *, once: bool) -> None:
         run_repository=RunRepository(),
         lock_manager=RunLockManager(),
         signal_latch=SignalLatch(),
+        schedule_store=ScheduleStore(),
     )
     if once:
         _emit(scheduler.tick(records_provider=provider, context=context))
         return
 
     def _log_tick(result: Mapping[str, Any]) -> None:
+        SchedulerHeartbeatStore().record_tick(result)
         heartbeat = result.get("heartbeat") or {}
         line = (
             f"[selection-scheduler] {heartbeat.get('tick_at')} minute={heartbeat.get('minute')} "

@@ -11,9 +11,33 @@
   const API = global.AStockAPI;
   const BASE = '/api/selection-models';
   const enc = encodeURIComponent;
+  function candidateQuery(filters) {
+    const params = new URLSearchParams();
+    Object.entries(filters || {}).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') params.set(key, value);
+    });
+    return params.toString() ? `?${params.toString()}` : '';
+  }
 
-  function req(path, options) {
-    return API._fetchJSON(BASE + path, options);
+  async function req(path, options) {
+    try {
+      const response = await API._fetchJSON(BASE + path, options);
+      if (response && response.status === 'error') {
+        global.SelModels.stateViews.notifyError(response);
+      }
+      return response;
+    } catch (err) {
+      const detail = err && err.detail && err.detail.detail;
+      const status = err && err.status;
+      const message = detail && typeof detail === 'object' && detail.message
+        ? detail.message : (typeof detail === 'string' ? detail : err.message);
+      const normalized = new Error(message || '选股模型请求失败');
+      normalized.status = status;
+      normalized.status_code = status;
+      normalized.error_code = (detail && detail.error) || err.code || 'REQUEST_FAILED';
+      global.SelModels.stateViews.notifyError(normalized);
+      throw normalized;
+    }
   }
 
   const SelectionApi = {
@@ -21,7 +45,9 @@
     listRuleTypes: () => req('/rule-types'),
     listModels: (modelType) => req(modelType ? `?model_type=${enc(modelType)}` : ''),
     createModel: (payload) => req('', { method: 'POST', body: JSON.stringify(payload) }),
-    fromText: (text) => req('/drafts/from-text', { method: 'POST', body: JSON.stringify({ text }) }),
+    fromText: (text, options = {}) => req('/drafts/from-text', {
+      method: 'POST', body: JSON.stringify({ text, ...options }),
+    }),
     getModel: (id) => req(`/${enc(id)}`),
     saveDraft: (id, definition, baseVersion, draftRevision) => req(`/${enc(id)}/draft`, {
       method: 'PATCH',
@@ -48,16 +74,25 @@
       method: 'POST',
       body: JSON.stringify({ rule, records }),
     }),
-    debugNode: (id, stageId, records) => req(`/${enc(id)}/debug/node`, {
+    debugNode: (id, stageId, options) => req(`/${enc(id)}/debug/node`, {
       method: 'POST',
-      body: JSON.stringify({ stage_id: stageId, records }),
+      body: JSON.stringify({ stage_id: stageId, ...(options || {}) }),
     }),
     createRun: (id, payload) => req(`/${enc(id)}/runs`, { method: 'POST', body: JSON.stringify(payload || {}) }),
+    listRecentRuns: (limit = 50) => req(`/runs?limit=${enc(limit)}`),
     listRuns: (id, query) => req(`/${enc(id)}/runs${query || ''}`),
     getRun: (runId) => req(`/runs/${enc(runId)}`),
     getRunNodes: (runId) => req(`/runs/${enc(runId)}/nodes`),
-    getRunCandidates: (runId) => req(`/runs/${enc(runId)}/candidates`),
-    cancelRun: (runId) => req(`/runs/${enc(runId)}/cancel`, { method: 'POST' }),
+    getRunCandidates: (runId, filters) => req(`/runs/${enc(runId)}/candidates${candidateQuery(filters)}`),
+    exportRunCandidates: async (runId, filters) => {
+      const url = `${API.baseUrl}${BASE}/runs/${enc(runId)}/candidates/export${candidateQuery(filters)}`;
+      const response = await global.fetch(url, { credentials: 'same-origin' });
+      if (!response.ok || !String(response.headers.get('content-type') || '').includes('text/csv')) {
+        const detail = await response.json();
+        throw new Error(detail.message || detail.detail?.message || '导出失败');
+      }
+      return response.blob();
+    },
     eventsUrl: (runId) => `${BASE}/runs/${enc(runId)}/events`,
     getSchedule: (id) => req(`/${enc(id)}/schedule`),
     updateSchedule: (id, payload) => req(`/${enc(id)}/schedule`, { method: 'PUT', body: JSON.stringify(payload) }),

@@ -250,12 +250,33 @@ def isolated_browser_server(tmp_path_factory):
         if status != 200 or created.get("status") != "ok":
             raise RuntimeError("ephemeral least-privilege browser user could not be created")
 
+        model_ids = []
+        for index, model_type in enumerate(("condition_tree", "funnel"), start=1):
+            status, created_model = _request_json(
+                f"{base_url}/api/selection-models",
+                method="POST",
+                token=admin_token,
+                payload={
+                    "model_type": model_type,
+                    "name": f"R0 V-04 隔离模型 {index}",
+                    "description": "ephemeral browser evidence model",
+                    "template": "blank",
+                },
+            )
+            model_id = (created_model.get("data") or {}).get("model_id")
+            if status != 200 or created_model.get("status") != "ok" or not model_id:
+                raise RuntimeError("isolated selection evidence model could not be created")
+            model_ids.append(model_id)
+
         yield BrowserRuntime({
             "base_url": base_url,
             "username": user_phone,
             "password": user_password,
+            "admin_username": admin_phone,
+            "admin_password": admin_password,
             "db_path": db_path,
             "expected_menu_codes": sorted(required_menu_codes),
+            "model_ids": model_ids,
             "artifacts_dir": artifacts_dir,
             "server_log": server_log_path,
         })

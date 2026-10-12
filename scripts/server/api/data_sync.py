@@ -92,7 +92,10 @@ async def get_data_sync_overview() -> Dict[str, Any]:
     from core.data.sync_daemon import SYNC_ARBITER, sync_runtime_snapshot
     from core.data.sync_engine import DB_PATH, DataSyncEngine, TradeCalendar
     from core.strategy.pool_manager import PoolManager
-    from server.services.data_sync_overview import build_daily_health, build_dataset_coverage
+    from server.config import server_settings
+    from server.services.data_sync_overview import (
+        build_daily_health, build_dataset_coverage, build_market_daily_summary,
+    )
     from server.tasks.task_manager import get_task_manager
 
     phase = TradeCalendar.get_market_phase()
@@ -156,6 +159,7 @@ async def get_data_sync_overview() -> Dict[str, Any]:
         recent_tasks = []
 
     dataset_coverage = build_dataset_coverage(daily_health, last_audit, DB_PATH)
+    market_daily = build_market_daily_summary(DB_PATH, server_settings.db_path)
 
     return {
         "status": "success",
@@ -182,6 +186,7 @@ async def get_data_sync_overview() -> Dict[str, Any]:
         "local_layer": summary["local_layer"],
         "pools": pools,
         "daily_health": daily_health,
+        "market_daily": market_daily,
         "dataset_coverage": dataset_coverage,
         "last_audit": last_audit,
         "recent_sync_tasks": recent_tasks[:10],

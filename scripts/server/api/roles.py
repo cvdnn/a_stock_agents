@@ -9,7 +9,8 @@ edited. The super admin role cannot be assigned to any non-super-admin user.
 权限落地机制（C-04）：复用既有 `role_menus` 的「menu + action 两段式」，不新建权限子系统。
 选股模型权限码（SPEC-ALGO-ISS-001 §20.1，10 项）映射为 `selection.<action>` 菜单：
 `view/create/edit/publish/activate/run/track/evaluate/admin/debug`。内置角色 `model_author`
-（模型作者）绑定 `view/create/edit/run/track/evaluate`，不授予 `publish/activate/admin/debug`；
+（模型作者）绑定 `view/create/edit/run/track/evaluate`，不授予通用 `activate`；
+作者激活本人模型由选股 API 按不可变创建者 ID 逐模型校验；
 `selection.debug` 仅超级管理员持有（G-02）。绑定关系与菜单种子见 `server/db.py`。
 """
 from __future__ import annotations

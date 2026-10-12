@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from core.data.data_bridge import DataBridge
-from core.data.sync_engine import DB_PATH, DataSyncEngine, MarketDataStore, TradeCalendar
+from core.data.sync_engine import DB_PATH, DataSyncEngine, MarketDataStore, TradeCalendar, is_index_symbol
 
 #: §5.1 固定调度窗口（minute_kline 为按需回补，不设固定窗口）
 #  - W-02: 流通市值是漏斗 post_close 硬门槛字段，前置到随 D2 的 15:35 定盘批次
@@ -262,7 +262,9 @@ def check_post_close_ready(
     missing = [key for key, wm in watermarks.items() if wm is None]
     not_finalized = [
         key for key, wm in watermarks.items()
-        if wm is not None and wm.get("status") != "finalized"
+        if wm is not None and (
+            wm.get("status") != "finalized" or wm.get("trade_date") != resolved_date
+        )
     ]
     return {
         "ready": not missing and not not_finalized,
@@ -272,6 +274,29 @@ def check_post_close_ready(
         "not_finalized": not_finalized,
         "datasets": watermarks,
     }
+
+
+def ensure_post_close_required(db_path=DB_PATH) -> Dict[str, Any]:
+    """补齐选股所需的当日水位；仅运行缺失项，失败仍由门禁拒绝。"""
+    before = check_post_close_ready(db_path=db_path)
+    results: List[Dict[str, Any]] = []
+    if before["ready"]:
+        return {"ready": True, "trade_date": before["trade_date"], "results": [], "gate": before}
+
+    for key in POST_CLOSE_WATERMARK_KEYS:
+        watermark = before["datasets"].get(key)
+        if watermark and watermark.get("status") == "finalized" and watermark.get("trade_date") == before["trade_date"]:
+            continue
+        if key == "valuation":
+            # D7 消费口径是已登记股票；指数只用于基准，不请求无意义的流通市值。
+            stocks = [symbol for symbol in _resolve_registered() if not is_index_symbol(symbol)]
+            results.append(sync_capital(stocks, db_path=db_path))
+        elif key == "daily_kline":
+            results.append(sync_daily_kline_watermark(trade_date=before["trade_date"], db_path=db_path))
+        else:
+            results.append(sync_stock_basic(db_path=db_path))
+    after = check_post_close_ready(db_path=db_path)
+    return {"ready": after["ready"], "trade_date": after["trade_date"], "results": results, "gate": after}
 
 
 def _upsert(store: MarketDataStore, sql: str, rows: Iterable[tuple]) -> int:
@@ -581,9 +606,12 @@ def sync_capital(symbols: Optional[Iterable[str]] = None, db_path=DB_PATH) -> Di
     禁止在规则层各自换算。旧批次（source=tencent_snapshot_derived，值为亿）须删除后重同步。
     """
     store = MarketDataStore(db_path)
+    requested_scope = "指定标的" if symbols is not None else "全市场"
     codes = list(symbols) if symbols is not None else _full_market_codes()
-    if not codes:
-        codes = _resolve_registered()
+    if not codes and symbols is None:
+        codes = [symbol for symbol in _resolve_registered() if not is_index_symbol(symbol)]
+        requested_scope = "已登记标的"
+    codes = sorted({_norm(code) for code in codes if str(code).strip()})
     bridge = DataBridge()
     # 行级 date 必须与水位 batch_date 同口径：快照取到的是最近交易日收盘态，
     # 节假日若盖裸日历日，下游按水位日期回查命中 0 行而水位仍报 100%。
@@ -613,18 +641,23 @@ def sync_capital(symbols: Optional[Iterable[str]] = None, db_path=DB_PATH) -> Di
                           round(float_cap_yuan / price, 2) if price and float_cap_yuan is not None else None,
                           total_cap_yuan, float_cap_yuan, "tencent_snapshot_derived_yuan"))
         written += _upsert(store, "INSERT OR REPLACE INTO capital_snapshot (symbol, date, total_shares, float_shares, total_market_cap, float_market_cap, source) VALUES (?, ?, ?, ?, ?, ?, ?)", batch)
-    # W-10: 分母为请求标的数，缺失（无市值/拉取失败）计入 missing，不得置零放行
+    # W-10: 分子仅统计本次请求标的，且正式规则需要流通市值；历史其它标的不能凑数。
     with store._get_conn() as conn:
-        covered = conn.execute(
-            "SELECT COUNT(*) FROM capital_snapshot WHERE date = ? AND total_market_cap IS NOT NULL", (batch_date,)
-        ).fetchone()[0]
+        covered = 0
+        for start in range(0, len(codes), 400):
+            chunk = codes[start:start + 400]
+            covered += conn.execute(
+                f"SELECT COUNT(*) FROM capital_snapshot WHERE date = ? AND symbol IN ({','.join('?' * len(chunk))})"
+                " AND total_market_cap > 0 AND float_market_cap > 0",
+                (batch_date, *chunk),
+            ).fetchone()[0]
     total = len(codes)
     watermark = write_universe_watermark(
         store, "valuation", covered, total,
         availability="finalized" if total and covered == total and not failed else "degraded",
         blocking_fields=["float_market_cap"] if covered < total else [],
         trade_date=batch_date,
-        note=f"批次 {batch_date} 全市场快照 · 单位元(W-09)",
+        note=f"批次 {batch_date} {requested_scope}快照 · 单位元(W-09)",
     )
     return _result("valuation", "ok" if total and covered == total and not failed else "degraded", written,
                    "腾讯 L1 批量快照(股本推导·元)", failed, watermark)

@@ -36,9 +36,10 @@ from core.selection_models.version_repository import VersionRepository
 
 #: 调度定义文件名（应用内覆盖，不参与 definition_hash）。
 SCHEDULE_FILE = "schedule.json"
+OWNER_FILE = "owner.json"
 
 #: 允许创建的模型类型：仅 P0 可发布类型（P2 只显示"规划中"，不得提供可点击编辑器，§16）。
-CREATABLE_TEMPLATES = ("blank", "funnel_close_breakout", "condition_pullback")
+CREATABLE_TEMPLATES = ("blank", "funnel_close_breakout", "funnel_example_1", "condition_pullback")
 
 
 class ModelCatalogError(ValueError):
@@ -98,6 +99,7 @@ def _model_summary(model_id: str, base_dir: Path) -> Dict[str, Any]:
     status = "draft" if source == "draft" else ("active" if source == "active" else source)
     return {
         "model_id": model_id,
+        "owner_user_id": _read_json(directory / OWNER_FILE).get("user_id"),
         "name": str(model.get("name") or model_id),
         "model_type": str(model.get("model_type") or ""),
         "description": model.get("description"),
@@ -266,6 +268,15 @@ def blank_funnel_definition(
     *,
     template: str = "blank",
 ) -> Dict[str, Any]:
+    if template == "funnel_example_1":
+        # Keep the workbench example in sync with the executable YAML cited by
+        # selection-funnel-example-1.md. Give every created model its own identity.
+        from core.strategy.stock_funnel import DEFAULT_CONFIG_PATH
+
+        definition, _ = schemas.load_definition(DEFAULT_CONFIG_PATH)
+        definition["model"].update({"id": model_id, "name": name, "version": 1,
+                                    "description": description})
+        return schemas.normalize_definition(definition)
     return {
         "schema_version": schemas.SCHEMA_VERSION,
         "model": {
@@ -328,6 +339,7 @@ def create_model(
     model_id: Optional[str] = None,
     base_dir: Optional[Path] = None,
     operator: Optional[str] = None,
+    owner_user_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """从空白/模板创建一个未激活草稿；返回草稿元信息（不发布、不激活）。"""
     registry = build_default_type_registry()
@@ -339,6 +351,8 @@ def create_model(
         raise ModelCatalogError("MODEL_CONFIG_INVALID", "模型名称不能为空")
     if template not in CREATABLE_TEMPLATES:
         raise ModelCatalogError("MODEL_CONFIG_INVALID", f"未知模板: {template}")
+    if template == "funnel_example_1" and capability.type_id != "funnel":
+        raise ModelCatalogError("MODEL_CONFIG_INVALID", "完整漏斗示例仅适用于漏斗模型")
 
     root = Path(base_dir or DEFAULT_BASE_DIR)
     if model_id:
@@ -355,6 +369,10 @@ def create_model(
 
     normalized, warnings = schemas.migrate_to_v2(definition)
     draft = DefinitionRepository(root).create_draft(model_id, normalized, base_version=None, operator=operator)
+    if owner_user_id is not None:
+        atomic_write_text(model_dir(model_id, root) / OWNER_FILE, json.dumps({
+            "user_id": int(owner_user_id), "username_at_creation": operator, "created_at": _now(),
+        }, ensure_ascii=False, indent=2))
     return {
         "model_id": draft["model_id"],
         "model_type": model_type,

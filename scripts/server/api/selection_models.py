@@ -5,19 +5,22 @@
 
 - **统一水印包裹**（P-08 / W-03）：所有响应用 `{status, data, error_code?, watermark}` 包裹；
   业务性不可用保持 HTTP 200 并给出稳定 `error_code`，前端据水印展示明确不可用提示；
-- **正式运行与调试运行严格隔离**（发布门禁 10）：手工运行走 `runs`，只执行**已发布且已激活**
-  的版本；`debug/*` 只读编译中间产物与规则评估轨迹，绝不落正式运行目录、绝不发信号；
+- **正式运行与调试运行严格隔离**（发布门禁 10）：手工运行走 `runs`，可指定已发布版本；自动调度使用活动版本；
+  `debug/*` 只读编译中间产物与规则评估轨迹，绝不落正式运行目录、绝不发信号；
 - **不加码不伪造**：数据不足一律失败关闭（不产出代码），所有数字来自落盘运行记录；
 - 权限（§20.1，10 项）复用 `server.auth.dependencies.require_selection` 的「menu + action 两段式」。
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
+import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from core.data.data_assembler import GATE_WAITING_DATA, STATUS_OK, DataAssembler
@@ -35,6 +38,7 @@ from core.selection_models.definition_repository import (
     DraftConflictError,
 )
 from core.selection_models.hash import short_hash
+from core.selection_models.llm_rule_compiler import LLMRuleCompilerError
 from core.selection_models.model_compiler import (
     CompiledSelectionPlan,
     ModelCompilerError,
@@ -61,6 +65,7 @@ from core.selection_models.result_assessment import (
 from core.selection_models.rule_registry import build_default_rule_registry
 from core.selection_models.run_repository import RunRepository
 from core.selection_models.scheduler import SelectionScheduler, parse_schedule
+from core.selection_models.scheduler_heartbeat import SchedulerHeartbeatStore
 from core.selection_models.schemas import SelectionSchemaError
 from core.selection_models.tracking_service import (
     DEFAULT_PERIODS,
@@ -76,8 +81,11 @@ from core.strategy.funnel_engine import FunnelEngine
 from core.strategy.stock_funnel import build_stock_rule_registry
 from server.auth.dependencies import AuthContext, require_selection
 from server.db import record_auth_audit
+from server.llm.errors import LLMReadinessError
+from server.services.selection_llm_compiler import compile_text_with_llm
 
 router = APIRouter(prefix="/api/selection-models", tags=["Selection Models"])
+logger = logging.getLogger("server.api.selection_models")
 
 SOURCE = "selection_models"
 
@@ -163,7 +171,9 @@ class CreateModelRequest(BaseModel):
 
 
 class DraftFromTextRequest(BaseModel):
-    text: str = Field(..., description="中文选股文案")
+    text: str = Field(..., min_length=1, max_length=4000, description="中文选股文案")
+    mode: Literal["local", "llm"] = "local"
+    model: Optional[str] = Field(default=None, max_length=150, description="可选模型标识；留空使用量化角色")
 
 
 class SaveDraftRequest(BaseModel):
@@ -193,13 +203,16 @@ class DebugRuleRequest(BaseModel):
 class DebugNodeRequest(BaseModel):
     stage_id: Optional[str] = None
     stage: Optional[Dict[str, Any]] = None
-    records: List[Dict[str, Any]] = Field(default_factory=list)
+    records: Optional[List[Dict[str, Any]]] = None
+    definition: Optional[Dict[str, Any]] = None
+    rule_id: Optional[str] = None
 
 
 class RunRequest(BaseModel):
+    version: Optional[int] = Field(default=None, gt=0, description="手工选股使用的已发布版本；省略时沿用活动版本")
     records: Optional[List[Dict[str, Any]]] = None
     codes: Optional[str] = None
-    all_market: bool = False
+    all_market: bool = True
     as_of: Optional[str] = None
     lookback: int = 70
     request_id: Optional[str] = None
@@ -208,6 +221,10 @@ class RunRequest(BaseModel):
 class ScheduleUpdateRequest(BaseModel):
     paused: Optional[bool] = None
     stages: Optional[Dict[str, str]] = None
+
+
+class OwnerAssignmentRequest(BaseModel):
+    user_id: int = Field(..., gt=0)
 
 
 class AssessmentRequest(BaseModel):
@@ -265,15 +282,30 @@ def _active_plan(model_id: str) -> tuple[int, CompiledSelectionPlan]:
     active = repo.active_version(model_id)
     if active is None:
         raise ModelCatalogError("MODEL_VERSION_NOT_FOUND", f"模型 {model_id} 尚未激活任何版本")
-    definition = repo.definition_of(model_id, active)
-    stored = repo.plan_of(model_id, active)
+    return _published_plan(model_id, active)
+
+
+def _published_plan(model_id: str, version: int) -> tuple[int, CompiledSelectionPlan]:
+    """按不可变的已发布版本运行；归档版本不可用于新选股。"""
+    repo = _version_repo()
+    try:
+        record = repo.get_version(model_id, version)
+    except VersionNotFoundError as exc:
+        raise ModelCatalogError("MODEL_VERSION_NOT_FOUND", str(exc)) from exc
+    if record.get("status") == "ARCHIVED":
+        raise ModelCatalogError("MODEL_VERSION_CONFLICT", f"模型 {model_id} v{version} 已归档，不能创建新选股")
+    try:
+        definition = repo.definition_of(model_id, version)
+        stored = repo.plan_of(model_id, version)
+    except VersionNotFoundError as exc:
+        raise ModelCatalogError("MODEL_VERSION_NOT_FOUND", str(exc)) from exc
     plan = compile_definition(definition)
     if str(plan.plan_hash) != str(stored.get("plan_hash")):
         raise ModelCatalogError(
             "MODEL_VERSION_CONFLICT",
             "已发布计划与当前编译器复算结果不一致（compiler_version 已变更）：请重新发布新版本",
         )
-    return int(active), plan
+    return int(version), plan
 
 
 def _calendar_meta() -> Dict[str, Any]:
@@ -303,6 +335,11 @@ def _assemble_records(payload: RunRequest) -> Dict[str, Any]:
         return {"status": "SOURCE_ERROR", "records": [], "gate": None, "detail": str(exc)}
     if built.get("status") != STATUS_OK:
         return {"status": str(built.get("status")), "records": [], "gate": built.get("gate") or gate}
+    if payload.all_market and not payload.codes:
+        coverage = built.get("coverage_gate") or (built.get("manifest") or {}).get("coverage_gate") or {}
+        if not coverage.get("passed"):
+            return {"status": "WAITING_DATA", "records": [], "gate": gate,
+                    "coverage_gate": coverage, "reason_code": "FULL_MARKET_COVERAGE_INSUFFICIENT"}
     return {"status": STATUS_OK, "records": list(built["records"]), "gate": gate, "manifest": built.get("manifest")}
 
 
@@ -311,28 +348,80 @@ def _run_id_for(plan: CompiledSelectionPlan) -> str:
     return f"selection_{stamp}_{short_hash(str(plan.plan_hash))}"
 
 
-def _candidate_trace(stages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _candidate_trace(stages: List[Dict[str, Any]], *, source: str) -> List[Dict[str, Any]]:
+    def entry(stage_id: str, candidate: Dict[str, Any], verdict: str,
+              failed_rules: List[str], unknown_rules: List[str]) -> Dict[str, Any]:
+        meta = candidate.get("data_meta") or {}
+        dates = candidate.get("dates") or []
+        closes = candidate.get("closes") or []
+        return {
+            "stage_id": stage_id, "code": candidate.get("code"), "verdict": verdict,
+            "failed_rules": failed_rules, "unknown_rules": unknown_rules,
+            "name": candidate.get("name"), "industry": candidate.get("industry"),
+            "price": closes[-1] if closes else None,
+            "price_as_of": dates[-1] if dates else None,
+            "change_pct": candidate.get("change_pct"),
+            "as_of": meta.get("as_of"), "source": meta.get("provider_route") or source,
+            "data_snapshot_id": meta.get("data_snapshot_id"),
+            "missing_reasons": {
+                field: "原始运行记录未提供" for field, value in {
+                    "name": candidate.get("name"), "industry": candidate.get("industry"),
+                    "price": closes[-1] if closes else None,
+                    "price_as_of": dates[-1] if dates else None,
+                    "change_pct": candidate.get("change_pct"),
+                    "as_of": meta.get("as_of"),
+                    "snapshot": meta.get("data_snapshot_id"),
+                }.items() if value is None or value == ""
+            },
+        }
+
     trace: List[Dict[str, Any]] = []
     for stage in stages:
         result = stage.get("result") or {}
         for item in result.get("rejected_records") or []:
             candidate = item.get("candidate") or {}
-            trace.append({
-                "stage_id": stage.get("stage_id"),
-                "code": candidate.get("code"),
-                "verdict": item.get("candidate_verdict"),
-                "failed_rules": [r.get("rule_id") for r in item.get("failed_rules") or []],
-                "unknown_rules": [r.get("rule_id") for r in item.get("unknown_rules") or []],
-            })
-        for item in result.get("passed_records") or []:
-            trace.append({
-                "stage_id": stage.get("stage_id"),
-                "code": item.get("code"),
-                "verdict": "PASS",
-                "failed_rules": [],
-                "unknown_rules": [],
-            })
+            trace.append(entry(stage.get("stage_id"), candidate, item.get("candidate_verdict"),
+                               [r.get("rule_id") for r in item.get("failed_rules") or []],
+                               [r.get("rule_id") for r in item.get("unknown_rules") or []]))
+        passed = result.get("forwarded_records") or result.get("passed_records") or []
+        for item in passed:
+            trace.append(entry(stage.get("stage_id"), item,
+                               "FORWARDED" if stage.get("status") == "SKIPPED" else "PASS", [], []))
     return trace
+
+
+def _filtered_candidates(repo: RunRepository, run_id: str, *, stage_id: Optional[str],
+                         verdict: Optional[str], keyword: Optional[str]) -> List[Dict[str, Any]]:
+    stages = repo.load_run_stages(run_id)
+    if stage_id and stage_id not in {item.get("stage_id") for item in stages}:
+        raise ValueError(f"运行 {run_id} 不存在阶段 {stage_id}")
+    rows = repo.load_run_candidates(run_id)
+    if stage_id:
+        rows = [item for item in rows if item.get("stage_id") == stage_id]
+    if verdict:
+        rows = [item for item in rows if item.get("verdict") == verdict]
+    if keyword:
+        needle = keyword.strip().casefold()
+        rows = [item for item in rows if needle in str(item.get("code") or "").casefold()
+                or needle in str(item.get("name") or "").casefold()]
+    return rows
+
+
+def _run_data_watermark(run: Dict[str, Any]) -> Dict[str, Any]:
+    source = run.get("input_source") or "unknown"
+    snapshot = run.get("data_snapshot_id")
+    return _watermark(availability="ok" if snapshot else "degraded",
+                      degraded_reason=None if snapshot else "SNAPSHOT_NOT_PROVIDED",
+                      eligible_for_signal=False,
+                      extra={"source": source, "as_of": run.get("input_as_of"),
+                             "data_snapshot_id": snapshot})
+
+
+def _csv_cell(value: Any) -> Any:
+    """Preserve user-supplied labels as text when a CSV is opened in a spreadsheet."""
+    if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
 
 
 # ------------------------------------------------------------------ §15.1 元数据
@@ -390,10 +479,13 @@ async def data_health_endpoint(_: AuthContext = Depends(require_selection("view"
 @router.get("")
 async def list_models_endpoint(
     model_type: Optional[str] = Query(default=None),
-    _: AuthContext = Depends(require_selection("view")),
+    ctx: AuthContext = Depends(require_selection("view")),
 ) -> Dict[str, Any]:
     items = list_models(model_type=model_type)
-    return _ok({"models": items, "total": len(items)})
+    return _ok({"models": items, "total": len(items), "permissions": {
+        "create": ctx.has_menu("selection.create"),
+        "run": ctx.has_menu("selection.run"),
+    }})
 
 
 @router.post("")
@@ -409,6 +501,7 @@ async def create_model_endpoint(
             template=payload.template,
             model_id=payload.model_id,
             operator=ctx.username,
+            owner_user_id=ctx.user_id,
         )
     except ModelCatalogError as exc:
         return _guard(exc)
@@ -422,23 +515,81 @@ async def draft_from_text_endpoint(
     ctx: AuthContext = Depends(require_selection("create")),
 ) -> Any:
     try:
-        parsed = draft_from_text(payload.text)
-    except ModelCatalogError as exc:
+        if payload.mode == "llm":
+            parsed = await compile_text_with_llm(payload.text, model=payload.model)
+        else:
+            parsed = draft_from_text(payload.text)
+            parsed["parser_mode"] = "local"
+    except (ModelCatalogError, LLMRuleCompilerError, LLMReadinessError,
+            ModelCompilerError, SelectionSchemaError) as exc:
         return _guard(exc)
-    _audit(ctx, "draft_from_text", "文案解析草稿（未激活）")
-    return _ok(parsed)
+    except Exception as exc:
+        logger.warning("LLM 文案解析失败: %s", type(exc).__name__)
+        return _fail("MODEL_LLM_UNAVAILABLE", "LLM 请求失败；未生成选股草稿")
+    _audit(ctx, "draft_from_text", f"文案解析草稿 mode={payload.mode}（未激活）")
+    return _ok(parsed, watermark=_watermark(eligible_for_signal=False,
+                                           extra={"parser_mode": payload.mode}))
+
+
+@router.get("/runs")
+async def list_recent_runs_endpoint(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    _: AuthContext = Depends(require_selection("view")),
+) -> Any:
+    runs = _run_repo().list_recent_runs(limit=limit, offset=offset)
+    return _ok({"runs": runs, "limit": limit, "offset": offset})
 
 
 @router.get("/{model_id}")
 async def get_model_endpoint(
     model_id: str,
-    _: AuthContext = Depends(require_selection("view")),
+    ctx: AuthContext = Depends(require_selection("view")),
 ) -> Any:
     try:
         detail = get_model(model_id)
     except (ModelCatalogError, ValueError) as exc:
         return _guard(exc if isinstance(exc, ModelCatalogError) else ModelCatalogError("MODEL_VERSION_NOT_FOUND", str(exc)))
+    detail["permissions"] = {
+        "publish": ctx.has_menu("selection.publish"),
+        "edit": ctx.has_menu("selection.edit"),
+        "activate": ctx.has_menu("selection.activate") or (
+            ctx.role_code == "model_author" and detail.get("owner_user_id") == ctx.user_id
+        ),
+        "schedule_admin": ctx.has_menu("selection.admin"),
+        "run": ctx.has_menu("selection.run"),
+        "debug": ctx.is_super_admin,
+    }
     return _ok(detail)
+
+
+@router.put("/{model_id}/owner")
+async def assign_legacy_owner_endpoint(
+    model_id: str,
+    payload: OwnerAssignmentRequest,
+    ctx: AuthContext = Depends(require_selection("admin")),
+) -> Any:
+    """显式迁移旧模型归属；只允许为无归属模型写入一次。"""
+    from core.selection_models.catalog import OWNER_FILE
+    from core.selection_models.definition_repository import atomic_write_text, model_dir
+    from server.db import get_user_by_id
+
+    try:
+        detail = get_model(model_id)
+    except (ModelCatalogError, ValueError) as exc:
+        return _guard(exc if isinstance(exc, ModelCatalogError) else ModelCatalogError("MODEL_VERSION_NOT_FOUND", str(exc)))
+    if detail.get("owner_user_id") is not None:
+        return _fail("MODEL_OWNER_CONFLICT", "模型已有归属，不允许覆盖")
+    target = get_user_by_id(payload.user_id)
+    if not target or not target.get("status"):
+        return _fail("MODEL_OWNER_INVALID", "目标用户不存在或已停用")
+    from core.selection_models import catalog
+    owner_path = model_dir(model_id, catalog.DEFAULT_BASE_DIR) / OWNER_FILE
+    atomic_write_text(owner_path, json.dumps({"user_id": payload.user_id,
+        "username_at_assignment": target.get("username"), "assigned_by": ctx.username,
+        "assigned_at": datetime.now().astimezone().isoformat(timespec="seconds")}, ensure_ascii=False, indent=2))
+    _audit(ctx, "assign_owner", f"迁移模型 {model_id} 归属至用户 {payload.user_id}")
+    return _ok({"model_id": model_id, "owner_user_id": payload.user_id})
 
 
 @router.patch("/{model_id}/draft")
@@ -643,8 +794,16 @@ async def archive_endpoint(
 async def activate_endpoint(
     model_id: str,
     version: int,
-    ctx: AuthContext = Depends(require_selection("activate")),
+    ctx: AuthContext = Depends(require_selection("view")),
 ) -> Any:
+    try:
+        owner_id = get_model(model_id).get("owner_user_id")
+    except (ModelCatalogError, ValueError) as exc:
+        return _guard(exc if isinstance(exc, ModelCatalogError) else ModelCatalogError("MODEL_VERSION_NOT_FOUND", str(exc)))
+    if not (ctx.has_menu("selection.activate") or
+            (ctx.role_code == "model_author" and owner_id == ctx.user_id)):
+        raise HTTPException(status_code=403, detail={"error": "forbidden",
+            "message": "仅管理员或模型作者本人可激活；旧模型须先由管理员确认归属"})
     try:
         result = _version_repo().activate(model_id, version, operator=ctx.username)
     except VersionConflictError as exc:
@@ -683,29 +842,131 @@ async def debug_node_endpoint(
     payload: DebugNodeRequest,
     _: AuthContext = Depends(require_selection("debug")),
 ) -> Any:
-    """条件组/阶段调试：在给定记录上预演单层，不落运行目录、不发信号。"""
+    """阶段调试：本地股票快照入首层，上层通过候选入下层，不发信号。"""
     engine = FunnelEngine(build_stock_rule_registry())
     if payload.stage is not None:
         stage = dict(payload.stage)
     elif payload.stage_id:
         try:
-            _, plan = _active_plan(model_id)
-        except ModelCatalogError:
-            draft = DefinitionRepository().load_draft(model_id)
-            if draft is None:
-                return _fail("MODEL_VERSION_NOT_FOUND", f"模型 {model_id} 无可用定义", watermark=_debug_watermark())
-            plan = compile_definition(draft["definition"])
+            if payload.definition is not None:
+                get_model(model_id)
+                plan = compile_definition(payload.definition)
+                if plan.source_model.get("model_id") != model_id:
+                    return _fail("MODEL_CONFIG_INVALID", "调试定义与所选模型不匹配", watermark=_debug_watermark())
+            else:
+                try:
+                    _, plan = _active_plan(model_id)
+                except ModelCatalogError:
+                    draft = DefinitionRepository().load_draft(model_id)
+                    if draft is None:
+                        return _fail("MODEL_VERSION_NOT_FOUND", f"模型 {model_id} 无可用定义", watermark=_debug_watermark())
+                    plan = compile_definition(draft["definition"])
+        except (ModelCatalogError, ModelCompilerError, SelectionSchemaError, ValueError) as exc:
+            return _fail(getattr(exc, "code", "MODEL_CONFIG_INVALID"), str(exc), watermark=_debug_watermark())
         matched = [s for s in plan.stages if s.id == payload.stage_id]
         if not matched:
             return _fail("MODEL_CONFIG_INVALID", f"编译计划不存在阶段 {payload.stage_id}", watermark=_debug_watermark())
         stage = matched[0].to_engine_stage()
     else:
         return _fail("MODEL_CONFIG_INVALID", "需要 stage_id 或 stage 之一", watermark=_debug_watermark())
+    if payload.records is not None:
+        try:
+            result = engine.run_stage(stage, payload.records, {})
+        except ValueError as exc:
+            return _fail("MODEL_CONFIG_INVALID", str(exc), watermark=_debug_watermark())
+        return _ok(result.to_dict(), watermark=_debug_watermark())
+    if payload.stage is not None:
+        return _fail("MODEL_CONFIG_INVALID", "自动取数调试需要模型阶段 ID", watermark=_debug_watermark())
+
+    assembler = DataAssembler()
     try:
-        result = engine.run_stage(stage, payload.records, {})
+        codes = assembler.resolve_universe(all_market=True)
+        built = assembler.assemble_daily(codes, algorithm_version="iss-debug", persist=False)
+    except Exception as exc:
+        return _fail("MODEL_DATA_MISSING", f"本地市场数据无法装配：{exc}",
+                     watermark=_watermark(availability="degraded", degraded_reason="MODEL_DATA_MISSING",
+                                          eligible_for_signal=False, extra={"debug": True}))
+    if built.get("status") != STATUS_OK:
+        return _fail("MODEL_DATA_MISSING", "同步数据水位未就绪，无法调试；请检查数据健康状态",
+                     watermark=_watermark(availability="degraded", degraded_reason="MODEL_DATA_MISSING",
+                                          eligible_for_signal=False, extra={"debug": True}),
+                     data={"gate": built.get("gate"), "reason_code": built.get("reason_code"),
+                           "detail": built.get("error")})
+    try:
+        preview = SelectionModelOrchestrator(engine=engine).run_all(
+            plan, built["records"], {"data_gate": built.get("gate"),
+                                     "data_snapshots": [built["manifest"]]},
+            trigger_type="debug",
+        )
     except ValueError as exc:
-        return _fail("MODEL_CONFIG_INVALID", str(exc), watermark=_debug_watermark())
-    return _ok(result.to_dict(), watermark=_debug_watermark())
+        return _fail(getattr(exc, "code", "MODEL_CONFIG_INVALID"), str(exc), watermark=_debug_watermark())
+    stages = preview["stages"]
+    selected = next((item for item in stages if item["stage_id"] == payload.stage_id), None)
+    if selected is None:
+        return _ok({"status": "NOT_REACHED", "stage_id": payload.stage_id,
+                    "blocked_by": stages[-1]["stage_id"] if stages else None,
+                    "stages": [_debug_stage_summary(item) for item in stages],
+                    "source": "local_snapshot", "snapshot": _debug_snapshot_summary(built)},
+                   watermark=_debug_watermark())
+    result = selected["result"]
+    if selected["status"] == "SKIPPED":
+        result = {**result, "status": "SKIPPED", "verdict": selected["verdict"],
+                  "input_count": selected["input_count"], "output_count": selected["output_count"]}
+    if payload.rule_id:
+        if selected["status"] == "SKIPPED":
+            return _fail("MODEL_CONFIG_INVALID", f"阶段 {payload.stage_id} 已停用", watermark=_debug_watermark())
+        selected_plan = matched[0]
+        rule = next((item for item in selected_plan.rules if item["id"] == payload.rule_id), None)
+        if rule is None:
+            return _fail("MODEL_RULE_UNKNOWN", f"阶段 {payload.stage_id} 不存在规则 {payload.rule_id}",
+                         watermark=_debug_watermark())
+        if not rule.get("enabled", True):
+            return _fail("MODEL_CONFIG_INVALID", f"规则 {payload.rule_id} 已停用", watermark=_debug_watermark())
+        upstream_id = str(selected_plan.input).removesuffix(".candidates")
+        upstream = next((item for item in stages if item["stage_id"] == upstream_id), None)
+        rule_inputs = (upstream["result"].get("passed_records") or
+                       upstream["result"].get("forwarded_records") or []) if upstream else built["records"]
+        rule_stage = {"id": payload.stage_id, "name": selected_plan.name,
+                      "scope": selected_plan.scope, "logic": "all", "rules": [dict(rule)]}
+        result = engine.run_stage(rule_stage, rule_inputs, {}).to_dict()
+    return _ok({"status": selected["status"], "stage_id": payload.stage_id,
+                "rule_id": payload.rule_id, "result": _debug_result_sample(result),
+                "stages": [_debug_stage_summary(item) for item in stages],
+                "source": "local_snapshot", "snapshot": _debug_snapshot_summary(built)},
+               watermark=_debug_watermark())
+
+
+def _debug_stage_summary(stage: Dict[str, Any]) -> Dict[str, Any]:
+    return {key: stage.get(key) for key in ("stage_id", "name", "status", "verdict",
+                                             "input_count", "output_count", "unknown_count")}
+
+
+def _debug_snapshot_summary(built: Dict[str, Any]) -> Dict[str, Any]:
+    manifest = built.get("manifest") or {}
+    gate = built.get("gate") or {}
+    coverage = built.get("coverage_gate") or manifest.get("coverage_gate") or {}
+    return {"data_snapshot_id": manifest.get("data_snapshot_id"),
+            "as_of": manifest.get("as_of"), "trade_date": gate.get("trade_date"),
+            "gate_state": gate.get("state"), "input_count": len(built.get("records") or []),
+            "coverage_passed": coverage.get("passed"), "coverage": coverage.get("coverage")}
+
+
+def _debug_result_sample(result: Dict[str, Any]) -> Dict[str, Any]:
+    """调试只返回有限条规则证据，避免全市场历史序列塞进浏览器。"""
+    def compact(record: Dict[str, Any]) -> Dict[str, Any]:
+        candidate = record.get("candidate") or record
+        return {"code": candidate.get("code"), "name": candidate.get("name"),
+                "candidate_verdict": record.get("candidate_verdict", "PASS"),
+                "failed_rules": record.get("failed_rules", []),
+                "unknown_rules": record.get("unknown_rules", []),
+                "rules": (candidate.get("_funnel") or {}).get("rules", [])}
+    return {"status": result.get("status"), "verdict": result.get("verdict"),
+            "input_count": result.get("input_count"), "output_count": result.get("output_count"),
+            "passed_sample": [compact(item) for item in (
+                result.get("passed_records") or result.get("forwarded_records") or [])[:20]],
+            "rejected_sample": [compact(item) for item in result.get("rejected_records", [])[:20]],
+            "gate_results": result.get("gate_results", []),
+            "sample_limit": 20}
 
 
 # ------------------------------------------------------------------ §15.2 正式运行
@@ -715,15 +976,19 @@ async def create_run_endpoint(
     payload: RunRequest,
     ctx: AuthContext = Depends(require_selection("run")),
 ) -> Any:
-    """手工创建正式运行：只执行已激活版本；相同 request_id 重试返回原运行。"""
+    """手工运行可显式选择已发布版本；旧调用省略版本时沿用活动版本。"""
     repo = _run_repo()
     if payload.request_id:
         for existing in repo.list_runs(model_id):
             if str(existing.get("request_id") or "") == str(payload.request_id):
+                if payload.version is not None and int(existing.get("model_version") or 0) != payload.version:
+                    return _fail("MODEL_VERSION_CONFLICT", "同一 request_id 已用于其它模型版本")
                 return _ok({"run": existing, "deduplicated": True})
 
     try:
-        active_version, plan = _active_plan(model_id)
+        active_version, plan = (
+            _published_plan(model_id, payload.version) if payload.version is not None else _active_plan(model_id)
+        )
     except ModelCatalogError as exc:
         return _guard(exc)
 
@@ -731,12 +996,21 @@ async def create_run_endpoint(
     calendar = _calendar_meta()
     if assembled.get("status") != STATUS_OK:
         gc = assembled.get("gate") or {}
+        coverage = assembled.get("coverage_gate") or {}
+        message = (
+            f"本地全市场日线覆盖不足（{coverage['healthy']}/{coverage['expected']}），"
+            "失败关闭：不产出任何候选代码"
+            if coverage and coverage.get("expected") is not None and coverage.get("healthy") is not None
+            else "本地数据水位未就绪或全市场覆盖不足，失败关闭：不产出任何候选代码（发布门禁 5）"
+        )
         return _fail(
             "MODEL_DATA_MISSING",
-            "本地数据水位未就绪，失败关闭：不产出任何候选代码（发布门禁 5）",
+            message,
             watermark=_watermark(availability="degraded", degraded_reason="MODEL_DATA_MISSING",
                                  eligible_for_signal=False, extra={"data_gate": gc}),
-            data={"gate": gc, "calendar": calendar},
+            data={"gate": gc, "calendar": calendar,
+                  "coverage_gate": assembled.get("coverage_gate"),
+                  "reason_code": assembled.get("reason_code")},
         )
 
     run_id = _run_id_for(plan)
@@ -747,6 +1021,9 @@ async def create_run_endpoint(
         context["data_snapshots"] = [assembled["manifest"]]
     if assembled.get("gate"):
         context["data_gate"] = assembled["gate"]
+    manifest = assembled.get("manifest") or {}
+    input_source = "local_snapshot" if manifest else "request_records"
+    input_as_of = manifest.get("as_of") or payload.as_of
 
     repo.save_run({
         "run_id": run_id, "model_id": model_id, "model_version": active_version,
@@ -755,6 +1032,8 @@ async def create_run_endpoint(
         "request_id": payload.request_id, "status": "RUNNING",
         "signal_trade_date": trade_date, "started_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "plan_hash": plan.plan_hash, "compiler_version": plan.compiler_version,
+        "input_source": input_source, "input_as_of": input_as_of,
+        "data_snapshot_id": manifest.get("data_snapshot_id"),
     })
 
     orchestrator = SelectionModelOrchestrator()
@@ -769,7 +1048,7 @@ async def create_run_endpoint(
 
     stages = outcome.get("stages") or []
     repo.save_run_stages(run_id, stages)
-    repo.save_run_candidates(run_id, _candidate_trace(stages))
+    repo.save_run_candidates(run_id, _candidate_trace(stages, source=input_source))
     repo.update_run(run_id, {
         "status": outcome.get("status"),
         "finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -779,7 +1058,8 @@ async def create_run_endpoint(
         "run_metadata": outcome.get("run_metadata") or {},
     })
 
-    if outcome.get("status") == "COMPLETED" and outcome.get("selected_codes"):
+    if (outcome.get("status") == "COMPLETED" and outcome.get("selected_codes")
+            and (payload.version is None or _version_repo().active_version(model_id) == active_version)):
         repo.save_signals(trade_date, model_id, {
             "model_id": model_id, "model_version": active_version, "signal_trade_date": trade_date,
             "run_id": run_id, "plan_hash": plan.plan_hash,
@@ -788,6 +1068,82 @@ async def create_run_endpoint(
     _audit(ctx, "run", f"手工运行 {model_id} v{active_version} → {outcome.get('status')}")
     return _ok({"run": repo.load_run(run_id), "run_id": run_id, "stages": stages,
                 "selected_codes": outcome.get("selected_codes") or []})
+
+
+@router.get("/runs/{run_id}")
+async def get_run_endpoint(run_id: str, _: AuthContext = Depends(require_selection("view"))) -> Any:
+    run = _run_repo().load_run(run_id)
+    if not run:
+        return _fail("MODEL_RUN_NOT_FOUND", f"运行不存在: {run_id}")
+    return _ok({"run": run}, watermark=_run_data_watermark(run))
+
+
+@router.get("/runs/{run_id}/nodes")
+async def get_run_nodes_endpoint(run_id: str, _: AuthContext = Depends(require_selection("view"))) -> Any:
+    run = _run_repo().load_run(run_id)
+    if not run:
+        return _fail("MODEL_RUN_NOT_FOUND", f"运行不存在: {run_id}")
+    return _ok({"run_id": run_id, "nodes": _run_repo().load_run_stages(run_id)},
+               watermark=_run_data_watermark(run))
+
+
+@router.get("/runs/{run_id}/candidates")
+async def get_run_candidates_endpoint(
+    run_id: str,
+    stage_id: Optional[str] = Query(default=None),
+    verdict: Optional[str] = Query(default=None, pattern="^(PASS|FAIL|UNKNOWN|FORWARDED)$"),
+    keyword: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    _: AuthContext = Depends(require_selection("view")),
+) -> Any:
+    repo = _run_repo()
+    run = repo.load_run(run_id)
+    if not run:
+        return _fail("MODEL_RUN_NOT_FOUND", f"运行不存在: {run_id}")
+    try:
+        rows = _filtered_candidates(repo, run_id, stage_id=stage_id, verdict=verdict, keyword=keyword)
+    except ValueError as exc:
+        return _fail("MODEL_STAGE_NOT_FOUND", str(exc))
+    return _ok({"run_id": run_id, "stage_id": stage_id, "verdict": verdict,
+                "keyword": keyword, "total": len(rows), "limit": limit, "offset": offset,
+                "source": run.get("input_source"), "as_of": run.get("input_as_of"),
+                "data_snapshot_id": run.get("data_snapshot_id"),
+                "candidates": rows[offset:offset + limit]}, watermark=_run_data_watermark(run))
+
+
+@router.get("/runs/{run_id}/candidates/export")
+async def export_run_candidates_endpoint(
+    run_id: str,
+    stage_id: Optional[str] = Query(default=None),
+    verdict: Optional[str] = Query(default=None, pattern="^(PASS|FAIL|UNKNOWN|FORWARDED)$"),
+    keyword: Optional[str] = Query(default=None),
+    _: AuthContext = Depends(require_selection("view")),
+) -> Any:
+    repo = _run_repo()
+    run = repo.load_run(run_id)
+    if not run:
+        return _fail("MODEL_RUN_NOT_FOUND", f"运行不存在: {run_id}")
+    try:
+        rows = _filtered_candidates(repo, run_id, stage_id=stage_id, verdict=verdict, keyword=keyword)
+    except ValueError as exc:
+        return _fail("MODEL_STAGE_NOT_FOUND", str(exc))
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["run_id", "stage_id", "code", "verdict", "name", "industry", "price",
+                     "price_as_of", "change_pct", "as_of", "source", "data_snapshot_id",
+                     "failed_rules", "unknown_rules", "missing_reasons"])
+    for row in rows:
+        writer.writerow([_csv_cell(value) for value in [run_id, row.get("stage_id"), row.get("code"), row.get("verdict"),
+                         row.get("name"), row.get("industry"), row.get("price"),
+                         row.get("price_as_of"), row.get("change_pct"), row.get("as_of"),
+                         row.get("source"), row.get("data_snapshot_id"),
+                         ";".join(row.get("failed_rules") or []),
+                         ";".join(row.get("unknown_rules") or []),
+                         json.dumps(row.get("missing_reasons") or {}, ensure_ascii=False)]])
+    return Response(content="\ufeff" + output.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{run_id}-candidates.csv"',
+                             "X-Selection-Total": str(len(rows))})
 
 
 @router.get("/{model_id}/runs")
@@ -800,34 +1156,11 @@ async def list_runs_endpoint(
     offset: int = Query(default=0, ge=0),
     _: AuthContext = Depends(require_selection("view")),
 ) -> Any:
+    # Keep this dynamic two-segment route after /runs/{run_id}.
     repo = _run_repo()
     items = repo.list_runs(model_id, version=version, status=status, trigger_type=trigger_type, limit=limit, offset=offset)
     total = len(repo.list_runs(model_id, version=version, status=status, trigger_type=trigger_type))
     return _ok({"model_id": model_id, "runs": items, "total": total, "limit": limit, "offset": offset})
-
-
-@router.get("/runs/{run_id}")
-async def get_run_endpoint(run_id: str, _: AuthContext = Depends(require_selection("view"))) -> Any:
-    run = _run_repo().load_run(run_id)
-    if not run:
-        return _fail("MODEL_RUN_NOT_FOUND", f"运行不存在: {run_id}")
-    return _ok({"run": run})
-
-
-@router.get("/runs/{run_id}/nodes")
-async def get_run_nodes_endpoint(run_id: str, _: AuthContext = Depends(require_selection("view"))) -> Any:
-    run = _run_repo().load_run(run_id)
-    if not run:
-        return _fail("MODEL_RUN_NOT_FOUND", f"运行不存在: {run_id}")
-    return _ok({"run_id": run_id, "nodes": _run_repo().load_run_stages(run_id)})
-
-
-@router.get("/runs/{run_id}/candidates")
-async def get_run_candidates_endpoint(run_id: str, _: AuthContext = Depends(require_selection("view"))) -> Any:
-    run = _run_repo().load_run(run_id)
-    if not run:
-        return _fail("MODEL_RUN_NOT_FOUND", f"运行不存在: {run_id}")
-    return _ok({"run_id": run_id, "candidates": _run_repo().load_run_candidates(run_id)})
 
 
 @router.post("/runs/{run_id}/cancel")
@@ -836,11 +1169,9 @@ async def cancel_run_endpoint(run_id: str, ctx: AuthContext = Depends(require_se
     run = repo.load_run(run_id)
     if not run:
         return _fail("MODEL_RUN_NOT_FOUND", f"运行不存在: {run_id}")
-    if str(run.get("status") or "") not in {"RUNNING", "QUEUED"}:
-        return _fail("MODEL_RUN_REQUEST_CONFLICT", f"运行已处于终态 {run.get('status')}，无需取消")
-    updated = repo.update_run(run_id, {"status": "CANCELLED", "cancelled_by": ctx.username})
-    _audit(ctx, "cancel", f"取消运行 {run_id}")
-    return _ok({"run": updated})
+    # 手工执行在当前 HTTP 请求内同步完成；没有可传递给执行器的取消令牌。
+    # 直接覆写状态会与仍在运行的执行器竞态，且可能把已产出的信号伪装为取消。
+    return _fail("MODEL_RUN_CANCEL_UNSUPPORTED", "同步手工运行暂不支持中断；请等待执行终态")
 
 
 @router.get("/runs/{run_id}/events")
@@ -900,25 +1231,53 @@ async def get_schedule_endpoint(model_id: str, _: AuthContext = Depends(require_
     override = store.load(model_id)
     windows: List[Dict[str, Any]] = []
     scheduler_next = None
+    active_version = None
+    config_error = None
     try:
-        _, plan = _active_plan(model_id)
-        scheduler = SelectionScheduler(plan)
+        active_version, plan = _active_plan(model_id)
+        scheduler = SelectionScheduler(plan, schedule_store=store)
         now = datetime.now().astimezone()
         windows = [w.__dict__ for w in scheduler.windows]
         scheduler_next = scheduler.next_run_at(now)
-    except ModelCatalogError:
-        windows = []
+    except (ModelCatalogError, ValueError) as exc:
+        config_error = str(exc)
+    beat = SchedulerHeartbeatStore().load(model_id)
+    age_seconds = None
+    if beat.get("recorded_at"):
+        try:
+            age_seconds = (datetime.now(timezone.utc) - datetime.fromisoformat(beat["recorded_at"])).total_seconds()
+        except (ValueError, TypeError):
+            pass
+    version_matches = active_version is not None and beat.get("model_version") == active_version
+    online = bool(version_matches and age_seconds is not None and 0 <= age_seconds <= 150)
+    reason = ("MODEL_NOT_ACTIVE" if active_version is None else
+              "DAEMON_HEARTBEAT_MISSING" if not beat else
+              "DAEMON_MODEL_VERSION_MISMATCH" if not version_matches else
+              "DAEMON_HEARTBEAT_STALE" if not online else None)
     return _ok({"model_id": model_id, "paused": override["paused"], "overrides": override["stages"],
-                "windows": windows, "next_run_at": scheduler_next, "updated_at": override["updated_at"]})
+                "windows": windows, "next_run_at": None if override["paused"] else scheduler_next,
+                "updated_at": override["updated_at"], "active_version": active_version,
+                "daemon": {"online": online, "last_tick_at": beat.get("tick_at"),
+                           "last_execution_at": beat.get("last_execution_at"),
+                           "last_error": beat.get("last_error"), "tick_status": beat.get("tick_status"),
+                           "reason_code": reason, "age_seconds": age_seconds},
+                "configuration_error": config_error})
 
 
 @router.put("/{model_id}/schedule")
 async def update_schedule_endpoint(
     model_id: str,
     payload: ScheduleUpdateRequest,
-    ctx: AuthContext = Depends(require_selection("activate")),
+    ctx: AuthContext = Depends(require_selection("admin")),
 ) -> Any:
+    try:
+        _, plan = _active_plan(model_id)
+    except ModelCatalogError as exc:
+        return _guard(exc)
+    valid_stages = {stage.id for stage in plan.stages}
     for stage_id, window in (payload.stages or {}).items():
+        if stage_id not in valid_stages:
+            return _fail("MODEL_CONFIG_INVALID", f"未知调度阶段: {stage_id}")
         try:
             parse_schedule(window, stage_id=stage_id)
         except ValueError as exc:
@@ -930,14 +1289,22 @@ async def update_schedule_endpoint(
 
 
 @router.post("/{model_id}/pause")
-async def pause_endpoint(model_id: str, ctx: AuthContext = Depends(require_selection("activate"))) -> Any:
+async def pause_endpoint(model_id: str, ctx: AuthContext = Depends(require_selection("admin"))) -> Any:
+    try:
+        _active_plan(model_id)
+    except ModelCatalogError as exc:
+        return _guard(exc)
     saved = ScheduleStore().set_paused(model_id, True, operator=ctx.username)
     _audit(ctx, "pause", f"暂停自动运行 {model_id}")
     return _ok(saved)
 
 
 @router.post("/{model_id}/resume")
-async def resume_endpoint(model_id: str, ctx: AuthContext = Depends(require_selection("activate"))) -> Any:
+async def resume_endpoint(model_id: str, ctx: AuthContext = Depends(require_selection("admin"))) -> Any:
+    try:
+        _active_plan(model_id)
+    except ModelCatalogError as exc:
+        return _guard(exc)
     saved = ScheduleStore().set_paused(model_id, False, operator=ctx.username)
     _audit(ctx, "resume", f"恢复自动运行 {model_id}")
     return _ok(saved)

@@ -5,6 +5,8 @@
 
   const DOM = () => global.document;
   const A = () => global.SelModels.api;
+  const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g,
+    (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
   async function open() {
     const modelId = global.SelModels.store.get().activeModelId;
@@ -20,8 +22,8 @@
         <div class="sel-modal-body" id="selScheduleBody">
           <div class="sel-state sel-state-loading">加载中…</div></div>
         <div class="sel-modal-foot">
-          <button type="button" class="sel-act-btn" onclick="SelModels.scheduler.togglePause()">暂停 / 恢复</button>
-          <button type="button" class="sel-act-btn primary" onclick="SelModels.scheduler.save()">保存时间窗</button>
+          <button type="button" class="sel-act-btn" id="selSchedulePause" onclick="SelModels.scheduler.togglePause()">暂停 / 恢复</button>
+          <button type="button" class="sel-act-btn primary" id="selScheduleSave" onclick="SelModels.scheduler.save()">保存时间窗</button>
         </div>
       </div>`;
     DOM().body.appendChild(wrap);
@@ -38,18 +40,31 @@
       if (!data) return;
       global.SelModels.store.set({ schedule: data });
       const wm = resp.watermark;
+      const daemon = data.daemon || {};
+      const canAdmin = !!((global.SelModels.store.get().detail || {}).permissions || {}).schedule_admin;
       body.innerHTML = `
         <div class="sel-schedule-head">
-          <span class="sel-status-badge ${data.paused ? 'status-pending' : 'status-active'}">${data.paused ? '已暂停' : '运行中'}</span>
-          <span>下一执行：${data.next_run_at || '今日无更多窗口'}</span>
-          <span class="sel-schedule-wm">水印：${wm ? wm.availability : '--'}</span>
+          <span class="sel-status-badge ${data.paused ? 'status-pending' : 'status-active'}">计划：${data.paused ? '已暂停' : '未暂停'}</span>
+          <span>守护进程：${daemon.online ? '在线' : '离线或未启动'}</span>
+          <span>最近 Tick：${esc(daemon.last_tick_at || '未提供')}</span>
+          <span>最后执行：${esc(daemon.last_execution_at || '未提供')}</span>
+          <span>下一窗口：${esc(data.next_run_at || '今日无更多窗口')}</span>
+          <span>异常原因：${esc(daemon.last_error || daemon.reason_code || data.configuration_error || '无')}</span>
+          <span class="sel-schedule-wm">水印：${wm ? esc(wm.availability) : '--'}</span>
         </div>
         <table class="sel-version-table"><thead><tr><th>阶段</th><th>时间窗</th><th>启停</th></tr></thead>
           <tbody>${(data.windows || []).map((w) => `<tr>
-            <td>${w.stage_id}</td>
-            <td><input type="text" class="sel-inline-input" data-window-stage="${w.stage_id}"
-              value="${(data.overrides && data.overrides[w.stage_id]) || (w.start + '-' + w.end)}" /></td>
+            <td>${esc(w.stage_id)}</td>
+            <td><input type="text" class="sel-inline-input" data-window-stage="${esc(w.stage_id)}"
+              value="${esc((data.overrides && data.overrides[w.stage_id]) || (w.start + '-' + w.end))}" ${canAdmin ? '' : 'disabled'} /></td>
             <td>${w.enabled ? '启用' : '停用'}</td></tr>`).join('') || '<tr><td colspan="3">无时间窗</td></tr>'}</tbody></table>`;
+      ['selSchedulePause', 'selScheduleSave'].forEach((id) => {
+        const button = DOM().getElementById(id);
+        if (button) { button.disabled = !canAdmin || data.active_version == null;
+          button.title = !canAdmin ? '仅管理员可修改自动调度' :
+            data.active_version == null ? '请先激活已发布版本' : '';
+        }
+      });
       if (global.SelModels.overview) global.SelModels.overview.render();
     } catch (err) {
       global.SelModels.stateViews.error(body, { message: err.message });

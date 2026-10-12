@@ -1444,7 +1444,7 @@ function switchRightTab(tabId) {
     initDatasync();
   }
   if (tabId === 'selection') {
-    initSelectionWorkbench();
+    window.SelModels.bootstrap();
   }
   // 3.2 Hook: 系统管理内联渲染到主工作区页面
   if (tabId === 'system') {
@@ -3111,8 +3111,6 @@ function renderTabCharts(tabId) {
     loadWatchlistData(AppState.selectedStock);
   } else if (tabId === 'returns') {
     loadReturnsData();
-  } else if (tabId === 'selection') {
-    renderSelectionWorkbench();
   }
 }
 
@@ -9708,12 +9706,24 @@ function renderDatasyncOverview(data) {
   const count = document.getElementById('datasyncRegisteredCount');
   const covered = document.getElementById('datasyncCoveredCount');
   const pending = document.getElementById('datasyncPendingCount');
+  const marketCount = document.getElementById('datasyncMarketStoredCount');
+  const marketSummary = document.getElementById('datasyncMarketBatchSummary');
   const gap = document.getElementById('datasyncAuditGapCount');
   const auditTime = document.getElementById('datasyncLastAuditTime');
   const lead = document.getElementById('datasyncSyncLead');
   const dot = document.getElementById('datasyncStateDot');
   const watermarkSummary = document.getElementById('datasyncStatusWatermark');
   const body = document.getElementById('datasyncDailyHealthBody');
+  const market = data?.market_daily;
+  const marketBatch = market?.last_batch;
+  if (marketCount) marketCount.textContent = market?.stored_symbols == null ? '—' : Number(market.stored_symbols).toLocaleString('zh-CN');
+  if (marketSummary) {
+    const batchStatus = { success: '完成', degraded: '部分失败', error: '失败', failed: '失败', running: '运行中', pending: '等待中', cancelled: '已取消' };
+    marketSummary.textContent = !marketBatch ? '已存含历史；暂无市场批次'
+      : marketBatch.requested == null ? `已存含历史 · 最近批次${batchStatus[marketBatch.status] || marketBatch.status || '状态未知'}；尚无完整标的数`
+        : `已存含历史 · 最近批次${batchStatus[marketBatch.status] || marketBatch.status || '状态未知'}：成功 ${marketBatch.success}/${marketBatch.requested} · 失败 ${marketBatch.failed}`;
+    marketSummary.title = marketBatch?.completed_at ? `完成时间：${datasyncDateTime(marketBatch.completed_at)}` : marketSummary.textContent;
+  }
   if (!health) {
     if (target) target.textContent = '暂不可用';
     if (note) note.textContent = '概览接口未返回水位';
@@ -11368,192 +11378,3 @@ function triggerManualSync() {
   const button = document.getElementById('btnDatasyncHeroSync');
   createDataSyncTask({}, button, 'data_sync_batch');
 }
-
-// ============================================================================
-// STRATEGY SELECTION WORKBENCH (策略选股 · 漏斗选股模型工作台)
-// ============================================================================
-// 零虚假数据铁律：后端未提供选股模型接口（scripts/server/api/ 无 selection_models 模块，
-// db.py 无相关表），故本工作台一律 fail-closed 只渲染如实空态。模型列表、漏斗层级、
-// 候选标的、价格走势与个股结论只能来自真实接口返回，禁止内置任何示例值。
-// 规范依据：docs/guidelines/algorithm/selection-system-specification.md §17.2
-// 「未实现的模型类型只能显示"规划中"，不得提供可点击的假编辑器」。
-// 历史缺陷（2026-10-07 已清除，治理回归测试防复现）：本块曾内置写死的模型案例、
-// 五层漏斗通过数、十行候选股与一条固定价格曲线，且新建/停止/日志/导出按钮只弹 toast。
-const SELECTION_UNAVAILABLE_REASON = '选股模型接口与持久化表尚未实现，工作台无真实数据源';
-const SELECTION_EMPTY_PLACEHOLDER = '<div class="datasync-detail-placeholder">'
-  + SELECTION_UNAVAILABLE_REASON + '，不展示任何示例模型、漏斗层级或候选标的</div>';
-
-const SelectionWorkbench = {
-  activeModelId: null,
-  activeLayer: 0,
-  models: [],
-  funnel: [],
-  results: [],
-};
-
-function initSelectionWorkbench() {
-  renderSelectionWorkbench();
-}
-
-function renderSelectionWorkbench() {
-  renderSelectionModelList();
-  renderSelectionFunnel();
-  renderSelectionResults(SelectionWorkbench.results);
-  renderSelectionDetailHead();
-}
-
-function renderSelectionDetailHead() {
-  const m = SelectionWorkbench.models.find(x => x.id === SelectionWorkbench.activeModelId) || null;
-  hydrateFastText('selDetailModelName', m ? m.name : '--');
-  const st = document.getElementById('selDetailStatus');
-  if (st) {
-    st.className = 'sel-status-badge status-pending';
-    st.innerText = m ? m.statusLabel : '○ 无数据源';
-  }
-  const layerLabel = document.getElementById('selResultLayerLabel');
-  if (layerLabel) {
-    const f = SelectionWorkbench.funnel.find(x => x.layer === SelectionWorkbench.activeLayer) || null;
-    layerLabel.innerText = f ? `（第 ${f.layer} 层：${f.name}）` : '（未选择筛选层）';
-  }
-  const total = document.getElementById('selResultTotal');
-  if (total) total.innerText = SelectionWorkbench.results.length ? String(SelectionWorkbench.results.length) : '--';
-}
-
-function renderSelectionModelList() {
-  const list = document.getElementById('selectionModelList');
-  if (!list) return;
-  if (!SelectionWorkbench.models.length) {
-    list.innerHTML = SELECTION_EMPTY_PLACEHOLDER;
-    return;
-  }
-  list.innerHTML = SelectionWorkbench.models.map(m => `
-    <div class="sel-model-card ${m.id === SelectionWorkbench.activeModelId ? 'active' : ''}" onclick="selectFunnelModel('${m.id}')">
-      <div class="sel-model-card-top">
-        <span class="sel-model-name">${m.name}</span>
-        <span class="sel-status-dot status-${m.status}" title="${m.statusLabel}"></span>
-      </div>
-      <div class="sel-model-foot">
-        <span class="sel-model-time">🕐 ${m.time}</span>
-        <span class="sel-model-arrow">›</span>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderSelectionFunnel() {
-  const wrap = document.getElementById('selectionFunnel');
-  if (!wrap) return;
-  const sub = document.getElementById('selFunnelLayerCount');
-  if (sub) sub.innerText = SelectionWorkbench.funnel.length ? `共 ${SelectionWorkbench.funnel.length} 层筛选` : '未运行';
-  if (!SelectionWorkbench.funnel.length) {
-    wrap.innerHTML = SELECTION_EMPTY_PLACEHOLDER;
-    return;
-  }
-  // 漏斗梯形宽度 [顶宽%, 底宽%]（顶层→底层逐级收窄，形成连续漏斗）
-  const widths = [[100, 86], [82, 69], [68, 57], [61, 52], [59, 49]];
-  wrap.innerHTML = SelectionWorkbench.funnel.map((f, idx) => {
-    const selected = f.layer === SelectionWorkbench.activeLayer;
-    const stateClass = f.state === 'idle' ? 'funnel-idle' : 'funnel-done';
-    const [topW, bottomW] = widths[idx] || [60, 50];
-    const inset = (((topW - bottomW) / 2) / topW * 100).toFixed(1);
-    const clipPath = `polygon(0% 0%, 100% 0%, ${(100 - inset)}% 100%, ${inset}% 100%)`;
-    return `
-      <div class="funnel-row ${stateClass} ${selected ? 'selected' : ''}" onclick="selectFunnelLayer(${f.layer})" title="查看第 ${f.layer} 层筛选结果">
-        <div class="funnel-index-col">
-          <span class="funnel-index-dot tabular-nums">${f.layer}</span>
-        </div>
-        <div class="funnel-row-body">
-          <div class="funnel-shape-wrap">
-            <div class="funnel-bar ${f.color}" style="width:${topW}%;clip-path:${clipPath}">
-              <span class="funnel-bar-name">${f.name}</span>
-              <span class="funnel-bar-val tabular-nums">${f.value}</span>
-            </div>
-          </div>
-          <div class="funnel-info-panel">
-            <div class="funnel-info-line"><span class="funnel-info-label">运行信息</span><span class="funnel-info-val">${f.trigger}</span></div>
-            <div class="funnel-info-line"><span class="funnel-info-label">筛选条件</span><span class="funnel-info-val">${f.condition}</span></div>
-            <div class="funnel-info-line"><span class="funnel-info-label">筛选后</span><span class="funnel-info-val strong tabular-nums">${f.remain}</span></div>
-          </div>
-          ${selected ? '<span class="funnel-row-arrow">›</span>' : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function selectFunnelLayer(layer) {
-  if (!SelectionWorkbench.funnel.some(x => x.layer === layer)) return;
-  SelectionWorkbench.activeLayer = layer;
-  renderSelectionFunnel();
-  renderSelectionDetailHead();
-}
-
-function renderSelectionResults(rows) {
-  const body = document.getElementById('selResultBody');
-  if (!body) return;
-  if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="6" class="sel-empty-row">无真实筛选结果，不展示任何示例标的</td></tr>';
-    return;
-  }
-  body.innerHTML = rows.map((r, i) => `
-    <tr onclick="selectSelectionStock('${r.code}')">
-      <td class="tabular-nums">${i + 1}</td>
-      <td class="tabular-nums sel-code-cell">${r.code}</td>
-      <td class="sel-name-cell">${r.name}</td>
-      <td class="num tabular-nums">${r.price}</td>
-      <td class="num tabular-nums ${r.delta.startsWith('-') ? 'text-down' : 'text-up'}">${r.delta}</td>
-      <td>${r.industry}</td>
-    </tr>
-  `).join('');
-}
-
-function selectFunnelModel(modelId) {
-  const m = SelectionWorkbench.models.find(x => x.id === modelId) || null;
-  if (!m) return;
-  SelectionWorkbench.activeModelId = modelId;
-  renderSelectionModelList();
-  renderSelectionDetailHead();
-  showToast(`已切换到模型：${m.name}`);
-}
-
-function selectSelectionStock(code) {
-  const row = SelectionWorkbench.results.find(r => r.code === code) || null;
-  if (!row) return;
-  hydrateFastText('selStockName', row.name);
-  hydrateFastText('selStockCode', row.code);
-  toggleSelectionAnalysis(true);
-  showToast(`已选中 ${row.name} (${row.code})；个股分析摘要尚未接入真实数据源`);
-}
-
-function toggleSelectionAnalysis(show) {
-  const pane = document.getElementById('pane-selection');
-  const col = document.getElementById('selectionAnalysisCol') ||
-    (pane ? pane.querySelector('.selection-analysis-col') : null);
-  const listCol = document.getElementById('selectionModelCol') ||
-    (pane ? pane.querySelector('.selection-model-col') : null);
-  if (col) col.classList.toggle('collapsed', !show);
-  // 联动：右侧分析面板展开时收起左侧选股列表，关闭时恢复
-  if (listCol) listCol.classList.toggle('collapsed', !!show);
-}
-
-function filterFunnelResults(keyword) {
-  const kw = (keyword || '').trim().toLowerCase();
-  const rows = SelectionWorkbench.results.filter(r =>
-    !kw || r.code.toLowerCase().includes(kw) || r.name.toLowerCase().includes(kw)
-  );
-  renderSelectionResults(rows);
-}
-
-function refreshSelectionWorkbench() {
-  renderSelectionWorkbench();
-  showToast(SELECTION_UNAVAILABLE_REASON);
-}
-
-window.initSelectionWorkbench = initSelectionWorkbench;
-window.renderSelectionWorkbench = renderSelectionWorkbench;
-window.selectFunnelModel = selectFunnelModel;
-window.selectFunnelLayer = selectFunnelLayer;
-window.selectSelectionStock = selectSelectionStock;
-window.toggleSelectionAnalysis = toggleSelectionAnalysis;
-window.filterFunnelResults = filterFunnelResults;
-window.refreshSelectionWorkbench = refreshSelectionWorkbench;

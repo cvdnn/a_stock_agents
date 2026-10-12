@@ -128,6 +128,28 @@ def test_assemble_daily_truncates_every_row_after_as_of(assembler, db):
     assert record["field_status"]["daily_kline"] == "present"
 
 
+def test_market_debug_input_excludes_indices_and_does_not_persist_snapshot(assembler, db):
+    seed_klines(db, "sh600001", weekday_dates(AS_OF, 75))
+    seed_klines(db, "sh000001", weekday_dates(AS_OF, 75))
+    _execute(db, "INSERT INTO stock_basic (symbol, name, market) VALUES (?, ?, ?)", [
+        ("sh600001", "已有日线", "sh"),
+        ("sz000002", "缺少日线", "sz"),
+        ("sh000001", "指数基准", "sh"),
+    ])
+    codes = assembler.resolve_universe(all_market=True)
+    assert codes == ["sh600001", "sz000002"]
+
+    result = assembler.assemble_daily(codes, as_of=AS_OF, persist=False)
+    assert result["status"] == STATUS_OK
+    assert [record["code"] for record in result["records"]] == codes
+    assert result["coverage_gate"]["expected"] == 2
+    assert result["coverage_gate"]["healthy"] == 1
+    assert result["coverage_gate"]["passed"] is False
+    assert result["coverage_gate"]["missing_count"] == 1
+    assert result["manifest"]["candidate_pool_watermark"]["missing_codes"] == ["sz000002"]
+    assert not (assembler.snapshot_root / result["manifest"]["data_snapshot_id"]).exists()
+
+
 def test_assemble_daily_reads_only_settled_rows(assembler, db):
     """§11.6：仅统计定盘行；未定盘行不得进入装配，末位非 as_of 当日须如实标 stale。"""
     seed_klines(db, "sh600001", TRADE_DAYS, unsettled_dates=[AS_OF])
@@ -230,6 +252,18 @@ def test_snapshot_manifest_is_content_addressed_and_persisted(assembler, db):
     assert changed["data_snapshot_id"] != first["data_snapshot_id"]
 
 
+def test_security_market_change_updates_snapshot_hash(assembler, db):
+    seed_klines(db, "sh600001", TRADE_DAYS)
+    _execute(db, "INSERT INTO stock_basic (symbol, name, market) VALUES (?, ?, ?)",
+             [("sh600001", "示例股份", "sh")])
+    before = assembler.assemble_daily(["sh600001"], as_of=AS_OF, persist=False)
+    _execute(db, "UPDATE stock_basic SET market = ? WHERE symbol = ?", [("bj", "sh600001")])
+    after = assembler.assemble_daily(["sh600001"], as_of=AS_OF, persist=False)
+    assert before["status"] == after["status"] == "OK"
+    assert before["records"][0]["market"] != after["records"][0]["market"]
+    assert before["manifest"]["data_snapshot_id"] != after["manifest"]["data_snapshot_id"]
+
+
 def test_manifest_records_sync_meta_and_universe_watermark(assembler, db):
     """§11.7：清单须记录 sync_meta 同步口径与 UniverseWatermark。"""
     seed_klines(db, "sh600001", TRADE_DAYS)
@@ -262,6 +296,14 @@ def test_gate_waits_when_watermarks_absent(assembler, db):
     gate = assembler.evaluate_data_gate(as_of=AS_OF)
     assert gate["state"] == GATE_WAITING_DATA
     assert set(gate["missing"]) == set(POST_CLOSE_WATERMARK_KEYS)
+
+
+def test_default_selection_universe_excludes_benchmark_indices(assembler, monkeypatch):
+    from core.data import dataset_sync
+
+    monkeypatch.setattr(dataset_sync, "_resolve_registered",
+                        lambda: ["sh000001", "sz399001", "sh600519", "sz000001"])
+    assert assembler.resolve_universe() == ["sh600519", "sz000001"]
 
 
 def test_gate_passes_only_when_every_required_dataset_finalized(assembler, db):

@@ -9,6 +9,26 @@
   const UNAVAILABLE = '选股模型接口暂不可用';
   const EMPTY = '暂无真实数据';
 
+  function message(payload) {
+    const detail = payload && payload.detail && payload.detail.detail;
+    const value = (payload && payload.message) || (detail && detail.message)
+      || (payload && payload.error_code) || UNAVAILABLE;
+    return typeof value === 'string' ? value : UNAVAILABLE;
+  }
+
+  function notifyError(payload) {
+    const banner = global.document.getElementById('selSelectionError');
+    if (!banner) return;
+    const status = payload && payload.status_code;
+    banner.textContent = status ? `HTTP ${status}：${message(payload)}` : message(payload);
+    banner.hidden = false;
+  }
+
+  function clearError() {
+    const banner = global.document.getElementById('selSelectionError');
+    if (banner) { banner.textContent = ''; banner.hidden = true; }
+  }
+
   function loading(container, label) {
     if (container) container.innerHTML = `<div class="sel-state sel-state-loading">${label || '加载中…'}</div>`;
   }
@@ -18,20 +38,21 @@
   }
 
   function error(container, payload) {
-    const msg = (payload && (payload.message || payload.error_code)) || UNAVAILABLE;
-    if (container) container.innerHTML = `<div class="sel-state sel-state-error">${msg}</div>`;
+    notifyError(payload);
+    if (container) {
+      container.innerHTML = '';
+      const el = global.document.createElement('div');
+      el.className = 'sel-state sel-state-error';
+      el.textContent = message(payload);
+      container.appendChild(el);
+    }
   }
 
   /** 统一处理 `{status, data, error_code, watermark}` 包裹：返回 data 或 null（空态/错误已渲染）。 */
   function unwrap(container, resp, opts) {
     const options = opts || {};
     if (!resp || resp.status !== 'ok' || resp.data === null || resp.data === undefined) {
-      const code = resp && resp.error_code;
-      if (code === 'MODEL_VERSION_NOT_FOUND' || code === 'MODEL_RUN_NOT_FOUND') {
-        empty(container, options.emptyLabel);
-      } else {
-        error(container, resp);
-      }
+      error(container, resp);
       return null;
     }
     const availability = resp.watermark && resp.watermark.availability;
@@ -60,6 +81,7 @@
 
   global.SelModels = global.SelModels || {};
   global.SelModels.stateViews = {
-    loading, empty, error, unwrap, signalEligible, availabilityNotice, UNAVAILABLE, EMPTY,
+    loading, empty, error, unwrap, signalEligible, availabilityNotice,
+    message, notifyError, clearError, UNAVAILABLE, EMPTY,
   };
 })(window);

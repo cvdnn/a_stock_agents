@@ -369,7 +369,10 @@ function jsonResponse(data) {
     const sandbox = { document, escapeDatasyncHtml: String, datasyncDateTime: String };
     vm.createContext(sandbox);
     vm.runInContext(`${app.slice(start, end)}\nthis.render = renderDatasyncOverview;`, sandbox);
-    sandbox.render({ daily_health: {
+    sandbox.render({ market_daily: {
+      stored_symbols: 5223,
+      last_batch: { status: 'degraded', requested: 5223, success: 5220, failed: 3 },
+    }, daily_health: {
       target_date: '2026-09-30', target_note: '今日未定盘',
       registered: { total: 6, covered: 4, without_data: 2, pending: 2, state: 'pending', watermark_min: '2026-09-29', watermark_max: '2026-09-30' },
       tiers: { P0: { total: 1, state: 'fresh' }, P1: { total: 2, state: 'pending' }, P2: { total: 5, state: 'pending', watermark_min: '2026-09-29' } },
@@ -380,6 +383,10 @@ function jsonResponse(data) {
     assert.ok(!body.includes('分钟 K 线'));
     assert.strictEqual(elements.get('datasyncPendingCount').textContent, '2');
     assert.strictEqual(elements.get('datasyncAuditGapCount').textContent, '—');
+    assert.strictEqual(elements.get('datasyncMarketStoredCount').textContent, '5,223');
+    assert.match(elements.get('datasyncMarketBatchSummary').textContent, /部分失败：成功 5220\/5223 · 失败 3/);
+    assert.ok(html.includes('已登记股池与指数'));
+    assert.ok(html.includes('沪深股票日线（本地）'));
     sandbox.render({ daily_health: {
       target_date: '2026-09-30', target_note: '今日未定盘',
       registered: { total: 6, covered: 4, without_data: 2, pending: 2, state: 'pending', watermark_min: '2026-09-29', watermark_max: '2026-09-30' },

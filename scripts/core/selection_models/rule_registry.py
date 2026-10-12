@@ -73,6 +73,7 @@ RULE_METADATA: Dict[str, Dict[str, Any]] = {
             "field": _param("field_ref", required=True, **{"x-ui-widget": "field-selector"}),
             "op": _param("string", default="eq", enum=list(_OFFSETS), **{"x-ui-widget": "select"}),
             "value": _param("any", required=True, **{"x-ui-widget": "value-input"}),
+            "require_present": _param("boolean", default=False, **{"x-ui-widget": "checkbox"}),
         },
     },
     "symbol_prefix_exclude": {
@@ -119,6 +120,31 @@ RULE_METADATA: Dict[str, Dict[str, Any]] = {
                 **{"x-quick-presets": [10, 20, 30, 60], "x-unit": "交易日"},
             ),
             "strict": _param("boolean", default=True, **{"x-ui-widget": "checkbox"}),
+        },
+    },
+    "close_new_high": {
+        "version": 1,
+        "label": "此前N日收盘新高",
+        "category": "日线技术",
+        "description": "今日收盘价与此前完整 N 个交易日的最高收盘价比较（共需 N+1 根日线）",
+        "required_inputs": ["series"],
+        "output_metrics": ["observed", "expected"],
+        "parameter_schema": {
+            "field": _param("string", default="closes", **{"x-ui-widget": "field-selector"}),
+            "lookback": _int_param(20, minimum=2, maximum=500, **{"x-unit": "交易日"}),
+            "strict": _param("boolean", default=True, **{"x-ui-widget": "checkbox"}),
+        },
+    },
+    "market_include": {
+        "version": 1,
+        "label": "证券市场范围",
+        "category": "风险面",
+        "description": "使用证券主数据的 market 字段限制沪/深/北交易所",
+        "required_inputs": ["market"],
+        "output_metrics": ["observed", "expected"],
+        "parameter_schema": {
+            "markets": _param("array", required=True, minItems=1,
+                              items=_param("string"), **{"x-ui-widget": "tag-input"}),
         },
     },
     "above_sma": {

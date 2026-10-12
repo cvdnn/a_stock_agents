@@ -46,7 +46,7 @@ except ImportError:  # pragma: no cover
 from core.data.data_layer import normalize_minute_timestamp
 from core.data.dataset_sync import POST_CLOSE_WATERMARK_KEYS, check_post_close_ready
 from core.data.intraday_archiver import INTRADAY_CACHE_ROOT
-from core.data.sync_engine import DB_PATH, TradeCalendar
+from core.data.sync_engine import DB_PATH, TradeCalendar, is_index_symbol
 
 logger = get_logger("core.data.data_assembler")
 
@@ -220,18 +220,19 @@ class DataAssembler:
         codes: Optional[Iterable[str]] = None,
         all_market: bool = False,
     ) -> List[str]:
-        """目标 Universe：显式代码 > 全市场（本地 daily_kline 实际标的）> 已登记标的 (P0–P2)。"""
+        """目标股票 Universe：显式代码 > 本地股票名录全市场 > 已登记股票池。"""
         from core.data.data_bridge import DataBridge
 
         if codes:
             return sorted({DataBridge.normalize_symbol(str(c), with_prefix=True) for c in codes if str(c).strip()})
         if all_market:
             with closing(self._read_conn()) as conn:
-                rows = conn.execute("SELECT DISTINCT symbol FROM daily_kline ORDER BY symbol").fetchall()
-            return [str(row["symbol"]) for row in rows]
+                # 以股票名录作分母，缺少日线的股票仍须进入覆盖率门禁。
+                rows = conn.execute("SELECT symbol FROM stock_basic ORDER BY symbol").fetchall()
+            return [str(row["symbol"]) for row in rows if not is_index_symbol(str(row["symbol"]))]
         from core.data.dataset_sync import _resolve_registered
 
-        return _resolve_registered()
+        return [symbol for symbol in _resolve_registered() if not is_index_symbol(symbol)]
 
     def _read_conn(self) -> sqlite3.Connection:
         """一致性只读事务连接：`query_only` 阻断写入，事务内多次查询共享同一读快照。"""
@@ -252,6 +253,7 @@ class DataAssembler:
         lookback: int = DEFAULT_DAILY_LOOKBACK,
         allow_degraded: bool = False,
         algorithm_version: str = ALGORITHM_VERSION,
+        persist: bool = True,
     ) -> Dict[str, Any]:
         """`finalized_local` 批量装配 post_close 输入（含水位门禁与快照清单落盘）。"""
         gate = self.evaluate_data_gate(as_of=as_of, allow_degraded=allow_degraded)
@@ -271,7 +273,7 @@ class DataAssembler:
                 conn.execute("BEGIN")
                 window_start = self._window_floor(conn, as_of_date, lookback)
                 klines = self._read_klines(conn, universe, as_of_date, window_start, lookback)
-                names = self._read_names(conn, universe)
+                security_master = self._read_security_master(conn, universe)
                 valuation = self._read_valuation(conn, universe, as_of_date)
                 flow = self._read_capital_flow(conn, universe, as_of_date)
                 sync_meta = self._read_sync_meta(conn, universe)
@@ -308,12 +310,19 @@ class DataAssembler:
                 field_status["daily_kline"] = FIELD_MISSING
                 missing_symbols.append(symbol)
 
-            name = names.get(symbol)
+            security = security_master.get(symbol) or {}
+            name = security.get("name")
             if name:
                 record["name"] = name
                 field_status["security_master"] = FIELD_PRESENT
             else:
                 field_status["security_master"] = FIELD_MISSING
+            market = security.get("market")
+            if market:
+                record["market"] = market
+                field_status["market"] = FIELD_PRESENT
+            else:
+                field_status["market"] = FIELD_MISSING
 
             cap_row = valuation.get(symbol)
             if cap_row and cap_row.get("float_market_cap") is not None:
@@ -370,7 +379,8 @@ class DataAssembler:
         )
         manifest["snapshot_path"] = str(self._snapshot_dir(manifest))
         self.stamp_records(records, manifest)
-        self.persist_snapshot(manifest, records)
+        if persist:
+            self.persist_snapshot(manifest, records)
         return {
             "status": STATUS_OK,
             "gate": gate,
@@ -458,19 +468,22 @@ class DataAssembler:
         return {symbol: bars[-max(int(lookback), 1):] for symbol, bars in out.items()}
 
     @staticmethod
-    def _read_names(conn: sqlite3.Connection, universe: Sequence[str]) -> Dict[str, str]:
-        names: Dict[str, str] = {}
+    def _read_security_master(conn: sqlite3.Connection, universe: Sequence[str]) -> Dict[str, Dict[str, str]]:
+        securities: Dict[str, Dict[str, str]] = {}
         for chunk in _chunks(list(universe)):
             marks = ",".join("?" * len(chunk))
             try:
                 rows = conn.execute(
-                    f"SELECT symbol, name FROM stock_basic WHERE symbol IN ({marks})", list(chunk)
+                    f"SELECT symbol, name, market FROM stock_basic WHERE symbol IN ({marks})", list(chunk)
                 ).fetchall()
             except sqlite3.Error:
-                return names
+                return securities
             for row in rows:
-                names[str(row["symbol"])] = str(row["name"])
-        return names
+                securities[str(row["symbol"])] = {
+                    "name": str(row["name"] or ""),
+                    "market": str(row["market"] or ""),
+                }
+        return securities
 
     @staticmethod
     def _read_valuation(
@@ -584,6 +597,7 @@ class DataAssembler:
                         "circulating_market_cap": rec.get("circulating_market_cap"),
                         "main_net_inflow": rec.get("main_net_inflow"),
                         "name": rec.get("name"),
+                        "market": rec.get("market"),
                     }
                 ),
             }
@@ -630,6 +644,9 @@ class DataAssembler:
                 "coverage": candidate_watermark["coverage"],
                 "threshold": candidate_watermark["coverage_threshold"],
                 "scope": candidate_watermark["scope"],
+                "expected": candidate_watermark["expected"],
+                "healthy": candidate_watermark["healthy"],
+                "missing_count": len(candidate_watermark["missing_codes"]),
                 "degraded": not candidate_watermark["passed"],
                 "rule": candidate_watermark["rule"],
             },
