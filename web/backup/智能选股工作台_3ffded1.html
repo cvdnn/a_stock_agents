@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>策略选股 · 漏斗选股模型工作台（备份快照）</title>
+<!--
+  ==========================================================================
+  备份快照：策略选股 · 漏斗选股模型工作台（自包含单文件，无登录/无后端依赖）
+  来源版本：commit 3ffded1（2026-09-28）
+            feat(ui): 策略选股工作台按设计图重构漏斗运行图与筛选后股票列表
+            首次开发于 commit 3205716（2026-09-27）
+  提取范围：仅【策略选股】工作台视图（index.html #pane-selection 978-1169 行、
+            app.js SelectionData 与渲染/交互函数、style.css 工作台专属段落），
+            已剔除登录闸门、侧边栏、行情/数据同步等其他功能。
+  核心交互：点击「筛选后股票列表」行 → 右侧「股票分析信息」卡片滑出展开，
+            同时左侧「选股列表」列联动收起（.selection-analysis-col /
+            .selection-model-col 的 width+margin+opacity .3s 过渡动画）。
+  数据说明：漏斗层级与股票行为当时版本内置的演示数据（原样保留，非实时行情）。
+  ==========================================================================
+-->
+<style>
+/* ---------- 基础设计系统（摘自 style.css 头部） ---------- */
+:root {
+  /* Color Palette - Canvas & Cards */
+  --bg-canvas: #F6F8FC;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F4F7FC;
+  --bg-active: #EBF3FF;
+  --bg-tag: #F2F5FA;
+
+  /* Primary Brand Blue */
+  --primary: #1677FF;
+  --primary-hover: #0958D9;
+  --primary-light: #E6F4FF;
+  --primary-border: #91CAFF;
+  --primary-gradient: linear-gradient(135deg, #1677FF 0%, #3B82F6 100%);
+
+  /* A-Share Market Semantics (红涨绿跌) */
+  --color-up: #F5222D;
+  --color-up-dark: #CF1322;
+  --color-up-bg: #FFF1F0;
+  --color-up-border: #FFA39E;
+
+  --color-down: #52C41A;
+  --color-down-dark: #389E0D;
+  --color-down-bg: #F6FFED;
+  --color-down-border: #B7EB8F;
+
+  --color-warn: #FA8C16;
+  --color-warn-bg: #FFF7E6;
+
+  /* Neutral Text Typography */
+  --text-title: #1D2129;
+  --text-body: #4E5969;
+  --text-muted: #86909C;
+  --text-subtle: #C9CDD4;
+  --text-white: #FFFFFF;
+
+  /* Borders & Dividers */
+  --border-card: #EBF0F5;
+  --border-light: #F0F2F5;
+  --border-focus: #1677FF;
+
+  /* Shadows */
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.035);
+  --shadow-hover: 0 6px 18px rgba(22, 119, 255, 0.08);
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset & Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  height: 100vh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-body);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tabular numbers for financial metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Typography Helpers */
+h1, h2, h3, h4 {
+  color: var(--text-title);
+  font-weight: 600;
+}
+
+.text-up {
+  color: var(--color-up) !important;
+}
+
+.text-down {
+  color: var(--color-down) !important;
+}
+
+/* Toast Notification Popup（摘自 style.css） */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background: #FFFFFF;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-float);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  animation: slideInRight 0.25s ease-out;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ---------- 备份外壳：模拟原应用内容区 ---------- */
+.workbench-shell {
+  height: 100vh;
+  padding: 16px;
+  background: var(--bg-canvas);
+  display: flex;
+  flex-direction: column;
+}
+.right-pane { display: none; height: 100%; }
+.right-pane.active { display: block; flex: 1 1 0; min-height: 0; height: auto; }
+
+/* ==========================================================================
+   STRATEGY SELECTION WORKBENCH (策略选股 · 漏斗选股模型工作台)
+   （以下整段摘自 style.css 12129-12646 行，原样保留）
+   ========================================================================== */
+.selection-workbench-layout {
+  display: flex;
+  gap: var(--sel-col-gap);
+  width: 100%;
+  height: 100%;
+  align-items: stretch;
+  box-sizing: border-box;
+  --sel-model-col-w: 300px;
+  --sel-analysis-col-w: 320px;
+  --sel-col-gap: 12px;
+  --sel-col-anim: .3s cubic-bezier(.4, 0, .2, 1);
+}
+
+/* 左右两列联动：宽度过渡 + 透明度错峰（展开时淡入延迟，收起时立即淡出） */
+.selection-model-col, .selection-analysis-col {
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.selection-model-col {
+  width: var(--sel-model-col-w);
+  transition: width var(--sel-col-anim), margin-right var(--sel-col-anim), opacity .22s ease .14s;
+}
+.selection-analysis-col {
+  width: var(--sel-analysis-col-w);
+  transition: width var(--sel-col-anim), margin-left var(--sel-col-anim), opacity .22s ease .14s;
+}
+.selection-model-col.collapsed {
+  width: 0;
+  margin-right: calc(-1 * var(--sel-col-gap));
+  opacity: 0;
+  pointer-events: none;
+  transition: width var(--sel-col-anim), margin-right var(--sel-col-anim), opacity .16s ease;
+}
+.selection-analysis-col.collapsed {
+  width: 0;
+  margin-left: calc(-1 * var(--sel-col-gap));
+  opacity: 0;
+  pointer-events: none;
+  transition: width var(--sel-col-anim), margin-left var(--sel-col-anim), opacity .16s ease;
+}
+/* 列内卡片固定宽度：列收窄过程中内容不重排 */
+.selection-model-list-card { width: var(--sel-model-col-w); }
+.selection-analysis-card { width: var(--sel-analysis-col-w); }
+.selection-detail-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* 三栏卡片纵向撑满，消除底部空白 */
+#pane-selection { height: 100%; }
+.selection-model-col { display: flex; flex-direction: column; }
+.selection-model-col .selection-model-list-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.selection-analysis-col > .selection-analysis-card { height: 100%; }
+
+.selection-panel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 14px;
+}
+
+.selection-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.selection-panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-title);
+  border-left: 3px solid var(--primary);
+  padding-left: 8px;
+  white-space: nowrap;
+}
+
+.selection-new-btn {
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+.selection-new-btn:hover { background: var(--primary-hover); }
+
+/* 模型案例列表 */
+.selection-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.sel-model-card {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 7px 12px 5px;
+  cursor: pointer;
+  background: transparent;
+  transition: all var(--transition-fast);
+}
+/* 菜单式 Item 间横线分隔 */
+.sel-model-card:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--border-light);
+}
+.sel-model-card:hover { background: #F7F9FC; }
+.sel-model-card.active {
+  background: #EDF5FF;
+  border-color: #BED8FF;
+}
+.sel-model-card.active::before,
+.sel-model-card.active + .sel-model-card::before { display: none; }
+.sel-model-card.active .sel-model-name { color: #1677FF; }
+.sel-model-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sel-model-name { font-size: 13.5px; font-weight: 700; color: var(--text-title); line-height: 1.35; }
+.sel-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.02);
+}
+.sel-status-dot.status-running { background: #52C41A; box-shadow: 0 0 0 3px #F6FFED; }
+.sel-status-dot.status-done { background: #1677FF; box-shadow: 0 0 0 3px #E6F4FF; }
+.sel-status-dot.status-pending { background: #C9CDD4; box-shadow: 0 0 0 3px #F2F5FA; }
+.sel-status-dot.status-error { background: #F5222D; box-shadow: 0 0 0 3px #FFF1F0; }
+.sel-model-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 3px;
+}
+.sel-model-time { font-size: 11px; color: var(--text-subtle); }
+.sel-model-arrow { color: var(--text-subtle); font-size: 16px; }
+
+/* 状态徽标 */
+.sel-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.sel-status-badge.status-running { color: #389E0D; background: #F6FFED; border: 1px solid #B7EB8F; }
+.sel-status-badge.status-done { color: #1677FF; background: #E6F4FF; border: 1px solid #91CAFF; }
+.sel-status-badge.status-pending { color: #86909C; background: #F2F5FA; border: 1px solid #E5E6EB; }
+.sel-status-badge.status-error { color: #CF1322; background: #FFF1F0; border: 1px solid #FFA39E; }
+.sel-status-badge.status-next { color: #1677FF; background: #E6F4FF; border: 1px solid #91CAFF; }
+
+/* 顶部模型状态栏 */
+.selection-detail-headcard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 12px 18px;
+  margin-bottom: 12px;
+}
+.selection-detail-title-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.selection-detail-model-name { font-size: 19px; font-weight: 700; color: var(--text-title); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selection-detail-actions { display: flex; align-items: center; gap: 10px; }
+
+.sel-act-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  color: var(--text-body);
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.sel-act-btn:hover { border-color: var(--primary-border); color: var(--primary); }
+.sel-act-btn.danger { color: #F5222D; border-color: #FFA39E; }
+.sel-act-btn.danger:hover { background: #FFF1F0; }
+.sel-stop-square { width: 10px; height: 10px; border-radius: 2px; background: #F5222D; display: inline-block; }
+.sel-act-icon { display: inline-flex; flex-shrink: 0; }
+
+/* 漏斗运行图 + 筛选后股票列表 双卡片并排（左右布局保持不变，窄窗口下等比收紧） */
+.selection-detail-body { display: flex; gap: 12px; align-items: stretch; flex: 1; min-height: 0; }
+.selection-funnel-card { flex: 0 0 44%; min-width: 0; display: flex; flex-direction: column; }
+.selection-result-card { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.funnel-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+.funnel-card-title { font-size: 16px; font-weight: 700; color: var(--text-title); }
+.funnel-card-sub { font-size: 13px; color: var(--text-muted); }
+
+/* 尺寸变量：媒体查询统一覆盖，实现漏斗区随窗口等比缩放 */
+.selection-funnel {
+  --funnel-gap: 10px;
+  --funnel-dot: 26px;
+  --funnel-dot-half: 13px;
+  --funnel-bar-h: 96px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  gap: var(--funnel-gap);
+}
+.funnel-row { flex: 0 0 auto; display: flex; gap: 10px; cursor: pointer; }
+.funnel-index-col { position: relative; width: var(--funnel-dot); flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+/* 层号圆点间的纵向连接线（首层自圆点起、末层至圆点止） */
+.funnel-index-col::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(-1 * var(--funnel-gap));
+  bottom: calc(-1 * var(--funnel-gap));
+  width: 2px;
+  transform: translateX(-50%);
+  background: #E5E6EB;
+}
+.funnel-row:first-child .funnel-index-col::before { top: calc(50% + var(--funnel-dot-half)); }
+.funnel-row:last-child .funnel-index-col::before { bottom: calc(50% + var(--funnel-dot-half)); }
+.funnel-index-dot {
+  position: relative;
+  z-index: 1;
+  margin: auto 0;
+  width: var(--funnel-dot);
+  height: var(--funnel-dot);
+  border-radius: 50%;
+  background: #1677FF;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.funnel-idle .funnel-index-dot { background: #86909C; }
+.funnel-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 6px 12px 6px 6px;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.funnel-row.selected .funnel-row-body { border-color: #1677FF; background: var(--bg-card); }
+.funnel-shape-wrap { flex: 0 0 44%; min-width: 0; display: flex; justify-content: center; align-items: center; }
+.funnel-bar {
+  height: var(--funnel-bar-h, 96px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #fff;
+}
+.funnel-bar-name { font-size: 14px; font-weight: 600; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.funnel-bar-val { font-size: 22px; font-weight: 700; line-height: 1; }
+.funnel-bar.l1 { background: linear-gradient(135deg, #2E8FFF, #0B5CE8); }
+.funnel-bar.l2 { background: linear-gradient(135deg, #36A2F0, #5BC2F5); }
+.funnel-bar.l3 { background: linear-gradient(135deg, #0FAE5C, #37C878); }
+.funnel-bar.l4 { background: linear-gradient(135deg, #F98A16, #FBAE3C); }
+.funnel-bar.l5 { background: #C9CDD4; color: #7D8794; }
+.funnel-idle .funnel-bar-val { font-size: 16px; font-weight: 600; }
+.funnel-info-panel {
+  flex: 1;
+  min-width: 0;
+  background: #F5F7FA;
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.funnel-row.selected .funnel-info-panel { background: #F7FAFF; }
+.funnel-info-line { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; min-width: 0; line-height: 1.4; }
+.funnel-info-label { flex: 0 0 4em; color: var(--text-muted); white-space: nowrap; }
+/* 值列空间不足时自动换行完整显示，避免省略号截断 */
+.funnel-info-val { color: var(--text-body); min-width: 0; white-space: normal; word-break: break-word; line-height: 1.4; }
+.funnel-info-val.strong { font-weight: 700; color: var(--text-title); font-size: 13px; }
+.funnel-row-arrow { flex-shrink: 0; color: #1677FF; font-size: 20px; font-weight: 700; line-height: 1; }
+
+/* 筛选后股票列表 */
+.selection-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.selection-result-title-row { display: flex; align-items: baseline; gap: 8px; }
+.selection-result-title { font-size: 16px; font-weight: 700; color: var(--text-title); }
+.selection-result-sub { font-size: 13px; color: var(--text-muted); }
+.sel-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 7px 12px;
+  width: 240px;
+  flex-shrink: 1;
+  min-width: 150px;
+}
+.sel-search-box input { border: none; background: transparent; outline: none; font-size: 13px; width: 100%; color: var(--text-body); }
+.sel-search-box input::placeholder { color: var(--text-subtle); }
+.sel-search-icon { display: inline-flex; flex-shrink: 0; color: var(--text-muted); }
+
+.selection-result-table-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.selection-result-body-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.selection-result-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+/* 表体撑满剩余高度：行高随可视区域自动拉伸，Item 区域填满界面 */
+.selection-result-body-table { height: 100%; }
+/* 六列宽度比例（表头/表体共用，fixed 布局保证两表列对齐） */
+.selection-result-table th:nth-child(1), .selection-result-table td:nth-child(1) { width: 10%; }
+.selection-result-table th:nth-child(2), .selection-result-table td:nth-child(2) { width: 18%; }
+.selection-result-table th:nth-child(3), .selection-result-table td:nth-child(3) { width: 22%; }
+.selection-result-table th:nth-child(4), .selection-result-table td:nth-child(4) { width: 17%; }
+.selection-result-table th:nth-child(5), .selection-result-table td:nth-child(5) { width: 15%; }
+.selection-result-table th:nth-child(6), .selection-result-table td:nth-child(6) { width: 18%; }
+.selection-result-table thead th {
+  background: #F2F6FB;
+  color: var(--text-title);
+  font-weight: 600;
+  text-align: left;
+  padding: 11px 16px;
+  white-space: nowrap;
+}
+.selection-result-table thead th:first-child { border-radius: 6px 0 0 6px; }
+.selection-result-table thead th:last-child { border-radius: 0 6px 6px 0; }
+.selection-result-table th.num, .selection-result-table td.num { text-align: right; }
+.selection-result-table tbody td { padding: 16px 16px; border-bottom: 1px solid #F0F2F5; color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.selection-result-table tbody tr { cursor: pointer; transition: background var(--transition-fast); }
+.selection-result-table tbody tr:hover { background: var(--bg-hover); }
+.sel-code-cell { color: var(--text-title); }
+.sel-name-cell { color: var(--text-title); font-weight: 600; }
+.sel-empty-row { text-align: center; color: var(--text-muted); padding: 20px 0 !important; }
+
+.selection-result-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.sel-total-note { font-size: 13px; color: var(--text-muted); }
+.sel-pagination { display: flex; align-items: center; gap: 6px; }
+.sel-page-btn {
+  min-width: 32px; height: 32px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  color: var(--text-body);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.sel-page-btn:hover { border-color: var(--primary-border); color: var(--primary); }
+.sel-page-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.sel-page-ellipsis { color: var(--text-subtle); padding: 0 2px; }
+.sel-page-size-select {
+  height: 32px;
+  margin-left: 6px;
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-body);
+  font-size: 13px;
+  padding: 0 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* 智能选股 · 响应式收紧：窄窗/矮窗下标记区域整体等比缩小以铺满可视窗口（左右布局不变） */
+@media (max-width: 1560px), (max-height: 920px) {
+  .selection-detail-headcard { padding: 10px 14px; margin-bottom: 10px; }
+  .selection-detail-model-name { font-size: 17px; }
+  .sel-act-btn { font-size: 12.5px; padding: 6px 11px; }
+  .selection-detail-body { gap: 10px; }
+  .selection-funnel-card, .selection-result-card { padding: 12px; }
+  .funnel-card-head { margin-bottom: 10px; }
+  .funnel-card-title { font-size: 15px; }
+  .funnel-card-sub { font-size: 12px; }
+  .selection-funnel { --funnel-gap: 8px; --funnel-dot: 24px; --funnel-dot-half: 12px; --funnel-bar-h: 82px; }
+  .funnel-bar-name { font-size: 13px; }
+  .funnel-bar-val { font-size: 20px; }
+  .funnel-idle .funnel-bar-val { font-size: 15px; }
+  .funnel-row-body { gap: 10px; padding: 5px 10px 5px 5px; }
+  .funnel-info-panel { padding: 8px 12px; gap: 6px; }
+  .selection-result-title { font-size: 15px; }
+  .selection-result-sub { font-size: 12px; }
+  .selection-result-head { margin-bottom: 10px; }
+  .sel-search-box { width: 200px; padding: 6px 10px; }
+  .sel-search-box input { font-size: 12.5px; }
+  .selection-result-table { font-size: 12.5px; }
+  .selection-result-table thead th { padding: 9px 12px; }
+  .selection-result-table tbody td { padding: 10px 12px; }
+  .selection-result-foot { gap: 12px; margin-top: 10px; }
+  .sel-total-note { font-size: 12px; }
+  .sel-page-btn { min-width: 28px; height: 28px; font-size: 12px; }
+  .sel-page-size-select { height: 28px; font-size: 12px; }
+}
+@media (max-width: 1360px), (max-height: 840px) {
+  .selection-funnel { --funnel-gap: 6px; --funnel-dot: 22px; --funnel-dot-half: 11px; --funnel-bar-h: 70px; }
+  .funnel-bar-name { font-size: 12.5px; }
+  .funnel-bar-val { font-size: 18px; }
+  .funnel-idle .funnel-bar-val { font-size: 14px; }
+  .funnel-row-body { padding: 4px 8px 4px 4px; gap: 10px; }
+  .funnel-shape-wrap { flex-basis: 40%; }
+  .funnel-info-panel { padding: 6px 10px; gap: 5px; }
+  .funnel-info-line { font-size: 12px; gap: 6px; }
+  .funnel-info-val.strong { font-size: 12.5px; }
+  .funnel-row-arrow { font-size: 18px; }
+  .selection-result-table { font-size: 12px; }
+  .selection-result-table thead th { padding: 8px 10px; }
+  .selection-result-table tbody td { padding: 8px 10px; }
+  .sel-search-box { width: 170px; }
+  .selection-result-title { font-size: 14px; }
+  .selection-result-sub { font-size: 11.5px; }
+  .sel-act-btn { padding: 5px 9px; }
+}
+@media (max-width: 1180px) {
+  .selection-funnel-card { flex-basis: 42%; }
+  .funnel-shape-wrap { flex-basis: 38%; }
+  .selection-detail-actions { gap: 6px; }
+}
+@media (max-height: 760px) {
+  .selection-funnel { --funnel-bar-h: 60px; --funnel-gap: 5px; --funnel-dot: 20px; --funnel-dot-half: 10px; }
+  .funnel-bar-val { font-size: 16px; }
+  .funnel-bar-name { font-size: 12px; }
+  .funnel-info-panel { padding: 5px 8px; gap: 4px; }
+  .selection-result-table tbody td { padding: 7px 10px; }
+}
+
+/* 股票分析信息 */
+.sel-close-btn { border: none; background: transparent; color: var(--text-muted); font-size: 14px; cursor: pointer; }
+.sel-close-btn:hover { color: var(--text-title); }
+.sel-stock-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sel-stock-name-row { display: flex; align-items: center; gap: 7px; }
+.sel-stock-name { font-size: 17px; font-weight: 700; color: var(--text-title); }
+.sel-stock-code { font-size: 12px; color: var(--text-muted); }
+.sel-verified-badge { width: 15px; height: 15px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
+.sel-add-watch { border: 1px solid var(--primary-border); background: var(--primary-light); color: var(--primary); font-size: 12px; padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+.sel-add-watch:hover { background: var(--primary); color: #fff; }
+.sel-stock-tags { display: flex; gap: 6px; margin: 8px 0 12px; }
+.sel-tag-pill { font-size: 11px; color: var(--text-body); background: var(--bg-tag); border: 1px solid var(--border-card); border-radius: 4px; padding: 1px 7px; }
+
+.sel-stock-price-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.sel-stock-price { font-size: 26px; font-weight: 800; line-height: 1.1; }
+.sel-stock-price-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sel-stock-delta { font-size: 13px; font-weight: 600; display: flex; gap: 8px; }
+.sel-stock-updatetime { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+.sel-score-box { text-align: center; background: var(--color-up-bg); border: 1px solid var(--color-up-border); border-radius: var(--radius-md); padding: 8px 12px; min-width: 78px; }
+.sel-score-label { font-size: 11px; color: var(--text-muted); }
+.sel-score-val { font-size: 24px; font-weight: 800; color: var(--color-up-dark); line-height: 1.1; }
+.sel-score-grade { font-size: 11px; color: var(--color-up-dark); }
+
+.sel-analysis-tabs { display: flex; gap: 2px; margin: 14px 0 12px; border-bottom: 1px solid var(--border-light); overflow-x: auto; scrollbar-width: none; }
+.sel-analysis-tabs::-webkit-scrollbar { display: none; }
+.sel-tab { border: none; background: transparent; color: var(--text-muted); font-size: 12px; padding: 6px 6px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; flex-shrink: 0; }
+.sel-tab:hover { color: var(--primary); }
+.sel-tab.active { color: var(--primary); font-weight: 700; border-bottom-color: var(--primary); }
+
+.sel-price-chart-block { margin-bottom: 12px; }
+.sel-chart-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.sel-chart-title { font-size: 12.5px; font-weight: 600; color: var(--text-title); white-space: nowrap; }
+.sel-period-switch { display: flex; gap: 2px; flex-shrink: 0; }
+.sel-period { border: 1px solid var(--border-card); background: var(--bg-card); color: var(--text-muted); font-size: 11px; padding: 2px 7px; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+.sel-period.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.sel-price-canvas { width: 100%; height: 120px; display: block; }
+
+.sel-analysis-body { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.sel-block-title { font-size: 12.5px; font-weight: 700; color: var(--text-title); margin-bottom: 4px; }
+.sel-block-text { font-size: 12px; color: var(--text-body); line-height: 1.6; }
+.sel-block.risk .sel-block-title { color: #CF1322; }
+.sel-keyword-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.sel-kw-tag { font-size: 11px; color: var(--primary); background: var(--primary-light); border: 1px solid var(--primary-border); border-radius: 4px; padding: 2px 8px; }
+
+@media (max-width: 1500px) {
+  .selection-workbench-layout { --sel-model-col-w: 280px; --sel-analysis-col-w: 288px; }
+}
+</style>
+</head>
+<body>
+<div class="workbench-shell">
+
+  <!-- View Pane: 策略选股 · 漏斗选股模型工作台 (多因子漏斗层层过滤选股) -->
+  <div class="right-pane active" id="pane-selection">
+    <div class="selection-workbench-layout">
+
+      <!-- Column 1: 模型案例列表 -->
+      <div class="selection-model-col" id="selectionModelCol">
+        <div class="selection-panel-card selection-model-list-card">
+          <div class="selection-panel-head">
+            <span class="selection-panel-title">📑 选股列表</span>
+            <button type="button" class="selection-new-btn" onclick="openNewFunnelModelModal()">＋新建</button>
+          </div>
+          <div class="selection-model-list" id="selectionModelList">
+            <!-- 模型案例卡片由 JS 渲染 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 2: 漏斗筛选流程 (顶部模型状态栏 + 漏斗运行图 + 筛选后股票列表) -->
+      <div class="selection-detail-col">
+        <!-- 顶部模型状态栏 -->
+        <div class="selection-detail-headcard">
+          <div class="selection-detail-title-row">
+            <span class="selection-detail-model-name" id="selDetailModelName">成长优选模型</span>
+            <span class="sel-status-badge status-running" id="selDetailStatus">● 运行中</span>
+          </div>
+          <div class="selection-detail-actions">
+            <button type="button" class="sel-act-btn danger" onclick="showToast('已发送停止运行指令')"><span class="sel-stop-square"></span> 停止运行</button>
+            <button type="button" class="sel-act-btn" onclick="showToast('正在打开运行日志')">
+              <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13"/><path d="M6 8h4M6 10.5h4"/></svg>
+              查看日志
+            </button>
+            <button type="button" class="sel-act-btn" onclick="exportFunnelResults()">
+              <svg class="sel-act-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.5"/><path d="M5 6.5l3 3 3-3"/><path d="M2.5 13.5h11"/></svg>
+              导出结果
+            </button>
+          </div>
+        </div>
+
+        <div class="selection-detail-body">
+          <!-- 左卡片：漏斗运行图 -->
+          <div class="selection-panel-card selection-funnel-card">
+            <div class="funnel-card-head">
+              <span class="funnel-card-title">漏斗运行图</span>
+              <span class="funnel-card-sub">共 5 层筛选</span>
+            </div>
+            <div class="selection-funnel" id="selectionFunnel">
+              <!-- 漏斗层由 JS 渲染 -->
+            </div>
+          </div>
+
+          <!-- 右卡片：筛选后股票列表 -->
+          <div class="selection-panel-card selection-result-card">
+            <div class="selection-result-head">
+              <div class="selection-result-title-row">
+                <span class="selection-result-title">筛选后股票列表</span>
+                <span class="selection-result-sub" id="selResultLayerLabel">（第 1 层：全市场股票池）</span>
+              </div>
+              <div class="sel-search-box">
+                <svg class="sel-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+                <input type="text" placeholder="按股票名称/代码搜索" id="selResultSearch" oninput="filterFunnelResults(this.value)">
+              </div>
+            </div>
+            <div class="selection-result-table-wrap">
+              <table class="selection-result-table selection-result-head-table">
+                <thead>
+                  <tr>
+                    <th>序号</th>
+                    <th>代码</th>
+                    <th>股票名称</th>
+                    <th class="num">最新价</th>
+                    <th class="num">涨跌幅</th>
+                    <th>所属行业</th>
+                  </tr>
+                </thead>
+              </table>
+              <div class="selection-result-body-scroll">
+                <table class="selection-result-table selection-result-body-table">
+                  <tbody id="selResultBody">
+                    <!-- 结果行由 JS 渲染 -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="selection-result-foot">
+              <span class="sel-total-note">共 <strong class="tabular-nums">3,821</strong> 条</span>
+              <div class="sel-pagination">
+                <button type="button" class="sel-page-btn" onclick="showToast('上一页')">‹</button>
+                <button type="button" class="sel-page-btn active" onclick="showToast('第 1 页')">1</button>
+                <button type="button" class="sel-page-btn" onclick="showToast('第 2 页')">2</button>
+                <button type="button" class="sel-page-btn" onclick="showToast('第 3 页')">3</button>
+                <button type="button" class="sel-page-btn" onclick="showToast('第 4 页')">4</button>
+                <button type="button" class="sel-page-btn" onclick="showToast('第 5 页')">5</button>
+                <span class="sel-page-ellipsis">…</span>
+                <button type="button" class="sel-page-btn" onclick="showToast('第 255 页')">255</button>
+                <button type="button" class="sel-page-btn" onclick="showToast('下一页')">›</button>
+                <select class="sel-page-size-select" onchange="showToast('已切换为 ' + this.value)" aria-label="每页条数">
+                  <option value="10 条/页" selected>10 条/页</option>
+                  <option value="20 条/页">20 条/页</option>
+                  <option value="50 条/页">50 条/页</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: 股票分析信息（默认收起，点击筛选结果行滑出展开） -->
+      <div class="selection-analysis-col collapsed" id="selectionAnalysisCol">
+        <div class="selection-panel-card selection-analysis-card">
+          <div class="selection-panel-head">
+            <span class="selection-panel-title">🔵 股票分析信息</span>
+            <button type="button" class="sel-close-btn" onclick="toggleSelectionAnalysis(false)">✕</button>
+          </div>
+          <div class="sel-stock-head">
+            <div class="sel-stock-name-row">
+              <span class="sel-stock-name" id="selStockName">贵州茅台</span>
+              <span class="sel-stock-code tabular-nums" id="selStockCode">600519</span>
+              <span class="sel-verified-badge">✓</span>
+            </div>
+            <button type="button" class="sel-add-watch" onclick="showToast('已加入自选股')">＋ 自选</button>
+          </div>
+          <div class="sel-stock-tags">
+            <span class="sel-tag-pill">食品饮料</span>
+            <span class="sel-tag-pill">A股</span>
+            <span class="sel-tag-pill">沪港通</span>
+          </div>
+          <div class="sel-stock-price-row">
+            <div class="sel-stock-price-col">
+              <div class="sel-stock-price-line">
+                <span class="sel-stock-price tabular-nums text-up" id="selStockPrice">1,698.20</span>
+                <span class="sel-stock-delta tabular-nums text-up"><span id="selStockDelta">+20.60</span><span id="selStockDeltaPct">+1.23%</span></span>
+              </div>
+              <div class="sel-stock-updatetime">更新时间：<span class="tabular-nums">2024-03-21 10:15:26</span></div>
+            </div>
+            <div class="sel-score-box">
+              <div class="sel-score-label">综合评分</div>
+              <div class="sel-score-val tabular-nums" id="selStockScore">92.5</div>
+              <div class="sel-score-grade">（优秀）</div>
+            </div>
+          </div>
+          <div class="sel-analysis-tabs" id="selAnalysisTabs">
+            <button type="button" class="sel-tab active" data-sec="overview" onclick="switchSelAnalysisTab('overview')">综合分析</button>
+            <button type="button" class="sel-tab" data-sec="fundamental" onclick="switchSelAnalysisTab('fundamental')">基本面</button>
+            <button type="button" class="sel-tab" data-sec="technical" onclick="switchSelAnalysisTab('technical')">技术面</button>
+            <button type="button" class="sel-tab" data-sec="valuation" onclick="switchSelAnalysisTab('valuation')">估值分析</button>
+            <button type="button" class="sel-tab" data-sec="capital" onclick="switchSelAnalysisTab('capital')">资金面</button>
+          </div>
+          <div class="sel-price-chart-block">
+            <div class="sel-chart-head">
+              <span class="sel-chart-title">价格走势</span>
+              <div class="sel-period-switch" id="selPeriodSwitch">
+                <button type="button" class="sel-period active" onclick="switchSelPeriod(this,'5日')">5日</button>
+                <button type="button" class="sel-period" onclick="switchSelPeriod(this,'20日')">20日</button>
+                <button type="button" class="sel-period" onclick="switchSelPeriod(this,'60日')">60日</button>
+                <button type="button" class="sel-period" onclick="switchSelPeriod(this,'120日')">120日</button>
+              </div>
+            </div>
+            <canvas id="selPriceChart" class="sel-price-canvas" width="320" height="120"></canvas>
+          </div>
+          <div class="sel-analysis-body">
+            <div class="sel-block">
+              <div class="sel-block-title">📋 基本面摘要</div>
+              <p class="sel-block-text">公司是中国高端白酒龙头，品牌壁垒深厚，盈利能力持续保持行业领先。现金流充沛，具有较强的护城河，长期成长逻辑清晰。</p>
+            </div>
+            <div class="sel-block">
+              <div class="sel-block-title">📈 技术面摘要</div>
+              <p class="sel-block-text">股价处于上升趋势中，近期放量突破前高，MACD 金叉，动能指标表现强劲，技术形态良好。</p>
+            </div>
+            <div class="sel-block">
+              <div class="sel-block-title">💡 推荐理由</div>
+              <p class="sel-block-text">品牌护城河稳固，业绩稳定量增，估值处于合理区间，长期配置价值突出。</p>
+            </div>
+            <div class="sel-block risk">
+              <div class="sel-block-title">⚠️ 风险提示</div>
+              <p class="sel-block-text">白酒行业受宏观经济及消费复苏节奏影响较大，短期可能存在估值波动风险。</p>
+            </div>
+            <div class="sel-block">
+              <div class="sel-block-title">🏷️ 相关标签</div>
+              <div class="sel-keyword-tags">
+                <span class="sel-kw-tag">高ROE</span>
+                <span class="sel-kw-tag">白酒龙头</span>
+                <span class="sel-kw-tag">业绩稳定</span>
+                <span class="sel-kw-tag">现金流充沛</span>
+                <span class="sel-kw-tag">消费回升</span>
+                <span class="sel-kw-tag">长期向上</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ==========================================================================
+   策略选股工作台脚本（原样摘自 commit 3ffded1 web/js/app.js，
+   仅保留 SelectionData 与工作台渲染/交互函数，另附 showToast 依赖）
+   ========================================================================== */
+
+/* Toast（摘自 app.js 9002-9021 行） */
+function showToast(msg) {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<span>🔔</span> <span>${msg}</span>`;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 2600);
+}
+
+let isSelectionInitialized = false;
+
+/* 工作台演示数据（当时版本内置，原样保留） */
+const SelectionData = {
+  activeModelId: 'value-growth-v3',
+  activeLayer: 1,
+  models: [
+    { id: 'value-growth-v3', name: '成长优选模型', desc: '多因子价值成长选股', status: 'running', statusLabel: '运行中', nextTrigger: '14:30', time: '2024-03-21 09:28:15' },
+    { id: 'steady-bluechip', name: '稳健蓝筹筛选', desc: '低波动蓝筹策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:35', time: '2024-03-21 08:55:02' },
+    { id: 'tech-growth', name: '科技成长优选', desc: '科技赛道成长股', status: 'pending', statusLabel: '待运行', nextTrigger: '10:00', time: '2024-03-20 16:00:00' },
+    { id: 'low-valuation', name: '低估值价值精选', desc: '低估值价值投资', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-20 09:30:05' },
+    { id: 'northbound-pref', name: '北向资金偏好股', desc: '北向资金流向选股', status: 'error', statusLabel: '异常', nextTrigger: '14:30', time: '2024-03-19 14:20:11' },
+    { id: 'high-dividend', name: '高股息防御组合', desc: '高股息防御策略', status: 'done', statusLabel: '已完成', nextTrigger: '09:30', time: '2024-03-19 09:30:00' },
+  ],
+  funnel: [
+    { layer: 1, name: '全市场股票池', value: '5,432', trigger: '定时触发 14:30', condition: '剔除ST、北交所等', remain: '3,821（70.4%）', state: 'done', color: 'l1' },
+    { layer: 2, name: '基本面筛选', value: '3,821', trigger: '定时触发 14:30', condition: '营业收入 ＞ 20%', remain: '1,243（32.5%）', state: 'done', color: 'l2' },
+    { layer: 3, name: '行业筛选', value: '1,243', trigger: '定时触发 14:30', condition: '行业集中度前 60', remain: '386（31.1%）', state: 'done', color: 'l3' },
+    { layer: 4, name: '技术面筛选', value: '386', trigger: '定时触发 14:30', condition: 'MA 多头排列', remain: '98（25.4%）', state: 'done', color: 'l4' },
+    { layer: 5, name: '组合优化', value: '--', trigger: '--', condition: '--', remain: '--', state: 'idle', color: 'l5' },
+  ],
+  results: [
+    { code: '600519', name: '贵州茅台', industry: '食品饮料', price: '1,682.30', delta: '+0.45%' },
+    { code: '300750', name: '宁德时代', industry: '电力设备', price: '257.88', delta: '+1.20%' },
+    { code: '600036', name: '招商银行', industry: '银行', price: '33.21', delta: '-0.30%' },
+    { code: '000858', name: '五粮液', industry: '食品饮料', price: '162.15', delta: '+0.52%' },
+    { code: '601318', name: '中国平安', industry: '非银金融', price: '48.73', delta: '-0.18%' },
+    { code: '600900', name: '长江电力', industry: '公用事业', price: '28.85', delta: '+0.35%' },
+    { code: '600333', name: '美的集团', industry: '家用电器', price: '72.38', delta: '+0.21%' },
+    { code: '002594', name: '比亚迪', industry: '汽车', price: '245.60', delta: '+1.56%' },
+    { code: '601728', name: '中国电信', industry: '通信', price: '6.12', delta: '-0.49%' },
+    { code: '600276', name: '恒瑞医药', industry: '医药生物', price: '47.91', delta: '+0.78%' },
+  ],
+};
+
+function initSelectionWorkbench() {
+  renderSelectionWorkbench();
+  isSelectionInitialized = true;
+}
+
+function renderSelectionWorkbench() {
+  renderSelectionModelList();
+  renderSelectionFunnel();
+  renderSelectionResults(SelectionData.results);
+  drawSelectionPriceChart();
+}
+
+function renderSelectionModelList() {
+  const list = document.getElementById('selectionModelList');
+  if (!list) return;
+  list.innerHTML = SelectionData.models.map(m => `
+    <div class="sel-model-card ${m.id === SelectionData.activeModelId ? 'active' : ''}" onclick="selectFunnelModel('${m.id}')">
+      <div class="sel-model-card-top">
+        <span class="sel-model-name">${m.name}</span>
+        <span class="sel-status-dot status-${m.status}" title="${m.statusLabel}"></span>
+      </div>
+      <div class="sel-model-foot">
+        <span class="sel-model-time">🕐 ${m.time}</span>
+        <span class="sel-model-arrow">›</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSelectionFunnel() {
+  const wrap = document.getElementById('selectionFunnel');
+  if (!wrap) return;
+  // 漏斗梯形宽度 [顶宽%, 底宽%]（顶层→底层逐级收窄，形成连续漏斗）
+  const widths = [[100, 86], [82, 69], [68, 57], [61, 52], [59, 49]];
+  wrap.innerHTML = SelectionData.funnel.map((f, idx) => {
+    const selected = f.layer === SelectionData.activeLayer;
+    const stateClass = f.state === 'idle' ? 'funnel-idle' : 'funnel-done';
+    const [topW, bottomW] = widths[idx] || [60, 50];
+    const inset = (((topW - bottomW) / 2) / topW * 100).toFixed(1);
+    const clipPath = `polygon(0% 0%, 100% 0%, ${(100 - inset)}% 100%, ${inset}% 100%)`;
+    return `
+      <div class="funnel-row ${stateClass} ${selected ? 'selected' : ''}" onclick="selectFunnelLayer(${f.layer})" title="查看第 ${f.layer} 层筛选结果">
+        <div class="funnel-index-col">
+          <span class="funnel-index-dot tabular-nums">${f.layer}</span>
+        </div>
+        <div class="funnel-row-body">
+          <div class="funnel-shape-wrap">
+            <div class="funnel-bar ${f.color}" style="width:${topW}%;clip-path:${clipPath}">
+              <span class="funnel-bar-name">${f.name}</span>
+              <span class="funnel-bar-val tabular-nums">${f.value}</span>
+            </div>
+          </div>
+          <div class="funnel-info-panel">
+            <div class="funnel-info-line"><span class="funnel-info-label">运行信息</span><span class="funnel-info-val">${f.trigger}</span></div>
+            <div class="funnel-info-line"><span class="funnel-info-label">筛选条件</span><span class="funnel-info-val">${f.condition}</span></div>
+            <div class="funnel-info-line"><span class="funnel-info-label">筛选后</span><span class="funnel-info-val strong tabular-nums">${f.remain}</span></div>
+          </div>
+          ${selected ? '<span class="funnel-row-arrow">›</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectFunnelLayer(layer) {
+  if (SelectionData.activeLayer === layer) return;
+  SelectionData.activeLayer = layer;
+  const f = SelectionData.funnel.find(x => x.layer === layer);
+  const label = document.getElementById('selResultLayerLabel');
+  if (label && f) label.innerText = `（第 ${f.layer} 层：${f.name}）`;
+  renderSelectionFunnel();
+}
+
+function renderSelectionResults(rows) {
+  const body = document.getElementById('selResultBody');
+  if (!body) return;
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="6" class="sel-empty-row">未匹配到符合条件的标的</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((r, i) => `
+    <tr onclick="selectSelectionStock('${r.code}','${r.name}')">
+      <td class="tabular-nums">${i + 1}</td>
+      <td class="tabular-nums sel-code-cell">${r.code}</td>
+      <td class="sel-name-cell">${r.name}</td>
+      <td class="num tabular-nums">${r.price}</td>
+      <td class="num tabular-nums ${r.delta.startsWith('-') ? 'text-down' : 'text-up'}">${r.delta}</td>
+      <td>${r.industry}</td>
+    </tr>
+  `).join('');
+}
+
+function selectFunnelModel(modelId) {
+  SelectionData.activeModelId = modelId;
+  const m = SelectionData.models.find(x => x.id === modelId);
+  if (m) {
+    const nameEl = document.getElementById('selDetailModelName');
+    if (nameEl) nameEl.innerText = m.name;
+    const st = document.getElementById('selDetailStatus');
+    if (st) {
+      st.className = `sel-status-badge status-${m.status}`;
+      st.innerText = `● ${m.statusLabel}`;
+    }
+  }
+  renderSelectionModelList();
+  showToast(`已切换到模型案例：${m ? m.name : modelId}`);
+}
+
+/* 点击股票行 → 滑出股票分析信息（联动收起左侧选股列表） */
+function selectSelectionStock(code, name) {
+  const nameEl = document.getElementById('selStockName');
+  const codeEl = document.getElementById('selStockCode');
+  if (nameEl) nameEl.innerText = name;
+  if (codeEl) codeEl.innerText = code;
+  toggleSelectionAnalysis(true);
+  drawSelectionPriceChart();
+  showToast(`已加载 ${name} (${code}) 分析信息`);
+}
+
+function toggleSelectionAnalysis(show) {
+  const pane = document.getElementById('pane-selection');
+  const col = document.getElementById('selectionAnalysisCol') ||
+    (pane ? pane.querySelector('.selection-analysis-col') : null);
+  const listCol = document.getElementById('selectionModelCol') ||
+    (pane ? pane.querySelector('.selection-model-col') : null);
+  if (col) col.classList.toggle('collapsed', !show);
+  // 联动：右侧分析面板展开时收起左侧选股列表，关闭时恢复
+  if (listCol) listCol.classList.toggle('collapsed', !!show);
+}
+
+function filterFunnelResults(keyword) {
+  const kw = (keyword || '').trim().toLowerCase();
+  const rows = SelectionData.results.filter(r =>
+    !kw || r.code.toLowerCase().includes(kw) || r.name.toLowerCase().includes(kw)
+  );
+  renderSelectionResults(rows);
+}
+
+function switchSelAnalysisTab(sec) {
+  document.querySelectorAll('#selAnalysisTabs .sel-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sec === sec);
+  });
+}
+
+function switchSelPeriod(btn, label) {
+  document.querySelectorAll('#selPeriodSwitch .sel-period').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  drawSelectionPriceChart();
+}
+
+function drawSelectionPriceChart() {
+  const canvas = document.getElementById('selPriceChart');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  const pts = [1636, 1648, 1642, 1655, 1660, 1652, 1668, 1675, 1670, 1682, 1690, 1686, 1696, 1698];
+  const xLabels = ['03-15', '03-18', '03-19', '03-20', '03-21'];
+  const yLabels = [1720, 1680, 1640, 1600];
+  const padL = 36, padR = 8, padT = 8, padB = 18;
+  const min = 1600, max = 1720;
+  const stepX = (w - padL - padR) / (pts.length - 1);
+  ctx.font = '9px -apple-system, "PingFang SC", sans-serif';
+  // 网格与 Y 轴刻度
+  ctx.strokeStyle = '#F0F2F5';
+  ctx.lineWidth = 1;
+  yLabels.forEach((yv, i) => {
+    const gy = padT + (h - padT - padB) * i / (yLabels.length - 1);
+    ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(w - padR, gy); ctx.stroke();
+    ctx.fillStyle = '#86909C';
+    ctx.textAlign = 'right';
+    ctx.fillText(yv.toLocaleString(), padL - 4, gy + 3);
+  });
+  // X 轴日期标签
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#86909C';
+  xLabels.forEach((lb, i) => {
+    const idx = Math.round(i * (pts.length - 1) / (xLabels.length - 1));
+    ctx.fillText(lb, padL + idx * stepX, h - 5);
+  });
+  // 面积 + 折线
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const x = padL + i * stepX;
+    const y = h - padB - ((p - min) / (max - min || 1)) * (h - padT - padB);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#1677FF';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.lineTo(padL + (pts.length - 1) * stepX, h - padB);
+  ctx.lineTo(padL, h - padB);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(22,119,255,0.18)');
+  grad.addColorStop(1, 'rgba(22,119,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+function refreshSelectionWorkbench() {
+  renderSelectionWorkbench();
+}
+
+function exportFunnelResults() {
+  showToast('漏斗筛选结果导出中...（CSV）');
+}
+
+function openNewFunnelModelModal() {
+  showToast('新建漏斗选股模型：条件树编辑器与漏斗编排器即将上线');
+}
+
+window.initSelectionWorkbench = initSelectionWorkbench;
+window.renderSelectionWorkbench = renderSelectionWorkbench;
+window.selectFunnelModel = selectFunnelModel;
+window.selectFunnelLayer = selectFunnelLayer;
+window.selectSelectionStock = selectSelectionStock;
+window.toggleSelectionAnalysis = toggleSelectionAnalysis;
+window.filterFunnelResults = filterFunnelResults;
+window.switchSelAnalysisTab = switchSelAnalysisTab;
+window.switchSelPeriod = switchSelPeriod;
+window.refreshSelectionWorkbench = refreshSelectionWorkbench;
+window.exportFunnelResults = exportFunnelResults;
+window.openNewFunnelModelModal = openNewFunnelModelModal;
+
+document.addEventListener('DOMContentLoaded', initSelectionWorkbench);
+</script>
+</body>
+</html>
