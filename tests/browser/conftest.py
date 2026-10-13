@@ -214,7 +214,7 @@ def isolated_browser_server(tmp_path_factory):
         admin_token = login["token"]
 
         status, menus = _request_json(f"{base_url}/api/menus", token=admin_token)
-        required_menu_codes = {"dashboard", "datasync", "selection", "selection.view", "selection.track"}
+        required_menu_codes = {"dashboard", "datasync", "selection", "intelligent_selection", "selection.view", "selection.track"}
         menu_ids = [
             item["id"] for item in menus.get("menus", [])
             if item.get("code") in required_menu_codes

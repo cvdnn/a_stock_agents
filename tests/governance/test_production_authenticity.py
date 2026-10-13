@@ -204,23 +204,26 @@ def test_selection_workbench_is_fail_closed_not_fabricated() -> None:
     assert "filterFunnelResults" not in index_html
     assert "refreshSelectionWorkbench" not in index_html
 
-    pane = index_html.split('id="pane-selection"', 1)[1].split("<!-- View Pane", 1)[0]
+    strategy_pane = index_html.split('id="pane-selection"', 1)[1].split("<!-- View Pane", 1)[0]
+    assert "SelModels" in strategy_pane
+    pane = index_html.split('id="pane-intelligent_selection"', 1)[1].split("<!-- View Pane", 1)[0]
+    assert 'js/smart_selection.js' in index_html
 
     # 结构断言 1：静态层可见文本不得含任何数字（点位/条数/页数/评分/涨跌幅只能来自接口）
     visible = re.sub(r"<[^>]+>", " ", pane)
     digits = re.findall(r"\d[\d,.]*", visible)
-    assert not digits, f"pane-selection 静态层残留伪造数值: {digits}"
+    assert not digits, f"pane-intelligent_selection 静态层残留伪造数值: {digits}"
 
     # 结构断言 2：不得残留凭空写死的运行态与历史时间戳
     for lie in ("● 运行中", "2024-03", "共 5 层筛选", "（优秀）"):
-        assert lie not in pane, f"pane-selection 残留伪造运行态: {lie}"
+        assert lie not in pane, f"pane-intelligent_selection 残留伪造运行态: {lie}"
 
-    # 结构断言 3：每个按钮要么接入真实处理函数，要么显式 disabled，禁止只弹 toast 的假动作
+    # 结构断言 3：每个按钮要么由 smart_selection.js 绑定，要么显式 disabled。
     for btn in re.findall(r"<button[^>]*>", pane):
         assert ("disabled" in btn) or ("showToast" not in btn), f"存在只弹 toast 的假动作按钮: {btn}"
 
     # 结构断言 4：走势数据源未接入时工作台不得自带画布冒充走势图
-    assert "<canvas" not in pane, "pane-selection 自带 canvas，但价格走势尚无真实数据源"
+    assert "<canvas" not in pane, "pane-intelligent_selection 自带 canvas，但价格走势尚无真实数据源"
 
     # 结构断言 5：web/ 被 StaticFiles 整目录挂载（/ui/*），归档/备份 html 同样能被浏览器直接
     # 打开，必须显式声明为非生产原型，否则备份页会变成第二块"看起来像真实结果"的假面板。

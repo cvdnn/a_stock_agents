@@ -26,7 +26,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="css/style.css?v=20261010-selection-evidence">
+  <link rel="stylesheet" href="css/style.css?v=20261013-smart-selection">
   <link rel="stylesheet" href="css/highlight-github.min.css">
 </head>
 <body>
@@ -88,6 +88,10 @@
         <div class="nav-item" data-tab="selection" onclick="handleMenuClick('selection')">
           <span class="nav-icon">🔻</span>
           <span>策略选股</span>
+        </div>
+        <div class="nav-item" data-tab="intelligent_selection" onclick="handleMenuClick('intelligent_selection')" role="button" tabindex="0">
+          <span class="nav-icon">🧠</span>
+          <span>智能选股</span>
         </div>
         <div class="nav-item" data-tab="watchlist" onclick="handleMenuClick('watchlist')">
           <span class="nav-icon">⭐</span>
@@ -462,6 +466,10 @@
               <span class="meta-action-icon">💬</span>
               <span class="meta-action-text">模型研判</span>
             </button>
+          </div>
+
+          <div class="header-action-group tab-actions-intelligent-selection" id="actionsIntelligentSelection" style="display: none; align-items: center; gap: 8px;">
+            <button type="button" class="btn-workbench-action btn-doc-meta-action" onclick="SmartSelection.refresh()" title="刷新智能选股工作台">⟳ 刷新记录</button>
           </div>
 
           <!-- 3. 自选个股专属功能按钮组 (仅在【自选个股】显示) -->
@@ -1168,6 +1176,35 @@
             </div>
           </section>
 
+        </div>
+
+        <!-- View Pane: 智能选股; independent reference-led workspace. -->
+        <div class="right-pane" id="pane-intelligent_selection">
+          <div class="iss-workspace" id="issWorkspace">
+            <header class="iss-header">
+              <div><span class="iss-eyebrow">INTELLIGENT SELECTION</span><h2>智能选股</h2><p>运行记录与模型资产</p></div>
+              <div class="iss-header-actions"><button type="button" id="issRefresh">刷新状态</button><button type="button" id="issExport" disabled>导出当前层 CSV</button></div>
+            </header>
+            <div class="iss-tabs" role="tablist" aria-label="智能选股工作台">
+              <button type="button" id="issTabRuns" role="tab" aria-selected="true" aria-controls="issRunsPanel" class="active">选股记录</button>
+              <button type="button" id="issTabModels" role="tab" aria-selected="false" aria-controls="issModelsPanel">模型管理</button>
+            </div>
+            <div id="issMessage" class="iss-message" role="status" aria-live="polite"></div>
+            <section id="issRunsPanel" role="tabpanel" aria-labelledby="issTabRuns">
+              <div class="iss-runbar"><label for="issRunSelect">运行记录</label><select id="issRunSelect"><option value="">正在读取</option></select><span id="issRunStatus" class="iss-status">未选择运行</span></div>
+              <div class="iss-runmeta" id="issRunMeta">请选择一次运行记录查看逐层证据。</div>
+              <div class="iss-run-grid">
+                <section class="iss-panel iss-funnel-panel" aria-label="漏斗运行图"><div class="iss-panel-heading"><h3>漏斗运行图</h3><span id="issStageCount">尚无阶段</span></div><div id="issStages" class="iss-stages"><p class="iss-empty">请先选择运行记录。</p></div></section>
+                <section class="iss-panel iss-results-panel" aria-label="当前阶段候选"><div class="iss-panel-heading"><h3>筛选后股票列表</h3><span id="issStageLabel">未选择阶段</span></div>
+                  <div class="iss-filters"><label for="issSearch">搜索</label><input id="issSearch" type="search" placeholder="股票名称 / 代码"><label for="issVerdict">判定</label><select id="issVerdict"><option value="">全部</option><option value="PASS">通过</option><option value="FAIL">淘汰</option><option value="UNKNOWN">未知</option><option value="FORWARDED">透传</option></select></div>
+                  <div id="issEvidence" class="iss-evidence"></div><div id="issDataMeta" class="iss-data-meta">数据来源与快照未记录</div>
+                  <div class="iss-table-scroll"><table><thead><tr><th>代码</th><th>股票名称</th><th>最新价</th><th>涨跌幅</th><th>所属行业</th><th>判定 / 依据</th></tr></thead><tbody id="issCandidates"><tr><td colspan="6">请先选择运行与阶段。</td></tr></tbody></table></div>
+                  <div class="iss-pages"><span id="issTotal">共 — 条</span><button type="button" id="issPrev" disabled>上一页</button><span id="issPage">—</span><button type="button" id="issNext" disabled>下一页</button></div>
+                </section>
+              </div>
+            </section>
+            <section id="issModelsPanel" role="tabpanel" aria-labelledby="issTabModels" hidden><div class="iss-model-grid"><section class="iss-panel"><div class="iss-panel-heading"><h3>漏斗模型</h3><span id="issModelCount">读取中</span></div><div id="issModelList" class="iss-model-list"></div></section><section class="iss-panel"><div class="iss-panel-heading"><h3>模型详情</h3></div><div id="issModelDetail" class="iss-model-detail iss-empty">选择模型查看版本与阶段。</div></section></div></section>
+          </div>
         </div>
 
         <!-- View Pane 6: 数据同步与行情中枢工作区 (多源行情/定盘时钟/分级并发/自愈体检/定时守护/通达信协同) -->
@@ -2736,7 +2773,7 @@
   <script src="js/chat_presentation.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/admin.js"></script>
-  <script src="js/app.js?v=20261008-r1"></script>
+  <script src="js/app.js?v=20261013-smart-selection"></script>
   <!-- 策略选股 · 选股模型工作台（C5：21 个前端模块，数据只来自 /api/selection-models/*） -->
   <script src="js/selection-models/api_client.js?v=20261010-llm1"></script>
   <script src="js/selection-models/store.js?v=20261009-r2"></script>
@@ -2760,7 +2797,8 @@
   <script src="js/selection-models/result_assessment.js?v=20261007-1"></script>
   <script src="js/selection-models/tracking_center.js?v=20261007-1"></script>
   <script src="js/selection-models/model_evaluation.js?v=20261007-1"></script>
-  <script src="js/selection-models/index.js?v=20261009-blankfix"></script>
+  <script src="js/selection-models/index.js?v=20261013-workspace-guard"></script>
+  <script src="js/smart_selection.js?v=20261013-f1"></script>
 
   <!-- ========================================================================
        Login Gate Overlay (未登录时遮蔽工作台，强制跳转登录页)
@@ -2976,7 +3014,9 @@
             if (!window.AstockAuth.isSuperAdmin()) {
               document.querySelectorAll(".sidebar-nav-section .nav-item[data-tab]").forEach(function (entry) {
                 var code = entry.getAttribute("data-tab") || "";
-                entry.style.display = window.AstockAuth.hasMenu(code) ? "" : "none";
+                entry.style.display = (code === "intelligent_selection"
+                  ? window.AstockAuth.hasMenu(code) && window.AstockAuth.hasMenu("selection.view")
+                  : window.AstockAuth.hasMenu(code)) ? "" : "none";
               });
             }
           } catch (e) {}

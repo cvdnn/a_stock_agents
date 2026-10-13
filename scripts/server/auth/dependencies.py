@@ -125,7 +125,8 @@ def require_menu(code: str):
 
 #: 选股模型权限码（SPEC-ALGO-ISS-001 §20.1，10 项）→ 菜单 code 映射。
 #: 落地机制（C-04）复用既有 `role_menus` 的「menu + action 两段式」：
-#: 父菜单 `selection`，动作菜单 `selection.<action>`，不新建权限子系统。
+#: 原策略工作台可继续使用 selection；新工作台使用 intelligent_selection。
+#: 两个入口共享既有 selection.<action> 细粒度动作码，不因新菜单放宽操作权限。
 SELECTION_PERMISSION_MENU: dict = {
     "view": "selection.view",
     "create": "selection.create",
@@ -148,6 +149,12 @@ def require_selection(action: str):
     menu_code = SELECTION_PERMISSION_MENU[action]
 
     def _dep(ctx: AuthContext = Depends(require_auth)) -> AuthContext:
+        if not (ctx.has_menu("selection.view") and
+                (ctx.has_menu("selection") or ctx.has_menu("intelligent_selection"))):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": "forbidden", "message": "无选股工作台查看权限（工作台菜单 + selection.view）"},
+            )
         if action == "debug":
             if not ctx.is_super_admin:
                 raise HTTPException(

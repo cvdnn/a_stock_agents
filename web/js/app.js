@@ -874,31 +874,16 @@ const TabCopilotConfigs = {
     subtitle: '多因子层层过滤 · 漏斗编排可视化 · 优质标的挖掘',
     desc: '基于多因子投研选股漏斗模型，逐层穿透<strong>全市场股票池 → 流动性 → 财务质量 → 估值 → 技术形态</strong>，实时呈现各层通过率与筛选结果，并可对当前层入选标的发起深度研判。',
     quickActions: [
-      {
-        icon: '🔻',
-        title: '解读当前漏斗',
-        desc: '一键解读 >',
-        tooltip: '解读价值成长漏斗V3各层筛选逻辑与通过率',
-        action: '解读当前漏斗',
-        prompt: '请解读当前价值成长漏斗V3的各层筛选条件、通过率与最终入选标的的核心逻辑。'
-      },
-      {
-        icon: '🎯',
-        title: '优化筛选条件',
-        desc: '优化建议 >',
-        tooltip: '针对漏斗各层阈值给出优化建议',
-        action: '优化漏斗筛选条件',
-        prompt: '请针对当前漏斗各层的筛选阈值与因子权重给出优化建议，以提升入选标的质量与命中率。'
-      },
-      {
-        icon: '📊',
-        title: '入选标的诊断',
-        desc: '深度诊断 >',
-        tooltip: '对当前层筛选结果标的进行综合评分诊断',
-        action: '诊断漏斗入选标的',
-        prompt: '请对当前层筛选结果中的入选标的进行100分制综合诊断，并给出实战三原则保本价与三级止损建议。'
-      }
+      { icon: '🔻', title: '解读当前漏斗', desc: '一键解读 >', tooltip: '解读价值成长漏斗V3各层筛选逻辑与通过率', action: '解读当前漏斗', prompt: '请解读当前价值成长漏斗V3的各层筛选条件、通过率与最终入选标的的核心逻辑。' },
+      { icon: '🎯', title: '优化筛选条件', desc: '优化建议 >', tooltip: '针对漏斗各层阈值给出优化建议', action: '优化漏斗筛选条件', prompt: '请针对当前漏斗各层的筛选阈值与因子权重给出优化建议，以提升入选标的质量与命中率。' },
+      { icon: '📊', title: '入选标的诊断', desc: '深度诊断 >', tooltip: '对当前层筛选结果标的进行综合评分诊断', action: '诊断漏斗入选标的', prompt: '请对当前层筛选结果中的入选标的进行100分制综合诊断，并给出实战三原则保本价与三级止损建议。' }
     ]
+  },
+  'intelligent_selection': {
+    title: '智能选股',
+    subtitle: '选股记录 · 模型管理',
+    desc: '查看已保存的模型、运行记录及逐层证据。',
+    quickActions: []
   },
   'watchlist': {
     title: '您好！我是您的 自选个股量化诊断助手',
@@ -1227,6 +1212,7 @@ function executeQuickAction(actionType, promptOverride, customTitle, customSumma
 // 2. Left Menu Bar Navigation
 // --------------------------------------------------------------------------
 function handleMenuClick(tabId) {
+  if (!canSwitchSelectionWorkspace(tabId)) return;
   // Update Left Sidebar Active Nav
   document.querySelectorAll('.sidebar-nav-section .nav-item').forEach(item => {
     if (item.dataset.tab === tabId) {
@@ -1257,7 +1243,7 @@ function handleMenuClick(tabId) {
   }
 
   // Switch right/middle business pane
-  switchRightTab(tabId);
+  switchRightTab(tabId, true);
 }
 
 // Switch between Chat-Centric mode and Workspace-Centric Copilot mode
@@ -1319,6 +1305,7 @@ const ViewDescriptions = {
   'dashboard': '整体投研盘面 (大盘/自选/持仓监控/策略开关)',
   'market': '市场行情全景 (四大指数/情绪仪表盘/日K线/板块流向)',
   'selection': '漏斗选股模型工作台 (多因子层层过滤/漏斗可视化/当前层结果/个股分析)',
+  'intelligent_selection': '智能选股工作台（选股记录/模型管理）',
   'watchlist': '自选个股深度研判 (宁德时代多周期K线/主力控盘)',
   'returns': '投资收益全景分析 (资产净值曲线/胜率/盈亏归因)',
   'datasync': 'A股数据同步工作台（日 K 水位、任务追踪、完整性与定时配置）',
@@ -1331,6 +1318,7 @@ const ViewHeaderInfo = {
   'dashboard': { title: '用户操作指南', icon: '📖', tag: '系统算法与功能导引' },
   'market': { title: '市场行情全景', icon: '📈', tag: '实时行情与主力资金流向' },
   'selection': { title: '漏斗选股模型工作台', icon: '🔻', tag: '多因子层层过滤 · 挖掘优质标的' },
+  'intelligent_selection': { title: '智能选股', icon: '🧠', tag: '选股记录 · 模型管理' },
   'watchlist': { title: '自选个股深度研判', icon: '⭐', tag: '重点自选多周期量化追踪' },
   'returns': { title: '投资收益全景分析', icon: '💰', tag: '资产净值曲线与多因子归因' },
   'datasync': { title: 'A股数据同步工作台', icon: '🔄', tag: '查看真实日 K 水位 · 追踪更新任务 · 管理同步配置' },
@@ -1356,6 +1344,7 @@ function updateWorkbenchHeaderActions(tabId) {
     'dashboard': 'actionsDashboard',
     'market': 'actionsMarket',
     'selection': 'actionsSelection',
+    'intelligent_selection': 'actionsIntelligentSelection',
     'watchlist': 'actionsWatchlist',
     'returns': 'actionsReturns',
     'skills': 'actionsSkills',
@@ -1403,7 +1392,19 @@ function updateWorkbenchHeaderActions(tabId) {
 }
 window.updateWorkbenchHeaderActions = updateWorkbenchHeaderActions;
 
-function switchRightTab(tabId) {
+function canSwitchSelectionWorkspace(tabId) {
+  if (tabId === 'intelligent_selection' && window.AstockAuth && window.AstockAuth.currentUser() &&
+      !(window.AstockAuth.hasMenu('intelligent_selection') && window.AstockAuth.hasMenu('selection.view'))) return false;
+  if (AppState.activeRightTab === 'selection' && tabId !== 'selection' && window.SelModels &&
+      !window.SelModels.store.confirmDiscard()) return false;
+  return true;
+}
+
+function switchRightTab(tabId, alreadyChecked = false) {
+  if (!alreadyChecked && !canSwitchSelectionWorkspace(tabId)) return false;
+  if (AppState.activeRightTab === 'intelligent_selection' && tabId !== 'intelligent_selection' && window.SmartSelection) {
+    window.SmartSelection.leave();
+  }
   AppState.activeRightTab = tabId;
   if (tabId !== 'datasync' && typeof stopDatasyncPolling === 'function') {
     stopDatasyncPolling();
@@ -1446,6 +1447,7 @@ function switchRightTab(tabId) {
   if (tabId === 'selection') {
     window.SelModels.bootstrap();
   }
+  if (tabId === 'intelligent_selection' && window.SmartSelection) window.SmartSelection.bootstrap();
   // 3.2 Hook: 系统管理内联渲染到主工作区页面
   if (tabId === 'system') {
     const adminMount = document.getElementById('astockAdminMount');
@@ -1488,6 +1490,7 @@ function switchRightTab(tabId) {
       }, 100);
     }
   }, 40);
+  return true;
 }
 
 // Dynamically open a new tab on the right
@@ -9544,6 +9547,15 @@ async function runSkillTestExecution() {
 // 10. Initial DOM Ready Hook
 // --------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.sidebar-nav-section .nav-item[data-tab]').forEach((item) => {
+    item.setAttribute('role', 'button');
+    item.tabIndex = 0;
+    item.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      handleMenuClick(item.dataset.tab);
+    });
+  });
   // 1. Render Session History & Infinite Scroll
   renderSessionList();
   setupSessionInfiniteScroll();
@@ -9570,7 +9582,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Initial Tab & View Activation and Backend Data Loading
   const initialHashTab = (window.location.hash || '').replace(/^#/, '');
-  if (['market', 'watchlist', 'returns', 'datasync', 'skills'].includes(initialHashTab)) {
+  if (['market', 'selection', 'intelligent_selection', 'watchlist', 'returns', 'datasync', 'skills'].includes(initialHashTab)) {
     handleMenuClick(initialHashTab);
   } else {
     // 默认或 dashboard 均切入投研助手，不自动选中历史会话

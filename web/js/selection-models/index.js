@@ -11,6 +11,7 @@
   const DOM = () => global.document;
   const S = () => global.SelModels;
   let booting = false;
+  let bootstrapSequence = 0;
   let loadSequence = 0;
   let publishedChoices = [];
 
@@ -21,14 +22,16 @@
     return response.data;
   }
 
-  async function ensureMeta() {
+  async function ensureMeta(sequence) {
     const st = S().store.get();
     if (!st.types.length) {
       const resp = await S().api.listTypes();
+      if (sequence !== loadSequence) return;
       S().store.set({ types: requireOk(resp).types || [] });
     }
     if (!st.ruleTypes.length) {
       const resp = await S().api.listRuleTypes();
+      if (sequence !== loadSequence) return;
       S().store.set({ ruleTypes: requireOk(resp).rule_types || [] });
     }
   }
@@ -36,15 +39,18 @@
   async function bootstrap() {
     if (booting) return;
     booting = true;
-    ++loadSequence;
+    const bootstrapToken = ++bootstrapSequence;
+    const sequence = ++loadSequence;
     showWorkbenchView(S().store.get().selectionMode === 'runs' ? 'run' : 'edit');
     S().stateViews.clearError();
     S().store.set({ loading: true, error: null });
     S().modelCenter.render();
     S().stateViews.loading(DOM().getElementById('selectionFunnel'), '加载选股模型…');
     try {
-      await ensureMeta();
+      await ensureMeta(sequence);
+      if (sequence !== loadSequence) return;
       const [resp, recentResp] = await Promise.all([S().api.listModels(), S().api.listRecentRuns()]);
+      if (sequence !== loadSequence) return;
       const data = requireOk(resp);
       const recent = requireOk(recentResp);
       const models = data.models || [];
@@ -60,6 +66,7 @@
       else { S().store.set({ activeModelId: null, detail: null, workingDefinition: null,
         versions: [], runs: [], results: [], schedule: null, dataHealth: null }); S().runWorkspace.clear(); renderAll(); showWorkbenchView('run'); }
     } catch (err) {
+      if (sequence !== loadSequence) return;
       S().store.set({ loading: false, error: err, models: [], listPermissions: {}, activeModelId: null,
         detail: null, workingDefinition: null, versions: [], runs: [], recentRuns: [], results: [] });
       S().runWorkspace.clear();
@@ -67,7 +74,7 @@
       renderAll();
       S().stateViews.error(DOM().getElementById('selectionFunnel'), err);
     } finally {
-      booting = false;
+      if (bootstrapToken === bootstrapSequence) booting = false;
     }
   }
 
@@ -216,6 +223,7 @@
   }
 
   async function openNewSelection() {
+    const workspaceToken = bootstrapSequence;
     if (!S().store.get().listPermissions.run) {
       global.showToast && global.showToast('当前身份无选股运行权限');
       return;
@@ -239,7 +247,7 @@
         model_id: model.model_id, versions: requireOk(await S().api.listVersions(model.model_id)).versions
           .filter((version) => version.status !== 'ARCHIVED').sort((a, b) => b.version - a.version),
       })));
-      if (!DOM().getElementById('selNewSelectionModal')) return;
+      if (workspaceToken !== bootstrapSequence || DOM().getElementById('selNewSelectionModal') !== wrap) return;
       publishedChoices = responses.filter((item) => item.versions.length);
       const select = DOM().getElementById('selNewSelectionModel');
       const esc = S().modelCenter.escapeHtml;
@@ -254,12 +262,14 @@
         ? '运行使用所选版本，不会改变自动调度使用的活动版本。'
         : '尚无可运行的已发布模型。请先到“模型管理”创建并发布模型。';
     } catch (err) {
+      if (workspaceToken !== bootstrapSequence) return;
       const status = DOM().getElementById('selNewSelectionStatus');
       if (status) { status.textContent = S().stateViews.message(err); status.classList.add('error'); }
     }
   }
 
   async function runNewSelection() {
+    const workspaceToken = bootstrapSequence;
     const modelId = DOM().getElementById('selNewSelectionModel')?.value;
     const version = Number(DOM().getElementById('selNewSelectionVersion')?.value);
     const choice = publishedChoices.find((item) => item.model_id === modelId);
@@ -271,14 +281,17 @@
     status.textContent = `正在运行 v${version}…`;
     try {
       const resp = await S().api.createRun(modelId, { version, all_market: true });
+      if (workspaceToken !== bootstrapSequence) return;
       if (resp.status !== 'ok') { status.textContent = S().stateViews.message(resp); status.classList.add('error'); return; }
       closeNewSelection();
       rememberRun(resp.data.run);
       await loadDetail(modelId, resp.data.run_id);
+      if (workspaceToken !== bootstrapSequence) return;
       S().modelCenter.render();
       refreshRecentRuns();
       global.showToast && global.showToast(`选股完成：${resp.data.run.status}（入选 ${resp.data.selected_codes.length}）`);
     } catch (err) {
+      if (workspaceToken !== bootstrapSequence) return;
       if (status.isConnected) { status.textContent = S().stateViews.message(err); status.classList.add('error'); }
       else S().stateViews.notifyError(err);
     } finally { if (button.isConnected) button.disabled = false; }
@@ -292,15 +305,33 @@
   }
 
   async function refreshRecentRuns() {
+    const sequence = loadSequence;
     try {
       const listed = requireOk(await S().api.listRecentRuns());
+      if (sequence !== loadSequence) return;
       S().store.set({ recentRuns: listed.runs || [] });
       S().modelCenter.render();
-    } catch (err) { S().stateViews.notifyError(err); }
+    } catch (err) { if (sequence === loadSequence) S().stateViews.notifyError(err); }
   }
 
   // ---------------------------------------------------------------- 工具栏动作
   const main = {
+    leaveWorkspace: () => {
+      ++bootstrapSequence;
+      ++loadSequence;
+      booting = false;
+      S().runWorkspace.clear();
+      S().runTimeline.close();
+      ['selNewSelectionModal', 'selectionWizardModal', 'selectionTextDraftModal',
+        'selectionVersionModal', 'selectionScheduleModal', 'selectionDebugModal',
+        'selectionDataHealthModal'].forEach((id) => DOM().getElementById(id)?.remove());
+      S().store.set({ selectionMode: 'runs', activeModelId: null, detail: null,
+        workingDefinition: null, dirty: false, draftBaseVersion: null, draftRevision: 0,
+        activeRunId: null, nodes: [], candidates: [], versions: [], runs: [], results: [],
+        schedule: null, dataHealth: null, detailLoading: false, loading: false });
+      renderMode();
+      showWorkbenchView('run');
+    },
     switchMode,
     openRun,
     openNewSelection,
@@ -342,18 +373,21 @@
     },
     publish: () => S().versionManager.publish(),
     createRun: async () => {
+      const workspaceToken = bootstrapSequence;
       const current = (S().store.get().recentRuns || []).find((item) => item.run_id === S().store.get().activeRunId);
       if (!current) { global.showToast && global.showToast('请先选择选股记录，或点击“新建选股”'); return; }
       try {
         const resp = await S().api.createRun(current.model_id, { version: current.model_version, all_market: true });
+        if (workspaceToken !== bootstrapSequence) return;
         if (resp.status !== 'ok') { global.showToast && global.showToast(S().stateViews.message(resp)); return; }
         global.showToast && global.showToast(`运行结束：${resp.data.run.status}（入选 ${resp.data.selected_codes.length}）`);
         rememberRun(resp.data.run);
         await loadDetail(current.model_id, resp.data.run_id);
+        if (workspaceToken !== bootstrapSequence) return;
         refreshRecentRuns();
         showWorkbenchView('run');
       } catch (err) {
-        global.showToast && global.showToast(S().stateViews.message(err));
+        if (workspaceToken === bootstrapSequence) global.showToast && global.showToast(S().stateViews.message(err));
       }
     },
     exportResults: () => S().runWorkspace.exportCurrent(),

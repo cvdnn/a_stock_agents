@@ -1330,6 +1330,7 @@ def _seed_user_system(conn: sqlite3.Connection) -> None:
             {"code": "dashboard",    "name": "投研助手",   "path": "dashboard",    "icon": "🤖", "parent_id": 0, "sort_order": 10},
             {"code": "watchlist",    "name": "自选个股",   "path": "watchlist",    "icon": "⭐", "parent_id": 0, "sort_order": 20},
             {"code": "selection",    "name": "策略选股",   "path": "selection",    "icon": "🎯", "parent_id": 0, "sort_order": 25},
+            {"code": "intelligent_selection", "name": "智能选股", "path": "intelligent_selection", "icon": "🧠", "parent_id": 0, "sort_order": 26},
             {"code": "returns",      "name": "收益分析",   "path": "returns",      "icon": "📈", "parent_id": 0, "sort_order": 30},
             {"code": "skills",       "name": "技能治理",   "path": "skills",       "icon": "🧩", "parent_id": 0, "sort_order": 40},
             {"code": "datasync",     "name": "数据同步",   "path": "datasync",     "icon": "🔄", "parent_id": 0, "sort_order": 45},
@@ -1423,6 +1424,14 @@ def _seed_user_system(conn: sqlite3.Connection) -> None:
                         "INSERT OR IGNORE INTO role_menus (role_id, menu_id) VALUES (?, ?);",
                         (rid, mid),
                     )
+
+        # 保留所有已获 selection.view 授权角色的访问权，包括自定义角色。
+        # 只迁移查看菜单，不赋予任何 selection.* 写操作。
+        cur.execute(
+            "INSERT OR IGNORE INTO role_menus (role_id, menu_id) "
+            "SELECT role_id, ? FROM role_menus WHERE menu_id = ?",
+            (menu_id_by_code["intelligent_selection"], menu_id_by_code["selection.view"]),
+        )
 
         # 3) 同步本地配置文件中的超级管理员账号到数据库
         try:

@@ -80,6 +80,51 @@ def test_unauthenticated_requests_are_rejected(anon_client):
     assert anon_client.post("/api/selection-models", json={"model_type": "funnel", "name": "x"}).status_code == 401
 
 
+def test_f1_model_api_requires_workspace_and_view_menu(client, monkeypatch):
+    """直接调用只带动作码或只带新菜单的身份也不能绕过工作台门禁。"""
+    from server.auth import dependencies
+
+    original_user = dependencies.get_user_by_id
+    admin = dict(original_user(1))
+    admin["is_super_admin"] = 0
+    monkeypatch.setattr(dependencies, "get_user_by_id", lambda _: admin)
+    granted = {"selection.view", "selection.create"}
+    monkeypatch.setattr(dependencies, "get_user_menus", lambda _: [{"code": code} for code in granted])
+    assert client.get("/api/selection-models/types").status_code == 403
+    assert client.post("/api/selection-models", json={"model_type": "funnel", "name": "x"}).status_code == 403
+
+    granted = {"intelligent_selection", "selection.create"}
+    assert client.get("/api/selection-models/types").status_code == 403
+    assert client.post("/api/selection-models", json={"model_type": "funnel", "name": "x"}).status_code == 403
+
+    granted = {"intelligent_selection", "selection.view"}
+    assert client.get("/api/selection-models/types").status_code == 200
+    assert client.post("/api/selection-models", json={"model_type": "funnel", "name": "x"}).status_code == 403
+
+
+def test_f1_custom_role_menu_migration_is_idempotent(tmp_path):
+    from server.db import _seed_user_system, get_connection
+
+    with get_connection(tmp_path / "selection-role.db") as conn:
+        now = "2026-10-13T00:00:00+00:00"
+        cur = conn.execute(
+            "INSERT INTO roles (code, name, description, is_builtin, created_at, updated_at) "
+            "VALUES (?, ?, ?, 0, ?, ?)", ("f1_custom", "自定义查看", "", now, now),
+        )
+        role_id = cur.lastrowid
+        ids = {row["code"]: row["id"] for row in conn.execute("SELECT id, code FROM menus")}
+        conn.execute("INSERT INTO role_menus (role_id, menu_id) VALUES (?, ?)",
+                     (role_id, ids["selection.view"]))
+        _seed_user_system(conn)
+        _seed_user_system(conn)
+        codes = [row["code"] for row in conn.execute(
+            "SELECT menus.code FROM role_menus JOIN menus ON menus.id = role_menus.menu_id "
+            "WHERE role_menus.role_id = ?", (role_id,),
+        )]
+        assert codes.count("intelligent_selection") == 1
+        assert "selection.create" not in codes
+
+
 def test_p2_model_type_cannot_be_created(client, selection_store):
     resp = client.post("/api/selection-models", json={"model_type": "scoring_rank", "name": "评分"}).json()
     assert resp["status"] == "error"
