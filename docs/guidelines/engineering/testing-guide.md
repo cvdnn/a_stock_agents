@@ -46,16 +46,15 @@ A-Stock Agents 作为涉及实盘模拟交易、选股量化与策略执行的�
 tests/
 ├── conftest.py          # ★ 档位归属表 + 共享基座（鉴权/隔离/临时库），分层策略唯一改动点
 ├── README.md            # 目录级速查与执行入口
-├── core/        (17 文件 / 182 用例)  # 量化底座：装配、漏斗、指标、模型、撮合、策略、同步
-├── server/      (17 文件 / 153 用例)  # 服务端：REST API、会话与记忆、LLM 就绪、数据同步控制台
+├── core/        (24 文件 / 360 用例)  # 量化底座 + P0-02/03/04/05/06 发布链路门禁（frontmatter/启动器/doctor/打包/宿主红线/依赖SSOT/隔离解压/安装脚本守卫）
+├── server/      (20 文件 / 195 用例)  # 服务端：REST API、会话与记忆、LLM 就绪、数据同步控制台
 ├── governance/  (10 文件 /  92 用例)  # 架构与合规门禁：解耦、真实性、安全审计、技能契约
-├── browser/     ( 1 文件 /   7 用例)  # 隔离服务 + 系统 Edge 的真实登录后验收（显式启用）
+├── skills/      ( 2 文件 /   5 用例)  # 技能脚本级自测（astock-quant-engine / astock-screener-5a）
+├── browser/     ( 1 文件 /  16 用例)  # 隔离服务 + 系统 Edge 的真实登录后验收（显式启用）
 └── frontend/    (30 文件 / Node.js)   # 前端 DOM 与交互仿真，不经 pytest 收集，单独 `node` 执行
-
-.agents/skills/*/scripts/test_*.py     # 技能自带脚本级自测（2 文件），由 testpaths 一并收集
 ```
 
-> 当前收集用例总数 **564**（`core/` + `server/` + `governance/` + `browser/` + 技能脚本）。目录分层描述"测什么"，
+> 当前收集用例总数 **668**（2026-10-15 实测：`core/` + `server/` + `governance/` + `skills/` + `browser/`；`skill_bundle/skills` 无 `test_*.py`，已从 `testpaths` 移除死条目）。目录分层描述"测什么"，
 > 与下述档位分层（"多重要、多快"）是两个正交维度。
 
 ---
@@ -74,19 +73,20 @@ tests/
 
 | 档位 | 用例数 | 判定标准 |
 | :--- | ---: | :--- |
-| **`core`** | **227** | **P0 契约门禁**：错了会直接产出假结论或造成资金/安全后果——数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
-| `p1` | 291 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
-| `p2` | 46 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
+| **`core`** | **310**（含 2 个平台分支 skip） | **P0 契约门禁**：错了会直接产出假结论或造成资金/安全后果——数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock、**P0-02/03/04/05/06 发布链路（SKILL.md frontmatter / 启动器 / doctor / run_skill / 打包八项行为 / 宿主注册红线与三平台 shim / 依赖声明单一来源 / 三平台隔离解压验收常驻化 / setup.sh 零污染）** |
+| `p1` | 303 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
+| `p2` | 55 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
 | :--- | ---: | :--- |
-| `slow` | 94 | 单用例 > 1s（子进程冷启动、全市场扫描、完整辩论流水线） |
+| `slow` | 110 | 单用例 > 1s（子进程冷启动、全市场扫描、完整辩论流水线） |
 | `network` | 35 | 触达真实外网（行情降级重试、实时现价批量） |
-| `subprocess` | 10 | 以子进程执行 CLI/脚本的集成用例 |
-| `e2e` | 26 | 端到端链路（装配 → 规则 → 快照落盘） |
+| `subprocess` | 26 | 以子进程执行 CLI/脚本的集成用例 |
+| `e2e` | 31 | 端到端链路（装配 → 规则 → 快照落盘） |
 | `live` | 18 | 需预先启动真实服务并显式开启 `A_STOCK_RUN_LIVE_E2E=1` 与 `A_STOCK_SERVER_TOKEN` |
-| `browser_e2e` | 7 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
+| `browser_e2e` | 16 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
 
+> 上表为 2026-10-15 Windows 实测收集数（`--collect-only`，含 P0-02 新增 `tests/core/test_release_delivery_gate.py` 的 38 例），此前 2026-10-07/08 快照（564 总 / 227 core / 291 p1 / 46 p2 / slow 94 / subprocess 10 / e2e 26 / browser_e2e 7）保留在第八章整改记录中作为历史。
 > `--strict-markers` 已启用：拼错的标记直接报错，不会被静默忽略。
 
 ### 3.2 执行策略：先必要，后扩展，扩展需人工确认
@@ -95,8 +95,8 @@ tests/
 
 | 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
 | :--- | :--- | :--- | ---: | :--- |
-| ① | **P0 核心（必跑）** | `pytest -m core` | 当前 Windows 基线约 80s | 任何代码/测试改动后**无条件先跑**，作为唯一自动门禁 |
-| ② | 核心离线子集（极速反馈） | `pytest -m "core and not slow and not network and not subprocess"` | ~12s | ①失败后定位时可自主使用 |
+| ① | **P0 核心（必跑）** | `pytest -m core` | 当前 Windows 基线约 135s（2026-10-15 实测 134.83s） | 任何代码/测试改动后**无条件先跑**，作为唯一自动门禁 |
+| ② | 核心离线子集（极速反馈，244 例） | `pytest -m "core and not slow and not network and not subprocess"` | ~20s | ①失败后定位时可自主使用 |
 | ③ | 核心 + 重要回归 | `pytest -m "core or p1"` | 介于 ① 与 ④ 之间 | **需人工确认**后执行 |
 | ④ | 离线全量 | `pytest -m "not network"` | ~64s | **需人工确认**后执行 |
 | ⑤ | 全量串行 | `pytest` | ~68s | **需人工确认**后执行 |
@@ -224,14 +224,16 @@ Python 同名 `def` 后者覆盖前者，前者**永远不会执行**，而收�
 9. **脱敏与清理：** Token、密码不得出现在 URL、日志、DOM、截图名称或测试报告；`finally` 关闭浏览器和服务并删除含凭据的运行根，失败时只复制脱敏证据。
 10. **验收边界：** 静态 HTML、认证遮罩仍存在、API 被错误转向 6300、仅有非空 PNG、或只验证单一视口，均不算真实浏览器验收。
 
-2026-10-08 修复后基线：收集 564 例；P0 `227 passed, 337 deselected`，P0+P1 `518 passed, 46 deselected`，7 例系统 Microsoft Edge 浏览器矩阵 `7 passed, 557 deselected`。P1 与浏览器矩阵均在取得人工确认后执行；此前 2 例冒烟结果不再作为当前验收证据。
+2026-10-08 修复后基线（历史）：收集 564 例；P0 `227 passed, 337 deselected`，P0+P1 `518 passed, 46 deselected`，7 例系统 Microsoft Edge 浏览器矩阵 `7 passed, 557 deselected`。P1 与浏览器矩阵均在取得人工确认后执行；此前 2 例冒烟结果不再作为当前验收证据。
+
+2026-10-15 当前基线（实测）：收集 668 例；P0 `308 passed / 2 skipped（平台分支） / 358 deselected`（134.83s，含 P0-02/03/04/05/06 发布链路门禁；P0-05 新增 1 例 setup 零污染守卫）；② 244 例、③ 收集 613 例、`not network` 收集 633 例。当日 ③ 首跑暴露 5 处目录迁移后 p1 档既有腐化（`app.py` `/api/docs` 端点 workspace 根硬编码 ×3、前端备份页缺非生产声明 ×1、`test_monitor_stream_no_fabricated_events` 引用迁移前旧路径 ×1），按交付闭环整改计划 `P0-07` 修复后复测 **③ `558 passed / 0 failed`**（380.27s，当时收集 558 例；P0-02/03/04/05/06 新增的 55 例并入后尚未整体复跑 ③）；`p2` 档 `test_custom_output` 旧路径同步修复但未实测，离线全量复跑前不引用「全量 0 failed」；P0-04 遗留边界：`pyproject.toml` [full] 增补 MyTT/akshare-proxy-patch 后 `uv.lock` 未联网重锁（待人工确认）；浏览器矩阵收集 16 例（最近一次人工确认实测仍为 2026-10-08 的 7 passed 记录）。
 
 ---
 
 ## 六、运行方式速查
 
 ```bash
-# ① P0 核心门禁（默认动作；当前 Windows 基线约 80s）
+# ① P0 核心门禁（默认动作；当前 Windows 基线约 100s）
 .venv/bin/python -m pytest -m core
 
 # ② 核心离线极速（剔除子进程/外网/慢）
@@ -265,7 +267,7 @@ A_STOCK_RUN_BROWSER_E2E=1 .venv/bin/python -m pytest -m browser_e2e -q
 在发起 PR 或推送提交前，逐条自检：
 
 - [ ] 是否**先**在对应领域套件更新/新增用例，并观察到红灯？
-- [ ] `pytest -m core` 是否全绿（当前基线 227 passed）？
+- [ ] `pytest -m core` 是否全绿（当前基线 308 passed / 2 skipped，2026-10-15 实测）？
 - [ ] 若改动落在 `p1` 覆盖面，是否已就"追加执行 ③/⑤"征询过确认？
 - [ ] 新用例是否无外网强依赖？若确有，是否已打 `network` 标签？
 - [ ] 是否无同文件重名 `def test_`？（4.1）

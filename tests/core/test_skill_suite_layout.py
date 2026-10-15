@@ -93,8 +93,9 @@ def test_explicit_data_binding_and_development_default_are_preserved(tmp_path):
     assert default_data_root(package, {'A_STOCK_WORKSPACE_ROOT': str(tmp_path/'private')}, 'linux') == tmp_path/'private'
 
 
-@pytest.mark.skipif(__import__("os").environ.get("A_STOCK_NO_BUILD") == "1", reason="User requested no builds, including temporary Release archives")
 def test_release_archive_is_generated_without_private_data_or_source_mutation(tmp_path, monkeypatch):
+    # 2026-10-15（P0-02）：移除 A_STOCK_NO_BUILD=1 可跳过口子——打包归档行为属 P0 门禁，
+    # 不允许环境变量一键静默跳过（skip 不计入 failed，会掩盖发布链路回归）。
     import zipfile
     from tools.packaging import common
     monkeypatch.setattr(common, 'get_log_path', lambda *args: tmp_path/'build.log')

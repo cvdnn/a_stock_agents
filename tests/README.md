@@ -1,6 +1,6 @@
 # A-Stock Agents 测试用例架构与回归测试规范
 
-本目录包含了 A-Stock Agents 项目的**全量功能回归测试套件**（当前收集 Python 564 例 + Node.js 前端 30 脚本）。测试架构与系统工程架构全面对齐，划分为 **量化核心 (`core/`)**、**服务端与智能体 (`server/`)**、**架构与合规门禁 (`governance/`)**、**浏览器验收 (`browser/`)** 以及 **前端交互 (`frontend/`)** 五大领域专属目录。
+本目录包含了 A-Stock Agents 项目的**全量功能回归测试套件**（当前收集 Python 668 例 + Node.js 前端 30 脚本，2026-10-15 实测）。测试架构与系统工程架构全面对齐，划分为 **量化核心 (`core/`)**、**服务端与智能体 (`server/`)**、**架构与合规门禁 (`governance/`)**、**技能脚本自测 (`skills/`)**、**浏览器验收 (`browser/`)** 以及 **前端交互 (`frontend/`)** 六大领域专属目录。
 
 设计原则：**无外部网络强依赖（桩隔离）**、**核心门禁秒级反馈**、**断言必然执行**。
 
@@ -17,15 +17,16 @@ tests/
 ├── conftest.py                   # ★ 分层唯一改动点：档位归属表(_TIER_BY_PATH/_TAGS_BY_PATH/_OVERRIDE_TAGS)
 │                                 #   + 共享基座(app / auth_headers / client / anon_client / isolated_user_pools)
 ├── README.md                     # 本速查文档
-├── core/                         # 【量化算法与核心底座】对应 scripts/core/ — 17 文件 / 182 用例
+├── core/                         # 【量化算法与核心底座 + 发布链路门禁】对应 skill_bundle/runtime/core/ — 24 文件 / 360 用例
 │   ├── test_algo_monitoring.py            # 算法运行时健康度与降级监控
 │   ├── test_algo_registry.py              # 选股算法注册表与动态发现
 │   ├── test_algorithm_optimizations.py    # 算法执行优化与向量化验证
-│   ├── test_commands_suite.py             # 32 个模块化子命令注册、参数解析与 CLI 转发
+│   ├── test_commands_suite.py             # 46 个模块化子命令注册、参数解析与 CLI 转发
 │   ├── test_custom_output.py              # 自定义输出目录隔离与 ASTOCK_OUTPUT_DIR 环境变量
 │   ├── test_data_assembler.py             # 数据装配(§11.3/11.4/11.7)、不可变快照清单与水位门禁
 │   ├── test_data_suite.py                 # QuoteDict 多别名索引、防注入白名单与费率常量 SSOT
 │   ├── test_data_sync.py                  # 行情数据本地化落盘与增量同步引擎
+│   ├── test_development_entrypoints.py    # 开发入口失败退出与退役更新器契约
 │   ├── test_dynamic_universe.py           # 全市场流动性标的动态提取与板块权限控制
 │   ├── test_indicators.py                 # 技术指标计算（MA/MACD/KDJ/RSI/BOLL/ATR）与缺口回补
 │   ├── test_models_suite.py               # 5A 多因子打分、单调趋势评分与缺失维度归一化
@@ -33,13 +34,20 @@ tests/
 │   ├── test_paper_trading_suite.py        # 模拟盘撮合引擎、涨跌停封板拦截与 T+1 状态机
 │   ├── test_pool_schema.py                # 股票池 CSV 字段契约与黑名单过滤规则
 │   ├── test_robust_kline_and_report_html.py # DataBridge 多级降级 K 线与自包含报告生成管道
+│   ├── test_selection_data_and_scheduling.py # ISS 数据与调度：锁/幂等/Latch/覆盖率
+│   ├── test_selection_models.py           # ISS 引擎：Schema/哈希/AST/版本仓库/编排
+│   ├── test_selection_screen_model_cmds.py # ISS 阶段 E CLI：assess/track/evaluate/tune 失败关闭
+│   ├── test_selection_stage_e.py           # ISS 结果研究/跟踪/评价/调优
+│   ├── test_skill_suite_layout.py         # 集合根唯一性、Release 归档与引用生命周期
+│   ├── test_release_delivery_gate.py      # P0-02/03/04/05/06 发布链路门禁：frontmatter/启动器/doctor/run_skill/打包八项/宿主红线/依赖SSOT/隔离解压
 │   ├── test_stock_funnel.py               # 股票漏斗筛选阶段与分钟级时间戳校验
 │   └── test_strategy_suite.py             # 解套决策树、动作引擎真实契约与网格中轴算法
 │
-├── server/                       # 【服务端与智能体交互】对应 scripts/server/ — 17 文件 / 153 用例
+├── server/                       # 【服务端与智能体交互】对应 apps/web-console/backend/server/ — 20 文件 / 195 用例
 │   ├── test_access_and_thought_fix.py     # 前缀推导与思考链提取验证
 │   ├── test_agent_capability_execution.py # 智能体能力分发与执行链路
 │   ├── test_agent_tool_technical_summary.py # 工具返回技术面摘要格式兼容性
+│   ├── test_browser_e2e_security.py       # 浏览器 E2E 契约与收集开关守护
 │   ├── test_cors_security.py              # CORS 跨域白名单与安全策略
 │   ├── test_data_sync_import.py           # 股池导入：预览只校验不落盘、提交尊重既有行
 │   ├── test_data_sync_settings.py         # 数据同步设置：白名单范围校验、持久化与接线披露
@@ -52,6 +60,8 @@ tests/
 │   ├── test_market_data_api.py            # 行情数据 REST API 端点
 │   ├── test_market_data_sync_api.py       # 行情测速、守护控制、通达信导入与任务集成
 │   ├── test_models_mgmt_security.py       # 模型凭证防泄漏与脱敏管理（含 SSRF 桩化 DNS）
+│   ├── test_selection_models_api.py       # ISS 选股 API/权限/SSE/运行隔离
+│   ├── test_selection_stage_e_api.py      # ISS 结果研究/跟踪/评价/调优 API
 │   ├── test_server_suite.py               # Web AIChat 后端数据库、会话与路由全套件
 │   └── test_session_memory.py             # 会话记忆系统与多轮对话隔离
 │
@@ -65,14 +75,18 @@ tests/
 │   ├── test_quality_gates.py              # 算法质量门禁与准入标准
 │   ├── test_security_audit.py             # 静态安全穿透测试与敏感文件保护
 │   ├── test_security_suite.py             # HTML 报告 XSS 防御与 Zip Slip 路径穿越防御
-│   └── test_skill_contracts.py            # 18 项就地技能的输入/输出契约测试
-│
-├── browser/                      # 【真实登录后的系统 Edge 验收】— 1 文件 / 7 用例（显式启用）
+│   └── test_skill_contracts.py            # 19 项就地技能的输入/输出契约测试
+
+├── skills/                       # 【技能脚本级自测】— 2 文件 / 5 用例（随 tests/ 一并收集）
+│   ├── astock-quant-engine/test_quant_engine.py       # 量化因子与流水线脚本自测
+│   └── astock-screener-5a/test_fundamental_filter.py  # 基本面过滤脚本自测
+
+├── browser/                      # 【真实登录后的系统 Edge 验收】— 1 文件 / 16 用例（显式启用）
 │   ├── conftest.py               # 隔离服务、临时身份、出网封锁、脱敏与清理基座
 │   ├── isolated_server.py        # 仅限回环网络的 Uvicorn 启动入口
 │   └── test_authenticated_workspace.py # 三视口、登录生命周期、DOM/截图审计
 │
-└── frontend/                     # 【前端 UI / DOM 仿真与交互】对应 web/ (Node.js) — 30 个独立脚本，不经 pytest 收集
+└── frontend/                     # 【前端 UI / DOM 仿真与交互】对应 apps/web-console/frontend/ (Node.js) — 30 个独立脚本，不经 pytest 收集
     ├── test_at_operator.js                # @操作符浮窗布局、三池叠加排序与退格原子化删除
     ├── test_at_operator_null_safety.js    # @操作符空指针安全防御
     ├── test_chat_presentation.js          # 聊天卡片与交互式时间线渲染
@@ -104,7 +118,7 @@ tests/
     └── test_workspace_markdown_and_guide.js # 引导文档与工作区渲染
 ```
 
-另有技能自带脚本级自测 2 个文件（`.agents/skills/*/scripts/test_*.py`，5 例），由 `testpaths` 一并收集。
+技能自带脚本级自测位于 `tests/skills/`（2 个文件 / 5 例，2026-10-15 起随 `testpaths = ["tests"]` 一并收集；`.agents/skills/` 引用为迁移前旧路径，已废弃）。
 
 ---
 
@@ -123,18 +137,20 @@ tests/
 
 | 档位 | 用例数 | 判定标准 |
 | :--- | ---: | :--- |
-| **`core`** | **227** | **P0 契约门禁**——错了会直接产出假结论或造成资金/安全后果：数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock |
-| `p1` | 291 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
-| `p2` | 47 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
+| **`core`** | **310**（含 2 个平台分支 skip） | **P0 契约门禁**——错了会直接产出假结论或造成资金/安全后果：数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock、**P0-02/03/04/05/06 发布链路（SKILL.md frontmatter / 启动器 / doctor / run_skill / 打包八项行为 / 宿主注册红线与三平台 shim / 依赖声明单一来源 / 三平台隔离解压验收 / setup.sh 零污染守卫）** |
+| `p1` | 303 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
+| `p2` | 55 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
 | :--- | ---: | :--- |
-| `slow` | 94 | 单用例 > 1s（子进程冷启动、全市场扫描、完整辩论流水线） |
+| `slow` | 110 | 单用例 > 1s（子进程冷启动、全市场扫描、完整辩论流水线） |
 | `network` | 35 | 触达真实外网（行情降级重试、实时现价批量） |
-| `subprocess` | 10 | 以子进程执行 CLI/脚本的集成用例 |
-| `e2e` | 26 | 端到端链路（装配 → 规则 → 快照落盘） |
+| `subprocess` | 26 | 以子进程执行 CLI/脚本的集成用例 |
+| `e2e` | 31 | 端到端链路（装配 → 规则 → 快照落盘） |
 | `live` | 18 | 需预先启动真实服务，并显式开启 `A_STOCK_RUN_LIVE_E2E=1` 与 `A_STOCK_SERVER_TOKEN` |
-| `browser_e2e` | 8 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
+| `browser_e2e` | 16 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
+
+> 上表为 2026-10-15 Windows 实测收集数（`--collect-only`）。
 
 ### 2.2 执行顺序与确认门
 
@@ -142,9 +158,9 @@ tests/
 
 | 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
 | :--- | :--- | :--- | ---: | :--- |
-| ① | **P0 核心（必跑）** | `-m core` | 当前 Windows 基线约 80s | 任何代码/测试改动后**无条件先跑**，唯一自动门禁 |
-| ② | 核心离线极速（121 例） | `-m "core and not slow and not network and not subprocess"` | ~12s | ① 失败后定位时可自主使用 |
-| ③ | 核心 + 重要回归（518 例） | `-m "core or p1"` | 介于 ①④ | **需人工确认** |
+| ① | **P0 核心（必跑）** | `-m core` | 当前 Windows 基线约 135s | 任何代码/测试改动后**无条件先跑**，唯一自动门禁 |
+| ② | 核心离线极速（244 例） | `-m "core and not slow and not network and not subprocess"` | ~20s | ① 失败后定位时可自主使用 |
+| ③ | 核心 + 重要回归（558 例） | `-m "core or p1"` | 介于 ①④ | **需人工确认** |
 | ④ | 离线全量 | `-m "not network"` | ~64s | **需人工确认** |
 | ⑤ | 全量串行 | （无参数） | ~68s | **需人工确认** |
 | ⑥ | 全量并行 | `-n 4` | ~40s | **需人工确认**（需 `pytest-xdist`，已列入 `[test]` extras） |
@@ -169,9 +185,10 @@ tests/
 .venv/bin/python -m pytest -m core --durations=20
 ```
 
-> 2026-10-08 当前 Windows 实测：收集 565 例，P0 为 227 passed / 338 deselected（70.91s）；新增的 R0 V-04 浏览器证据用例定向运行 1 passed（29.60s）。此前 564 例基线的 P0+P1 为 518 passed / 46 deselected（201.53s）；下方 430 例/12～68s 数据保留为 2026-10-07 历史基线，不再作为当前数量承诺。
+> 2026-10-15 当前 Windows 实测：收集 668 例，P0 为 308 passed / 2 skipped（平台分支）/ 358 deselected（134.83s，含 P0-02/03/04/05/06 发布链路门禁）；② 244 例、③ 收集 613 例、`not network` 收集 633 例。
+> 2026-10-08 历史实测（564 例 / P0 227 passed / 70.91s；P0+P1 518 passed）与 2026-10-07 基线（430 例 / 12~68s）仅作历史记录，不再作为当前数量承诺。
 > `--strict-markers` 已启用，拼错的标记直接报错而非被静默忽略。
-> **离线全量基线：0 failed**（395 passed · 35 例外网被 deselect · 0 skipped · 0 xfailed）。
+> **2026-10-15 当前基线**：③ `-m "core or p1"` 复测 **553→修复→558 passed / 0 failed**（380.27s，P0-07 修复时点口径；P0-02/03/04/06 新增 54 例发布链路门禁并入 ③ 后收集 612 例，整体复跑待下一轮人工确认）。当日 ③ 首跑暴露 5 处 2026-10-14 目录迁移后的 p1 档既有腐化，已按 [交付闭环整改计划 `P0-07`](../docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md) 修复（`/api/docs` 端点 workspace 根硬编码 ×3、前端备份页缺非生产声明 ×1、测试旧路径 ×1）；`p2` 档 `test_custom_output` 同批修复但未实测，离线全量（`not network`，632 例）复跑前不引用「全量 0 failed」；P0-04 遗留边界：`pyproject.toml` [full] 增补 MyTT/akshare-proxy-patch 后 `uv.lock` 未联网重锁（待人工确认）。
 > 以 `strict` 钉住的 4 个**生产缺陷**（`/api/watchlist` 捏造数据、静态 API Token 分支不可达、
 > `/api/market/indices` 静态指数快照回落、`/api/portfolio/overview` 演示资金与收益）
 > 已于 2026-10-07 全部修复并转为常驻回归用例；同轮新增 AST 数值哨兵
@@ -211,7 +228,7 @@ $env:A_STOCK_RUN_BROWSER_E2E = "1"
 
 收集契约：根 `tests/conftest.py` 对所有带 `browser_e2e` 标记的用例统一执行 `A_STOCK_RUN_BROWSER_E2E=1` 开关，不能依赖具体 fixture 才跳过。新增 `tests/browser/test_*.py` 必须同时在 `_TIER_BY_PATH` 登记为 `p2`，并在 `_TAGS_BY_PATH` 登记 `browser_e2e`、`slow`、`subprocess`；P1 治理用例会扫描并阻止漏登记文件合入。
 
-当前浏览器矩阵收集 7 例：错误密码、非回环阻断、1920×1080/1440×900/1280×720 三视口工作台、刷新与退出撤销、会话过期遮罩。2026-10-08 在取得确认后使用系统 Edge 最终实测 `7 passed, 557 deselected`（63.32s），截图目检通过；此前 2 例冒烟结果已失效。
+当前浏览器矩阵收集 16 例（2026-10-15 实测）：错误密码、非回环阻断、1920×1080/1440×900/1280×720 三视口工作台、刷新与退出撤销、会话过期遮罩。最近一次取得人工确认的系统 Edge 实测为 2026-10-08 的 `7 passed, 557 deselected`（63.32s，当时收集 7 例），此后用例增至 16 例尚未重新实测，不能视为当前验收通过证据。
 
 ---
 

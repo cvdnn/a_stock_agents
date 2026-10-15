@@ -12,7 +12,8 @@ from typing import AsyncIterator, Optional
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from core.config import VERSION, get_logger
+from core.config import VERSION, get_logger, OUTPUT_REPORTS_DIR
+from core.workspace import WORKSPACE_ROOT, ASSETS_ROOT, SKILLS_ROOT
 from server.api import (
     audit_router,
     auth_router,
@@ -343,7 +344,9 @@ def create_app() -> FastAPI:
     # 2.1) 安全只读文档读取接口 (供工作区渲染 .md 交付物与指南)
     @app.get("/api/docs/read", tags=["Documents"])
     async def read_workspace_doc(path: str = Query(..., description="文档相对路径或名称")):
-        workspace_root = Path(__file__).resolve().parent.parent.parent
+        # 2026-10-15 修复：原 Path(__file__).parent×3 在目录迁移后解析为 apps/web-console（源码树），
+        # 现统一经 core.workspace 可写根解析（遵守 AGENTS.md 路径发现契约，禁止固定父目录层数）。
+        workspace_root = WORKSPACE_ROOT
         # 处理 file:// 前缀
         clean_path = path.strip()
         if clean_path.startswith("file://"):
@@ -378,11 +381,11 @@ def create_app() -> FastAPI:
         if not target_file.is_file():
             filename = Path(clean_path).name
             candidates = [
-                workspace_root / "output" / "reports" / filename,
+                OUTPUT_REPORTS_DIR / filename,
                 workspace_root / "reports" / filename,
                 workspace_root / "output" / filename,
                 workspace_root / "docs" / filename,
-                workspace_root / ".agents" / "skills" / "astock-data-feed" / "templates" / filename,
+                ASSETS_ROOT / "templates" / filename,
             ]
             for cand in candidates:
                 if cand.is_file():
@@ -391,10 +394,10 @@ def create_app() -> FastAPI:
 
         # 校验最终命中的文件是否在受信任的文档根目录下
         allowed_dirs = [
-            workspace_root / "output",
+            OUTPUT_REPORTS_DIR,
             workspace_root / "reports",
             workspace_root / "docs",
-            workspace_root / ".agents" / "skills",
+            SKILLS_ROOT,
         ]
         is_in_allowed_dir = False
         for allowed_dir in allowed_dirs:
@@ -433,7 +436,11 @@ def create_app() -> FastAPI:
                 from core.reporting.report_generator import wrap_markdown_as_html_report
                 content = wrap_markdown_as_html_report(content, title=target_file.stem, filename=target_file.name)
 
-            rel_path = target_file.relative_to(workspace_root).as_posix()
+            # A_STOCK_OUTPUT_DIR 重定向（测试/自定义输出）时目标不在 workspace_root 下，回退绝对路径
+            try:
+                rel_path = target_file.relative_to(workspace_root).as_posix()
+            except ValueError:
+                rel_path = target_file.as_posix()
             return {
                 "status": "ok",
                 "path": rel_path,
@@ -450,8 +457,11 @@ def create_app() -> FastAPI:
     # 2.2) 文档保存持久化接口 (供研报交付物自动保存与工作区联动)
     @app.post("/api/docs/save", tags=["Documents"])
     async def save_workspace_doc(req: SaveDocRequest):
-        workspace_root = Path(__file__).resolve().parent.parent.parent
-        reports_dir = (workspace_root / "output" / "reports").resolve()
+        # 2026-10-15 修复：原 Path(__file__).parent×3 解析为 apps/web-console（写源码树）；
+        # workspace 根与 reports 沙箱统一经 core.workspace/core.config 解析，测试态随
+        # A_STOCK_OUTPUT_DIR 重定向到隔离目录，不再写真实 output/。
+        workspace_root = WORKSPACE_ROOT
+        reports_dir = OUTPUT_REPORTS_DIR.resolve()
         reports_dir.mkdir(parents=True, exist_ok=True)
 
         clean_path = req.path.strip()
@@ -461,7 +471,13 @@ def create_app() -> FastAPI:
         clean_p = Path(clean_path)
 
         # 严格防御路径穿越与目录逃逸：拦截包含 .. 或尝试写入受保护系统目录的请求
-        forbidden_prefixes = {"web", "config", "scripts", "tests", ".git", ".agents", ".gemini", "node_modules"}
+        # 2026-10-15 扩充：迁移后布局下 apps/web-console/frontend/index.html 等源码与前端
+        # 静态资产此前可绕过旧前缀集合（"web" 匹配不到 "web-console"），必须整体拦截。
+        forbidden_prefixes = {
+            "apps", "web", "web-console", "frontend", "skill_bundle", "tools",
+            "bin", "docs", "config", "scripts", "tests", ".git", ".agents",
+            ".gemini", "node_modules",
+        }
         if any(part in forbidden_prefixes for part in clean_p.parts) or ".." in clean_p.parts:
             raise HTTPException(status_code=403, detail="Access denied: write operation restricted to reports directory")
 
@@ -493,9 +509,13 @@ def create_app() -> FastAPI:
                 try:
                     existing_text = target_file.read_text(encoding="utf-8")
                     if ("<!DOCTYPE html" in existing_text or "<html" in existing_text) and not is_valid_html:
+                        try:
+                            retained_rel = target_file.relative_to(workspace_root).as_posix()
+                        except ValueError:
+                            retained_rel = target_file.as_posix()
                         return {
                             "status": "ok",
-                            "path": target_file.relative_to(workspace_root).as_posix(),
+                            "path": retained_rel,
                             "filename": target_file.name,
                             "size_bytes": len(existing_text.encode("utf-8")),
                             "notice": "Retained existing genuine HTML report without overwriting with Markdown"
@@ -514,7 +534,11 @@ def create_app() -> FastAPI:
 
         try:
             target_file.write_text(content_to_save, encoding="utf-8")
-            rel_path = target_file.relative_to(workspace_root).as_posix()
+            # A_STOCK_OUTPUT_DIR 重定向时目标不在 workspace_root 下，回退绝对路径
+            try:
+                rel_path = target_file.relative_to(workspace_root).as_posix()
+            except ValueError:
+                rel_path = target_file.as_posix()
             return {
                 "status": "ok",
                 "path": rel_path,

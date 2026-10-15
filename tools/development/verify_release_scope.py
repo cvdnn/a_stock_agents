@@ -1,4 +1,11 @@
-"""Build candidates and verify them outside the development tree."""
+"""Build candidates and verify them outside the development tree.
+
+DEPRECATION NOTICE (2026-10-15, P0-06):
+    本脚本此前包含会修改开发源码树的行为（写入 setup.sh/SKILL.md/.gitignore）。
+    核心隔离构建与解压验收断言已迁移至标准常驻门禁：
+    `tests/core/test_release_delivery_gate.py::test_isolated_extraction_and_doctor_smoke_across_platforms`
+    本脚本现转为只读的候选验证辅助工具，严禁执行源码树覆写。
+"""
 from pathlib import Path
 import hashlib
 import json
@@ -12,28 +19,10 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 def main():
-    # Retire setup scripts that wrote skill-local config or used removed paths.
+    # 2026-10-15 (P0-06): 移除会覆写 setup.sh、SKILL.md、.gitignore 的破坏性逻辑。
+    # 验收断言已由 tests/core/test_release_delivery_gate.py 接管并常驻化。
     archive=ROOT/'log/skill-suite-migration/retired-setup'
     archive.mkdir(parents=True,exist_ok=True)
-    for skill in ('astock-data-feed','astock-platform-evaluate'):
-        path=ROOT/'skill_bundle/skills'/skill/'setup.sh'
-        backup=archive/(skill+'.sh')
-        if not backup.exists():backup.write_bytes(path.read_bytes())
-        path.write_text('''#!/usr/bin/env bash
-set -euo pipefail
-BUNDLE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-while [ ! -f "$BUNDLE_ROOT/bundle.json" ]; do
-  PARENT="$(dirname "$BUNDLE_ROOT")"
-  if [ "$PARENT" = "$BUNDLE_ROOT" ]; then echo "Complete A-Stock bundle required" >&2; exit 1; fi
-  BUNDLE_ROOT="$PARENT"
-done
-PYTHON_EXEC="${A_STOCK_PYTHON:-python3}"
-exec "$PYTHON_EXEC" "$BUNDLE_ROOT/runtime/doctor.py"
-''',encoding='utf-8',newline='\n')
-    doc=ROOT/'skill_bundle/skills/a-stock-agents/SKILL.md'
-    doc.write_text(doc.read_text(encoding='utf-8').replace('宿主强制复制时使用项目显式调用','宿主安装使用完整Release；开发仓库不作为项目发现模式'),encoding='utf-8')
-    ignore=ROOT/'.gitignore'
-    ignore.write_text(ignore.read_text(encoding='utf-8'),encoding='utf-8',newline='\n')
     sys.path.insert(0,str(ROOT))
     from tools.packaging.common import package_project
     records=[]

@@ -105,11 +105,15 @@ class TestCustomOutputIsolation(unittest.TestCase):
         python_exec = sys.executable
 
         def _resolve(rel_path: str) -> str:
+            # 2026-10-15 修正：技能脚本自 skill_bundle 迁移后路径为 skill_bundle/skills/...；
+            # 并对最终候选做存在性 fail-fast，避免静默把不存在路径交给 subprocess。
+            cand = ROOT / rel_path
             if rel_path.startswith("core/"):
-                cand = ROOT / "skill_bundle" / "runtime" / rel_path
-                if cand.exists():
-                    return str(cand)
-            return str(ROOT / rel_path)
+                runtime_cand = ROOT / "skill_bundle" / "runtime" / rel_path
+                if runtime_cand.exists():
+                    cand = runtime_cand
+            assert cand.exists(), f"script missing (skill_suite migration residue?): {cand}"
+            return str(cand)
 
         scripts_to_verify = [
             ("core.cli position list", [python_exec, _resolve("core/cli.py"), "position", "list"], ["000001", "平安银行"]),
@@ -118,13 +122,13 @@ class TestCustomOutputIsolation(unittest.TestCase):
             ("core position_manager list", [python_exec, _resolve("core/strategy/position_manager.py"), "list"], ["000001", "平安银行"]),
             ("core position_stop_monitor", [python_exec, _resolve("core/strategy/position_stop_monitor.py"), "--show"], ["000001", "平安银行"]),
             ("core investment_report selected", [python_exec, _resolve("core/reporting/investment_report.py"), "--pool", "selected"], ["000002", "万科A"]),
-            ("skills pool_manager list", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/pool_manager.py"), "list"], ["000002", "万科A"]),
-            ("skills position_manager list", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/position_manager.py"), "list"], ["000001", "平安银行"]),
-            ("skills sandbox", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/sandbox.py")], ["000001", "平安银行"]),
-            ("skills investment_report selected", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/investment_report.py"), "--pool", "selected"], ["000002", "万科A"]),
-            ("skills position_stop_monitor", [python_exec, _resolve(".agents/skills/astock-pool-dashboard/scripts/position_stop_monitor.py"), "--show"], ["000001", "平安银行"]),
-            ("skills ta_orchestrator check-pool", [python_exec, _resolve(".agents/skills/astock-agent-debate/scripts/ta_orchestrator.py"), "--mode", "check-pool"], ["000002", "万科A"]),
-            ("skills pool_audit", [python_exec, _resolve(".agents/skills/astock-pool-audit/scripts/pool_audit.py")], ["000063", "中兴通讯"]),
+            ("skills pool_manager list", [python_exec, _resolve("skill_bundle/skills/astock-pool-dashboard/scripts/pool_manager.py"), "list"], ["000002", "万科A"]),
+            ("skills position_manager list", [python_exec, _resolve("skill_bundle/skills/astock-pool-dashboard/scripts/position_manager.py"), "list"], ["000001", "平安银行"]),
+            ("skills sandbox", [python_exec, _resolve("skill_bundle/skills/astock-pool-dashboard/scripts/sandbox.py")], ["000001", "平安银行"]),
+            ("skills investment_report selected", [python_exec, _resolve("skill_bundle/skills/astock-pool-dashboard/scripts/investment_report.py"), "--pool", "selected"], ["000002", "万科A"]),
+            ("skills position_stop_monitor", [python_exec, _resolve("skill_bundle/skills/astock-pool-dashboard/scripts/position_stop_monitor.py"), "--show"], ["000001", "平安银行"]),
+            ("skills ta_orchestrator check-pool", [python_exec, _resolve("skill_bundle/skills/astock-agent-debate/scripts/ta_orchestrator.py"), "--mode", "check-pool"], ["000002", "万科A"]),
+            ("skills pool_audit", [python_exec, _resolve("skill_bundle/skills/astock-pool-audit/scripts/pool_audit.py")], ["000063", "中兴通讯"]),
         ]
 
 
@@ -148,7 +152,10 @@ class TestCustomOutputIsolation(unittest.TestCase):
     def test_default_output_untouched(self):
         """Verify that modifying data in custom output directory leaves default project output directory untouched."""
         default_pos = ROOT / "output" / "pools" / "positions.csv"
-        default_content_before = default_pos.read_text(encoding="utf-8") if default_pos.exists() else ""
+        # 2026-10-15 修正（规约三·反空转断言）：此前 default 不存在时断言退化为 ""=="" 静默通过；
+        # 现区分两态——已存在则内容不得被改动；不存在则不得被本次运行创建。
+        existed_before = default_pos.exists()
+        default_content_before = default_pos.read_text(encoding="utf-8") if existed_before else ""
 
         custom_pools = self.test_custom_dir / "pools"
         custom_pools.mkdir(parents=True, exist_ok=True)
@@ -167,9 +174,12 @@ class TestCustomOutputIsolation(unittest.TestCase):
         self.assertTrue(custom_sel.exists())
         self.assertIn("600000", custom_sel.read_text(encoding="utf-8"))
 
-        # Verify default output positions.csv is unmodified
-        default_content_after = default_pos.read_text(encoding="utf-8") if default_pos.exists() else ""
-        self.assertEqual(default_content_before, default_content_after, "Default project output was modified when custom output was active!")
+        # Verify default output positions.csv is unmodified (or still absent if it never existed)
+        if existed_before:
+            default_content_after = default_pos.read_text(encoding="utf-8")
+            self.assertEqual(default_content_before, default_content_after, "Default project output was modified when custom output was active!")
+        else:
+            self.assertFalse(default_pos.exists(), "custom-output run must not create the default positions.csv")
 
 
 if __name__ == "__main__":

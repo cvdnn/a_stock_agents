@@ -3,6 +3,7 @@ from pathlib import Path
 import argparse
 import hashlib
 import json
+import re
 import sys
 import zipfile
 
@@ -11,6 +12,21 @@ sys.path.insert(0,str(ROOT/'skill_bundle/runtime'))
 from core.workspace import PACKAGE_ROOT, OUTPUT_DIR, MANIFEST_PATH, get_log_path
 
 ALLOWED_SUFFIXES={'.py','.md','.json','.yaml','.yml','.html','.css','.js','.txt','.example','.ps1','.cmd','.sh','.svg','.png','.jpg','.jpeg','.woff','.woff2'}
+
+
+def _full_extra_requirements():
+    """Derive the [project.optional-dependencies].full list from pyproject.toml.
+
+    构建期派生物（规范 §3：平台元数据和安装说明由共用构建器派生），
+    不是第二份手工维护的声明——版本约束唯一来源仍是 pyproject.toml。
+    """
+    text=(ROOT/'pyproject.toml').read_text(encoding='utf-8')
+    match=re.search(r'\[project\.optional-dependencies\](.*?)(?=\n\[|\Z)',text,re.S)
+    if match:
+        block=re.search(r'full\s*=\s*\[(.*?)\]',match.group(1),re.S)
+        if block:
+            return re.findall(r'"([^"]+)"',block.group(1))
+    return []
 
 
 def package_project(output_path=None,version_tag='v3',platform='collection'):
@@ -26,7 +42,16 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
                   'runtime':'skill_bundle/runtime','skills':'skill_bundle/skills',
                   'host_scan_status':'unverified',
                   'native_import_verified':False, 'data_root':'OS user data/a_stock_agents or explicit A_STOCK_WORKSPACE_ROOT',
+                  'python_requirement':'3.9+',
+                  'dependency_install':'base: pip install -r requirements.txt; data-source extras (akshare/MyTT/akshare-proxy-patch/efinance): pip install -r requirements-full.txt; version constraints are declared only in pyproject.toml [full] and derived at build time',
+                  'launcher':{'windows':'skill_bundle/runtime/astock.ps1','posix':'skill_bundle/runtime/astock','fallback':'python skill_bundle/runtime/cli.py'},
+                  'health_check':'python skill_bundle/runtime/doctor.py (exit 0 when healthy; 20 skill entries expected)',
                   'notice':'Complete collection candidate. Native host import and skill discovery require separate acceptance. Do not register the development repository.'}
+    full_extra=_full_extra_requirements()
+    requirements_full='\n'.join(
+        ['# Derived from pyproject.toml [project.optional-dependencies].full by tools/packaging/common.py',
+         '# (auto-generated at build time; do not edit; version declarations live only in pyproject.toml)',
+         '-r requirements.txt'] + sorted(full_extra) + [''])
     with zipfile.ZipFile(destination,'w',zipfile.ZIP_DEFLATED) as archive:
         for path in files:
             name=(Path('skill_bundle')/path.relative_to(PACKAGE_ROOT)).as_posix()
@@ -43,6 +68,7 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
             archive.writestr(info,content)
         # Derived installation metadata, never another business rule manifest.
         archive.writestr('INSTALL.json',json.dumps(instructions,ensure_ascii=False,indent=2))
+        archive.writestr('requirements-full.txt',requirements_full)
         archive.write(ROOT/'requirements.txt','requirements.txt')
         archive.write(ROOT/'LICENSE','LICENSE')
         if platform in {'codex','hermes','workbuddy'}:

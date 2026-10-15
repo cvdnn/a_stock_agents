@@ -53,16 +53,20 @@ def test_docs_save_blocks_scripts_and_config_dirs(client: TestClient):
 
 
 def test_docs_save_confines_to_reports_dir(client: TestClient):
-    """Legitimate save requests must strictly write to output/reports/."""
+    """Legitimate save requests must strictly write to output/reports/ (A_STOCK_OUTPUT_DIR-aware)."""
+    # 2026-10-15 修正：端点已改经 core.workspace/core.config 解析 reports 沙箱（测试态随
+    # A_STOCK_OUTPUT_DIR 重定向到隔离目录）；本用例此前用 PROJECT_ROOT 拼断言路径，
+    # 既匹配不上端点实际落点、还会在修复前写真实 output/。改为直接断言沙箱目录。
     filename = "test_sec01_verify_report.html"
     res = client.post(
         "/api/docs/save",
         json={"path": filename, "content": "<!DOCTYPE html><html><body>Report</body></html>", "title": "Test Report"},
     )
     assert res.status_code == 200
-    saved_path = PROJECT_ROOT / res.json()["path"]
+    returned = Path(res.json()["path"])
+    saved_path = returned if returned.is_absolute() else (PROJECT_ROOT / returned)
     assert saved_path.is_file()
-    assert (PROJECT_ROOT / "output" / "reports").resolve() in saved_path.resolve().parents
+    assert saved_path.resolve().parent == OUTPUT_REPORTS_DIR.resolve()
     # Cleanup
     if saved_path.exists():
         saved_path.unlink()

@@ -47,7 +47,10 @@ class TestCommandsSuite(unittest.TestCase):
             "multi-factor", "portfolio-risk", "mean-reversion", "grid",
             "vol-breakout", "action", "intent", "downside", "report",
             "strategy", "quant", "shortline", "tips", "validate-model",
-            "config", "pool", "position", "data", "skill", "trade", "version"
+            "config", "pool", "position", "data", "skill", "trade", "version",
+            # 2026-10-15 补齐：与 build_parser 实际注册的 46 个子命令对齐（此前缺失 8 个）
+            "funnel", "pattern", "chenxiaoqun", "debate", "dataset",
+            "screen-model", "server", "ui"
         ]
 
         registered_commands = set(subparser_action.choices.keys())

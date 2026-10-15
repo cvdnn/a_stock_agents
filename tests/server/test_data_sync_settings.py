@@ -484,7 +484,8 @@ def test_monitor_stream_no_fabricated_events(auth_headers):
         assert data["availability"]["event_feed"] is False
         # 跨层防回归：monitor/stream 端点定义体内不得再内联任何示例盯盘事件与伪造延迟
         # （同文件其他端点的排行榜演示数据由各自整改计划跟踪，不在此断言范围）
-        market_path = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "server", "api", "market_data.py")
+        # 2026-10-15 修正：scripts/server/ 为迁移前旧布局，现位于 apps/web-console/backend/server/。
+        market_path = os.path.join(os.path.dirname(__file__), "..", "..", "apps", "web-console", "backend", "server", "api", "market_data.py")
         with open(market_path, encoding="utf-8") as fh:
             market_source = fh.read()
         start = market_source.index("async def get_monitor_stream")

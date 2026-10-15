@@ -62,6 +62,7 @@ for p in [ROOT, SCRIPTS, ROOT / "apps/web-console/backend", SCRIPTS / "core"]:
 _TIER_BY_PATH = {
     "tests/core/test_development_entrypoints.py": "core",  # development failure and retired updater contracts
     "tests/core/test_skill_suite_layout.py": "core",   # unique bundle roots and reference lifecycle
+    "tests/core/test_release_delivery_gate.py": "core",  # P0-02: Release 交付链路门禁（frontmatter/启动器/doctor/打包）
     # --- P0：量化底座与数据可信性契约（错了会直接产出假结论）---
     "tests/core/test_data_assembler.py": "core",       # 快照装配 + 水位门禁 + 字段状态
     "tests/core/test_stock_funnel.py": "core",         # 漏斗规则与分钟时间戳归一
@@ -116,6 +117,10 @@ _TIER_BY_PATH = {
     "tests/server/test_llm_stream_chunk_usage.py": "p2",
     "tests/governance/test_docs_suite.py": "p2",
     "tests/browser/test_authenticated_workspace.py": "p2",
+    # --- P2：显式登记（与未登记兜底 p2 等价，消除漏登记状态；2026-10-15 补齐） ---
+    "tests/server/test_live_server_e2e.py": "p2",
+    "tests/skills/astock-quant-engine/test_quant_engine.py": "p2",
+    "tests/skills/astock-screener-5a/test_fundamental_filter.py": "p2",
 }
 
 # 能力标签：标注真实耗时来源与外部依赖，供 `-m "not slow and not network"` 精准剔除。
@@ -123,6 +128,7 @@ _TAGS_BY_PATH = {
     # 子进程 CLI 冷启动（Python + pandas 导入），并行化后仍是秒级起步
     "tests/core/test_custom_output.py": {"subprocess", "slow"},
     "tests/core/test_commands_suite.py": {"subprocess"},
+    "tests/core/test_release_delivery_gate.py": {"subprocess", "slow"},  # P0-02: 启动器/doctor/打包子进程
     # 真实全市场扫描 / 完整辩论流水线
     "tests/server/test_agent_capability_execution.py": {"slow"},
     "tests/server/test_debate_and_quant_tools.py": {"slow"},

@@ -113,8 +113,8 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 
 | 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
 | :--- | :--- | :--- | ---: | :--- |
-| ① | **P0 核心（227 例）** | `.venv/bin/python -m pytest -m core` | 当前 Windows 基线约 80s | 无条件先跑，唯一自动门禁 |
-| ② | 核心离线极速 | `.venv/bin/python -m pytest -m "core and not slow and not network and not subprocess"` | ~12s | ① 失败定位时可自主使用 |
+| ① | **P0 核心（310 例，含 2 个平台分支 skip）** | `.venv/bin/python -m pytest -m core` | 当前 Windows 基线约 135s | 无条件先跑，唯一自动门禁 |
+| ② | 核心离线极速（244 例） | `.venv/bin/python -m pytest -m "core and not slow and not network and not subprocess"` | ~20s | ① 失败定位时可自主使用 |
 | ③~⑨ | `core or p1` / `not network` / 全量 / `-n 4` / `network` / `live` / `browser_e2e` | 见测试指南 3.2 | 40~68s 或视环境 | **必须先取得人工确认** |
 
 **硬约束（智能体必须遵守）：**
@@ -123,7 +123,7 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 2. **先征询再扩展**：确需跑 ③~⑨ 时，必须先说明「为什么核心门禁不足以覆盖本次改动」「预计耗时」「是否会触网或写盘」，得到确认后才执行。
 3. **门禁绿 ≠ 可交付**：改动落在 `p1` 覆盖面（服务端 API、设置接线、技能契约）时，须在结论中明确"建议追加执行 ③"，把决策权交回用户，既不自作主张跳过、也不自作主张全跑。
 4. **失败即止**：① 出现失败立刻停止并报告，不得用"全量里别的也挂了"稀释定位。
-5. **基线是 0 failed**（离线全量 `-m "not network"` 395 passed，430 例中 35 例需真实外网被排除）。曾以 `xfail(strict=True)` 登记的 2 个生产缺陷（`/api/watchlist` 捏造数据、静态 API Token 分支不可达）连同复查出的 2 个同源残留（`/api/market/indices` 静态指数快照回落、`/api/portfolio/overview` 演示资金与收益）已于 2026-10-07 全部修复并转为常驻回归用例，并由 AST 级数值哨兵 `test_market_projection_has_no_hardcoded_market_values` 防止写死行情/账户数值回流；新暴露的生产缺陷仍须先以 `xfail(strict=True)` 建档，禁止为了让看板变绿而删除/放宽断言或改测试迁就实现。
+5. **基线是 0 failed**（2026-10-15 实测：收集 668 例，`-m core` 308 passed / 2 skipped（平台分支）/ 358 deselected / 134.83s——含 P0-02/P0-03/P0-04/P0-05/P0-06 新增的 53 例发布链路门禁（frontmatter/启动器/doctor/打包八项行为/宿主注册红线与三平台 shim/依赖声明单一来源/三平台隔离解压验收/安装脚本零污染守卫）；③ `-m "core or p1"` 最近一次实测为 **558 passed / 0 failed**（P0-07 修复时点口径，当时收集 558 例），当前 ③ 收集 613 例未复跑。当日过程：③ 首跑暴露 5 处目录迁移后的 p1 档既有腐化（`app.py` `/api/docs` 端点 workspace 根硬编码 ×3、前端备份页缺非生产声明 ×1、测试引用迁移前旧路径 ×1），已按 `P0-07` 修复完毕并复测归零；`p2` 档含 `test_custom_output` 旧路径同步修复但未纳入本轮实测，离线全量 `not network` 复跑前不得引用「全量 0 failed」。P0-04 依赖收敛遗留边界：`pyproject.toml` [full] 增补 MyTT/akshare-proxy-patch 并统一 akshare 口径后，**uv.lock 尚未联网重锁**（`uv lock` 待人工确认后执行），锁与声明暂不同步。曾以 `xfail(strict=True)` 登记的 2 个生产缺陷（`/api/watchlist` 捏造数据、静态 API Token 分支不可达）连同复查出的 2 个同源残留（`/api/market/indices` 静态指数快照回落、`/api/portfolio/overview` 演示资金与收益）已于 2026-10-07 全部修复并转为常驻回归用例，并由 AST 级数值哨兵 `test_market_projection_has_no_hardcoded_market_values` 防止写死行情/账户数值回流；新暴露的生产缺陷仍须先以 `xfail(strict=True)` 建档，禁止为了让看板变绿而删除/放宽断言或改测试迁就实现。
 
 **用例编写铁律（详见指南第四章，Review 逐条对照）：**
 断言必须必然执行（禁 `if 条件: assert`）；同文件禁重名 `def test_`（会静默覆盖）；HTTP 用例必须走 `client`/`anon_client`（裸建 TestClient 恒 401）；禁写 `output/`、`local/`、`cache/` 真实目录（用 `isolated_user_pools`/`tmp_path`）；外网与 DNS 必须桩化，确需保留则打 `network` 标签；昂贵流水线用 module fixture 只跑一次。

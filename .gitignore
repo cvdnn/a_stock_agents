@@ -30,10 +30,12 @@ htmlcov/
 # 注意：整体忽略目录（output/）会使后续 !negation 失效 —— Git 无法重新纳入被忽略
 # 目录内部的条目。故必须先忽略全部内容，再用 !dir/**/ 重新纳入目录本身，
 # 占位文件（.gitkeep / .example）的 negation 才会生效，克隆后才能还原目录结构。
-output/**
-!output/**/
-!output/**/.gitkeep
-!output/**/*.example
+# 2026-10-15 锚定仓库根（前导 /）：未锚定时该模式会命中任意层级同名目录（如
+# apps/web-console/output/），使端点误写源码树的残留文件被静默忽略。
+/output/**
+!/output/**/
+!/output/**/.gitkeep
+!/output/**/*.example
 
 # System-wide local shared data (market data, server db, caches)
 local/

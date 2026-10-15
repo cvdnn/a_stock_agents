@@ -210,7 +210,10 @@ def test_selection_workbench_is_fail_closed_not_fabricated() -> None:
     assert 'js/smart_selection.js' in index_html
 
     # 结构断言 1：静态层可见文本不得含任何数字（点位/条数/页数/评分/涨跌幅只能来自接口）
-    visible = re.sub(r"<[^>]+>", " ", pane)
+    # 2026-10-15 语义修正：先剥离 <select>…</select> 控件块——分页大小（10/20/50 条/页）是
+    # 合法 UI 配置项而非「伪造数据展示」，不属于本断言红线；此前将其误判为残留伪造数值。
+    pane_without_controls = re.sub(r"<select[\s\S]*?</select>", " ", pane)
+    visible = re.sub(r"<[^>]+>", " ", pane_without_controls)
     digits = re.findall(r"\d[\d,.]*", visible)
     assert not digits, f"pane-intelligent_selection 静态层残留伪造数值: {digits}"
 

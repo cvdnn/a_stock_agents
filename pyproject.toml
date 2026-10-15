@@ -24,9 +24,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# 2026-10-15（P0-04 SSOT 收敛）：MyTT / akshare-proxy-patch 原先仅由
+# skill_bundle/skills/astock-data-feed/requirements.txt 手写声明（core 运行时
+# fetch_technical.py 硬依赖 MyTT），akshare 版本口径与技能清单冲突（>=1.12 vs
+# >=1.18）。现统一收敛至本处——全仓依赖版本声明唯一来源；技能级清单改为 -r 引用。
 full = [
-    "akshare>=1.12.0",
+    "akshare>=1.18.0",
     "efinance>=0.5.0",
+    "MyTT>=2.9.0",
+    "akshare-proxy-patch>=0.5.0",
 ]
 test = [
     "pytest>=7.0.0",
@@ -48,7 +54,7 @@ include = ["core*", "server*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["skill_bundle/runtime", "apps/web-console/backend", "."]
-testpaths = ["tests", "skill_bundle/skills"]
+testpaths = ["tests"]  # tests/ 下已含 tests/skills 技能自测；不收录 skill_bundle/skills（无 test_*.py，死条目已移除 2026-10-15）
 # 用例分层：core=P0 核心契约门禁, p1=P1 重要回归, p2=P2 补充边界
 # 能力标签：slow(>1s)/network(真实外网)/subprocess(子进程 CLI)/e2e(端到端)/ui(Node 前端)
 # strict_markers 杜绝拼写错误的标记被静默忽略（历史上 e2e 曾被误写成 endtoend）

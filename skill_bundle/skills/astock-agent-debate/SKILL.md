@@ -72,48 +72,38 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 ## 前置条件
 
-### 1. 多智能体辩论框架 安装
+### 1. 运行环境与 LLM 凭据配置
 
+本技能遵循 A-Stock Agents **零宿主污染** 原则，不需要向宿主全局环境执行外部克隆或安装。
+
+- **隔离 Python 环境**：确保项目 `.venv` 已创建并就绪；
+- **私有凭据配置**：在 `local/settings/.env`（推荐）中配置大模型供应商 API Key，严禁写入代码目录或公共共享目录：
 ```bash
-# 克隆到本地
-git clone https://github.com/simonlin1212/多智能体辩论框架.git
-cd 多智能体辩论框架
-pip install -e .
-
-# 配置 LLM API Key (.env 文件)
-cat > .env << 'EOF'
-# 推荐 MiniMax（国内直连，性价比高）
+# MiniMax（国内直连）
 MINIMAX_API_KEY=sk-xxx
 # 或 DeepSeek
 DEEPSEEK_API_KEY=sk-xxx
-EOF
-
-# 验证
-python3 -c "from tradingagents.graph.trading_graph import 多智能体分析引擎Graph; print('OK')"
+# 或通义千问 / 智谱
+DASHSCOPE_API_KEY=sk-xxx
+ZHIPU_API_KEY=sk-xxx
 ```
 
 ### 2. 前置数据与引擎就绪
 
-| 技能 | 用途 | 安装状态 |
+| 技能 | 用途 | 调用命令 |
 |------|------|---------|
-| `a-share-data` | 数据层（4层降级） | ✅ 已验证 |
-| `a-share-paper-trading` | 模拟盘交易服务 | ✅ 已验证 |
-| `trading-combo` | 量化评分（可选验证） | ✅ 已就绪 |
-| `macd-trend-resonance-stock-picker` | 技术评分（可选验证） | ✅ 已就绪 |
+| `astock-data-feed` | 数据层（4层降级） | `astock data quote <代码> --json` |
+| `astock-trade-paper` | 模拟盘交易服务 | `astock trade balance --json` |
+| `astock-screener-5a` | 量化评分与选股 | `astock screen --json` |
+| `astock-strategy-macd` | 技术形态与趋势 | `astock pattern macd <代码> --json` |
 
-### 3. 路径约定
+### 3. 执行入口
 
-本 skill 在脚本中自动检测以下路径（优先级从高到低）：
-
-```python
-_TA_PATHS = [
-    "./core/multi_agent/_original_src",  # 完整管道（agents/graph/llm_clients）
-    "./core/multi_agent",                # 根项目（仅 dataflows/ 时不可用）
-    "$PROJECT_ROOT/temp/vendor/TradingAgents-astock",       # 项目内临时依赖目录
-]
+统一通过 CLI 驱动：
+```bash
+# 统一 CLI 入口（推荐）
+astock debate <代码> --json
 ```
-
-> ⚠️ `_original_src` 优先级高于 `多智能体分析引擎` 根目录，因为它包含完整的 `agents/graph/llm_clients` 模块。根目录可能只有 `dataflows/` 子模块，无法运行 Phase 2。
 
 ## 核心工作流
 
@@ -328,7 +318,7 @@ $VENV_PY $SKILL_DIR/scripts/ta_analyze.py --batch stocks.txt \
 | 脚本 | 用途 |
 |------|------|
 | `scripts/ta_analyze.py` | 主入口：协调 3 阶段管道 |
-| `scripts/setup.sh` | 安装脚本：拉 TA 依赖、配置 .env |
+| `scripts/setup.sh` | 只读环境自检、引导配置 LLM 凭据（无安装/联网副作用） |
 
 ## 模板参考
 
