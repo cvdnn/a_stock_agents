@@ -1,0 +1,292 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "A-Stock Agents 生产结构总览",
+    "locale": "zh-CN",
+    "output": ".archify/architecture-project-structure-20261015-122542/project-production-structure.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@gitee.com:cvdnn/a_stock_agents.git",
+      "link_mode": "local-only",
+      "revision": "4291ee29578a7ba40f94fa0df447edb5da9003cc"
+    }
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Web 工作台前端",
+      "sublabel": "index.html · api.js",
+      "pos": [40, 40],
+      "size": [170, 64],
+      "sources": [{ "path": "apps/web-console/backend/server/app.py", "line": 323, "end_line": 341, "label": "静态挂载 /ui 与首页" }]
+    },
+    {
+      "id": "web_api",
+      "type": "security",
+      "label": "FastAPI 网关",
+      "sublabel": ":6300 · 会话 Token",
+      "pos": [290, 40],
+      "size": [170, 64],
+      "sources": [
+        { "path": "apps/web-console/backend/server/app.py", "line": 244, "end_line": 305, "label": "鉴权中间件 fail-closed" },
+        { "path": "apps/web-console/backend/server/app.py", "line": 307, "end_line": 321, "label": "13 个 API 路由注册" }
+      ]
+    },
+    {
+      "id": "agent_runtime",
+      "type": "backend",
+      "label": "ReAct 运行时",
+      "sublabel": "AgentEvent · SSE 流式",
+      "pos": [540, 40],
+      "size": [170, 64],
+      "sources": [
+        { "path": "apps/web-console/backend/server/api/chat.py", "line": 16, "end_line": 32, "label": "completions/stream 入口" },
+        { "path": "apps/web-console/backend/server/agent/react_runner.py", "line": 14, "end_line": 38, "label": "编排治理·工具·LLM·会话库" },
+        { "path": "apps/web-console/backend/server/agent/tools.py", "line": 1, "end_line": 2, "label": "薄转发 core.execution.tools" }
+      ]
+    },
+    {
+      "id": "llm_factory",
+      "type": "backend",
+      "label": "LLM 供应商工厂",
+      "sublabel": "core/llm · 禁隐式 Mock",
+      "pos": [790, 40],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/llm/factory.py", "line": 24, "end_line": 47, "label": "按角色与供应商解析实例" },
+        { "path": "skill_bundle/runtime/core/execution/settings.py", "line": 90, "end_line": 102, "label": "production 不推断 Mock" }
+      ]
+    },
+    {
+      "id": "ext_llm",
+      "type": "external",
+      "label": "模型供应商 API",
+      "sublabel": "DeepSeek · OpenAI · Ollama",
+      "pos": [1040, 40],
+      "size": [170, 64],
+      "sources": [{ "path": "skill_bundle/runtime/core/execution/settings.py", "line": 42, "end_line": 51, "label": "供应商密钥与 Base URL" }]
+    },
+    {
+      "id": "app_db",
+      "type": "database",
+      "label": "会话与治理库",
+      "sublabel": "local/server/chats.db",
+      "pos": [290, 180],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/execution/settings.py", "line": 14, "end_line": 17, "label": "DEFAULT_DB_PATH" },
+        { "path": "skill_bundle/runtime/core/governance/auditor.py", "line": 34, "end_line": 45, "label": "技能调用审计落库" }
+      ]
+    },
+    {
+      "id": "skill_registry",
+      "type": "security",
+      "label": "技能治理中心",
+      "sublabel": "19 技能 · 超时熔断",
+      "pos": [540, 180],
+      "size": [170, 64],
+      "sources": [{ "path": "skill_bundle/runtime/core/governance/skill_registry.py", "line": 1, "end_line": 21, "label": "manifest 加载与安全门禁" }]
+    },
+    {
+      "id": "skill_executor",
+      "type": "backend",
+      "label": "工具执行分发",
+      "sublabel": "TOOLS_DEFINITIONS",
+      "pos": [790, 180],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/execution/tools.py", "line": 1, "end_line": 20, "label": "工具桥接内核导入" },
+        { "path": "skill_bundle/runtime/core/execution/tools.py", "line": 32, "end_line": 49, "label": "function-calling 契约" }
+      ]
+    },
+    {
+      "id": "data_layer",
+      "type": "backend",
+      "label": "行情数据桥接",
+      "sublabel": "4 级降级 · 本地缓存",
+      "pos": [1040, 180],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/data/data_bridge.py", "line": 180, "label": "DataBridge" },
+        { "path": "skill_bundle/runtime/core/data/fetch_realtime.py", "line": 61, "end_line": 74, "label": "多源接口与降级" },
+        { "path": "skill_bundle/runtime/core/data/sync_engine.py", "line": 777, "end_line": 778, "label": "定盘数据写入本地缓存" }
+      ]
+    },
+    {
+      "id": "ext_data",
+      "type": "external",
+      "label": "外部行情接口",
+      "sublabel": "腾讯 · 新浪 · akshare",
+      "pos": [1290, 180],
+      "size": [170, 64],
+      "sources": [{ "path": "skill_bundle/runtime/core/data/fetch_realtime.py", "line": 65, "end_line": 74, "label": "上游 URL 清单" }]
+    },
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "操作员与脚本",
+      "sublabel": "PowerShell · cron",
+      "pos": [40, 320],
+      "size": [170, 64],
+      "sources": [{ "path": "bin/astock.ps1", "line": 1, "end_line": 2, "label": "Windows 统一入口" }]
+    },
+    {
+      "id": "launcher",
+      "type": "backend",
+      "label": "astock 启动器",
+      "sublabel": "bin → runtime 入口",
+      "pos": [290, 320],
+      "size": [170, 64],
+      "sources": [
+        { "path": "bin/astock.ps1", "line": 1, "end_line": 2, "label": "转发到 bundle 内入口" },
+        { "path": "skill_bundle/runtime/cli.py", "line": 1, "end_line": 5, "label": "bootstrap + core.cli.main" }
+      ]
+    },
+    {
+      "id": "unified_cli",
+      "type": "backend",
+      "label": "统一 CLI 路由",
+      "sublabel": "astock 子命令 --json",
+      "pos": [540, 320],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/cli.py", "line": 128, "end_line": 137, "label": "--json 公共参数" },
+        { "path": "skill_bundle/runtime/core/cli.py", "line": 609, "end_line": 620, "label": "子命令路由表" }
+      ]
+    },
+    {
+      "id": "commands",
+      "type": "backend",
+      "label": "子命令模块",
+      "sublabel": "core/commands",
+      "pos": [790, 320],
+      "size": [170, 64],
+      "sources": [{ "path": "skill_bundle/runtime/core/cli.py", "line": 33, "end_line": 79, "label": "命令模块装配" }]
+    },
+    {
+      "id": "quant_engine",
+      "type": "backend",
+      "label": "量化与风控引擎",
+      "sublabel": "因子 · 形态 · 保本精算",
+      "pos": [540, 460],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/config.py", "line": 64, "end_line": 78, "label": "税费与止损阈值 SSOT" },
+        { "path": "skill_bundle/runtime/core/execution/tools.py", "line": 14, "end_line": 19, "label": "打分/动作单/风控引擎" }
+      ]
+    },
+    {
+      "id": "selection_engine",
+      "type": "backend",
+      "label": "选股调度与漏斗",
+      "sublabel": "Tick · 日历 · 运行锁",
+      "pos": [790, 460],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/selection_models/scheduler.py", "line": 1, "end_line": 19, "label": "调度契约与失败关闭" },
+        { "path": "skill_bundle/runtime/core/selection_models/scheduler.py", "line": 35, "end_line": 43, "label": "漏斗引擎与本地库" }
+      ]
+    },
+    {
+      "id": "paper_service",
+      "type": "backend",
+      "label": "模拟盘撮合服务",
+      "sublabel": "独立进程 :18765",
+      "pos": [1040, 460],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/paper_trading/paper_trading_service.py", "line": 18, "end_line": 31, "label": "服务启动与撮合循环" },
+        { "path": "skill_bundle/runtime/core/paper_trading/paper_trading_runtime.py", "line": 9, "end_line": 32, "label": "默认端口与数据归属" }
+      ]
+    },
+    {
+      "id": "log_dir",
+      "type": "database",
+      "label": "log 观测区",
+      "sublabel": "log/模块/日期.log",
+      "pos": [540, 600],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/config.py", "line": 41, "end_line": 49, "label": "日志双通道落盘" },
+        { "path": "skill_bundle/runtime/core/workspace.py", "line": 93, "end_line": 98, "label": "get_log_path 归档规则" }
+      ]
+    },
+    {
+      "id": "output_dir",
+      "type": "database",
+      "label": "output 交付区",
+      "sublabel": "pools · reports",
+      "pos": [790, 600],
+      "size": [170, 64],
+      "sources": [
+        { "path": "skill_bundle/runtime/core/config.py", "line": 250, "end_line": 251, "label": "交付目录强制创建" },
+        { "path": "skill_bundle/runtime/core/cli.py", "line": 449, "end_line": 453, "label": "运行快照与选股归档路径" }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "skill_bundle 能力内核（代码根 · 只读）",
+      "wraps": ["skill_registry", "skill_executor", "data_layer", "unified_cli", "commands", "quant_engine", "selection_engine", "paper_service"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "WORKSPACE_ROOT 可写数据根",
+      "wraps": ["log_dir", "output_dir"],
+      "pad": 14
+    }
+  ],
+  "connections": [
+    { "from": "browser", "to": "web_api", "label": "SSE", "variant": "emphasis" },
+    { "from": "web_api", "to": "agent_runtime", "label": "会话", "variant": "emphasis" },
+    { "from": "web_api", "to": "app_db", "label": "凭据" },
+    { "from": "agent_runtime", "to": "llm_factory", "label": "取模" },
+    { "from": "llm_factory", "to": "ext_llm", "label": "HTTPS", "variant": "security" },
+    { "from": "agent_runtime", "to": "skill_registry", "label": "门禁", "variant": "security" },
+    { "from": "skill_registry", "to": "skill_executor", "label": "校验" },
+    { "from": "skill_registry", "to": "app_db", "label": "审计" },
+    { "from": "skill_executor", "to": "data_layer", "label": "取数" },
+    { "from": "data_layer", "to": "ext_data", "label": "HTTP", "variant": "dashed" },
+    { "from": "operator", "to": "launcher", "label": "命令行" },
+    { "from": "launcher", "to": "unified_cli", "label": "委派" },
+    { "from": "unified_cli", "to": "commands", "label": "路由" },
+    { "from": "unified_cli", "to": "quant_engine", "label": "计算" },
+    { "from": "commands", "to": "selection_engine", "label": "选股" },
+    { "from": "commands", "to": "paper_service", "label": "交易", "fromSide": "right", "toSide": "top" },
+    { "from": "quant_engine", "to": "log_dir", "label": "日志", "variant": "dashed" },
+    { "from": "selection_engine", "to": "output_dir", "label": "落盘" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "双宿主共用同一内核",
+      "items": [
+        "Web 侧 server.agent.tools、server.llm、server.tasks 只是 core.* 的薄转发，不复制算法",
+        "外部 AI 宿主经 Skill Release 引用 skill_bundle/skills，开发源码不作为发现入口",
+        "技能 CLI 不需要启动 FastAPI，宿主也能独立完成受支持任务"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "三桶落盘纪律",
+      "items": [
+        "output/ 是用户交付物唯一落盘区，被 .gitignore 与 Release 打包强制排除",
+        "log/ 按模块与日期分文件沉淀运行观测；temp/ 只放可重建中间产物",
+        "local/ 存有效配置与本地行情库（settings · market_data · server/chats.db）"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "门禁与守护边界",
+      "items": [
+        "正式路径禁止 Mock 与硬编码行情，未接通能力返回结构化 unavailable",
+        "FastAPI 进程内盘后定盘巡检与独立 CLI 守护进程是两个互不控制的主体",
+        "选股调度按交易日历门控、同分钟幂等键与排他运行锁，缺数据返回 WAITING_DATA"
+      ]
+    }
+  ]
+}

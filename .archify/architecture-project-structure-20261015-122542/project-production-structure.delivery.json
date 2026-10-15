@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "29765548-a9d2-4460-a91c-fefaa40caa66",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\candidate.json",
+  "output": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+  "specification": {
+    "sha256": "b33b667bbdb453212c486ddc2096d9727428f739c0d435905a9e16ada9036d80",
+    "bytes": 15289
+  },
+  "artifact": {
+    "sha256": "1596e96a16e2dc16063072759f6dfcbe091c39ceedfa6cad73fbdddad3415992",
+    "bytes": 850059
+  }
+}

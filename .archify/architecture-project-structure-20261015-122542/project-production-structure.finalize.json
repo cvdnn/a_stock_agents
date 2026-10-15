@@ -1,0 +1,384 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-10-15T06:34:32.817Z",
+  "specification": {
+    "path": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\candidate.json",
+    "sha256": "b33b667bbdb453212c486ddc2096d9727428f739c0d435905a9e16ada9036d80",
+    "bytes": 15289
+  },
+  "artifact": {
+    "path": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+    "sha256": "1596e96a16e2dc16063072759f6dfcbe091c39ceedfa6cad73fbdddad3415992",
+    "bytes": 850059
+  },
+  "stages": {
+    "validate": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": null,
+      "execution": "embedded-in-deliver",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Users\\cvdnn\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "deliver",
+        "architecture",
+        "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\candidate.json",
+        "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "c:\\Users\\cvdnn\\coding\\a_stock_agents\\temp\\archify-evidence-repo",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "validate",
+        "specification": {
+          "sha256": "b33b667bbdb453212c486ddc2096d9727428f739c0d435905a9e16ada9036d80",
+          "bytes": 15289
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        }
+      }
+    },
+    "deliver": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 9237,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Users\\cvdnn\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "deliver",
+        "architecture",
+        "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\candidate.json",
+        "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "c:\\Users\\cvdnn\\coding\\a_stock_agents\\temp\\archify-evidence-repo",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "receiptId": "29765548-a9d2-4460-a91c-fefaa40caa66",
+        "ok": true,
+        "command": "deliver",
+        "type": "architecture",
+        "input": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\candidate.json",
+        "output": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+        "specification": {
+          "sha256": "b33b667bbdb453212c486ddc2096d9727428f739c0d435905a9e16ada9036d80",
+          "bytes": 15289
+        },
+        "artifact": {
+          "sha256": "1596e96a16e2dc16063072759f6dfcbe091c39ceedfa6cad73fbdddad3415992",
+          "bytes": 850059
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        },
+        "evidence": {
+          "verified": true,
+          "repository": "git@gitee.com:cvdnn/a_stock_agents",
+          "revision": "4291ee29578a7ba40f94fa0df447edb5da9003cc",
+          "references": 34,
+          "linkMode": "local-only"
+        },
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      }
+    },
+    "check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1299,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Users\\cvdnn\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "check",
+        "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+        "--require-provenance"
+      ],
+      "receipt": {
+        "ok": true,
+        "file": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+        "artifact": {
+          "sha256": "1596e96a16e2dc16063072759f6dfcbe091c39ceedfa6cad73fbdddad3415992",
+          "bytes": 850059
+        },
+        "checks": [
+          {
+            "name": "single_svg",
+            "ok": true,
+            "details": [
+              "found 1 <svg> block(s)"
+            ]
+          },
+          {
+            "name": "finite_svg",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "orthogonal_arrows",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "label_route_clearance",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_crossings",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_corridors",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "container_border_runs",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "route_rhythm",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "legend_clearance",
+            "ok": true,
+            "details": []
+          }
+        ],
+        "composition": {
+          "schemaVersion": 1,
+          "profile": "showcase",
+          "status": "pass",
+          "summary": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "metrics": {
+            "properCrossings": 0,
+            "resolvedCrossovers": 0,
+            "ambiguousCorridors": 0,
+            "arrowheadCollisions": 0,
+            "containerBorderRuns": 0,
+            "labelRouteClearanceIssues": 0,
+            "labelCanvasOverflowIssues": 0,
+            "minLabelRouteClearance": 79.8,
+            "desktopReadabilityIssues": 0,
+            "viewportHeightIssues": 0,
+            "minProjectedNodeTextPx": 7.1786666666666665,
+            "maxBends": 1,
+            "routesOverSuggestedBends": 0,
+            "maxStretch": 1,
+            "routesOverSuggestedStretch": 0,
+            "minSegmentPx": 76,
+            "minInteriorSegmentPx": null,
+            "shortSegmentCount": 0,
+            "shortEndpointSegmentCount": 0,
+            "shortInteriorSegmentCount": 0,
+            "microSegmentCount": 0
+          },
+          "suggestedLimits": {
+            "bendsPerRelationship": 2,
+            "stretch": 1.35,
+            "segmentPx": 16,
+            "microSegmentPx": 8
+          },
+          "routeReview": {
+            "crossings": [],
+            "detours": []
+          },
+          "leadingSpace": {
+            "measured": true,
+            "emptyTopPx": 40,
+            "emptyTopRatio": 0.053,
+            "occupiedTop": 40,
+            "viewBoxTop": 0,
+            "canvasHeight": 752,
+            "typicalNodeHeight": 64,
+            "reviewSuggested": false
+          },
+          "desktopReadability": {
+            "budgetBasis": "recognized-declared-wide",
+            "readerContract": "declared-wide-v1",
+            "availableDiagramWidth": 1346,
+            "actualBudgetPx": 1346,
+            "actualReaderWidth": 1376,
+            "desiredReaderWidth": 1436.25,
+            "viewportCap": 1376,
+            "limit": "viewport-cap",
+            "requestedTargetPx": 7.5,
+            "requestedTargetMet": false,
+            "hardFloorPx": 6,
+            "hardFloorMet": true,
+            "minimumOwner": {
+              "kind": "edge",
+              "id": null,
+              "from": "browser",
+              "to": "web_api"
+            },
+            "minimumSourceTextPx": 8,
+            "minimumProjectedTextPx": 7.1786666666666665,
+            "semanticTextCount": 58
+          },
+          "issues": []
+        },
+        "provenance": "current",
+        "deliveryReceiptId": "29765548-a9d2-4460-a91c-fefaa40caa66"
+      }
+    },
+    "browser-check": {
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 21473,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Users\\cvdnn\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "browser-check",
+        "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+        "--json",
+        "--require-provenance"
+      ],
+      "execution": "in-process",
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "browser-check",
+        "evidenceKind": "automated-browser",
+        "status": "fail",
+        "visualReview": "not-requested",
+        "provenance": "current",
+        "deliveryReceiptId": "29765548-a9d2-4460-a91c-fefaa40caa66",
+        "artifact": {
+          "path": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html",
+          "sha256": "1596e96a16e2dc16063072759f6dfcbe091c39ceedfa6cad73fbdddad3415992",
+          "bytes": 850059
+        },
+        "state": {
+          "detail": "read",
+          "motion": "still"
+        },
+        "chrome": {
+          "status": "available",
+          "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        },
+        "diagnostics": [
+          {
+            "code": "viewer/temp-cleanup-incomplete",
+            "severity": "error",
+            "message": "Browser cleanup could not safely finish; inspect the reported retained path.",
+            "subject": {
+              "artifact": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html"
+            },
+            "evidence": {
+              "reason": "Chrome did not exit; retained temporary profile \"C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-visual-check-profile-jg0HaO\".",
+              "retainedDirectory": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-visual-check-profile-jg0HaO"
+            },
+            "supportedFixes": [
+              "resolve the reported process or filesystem failure; verify directory ownership before manual cleanup"
+            ]
+          }
+        ],
+        "containment": {
+          "status": "fail",
+          "policy": "fit-or-reader-declared-readable-vertical-scroll",
+          "viewports": []
+        },
+        "themeStates": {
+          "status": "fail",
+          "viewports": []
+        },
+        "readability": {
+          "status": "fail",
+          "minimumProjectedNodeTextPx": 6,
+          "viewports": []
+        },
+        "viewerChrome": {
+          "status": "fail",
+          "viewports": []
+        },
+        "captures": {
+          "status": "not-requested",
+          "screenshots": [],
+          "contactSheet": null
+        },
+        "sidecars": {
+          "receipt": "project-production-structure.browser-check.json",
+          "files": []
+        },
+        "error": "Chrome did not exit; retained temporary profile \"C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-visual-check-profile-jg0HaO\"."
+      }
+    }
+  },
+  "diagnostics": [
+    {
+      "code": "viewer/temp-cleanup-incomplete",
+      "severity": "error",
+      "message": "Browser cleanup could not safely finish; inspect the reported retained path.",
+      "subject": {
+        "artifact": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.html"
+      },
+      "evidence": {
+        "reason": "Chrome did not exit; retained temporary profile \"C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-visual-check-profile-jg0HaO\".",
+        "retainedDirectory": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-visual-check-profile-jg0HaO"
+      },
+      "supportedFixes": [
+        "resolve the reported process or filesystem failure; verify directory ownership before manual cleanup"
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.finalize.json",
+    "summaryReceipt": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\cvdnn\\AppData\\Local\\Temp\\archify-ps-20261015\\project-production-structure.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "browser-check",
+  "finishedAt": "2026-10-15T06:35:11.134Z",
+  "durationMs": 38317,
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "cache-unavailable"
+  }
+}
