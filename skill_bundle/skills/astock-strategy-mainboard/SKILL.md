@@ -12,6 +12,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # 主板多波段防御型 · 决策信号
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 本 skill 核心做三件事：**选股范围**、**买入侧信号**、**卖出侧信号**；并可选使用 **`realtime_quotes.py`** 对指定代码批量拉取**现价类快照**（基于 `MarketDataProvider.get_quote`，腾讯报价 + 分钟 K 聚合）。
 输出的是**决策参考**（结构化列表或 JSON），**不包含**历史回测撮合、**不包含**自动报单；真实下单请用券商或另接 `a-share-paper-trading` 等执行通道。
 策略信号定位为**条件有效**：在市场结构与交易成本变化下，信号强度可能衰减，需持续复核。
@@ -118,7 +120,7 @@ python3 "$SKILL_DIR/scripts/realtime_quotes.py" -f "output/positions/holdings.tx
 ```bash
 # 1a. 跑策略得到候选列表（去重合并 from_previous_day_close + from_last_close）
 VENV_PY="python3"
-SKILL_DIR="skill_bundle/skills/astock-strategy-mainboard/scripts"
+SKILL_DIR="$BUNDLE/skills/astock-strategy-mainboard/scripts"
 "$VENV_PY" "$SKILL_DIR/scripts/daily_decisions.py" --top-n 300 --max-buys 30 --json 2>/dev/null
 
 # 1b. 批量拉实时行情（配合 realtime_quotes.py）

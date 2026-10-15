@@ -3,7 +3,7 @@
 - **规范编号**：归属 `SPEC-ENG-001`
 - **权威定义 (SSOT)**：[技能总包、唯一来源与跨平台接入评估规范](../../guidelines/engineering/skill-suite-portability-specification.md)
 - **评估依据**：[2026-10-15 技能总包交付形态与技能开发工程评估报告](../../audits/2026-10-15-skill-suite-delivery-assessment.md)
-- **实施状态**：🚧 实施中（P0-05 已完成；P0-01/02/03/04/06/07 尚未完成；P1-06 / P2-03 的部分事实修正已先行落地，见第五节证据）
+- **实施状态**：🚧 实施中（P0 全部完成；P1/P2 按优先级推进中；P1-06 / P2-03 的部分事实修正已先行落地，见第五节证据）
 
 > 本计划只承载**任务矩阵、执行标记与验收门槛**。目录树、路径规则、链接与权限规则的正文一律以 SSOT 为准，本文件不复述。
 > 与 [eng-skill-suite-portability-plan.md](eng-skill-suite-portability-plan.md) 并行跟踪：后者记录结构迁移历史，本计划承接其遗留的「扩展验收待完成」部分。
@@ -40,7 +40,7 @@
 
 | 任务 ID | 任务 | 状态 | 验收门槛 |
 | :--- | :--- | :---: | :--- |
-| `P0-01` | 技能文档去开发仓库相对路径，统一自描述调用式 | ☐ | 20 个 SKILL.md 与 `references/` 内不再出现依赖 CWD 的仓库相对路径或包外链接 |
+| `P0-01` | 技能文档去开发仓库相对路径，统一自描述调用式 | ☑ | 20 个 SKILL.md 与 `references/` 内不再出现依赖 CWD 的仓库相对路径或包外链接 |
 | `P0-02` | 新增发布链路 P0 门禁（frontmatter / 启动器 / 自诊断 / 打包行为） | ☑ | 新用例纳入 `core` 档并随 `pytest -m core` 常跑；`package_project` 8 项行为全部有正向或反向断言 |
 | `P0-03` | 宿主注册红线与三平台 shim 加哨兵 | ☑ | 「拒绝注册开发源」「bundle.json 缺失」「workbuddy 未验证分支」均有断言且必然执行 |
 | `P0-04` | 依赖声明收敛单一来源 + `INSTALL.json` 补安装说明 | ☑ | 全仓仅一处声明 `MyTT` / `akshare-proxy-patch`；版本口径一致；`INSTALL.json` 含依赖安装与 Python 下限 |
@@ -76,11 +76,14 @@
 
 ### P0 交付阻断项
 
-- [ ] **`P0-01` 技能文档去开发仓库相对路径**
-  - 动作：将各 SKILL.md 与 `references/` 中的调用示例统一改为**从本文件真实路径向上定位带 `bundle.json` 的集合根**，再调用 `runtime/astock`（macOS/Linux）或 `runtime/astock.ps1`（Windows）。
-  - 落点：`skill_bundle/skills/*/SKILL.md`（重点 19 处 `bin/astock*` 引用）、`skill_bundle/skills/*/references/*.md`。
-  - 校验：`cd /path/to/a_stock_agents && ./bin/astock ...` 一类 cron 示例改为无 CWD 依赖写法。
-  - 门槛：19 个专业技能的调用示例与总入口写法一致；包外链接（指向 `docs/` 等不入包目录）改为包内自包含或删除。
+- [x] **`P0-01` 技能文档去开发仓库相对路径**（2026-10-15 完成，`test_release_delivery_gate.py` 第 10 节 4 例入 `core` 档）
+  - 已落地：
+    1. **调用约定统一**：全部 19 项专业技能统一声明自描述「调用约定」，明确从真实路径向上定位含 `bundle.json` 的集合根（`$BUNDLE`），使用 Windows `$BUNDLE/runtime/astock.ps1` 与 POSIX `$BUNDLE/runtime/astock` 薄启动器（回退 `python $BUNDLE/runtime/cli.py`），正式调用追加 `--json`，并统一回链 `references/execution-contract.md`；总入口 `a-stock-agents/SKILL.md` 保持对齐；
+    2. **彻底清除 `bin/astock*`**：全包所有 SKILL.md、Markdown 与 `setup.sh` 中的 `bin/astock*` 相对路径清零；
+    3. **包外链接与断链清零**：全包 103 个 Markdown 文件经 AST 扫描断言 0 处链接逃逸出 `skill_bundle/`，0 处失效断链（`astock-selection-model`、`historical-session-tips-full` 的包外 `docs/` 链接已转为设计文档文本声明）；
+    4. **去 CWD 依赖**：`astock-pool-dashboard` 的 crontab 定时调度等示例去除 `cd /path/to/a_stock_agents`，说明以绝对路径调用并说明 cron 环境变量规则；
+    5. **常驻自动化门禁**：`test_release_delivery_gate.py` 新增第 10 节 4 项测试（统一调用约定声明、零 `bin/astock` 引用、包内相对链接防逃逸且物理存在、定时任务去 `cd` 依赖），纳入 `core` 档。
+  - 门槛：`pytest -m core` 全绿 ✅（312 passed / 2 skipped / 54.72s）；新增 4 例用例 ✅；全包 Markdown 零包外链接、零断链、零 bin/astock ✅。
 
 - [x] **`P0-02` 新增发布链路 P0 门禁**（2026-10-15 完成，`tests/core/test_release_delivery_gate.py`，36 例入 `core` 档）
   - 已覆盖：
@@ -215,6 +218,7 @@
 | 2026-10-15 | `P0-04`（用户确认后执行） | `pyproject.toml` full extra 增补 MyTT/akshare-proxy-patch + akshare 口径统一 1.18；技能级 requirements.txt 改 `-r ../../../requirements.txt` 纯引用；`common.py` 新增 `_full_extra_requirements()` 派生归档根 `requirements-full.txt` + `INSTALL.json` 4 新键；门禁新增 3 用例 + INSTALL 用例扩展 | Windows / 本地 `.venv` | 前置核实：根 requirements.txt（uv.lock --no-dev 导出）与 uv.lock 均不含 MyTT/akshare-proxy-patch（此前唯一声明处为技能级手写清单）；定向 6 passed / 5.05s；**P0 `-m core`：303 passed / 2 skipped / 358 deselected / 133.26s**；收集基线：总 663（core 档 305） | **遗留边界：`uv.lock` 未联网重锁**（pyproject full 增补后锁与声明暂不同步，`uv lock` + 重新导出根 requirements.txt 待人工确认）；根 requirements 基础导出本就不含 extras，Release 基础安装不受影响；③ 收集 608 例未整体复跑 |
 | 2026-10-15 | `P0-06`（用户确认后执行） | `test_release_delivery_gate.py` 新增第 8 节 4 例（三平台隔离解压与 doctor 自诊断常驻断言 + 源码树零修改守卫 + 构建幂等性）；`verify_release_scope.py` 移除破坏性覆写代码转为只读 | Windows / 本地 `.venv` | 前置验证：跨三平台独立构建解压跑通 doctor exit 0 且 20 技能健康；定向 4 passed / 9.29s；**P0 `-m core`：307 passed / 2 skipped / 358 deselected / 65.77s**；收集基线：总 667（core 档 309） | 旧脚本曾隐蔽覆写 setup.sh/SKILL.md/.gitignore，现已彻底解耦；测试执行前后 4 关键源文件 sha256 零漂移守卫生效；③ 收集 612 例未整体复跑 |
 | 2026-10-15 | `P0-05`（用户确认后执行） | 重写 `astock-agent-debate/scripts/setup.sh` 为隔离解释器自检与凭据指引；更新技能说明；新增全部 setup.sh 零污染静态守卫 | Windows / 本地 `.venv` | 定向守卫 1 passed；**P0 `-m core`：308 passed / 2 skipped / 358 deselected / 134.83s，退出码 0**；收集基线：总 668（core 档 310） | setup 不执行全局安装、克隆、LLM/网络试跑或凭据写入；外部 TradingAgents 仅保留为用户自行准备的可选依赖；③ 收集 613 例未整体复跑 |
+| 2026-10-15 | `P0-01`（用户确认后执行） | 统一 20 技能自描述调用约定 + 清除 bin/astock 与包外链接 + 新增第 10 节 4 例常驻守卫 | Windows / 本地 `.venv` | 定向 4 passed / 0.80s；**P0 `-m core`：312 passed / 2 skipped / 358 deselected / 54.72s，退出码 0**；收集基线：总 672（core 档 314） | 全包 103 Markdown 零包外链接、零断链、零 bin/astock 引用；19 专业技能与总入口调用口径统一；测试看守常驻；③ 收集 617 例未整体复跑 |
 
 ---
 

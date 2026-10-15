@@ -11,6 +11,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # A股全流程投研面板
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## 核心能力（12大模块，2026-07-21更新：多脚本监控部署体系）
 
 | 模块 | 功能 | 核心脚本 |
@@ -92,25 +94,25 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 ### 11.5 定时监控部署速查
 
-使用系统 crontab 或本地守护进程定时调度：
+使用系统 crontab 或本地守护进程定时调度（cron 不展开 shell 变量，须将 `$BUNDLE` 替换为集合根绝对路径；无需 `cd`）：
 ```bash
 # 竞价分析（09:25-09:30间执行）
-# 30 9 * * 1-5 cd /path/to/a_stock_agents && ./bin/astock evaluate 000400 --json
+# 30 9 * * 1-5 /abs/path/to/bundle/runtime/astock evaluate 000400 --json
 
 # 午盘分析（11:30执行）
-# 0 12 * * 1-5 cd /path/to/a_stock_agents && ./bin/astock evaluate 000400 --json
+# 0 12 * * 1-5 /abs/path/to/bundle/runtime/astock evaluate 000400 --json
 
 # 全天持仓风控监控（盘中每5分钟）
-# */5 9-11,13-14 * * 1-5 cd /path/to/a_stock_agents && ./bin/astock pool audit --json
+# */5 9-11,13-14 * * 1-5 /abs/path/to/bundle/runtime/astock pool audit --json
 ```
 
 ### 11.6 定时任务路径规范
 
-- 始终在项目根目录下执行 `./bin/astock` 或 `python core/cli.py`
-- 监控产生的数据与状态持久化保存于 `output/cache/` 或 `output/positions/`，遵循数据隔离标准
+- 始终以绝对路径调用 `$BUNDLE/runtime/astock`（Windows 计划任务用 `$BUNDLE/runtime/astock.ps1`），不依赖当前工作目录
+- 需固定数据根时显式设置 `A_STOCK_WORKSPACE_ROOT`；监控产生的数据与状态持久化保存于数据根下 `output/cache/` 或 `output/positions/`
 - 脚本内所有子进程调用统一使用 `sys.executable`（保证虚拟环境一致性）
 - 脚本内所有 `subprocess.run` 调用 `sys.executable` 而非硬编码 `python3`（兼容cron环境）
-- 所有文件路径使用绝对 `Path` 或 `Path.home()` 构建，不依赖 `__file__` 推导
+- 代码与资源路径经 `core.workspace`（`PACKAGE_ROOT`/`RUNTIME_ROOT`/`SKILLS_ROOT`）定位，数据路径经 `WORKSPACE_ROOT` 定位，禁止固定父目录层数
 
 ### 11.7 Python 3.9 兼容陷阱 ⚠️
 

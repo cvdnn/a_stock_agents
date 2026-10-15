@@ -61,32 +61,32 @@ related_skills: [a-share-data, trading-combo, a-share-paper-trading, a-share-das
 
 | 脚本 | 行数 | 功能 | 依赖 |
 |:-----|:----:|:-----|:-----|
-| `skill_bundle/runtime/core/data/data_bridge.py` | 368 | **4层降级数据桥接**: L1腾讯/L2新浪/L3 proxy-patch/L4 efinance + **P0新增**: CYQ筹码/个股事件/积分余额/A+H列表/PE查询 | 标准库(urllib)+可选subprocess |
-| `skill_bundle/runtime/core/indicators/technical_indicators.py` | 441 | **零依赖技术指标**: MA/EMA/MACD/KDJ/RSI/BOLL/ATR + **P1新增**: MACD二次金叉识别 + 跳空分析 | **纯标准库 math** |
-| `skill_bundle/runtime/core/models/combo_scorer.py` | 401 | **完整100分策略评分**: 均线(25)+MACD(20)+量价(15)+**筹码(15)**+**资金(15)**+板块(5)+**PE(5)** +入场判断 | technical_indicators+data_bridge |
-| `skill_bundle/runtime/core/models/market_assessor.py` | 155 | **五维大盘健康度**: 趋势(30)+情绪(20)+量能(20)+结构(15)+资金(15) | data_bridge |
-| `skill_bundle/runtime/core/strategy/trapped_position.py` | 245 | **被困持仓量化解套**: 诊断画像+凯利公式+4种量化策略+决策树 | technical_indicators+data_bridge |
-| `skill_bundle/runtime/core/models/stock_screener.py` | 275 | **🆕 三层漏斗选股**: 板块→技术→策略评分的端到端流水线 | data_bridge+combo_scorer |
-| `skill_bundle/runtime/core/strategy/risk_manager.py` | 263 | **🆕 风控管理**: T0/T1/T2三级止损+卖点信号(MACD死叉/顶背离)+回撤控制+K线形态 | technical_indicators+data_bridge |
-| `skill_bundle/runtime/core/cli.py` | 552 | **统一CLI入口**: 14个子命令 (data / screen / quant / action / trade / debate / evaluate …) | 以上所有 |
-| `skill_bundle/runtime/core/monitor/monitor_watchdog.py` | 179 | **Cron全天监控**: 三级止损预警+散户行为矫正 | 仅 urllib 标准库 |
-| `skill_bundle/runtime/core/reporting/report_generator.py` | 203 | **HTML报告生成**: 白色系·涨红跌绿·自包含 | 标准库 |
-| `skill_bundle/runtime/core/models/strategy_evaluator.py` | 285 | **持股策略评估**: 历史策略 vs 实际走势比对, 4维准确率模型 | data_bridge+combo_scorer |
-| `skill_bundle/runtime/core/paper_trading/a_stocks_backtest.py` | 966 | **🆕 P0 回测评估引擎**: 夏普/最大回撤/Calmar/盈亏比/胜率/过拟合检测+样本内外分割, 预置SMA交叉+combo评分策略 | data_bridge+technical_indicators+combo_scorer |
-| `skill_bundle/runtime/core/models/multi_factor_scorer.py` | 393 | **🆕 P1 多因子选股**: 动量(20日/60日)+价值(PE/PB)+质量+波动率因子Z-score合成, 截面排序选股 | data_bridge+technical_indicators+combo_scorer |
-| `skill_bundle/runtime/core/strategy/portfolio_risk_manager.py` | 611 | **🆕 P1 组合风险管理**: 波动率目标(15%目标)/相关性矩阵(>0.7减仓)/三档回撤控制(5%/10%/15%)/行业暴露限制 | data_bridge+technical_indicators |
-| `skill_bundle/runtime/core/strategy/mean_reversion_strategy.py` | 298 | **🆕 P2 均值回归策略**: RSI<30+BOLL下轨买入, RSI>70+BOLL上轨卖出, 均值回归评分 | data_bridge+technical_indicators |
-| `skill_bundle/runtime/core/strategy/grid_trading_strategy.py` | 322 | **🆕 P2 网格交易策略**: ATR锚定BOLL区间分档, 网格适合度评估(波动率/带宽/趋势) | data_bridge+technical_indicators |
-| `skill_bundle/runtime/core/strategy/volatility_breakout_strategy.py` | 644 | **🆕 P3 波动率突破策略**: BOLL带宽收缩(60日20%分位)+放量突破(1.5倍)入场, 收缩检测+突破评分 | data_bridge+technical_indicators |
-| `skill_bundle/runtime/core/strategy/execution_action_engine.py` | 380 | **🆕 P0 交易反应与执行决策中枢 (EMS 2.0)**: 自然语言意图评估(5大类)+五类下跌精准诊断应对矩阵+6大实战反应战术+万0.85摩擦税费保本计算 | `technical_indicators`+`data_bridge` |
+| `$BUNDLE/runtime/core/data/data_bridge.py` | 368 | **4层降级数据桥接**: L1腾讯/L2新浪/L3 proxy-patch/L4 efinance + **P0新增**: CYQ筹码/个股事件/积分余额/A+H列表/PE查询 | 标准库(urllib)+可选subprocess |
+| `$BUNDLE/runtime/core/indicators/technical_indicators.py` | 441 | **零依赖技术指标**: MA/EMA/MACD/KDJ/RSI/BOLL/ATR + **P1新增**: MACD二次金叉识别 + 跳空分析 | **纯标准库 math** |
+| `$BUNDLE/runtime/core/models/combo_scorer.py` | 401 | **完整100分策略评分**: 均线(25)+MACD(20)+量价(15)+**筹码(15)**+**资金(15)**+板块(5)+**PE(5)** +入场判断 | technical_indicators+data_bridge |
+| `$BUNDLE/runtime/core/models/market_assessor.py` | 155 | **五维大盘健康度**: 趋势(30)+情绪(20)+量能(20)+结构(15)+资金(15) | data_bridge |
+| `$BUNDLE/runtime/core/strategy/trapped_position.py` | 245 | **被困持仓量化解套**: 诊断画像+凯利公式+4种量化策略+决策树 | technical_indicators+data_bridge |
+| `$BUNDLE/runtime/core/models/stock_screener.py` | 275 | **🆕 三层漏斗选股**: 板块→技术→策略评分的端到端流水线 | data_bridge+combo_scorer |
+| `$BUNDLE/runtime/core/strategy/risk_manager.py` | 263 | **🆕 风控管理**: T0/T1/T2三级止损+卖点信号(MACD死叉/顶背离)+回撤控制+K线形态 | technical_indicators+data_bridge |
+| `$BUNDLE/runtime/core/cli.py` | 552 | **统一CLI入口**: 14个子命令 (data / screen / quant / action / trade / debate / evaluate …) | 以上所有 |
+| `$BUNDLE/skills/astock-data-feed/assets/templates/monitor_watchdog.py` | 179 | **Cron全天监控**: 三级止损预警+散户行为矫正 | 仅 urllib 标准库 |
+| `$BUNDLE/runtime/core/reporting/report_generator.py` | 203 | **HTML报告生成**: 白色系·涨红跌绿·自包含 | 标准库 |
+| `$BUNDLE/runtime/core/models/strategy_evaluator.py` | 285 | **持股策略评估**: 历史策略 vs 实际走势比对, 4维准确率模型 | data_bridge+combo_scorer |
+| `$BUNDLE/runtime/core/paper_trading/a_stocks_backtest.py` | 966 | **🆕 P0 回测评估引擎**: 夏普/最大回撤/Calmar/盈亏比/胜率/过拟合检测+样本内外分割, 预置SMA交叉+combo评分策略 | data_bridge+technical_indicators+combo_scorer |
+| `$BUNDLE/runtime/core/models/multi_factor_scorer.py` | 393 | **🆕 P1 多因子选股**: 动量(20日/60日)+价值(PE/PB)+质量+波动率因子Z-score合成, 截面排序选股 | data_bridge+technical_indicators+combo_scorer |
+| `$BUNDLE/runtime/core/strategy/portfolio_risk_manager.py` | 611 | **🆕 P1 组合风险管理**: 波动率目标(15%目标)/相关性矩阵(>0.7减仓)/三档回撤控制(5%/10%/15%)/行业暴露限制 | data_bridge+technical_indicators |
+| `$BUNDLE/runtime/core/strategy/mean_reversion_strategy.py` | 298 | **🆕 P2 均值回归策略**: RSI<30+BOLL下轨买入, RSI>70+BOLL上轨卖出, 均值回归评分 | data_bridge+technical_indicators |
+| `$BUNDLE/runtime/core/strategy/grid_trading_strategy.py` | 322 | **🆕 P2 网格交易策略**: ATR锚定BOLL区间分档, 网格适合度评估(波动率/带宽/趋势) | data_bridge+technical_indicators |
+| `$BUNDLE/runtime/core/strategy/volatility_breakout_strategy.py` | 644 | **🆕 P3 波动率突破策略**: BOLL带宽收缩(60日20%分位)+放量突破(1.5倍)入场, 收缩检测+突破评分 | data_bridge+technical_indicators |
+| `$BUNDLE/runtime/core/strategy/execution_action_engine.py` | 380 | **🆕 P0 交易反应与执行决策中枢 (EMS 2.0)**: 自然语言意图评估(5大类)+五类下跌精准诊断应对矩阵+6大实战反应战术+万0.85摩擦税费保本计算 | `technical_indicators`+`data_bridge` |
 | `setup.sh` | 90+ | **安装脚本**: 自动探测venv, 生成config | bash |
 | `config.yaml` | 100+ | **配置文件**: 策略参数+环境变量说明+数据源注册表 | yaml |
 
-**总计**: 6000+ 行 Python，统一归口 `skill_bundle/runtime/core/`；通过 `skill_bundle/runtime/core/cli.py` 的统一 CLI 暴露 14+ 子命令
+**总计**: 6000+ 行 Python，统一归口 `$BUNDLE/runtime/core/`；通过 `$BUNDLE/runtime/core/cli.py` 的统一 CLI 暴露 14+ 子命令
 
 ## 快速开始
 
-> ✅ 本技能作为统一全流程平台的**文档与配置入口**，底层实现已统一归口到 [`skill_bundle/runtime/core/`](../../../runtime/core)。所有调用请通过统一 CLI 门面发起，避免直接 import 内部模块。
+> ✅ 本技能作为统一全流程平台的**文档与配置入口**，底层实现已统一归口到 [`$BUNDLE/runtime/core/`](../../../runtime/core)。所有调用请通过统一 CLI 门面发起，避免直接 import 内部模块。
 
 ```bash
 # 1. 实时行情（数据桥接 + 4层降级）
@@ -332,11 +332,12 @@ python3 a_stocks.py score 600519 --board-chg 2.5 --board-top10 --short  # 短线
 ### 部署
 
 ```bash
-cp skill_bundle/skills/astock-platform-evaluate/scripts/monitor_watchdog.py output/scripts/
-nano output/scripts/monitor_watchdog.py  # 修改 HOLDINGS 和 AVAILABLE_CASH
+# 模板复制到工作区数据根下 output/scripts/（不要在集合目录内修改）
+cp "$BUNDLE/skills/astock-data-feed/assets/templates/monitor_watchdog.py" "$A_STOCK_WORKSPACE_ROOT/output/scripts/"
+nano "$A_STOCK_WORKSPACE_ROOT/output/scripts/monitor_watchdog.py"  # 修改 HOLDINGS 和 AVAILABLE_CASH
 # crontab 定时任务 --name '全天持仓监控' \
   --script monitor_watchdog.py --schedule 'every 5m' \
-  --no-agent --workdir output/scripts --deliver all
+  --no-agent --workdir "$A_STOCK_WORKSPACE_ROOT/output/scripts" --deliver all
 ```
 
 ---
@@ -446,7 +447,7 @@ python3 scripts/report_generator.py 600519
 | **报告格式** | `.html` (自包含单文件) | 使用 stock-report-html CSS 规范 |
 | **命名模式** | `<prefix>_<code/symbols>_<YYYYMMDD>.html` | 英文/数字+下划线，无中文 |
 | **多股报告** | `<prefix>_<codes-joined>_<YYYYMMDD>.html` | 代码用短横连接 |
-| **模板路径** | `skill_bundle/skills/astock-data-feed/templates/stock-report.html` | 含完整CSS变量+组件系统 |
+| **模板路径** | `$BUNDLE/assets/templates/stock-report.html` | 含完整CSS变量+组件系统 |
 | **模板占位符** | `{{TITLE}}` `{{DATE}}` `{{HEADER_TAG}}` `{{MAIN_TITLE}}` `{{SUB_TITLE}}` `{{HEADER_STATS}}` `{{CONTENT}}` `{{FOOTER_TEXT}}` | 快速替换模式（8个占位符） |
 | **组件库** | `.card` `.tbl` `.tl` `.grid-2` `.grid-3` `.stat-row` `.info-box.(blue|green|red|ylw)` `.tag-(up|down|blue|ylw|cyan)` | 基于 stock-report-html skill |
 | **涨跌色** | 涨=`#d0312d` 红 / 跌=`#219653` 绿 | A股惯例 |
@@ -473,7 +474,7 @@ evaluation_000400-002230-600760_20260729.html
 
 ```bash
 # 1. 读取模板
-TEMPLATE="skill_bundle/skills/astock-data-feed/templates/stock-report.html"
+TEMPLATE="$BUNDLE/assets/templates/stock-report.html"
 HTML=$(cat "$TEMPLATE")
 
 # 2. 替换占位符
@@ -744,35 +745,38 @@ astock debate 600519 000400 002230 --json
 a-stocks 支持三级配置优先级: **环境变量 > config.yaml > 自动探测**
 
 ```bash
-# 核心环境变量
-export ASTOCKS_VENV_PY="./.venv/bin/python3"
+# 核心环境变量（均使用绝对路径，不依赖当前工作目录）
+export ASTOCKS_VENV_PY="/abs/path/to/venv/bin/python3"
 export ASTOCKS_SYSTEM_PY="python3"
-export ASTOCKS_A_SHARE_DATA_DIR="skill_bundle/skills/astock-data-feed"
+export ASTOCKS_A_SHARE_DATA_DIR="$A_STOCK_WORKSPACE_ROOT/output/cache"
 ```
 
 ### 从 TACN 迁移环境
 
 ```bash
 # 1. 创建独立 venv + 自动探测 (推荐)
-./bin/astock --help
+"$BUNDLE/runtime/astock" --help
 
 # 2. 或手动设置环境变量指向遗留 venv (临时)
 export ASTOCKS_VENV_PY="python3"
 
 # 3. 验证
-./bin/astock data quote 600519 --json
+"$BUNDLE/runtime/astock" data quote 600519 --json
 ```
 
 ---
 
 ## 十四、Python 代码集成
 import sys
-sys.path.insert(0, "skill_bundle/skills/astock-platform-evaluate/scripts")
+from pathlib import Path
 
-from data_bridge import DataBridge, batch_quote
-from technical_indicators import calc_all
-from combo_scorer import ComboScorer
-from trapped_position import TrappedPositionAnalyzer
+BUNDLE = Path("/abs/path/to/bundle")  # 含 bundle.json 的集合根
+sys.path.insert(0, str(BUNDLE / "runtime"))
+
+from core.data.data_bridge import DataBridge, batch_quote
+from core.indicators.technical_indicators import calc_all
+from core.models.combo_scorer import ComboScorer
+from core.strategy.trapped_position import TrappedPositionAnalyzer
 
 # 获取数据
 bridge = DataBridge()
@@ -857,7 +861,7 @@ python3 scripts/a_stocks.py action 601899 --cost 32.50 --shares 2000
 python3 scripts/a_stocks.py downside 600760 --cost 42.70 --shares 500
 ```
 
-注意：脚本路径已统一归口至 `skill_bundle/runtime/core/`，请优先使用 `astock` 统一 CLI 门面调用：
+注意：脚本路径已统一归口至 `$BUNDLE/runtime/core/`，请优先使用 `astock` 统一 CLI 门面调用：
 
 ### 4. 详细实战手册与量化规则库
 完整操作规则、量化阈值与决策公式详见参考文档：[`action-execution-manual.md`](action-execution-manual.md)

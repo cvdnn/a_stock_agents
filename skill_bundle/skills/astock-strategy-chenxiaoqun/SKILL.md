@@ -11,6 +11,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # 陈小群游资超短战法决策体系 (Chen Xiaoqun Trading Strategy)
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## 适用范围与核心定位
 
 本 Skill 将 90 后新生代顶级游资**陈小群**（招牌席位：**中国银河证券大连金马路 / 大连黄河路 / 中信证券大连分公司**）在 A 股实战中打造浙江建投、中通客车、西安饮食、新华制药、巨轮智能、剑桥科技等超级大牛股的核心操盘哲学与模式，转化为系统化、高胜率的量化场景决策体系。

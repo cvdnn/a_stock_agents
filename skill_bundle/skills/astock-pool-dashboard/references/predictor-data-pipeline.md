@@ -49,7 +49,7 @@
 
 ```bash
 VENV_PY="python3"
-SKILL_DIR="skill_bundle/skills/astock-pool-dashboard/scripts"
+SKILL_DIR="$BUNDLE/skills/astock-pool-dashboard/scripts"
 
 # 单只股票完整数据采集（~5-8秒）
 $VENV_PY "$SKILL_DIR/predictor.py" --code 600760 --json

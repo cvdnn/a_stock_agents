@@ -28,28 +28,21 @@ tags: [A股, 数据, 行情, 技术分析, 资金流向, 板块排行]
 
 ## 安装与配置
 
-### 快速安装
+### 依赖与环境
+
+Release 交付形态下的环境要求与依赖安装指引统一由集合根下 `INSTALL.json` 与 `requirements.txt`（及 `requirements-full.txt`）定义：
 
 ```bash
-cd a_stock_agents
-bash setup.sh
-```
+# 1. 安装依赖（推荐使用 Python >= 3.10 隔离环境）
+pip install -r "$BUNDLE/requirements.txt"
 
-安装脚本会引导选择 Python 环境（系统 Python 或 venv），自动安装依赖并更新配置中的 Python 路径。
-
-### 手动安装
-
-```bash
-# 1. 安装依赖（通过 venv Python >= 3.10）
-pip install -r requirements.txt
-
-# 2. 配置 TOKEN（写入 .env，不在 skill 目录落盘）
-echo 'AUTH_TOKEN="你的TOKEN"' > .env
+# 2. 配置代理 TOKEN（写入工作区私有凭据文件，禁止写入技能目录）
+# 写入 local/settings/.env:
+# AUTH_TOKEN="你的TOKEN"
 # 获取地址: https://ak.cheapproxy.net/dashboard/akshare
 
-# 3. 验证安装
-VENV_PY="python3"
-$VENV_PY -c "from scripts._init_patch import patched_akshare as ak; print('Patch OK')"
+# 3. 自检验证
+python "$BUNDLE/runtime/doctor.py"
 ```
 
 ### 依赖清单
@@ -102,7 +95,7 @@ python:
 ### 方案 A：系统 Python（新浪/腾讯链路）
 
 ```bash
-SKILL_DIR="skill_bundle/skills/astock-data-feed/scripts"
+SKILL_DIR="$BUNDLE/skills/astock-data-feed/scripts"
 python3 "$SKILL_DIR/fetch_realtime.py" --quote 600760 --json
 python3 "$SKILL_DIR/fetch_history.py" --kline 600760 --start 20260601 --end 20260616 --freq d --json
 ```
@@ -112,7 +105,7 @@ python3 "$SKILL_DIR/fetch_history.py" --kline 600760 --start 20260601 --end 2026
 ### 方案 B：venv Python + proxy-patch（推荐 ⭐）
 
 ```bash
-SKILL_DIR="skill_bundle/skills/astock-data-feed/scripts"
+SKILL_DIR="$BUNDLE/skills/astock-data-feed/scripts"
 VENV_PY="python3"
 
 # 通过 fetch_patched.py 包装脚本调用（自动读取 config.yaml 初始化 patch）
@@ -354,7 +347,7 @@ def _is_blocked(code: str) -> bool:
 ### 技能脚本命令
 
 ```bash
-SKILL_DIR="skill_bundle/skills/astock-data-feed/scripts"
+SKILL_DIR="$BUNDLE/skills/astock-data-feed/scripts"
 VENV_PY="python3"
 
 # 方案A：系统 Python（新浪/腾讯）
@@ -608,7 +601,7 @@ python output/scripts/monitor_XXX.py
 ### 行业板块 TOP10/BOTTOM10
 
 ```bash
-SKILL_DIR="skill_bundle/skills/astock-data-feed/scripts"
+SKILL_DIR="$BUNDLE/skills/astock-data-feed/scripts"
 VENV_PY="python3"
 
 cd $SKILL_DIR && $VENV_PY -c "

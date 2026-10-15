@@ -10,7 +10,7 @@
 
 ### 第1步：实时行情（必选）
 ```bash
-SKILL_DIR="skill_bundle/skills/astock-data-feed/scripts"
+SKILL_DIR="$BUNDLE/skills/astock-data-feed/scripts"
 # 方案A（优先，稳定，零积分）
 python3 "$SKILL_DIR/fetch_realtime.py" --quote 603893 --json
 

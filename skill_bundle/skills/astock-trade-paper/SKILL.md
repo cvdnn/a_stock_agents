@@ -11,6 +11,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # A股模拟盘
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 独立的模拟盘 skill。交易服务、CLI、账户、撮合与行情适配都在本目录内，不依赖其他 skill 脚本。
 
 ## 何时使用

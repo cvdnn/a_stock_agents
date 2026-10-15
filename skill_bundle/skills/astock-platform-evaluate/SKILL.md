@@ -11,21 +11,23 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # A股全流程分析平台
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## 定位
 
-本技能是综合分析入口，底层单一真理来源位于 `skill_bundle/runtime/core/`。所有正式调用均通过统一 CLI，避免直接复制或修改技能包装器。
+本技能是综合分析入口，底层单一真理来源位于 `$BUNDLE/runtime/core/`。所有正式调用均通过统一 CLI，避免直接复制或修改技能包装器。
 
 ## 快速调用
 
 ```powershell
-.\bin\astock.ps1 evaluate 600519 --json
-.\bin\astock.ps1 analyze 600519 --json
-.\bin\astock.ps1 trapped 600519 --cost 1300 --shares 100 --json
-.\bin\astock.ps1 market --json
-.\bin\astock.ps1 report 600519 --json
+& "$BUNDLE/runtime/astock.ps1" evaluate 600519 --json
+& "$BUNDLE/runtime/astock.ps1" analyze 600519 --json
+& "$BUNDLE/runtime/astock.ps1" trapped 600519 --cost 1300 --shares 100 --json
+& "$BUNDLE/runtime/astock.ps1" market --json
+& "$BUNDLE/runtime/astock.ps1" report 600519 --json
 ```
 
-Linux/macOS 将启动器替换为 `./bin/astock`。
+Linux/macOS 将启动器替换为 `"$BUNDLE/runtime/astock"`。
 
 ## 分析链路
 
@@ -56,7 +58,7 @@ Linux/macOS 将启动器替换为 `./bin/astock`。
 - 用户交付物：`output/`
 - 运行日志：`log/`
 - 可重建中间文件：`temp/`
-- 核心实现：`skill_bundle/runtime/core/`
+- 核心实现：`$BUNDLE/runtime/core/`
 - 技能目录只保留说明、转发包装器、模板和 `.example` 文件
 
 ## 深入参考

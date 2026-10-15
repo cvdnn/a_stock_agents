@@ -13,7 +13,7 @@ tags: [a-stock, pitfalls, workarounds, L1-mode]
 > 交易历史记录审查完整案例(24笔交易验证、双向验证分界点、FIFO/加权平均双方法、K线价格验证)见 `references/trade-history-audit-workflow.md`
 > **web 工具链失效时的 curl 直连数据源**(东财快讯/新浪7x24/板块涨幅/全市场主力净流入排行/市场主线研判)见 `references/curl-data-sources-main-line.md`
 > **本地K线「技术评分 + MA20趋势回测」一体工具** `scripts/local_ma20_backtest.py` —— 规避 backtest_engine 的 urllib SSL 超时、及 execute_code 沙箱无外网(Errno 101)。**主线选股+回测验证**标准做法：东财板块/主力净流入 clist 定主线 → terminal curl 落盘 `ifzq.gtimg.cn` fqkline JSON 到 /tmp/astk/kl/ → 本脚本评分+回测。回测仅作策略有效性参考(信号有限,非买卖指令)。
-> **v3三方融合选股模型(PDF+v2+旋转模型)设计文档与回测验证**见 `docs/specs/algorithm/archive/2026-08-12-multi-dim-model-design-revision.md` — 多股旋转回测引擎(+94.3%)、2仓分散(回撤-16.7%)、MA15离场、门控双层(上证>MA20+健康度)、跟踪止盈真实实现、指数K线获取方法
+> **v3三方融合选股模型(PDF+v2+旋转模型)设计文档与回测验证**见 `开发仓库归档设计文档《2026-08-12 多维模型设计修订》（不随 Release 分发）` — 多股旋转回测引擎(+94.3%)、2仓分散(回撤-16.7%)、MA15离场、门控双层(上证>MA20+健康度)、跟踪止盈真实实现、指数K线获取方法
 
 ## 回测指标解读基准 (业界标准)
 
@@ -803,7 +803,7 @@ Phase 4: LLM 多视角推理 (零额外API调用)
   └─ 核心矛盾识别 (如"仓位过重+评级D=必须减仓")
 
 Phase 5: 生成HTML报告 (stock-report.html模板)
-  ├─ 读取: skill_bundle/skills/astock-data-feed/templates/stock-report.html
+  ├─ 读取: $BUNDLE/assets/templates/stock-report.html
   ├─ 替换8个占位符: {{TITLE}} {{DATE}} {{HEADER_TAG}} {{MAIN_TITLE}}
   │   {{SUB_TITLE}} {{HEADER_STATS}} {{CONTENT}} {{FOOTER_TEXT}}
   ├─ 保存: output/reports/<YYYYMMDD>/早报_*.html
@@ -1264,7 +1264,7 @@ curl -s "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh000001,day,,
 
 ## 工作流: 三方融合选股模型v3 — 多股旋转回测 (2026-08-12实测)
 
-当用户要求"整合v2和旋转模型报告形成v3版本"时, 核心是将**PDF理论+v2截面评估+旋转模型回测**三方优势焊接到一个可运行的Python脚本中。v3设计文档和回测结果见 `docs/specs/algorithm/archive/2026-08-12-multi-dim-model-design-revision.md`。
+当用户要求"整合v2和旋转模型报告形成v3版本"时, 核心是将**PDF理论+v2截面评估+旋转模型回测**三方优势焊接到一个可运行的Python脚本中。v3设计文档和回测结果见 `开发仓库归档设计文档《2026-08-12 多维模型设计修订》（不随 Release 分发）`。
 
 ### v3相对v2的3项HIGH缺陷修复
 
@@ -1380,8 +1380,8 @@ RotationBacktest(
 
 ## 已知缺陷 #20: 技能文档路径是 WSL 的,Windows 桌面环境需重映射 (2026-08-14实测)
 
-- 旧文档中的全局技能目录与系统 Python 假设已废弃；统一从项目根目录发现 `skill_bundle/skills/` 并优先使用项目虚拟环境。
-- Windows、Linux 与 macOS 均从项目根目录的 `skill_bundle/skills/astock-data-feed/` 就地发现技能，不依赖用户目录中的全局安装。
+- 旧文档中的全局技能目录、系统 Python 假设与「从项目根目录就地发现技能」均已废弃；AI 工具使用完整 Release，并从技能文件真实路径向上定位含 `bundle.json` 的集合根 `$BUNDLE`。
+- Windows、Linux 与 macOS 统一经 `$BUNDLE/runtime/astock.ps1` 或 `$BUNDLE/runtime/astock` 调用，解释器优先使用隔离虚拟环境（`A_STOCK_PYTHON` / 已激活 venv），不依赖当前工作目录。
 - **跨平台可靠数据链路**：统一调用 `astock data quote <代码> --json`、`astock data kline <代码> --json` 与 `astock data tech <代码> --json`；数据源降级和指标计算由项目内置 CLI 负责，禁止另写临时爬虫绕过该入口。
 
 ## 工作流规范: 报告生成后提问是否弹出在浏览器中显示 (2026-08-26 确立)

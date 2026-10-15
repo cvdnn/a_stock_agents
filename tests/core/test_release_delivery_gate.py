@@ -672,3 +672,103 @@ def test_setup_scripts_do_not_pollute_host_environment():
         # 必须使用 bundle.json 进行根路径发现
         assert "bundle.json" in text, f"{script}: 必须使用 bundle.json 进行自描述根探测"
 
+
+# ==============================================================================
+# 10. 技能文档自描述调用与包内链接防腐守卫（P0-01）
+# ==============================================================================
+
+def test_skills_declare_uniform_calling_conventions():
+    """20 个 SKILL.md 统一声明从真实路径向上定位 $BUNDLE 并通过薄启动器执行：
+    1. 19 个专业技能必须包含统一的「调用约定」引用块，声明 $BUNDLE、runtime/astock.ps1、
+       runtime/astock、runtime/cli.py 回落与 --json 参数，并回链 execution-contract.md；
+    2. 总入口 a-stock-agents 必须声明 bundle.json、runtime/astock.ps1、runtime/astock 与 --json。
+    """
+    skill_mds = sorted(SKILLS_ROOT.glob("*/SKILL.md"))
+    assert len(skill_mds) == 20, f"应发现 20 个 SKILL.md，实际发现 {len(skill_mds)}"
+
+    for md_path in skill_mds:
+        text = md_path.read_text(encoding="utf-8")
+        skill_id = md_path.parent.name
+        if skill_id == "a-stock-agents":
+            assert "bundle.json" in text, f"{skill_id}: 缺 bundle.json 根定位说明"
+            assert "runtime/astock.ps1" in text, f"{skill_id}: 缺 Windows 启动器说明"
+            assert "runtime/astock" in text, f"{skill_id}: 缺 POSIX 启动器说明"
+            assert "--json" in text, f"{skill_id}: 缺 --json 约定"
+            assert "execution-contract.md" in text, f"{skill_id}: 缺共享执行契约引用"
+        else:
+            assert "调用约定" in text, f"{skill_id}: 缺少「调用约定」区块"
+            assert "$BUNDLE" in text, f"{skill_id}: 缺少 $BUNDLE 根定义"
+            assert "runtime/astock.ps1" in text, f"{skill_id}: 缺少 runtime/astock.ps1 启动器调用"
+            assert "runtime/astock" in text, f"{skill_id}: 缺少 runtime/astock 启动器调用"
+            assert "--json" in text, f"{skill_id}: 缺少 --json 参数规范"
+            assert "execution-contract.md" in text, f"{skill_id}: 缺少 execution-contract.md 共享契约链接"
+
+
+def test_bundle_markdown_and_scripts_contain_no_bin_astock():
+    """skill_bundle 内部的所有 Markdown 文档及脚本中，严禁出现开发态相对路径 bin/astock*。
+
+    Release 归档只包含 skill_bundle/，bin/ 在归档外；任何 bin/astock* 引用在宿主机器上必失败。
+    """
+    bundle_root = SKILLS_ROOT.parent
+    checked_files = 0
+    bin_astock_re = re.compile(r'(?:\./|\\|\b)bin[/\\]astock', re.IGNORECASE)
+
+    for p in bundle_root.rglob("*"):
+        if not p.is_file():
+            continue
+        if p.suffix.lower() not in [".md", ".sh", ".ps1"]:
+            continue
+        checked_files += 1
+        text = p.read_text(encoding="utf-8", errors="replace")
+        matches = [
+            (i + 1, line.strip())
+            for i, line in enumerate(text.splitlines())
+            if bin_astock_re.search(line)
+        ]
+        assert not matches, f"{p.relative_to(ROOT)} 仍包含 bin/astock 引用: {matches}"
+
+    assert checked_files >= 100, f"受检文档与脚本数量异常: {checked_files} < 100"
+
+
+def test_bundle_markdown_links_do_not_escape_and_all_exist():
+    """skill_bundle 内所有 Markdown 中的相对链接不得逃逸至包外（如 docs/、apps/），且目标文件必须物理存在。"""
+    bundle_root = SKILLS_ROOT.parent
+    md_link_re = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+    total_links_verified = 0
+
+    for md_file in bundle_root.rglob("*.md"):
+        text = md_file.read_text(encoding="utf-8", errors="replace")
+        for match in md_link_re.finditer(text):
+            target_raw = match.group(2).strip()
+            # 排除网络链接、锚点、邮箱
+            if target_raw.startswith(("http://", "https://", "#", "mailto:")):
+                continue
+            file_part = target_raw.split("#")[0].strip()
+            if not file_part:
+                continue
+
+            target_path = (md_file.parent / file_part).resolve()
+            # 断言 1: 不得逃逸出 bundle_root
+            try:
+                target_path.relative_to(bundle_root)
+            except ValueError:
+                pytest.fail(
+                    f"{md_file.relative_to(ROOT)} 中的链接 {target_raw!r} 逃逸出 skill_bundle 目录: {target_path}"
+                )
+            # 断言 2: 目标文件必须真实存在
+            assert target_path.exists(), (
+                f"{md_file.relative_to(ROOT)} 中的链接 {target_raw!r} 指向不存在的文件: {target_path}"
+            )
+            total_links_verified += 1
+
+    assert total_links_verified >= 50, f"受检相对链接数过少: {total_links_verified} < 50"
+
+
+def test_bundle_cron_and_scheduled_tasks_have_no_cwd_dependency():
+    """定时调度与监控说明中不得包含 cd <repo_root> 类的 CWD 依赖指令。"""
+    cron_skill = SKILLS_ROOT / "astock-pool-dashboard" / "SKILL.md"
+    text = cron_skill.read_text(encoding="utf-8")
+    assert not re.search(r"cd\s+[/~a-zA-Z0-9_.-]+&&", text), (
+        f"{cron_skill.name} 包含依赖 cd 的定时任务示例"
+    )
+

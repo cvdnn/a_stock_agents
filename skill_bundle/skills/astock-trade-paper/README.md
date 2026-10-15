@@ -48,21 +48,21 @@
 前台启动：
 
 ```bash
-python3 "$PROJECT_ROOT/skill_bundle/runtime/core/paper_trading/paper_trading_service.py" --host 127.0.0.1 --port 18765
+python3 "$BUNDLE/runtime/core/paper_trading/paper_trading_service.py" --host 127.0.0.1 --port 18765
 ```
 
 推荐用控制脚本后台常驻：
 
 ```bash
-python3 "$PROJECT_ROOT/skill_bundle/runtime/core/paper_trading/paper_trading_ctl.py" start
-python3 "$PROJECT_ROOT/skill_bundle/runtime/core/paper_trading/paper_trading_ctl.py" status
-python3 "$PROJECT_ROOT/skill_bundle/runtime/core/paper_trading/paper_trading_ctl.py" stop
+python3 "$BUNDLE/runtime/core/paper_trading/paper_trading_ctl.py" start
+python3 "$BUNDLE/runtime/core/paper_trading/paper_trading_ctl.py" status
+python3 "$BUNDLE/runtime/core/paper_trading/paper_trading_ctl.py" stop
 ```
 
 若希望开机自动拉起，可安装 launchd：
 
 ```bash
-python3 "$PROJECT_ROOT/skill_bundle/runtime/core/paper_trading/paper_trading_ctl.py" install-launchd
+python3 "$BUNDLE/runtime/core/paper_trading/paper_trading_ctl.py" install-launchd
 ```
 
 ## 验证脚本

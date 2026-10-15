@@ -33,11 +33,11 @@ SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ### 修复
 
-当前修复是从项目的 `skill_bundle/runtime/core/workspace.py` 导入根路径：
+当前修复是经集合内 `$BUNDLE/runtime/core/workspace.py` 统一接口导入数据根：
 
 ```python
-from scripts.core.workspace import PROJECT_ROOT
-POOLS_DIR = PROJECT_ROOT / "output" / "pools"
+from core.workspace import WORKSPACE_ROOT
+POOLS_DIR = WORKSPACE_ROOT / "output" / "pools"
 ```
 
 不要创建指向技能目录的兼容符号链接，也不要硬编码用户目录。
@@ -45,7 +45,7 @@ POOLS_DIR = PROJECT_ROOT / "output" / "pools"
 ### 验证方法
 
 ```bash
-python skill_bundle/skills/astock-pool-dashboard/scripts/sandbox.py --positions-json
+"$BUNDLE/runtime/astock" pool list --json
 ```
 
 ## 2. WeChat 推送限流丢失止损信号（2026-06-29 确认）

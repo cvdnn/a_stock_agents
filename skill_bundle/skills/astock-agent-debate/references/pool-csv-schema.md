@@ -67,9 +67,9 @@
 import csv
 from pathlib import Path
 
-# 读取自选股池
-from scripts.core.workspace import PROJECT_ROOT
-path = PROJECT_ROOT / "output" / "pools" / "selected_pool.csv"
+# 读取自选股池（需 $BUNDLE/runtime 在 sys.path 上，统一启动器已自动注入）
+from core.workspace import WORKSPACE_ROOT
+path = WORKSPACE_ROOT / "output" / "pools" / "selected_pool.csv"
 with open(path) as f:
     rows = list(csv.DictReader(f))
 

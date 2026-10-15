@@ -15,6 +15,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # ashare-quant-engine — A股全流程量化工程引擎
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## 定位与核心价值
 
 **ashare-quant-engine** 是专为 A股市场打造的工业级量化投研、选股与风控执行引擎。不同于传统的单股价格点预测或离散定性打分，本技能遵循量化对冲基金标准最佳实践：

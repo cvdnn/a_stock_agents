@@ -12,6 +12,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # A股HTML报告标准 — 全局默认样式
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 > ⚠️ **约定：所有股票评估/复盘/投研/持仓报告的HTML输出必须使用此模板。不允许创建重复模板。**
 
 ## 风格规范（不可更改）
@@ -30,7 +32,7 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 ## 文件位置
 
 ```
-skill_bundle/skills/astock-data-feed/templates/stock-report.html
+$BUNDLE/assets/templates/stock-report.html
 ```
 
 ## 占位符（8个）
@@ -131,9 +133,10 @@ def calc_min_sell(cost, shares):
 
 ```python
 from pathlib import Path
+from core.workspace import ASSETS_ROOT
 
-# 1. 读取模板
-template_path = Path("skill_bundle/skills/astock-data-feed/templates/stock-report.html")
+# 1. 读取模板（通过 ASSETS_ROOT 定位集合 assets 目录）
+template_path = ASSETS_ROOT / "templates" / "stock-report.html"
 html = template_path.read_text(encoding="utf-8")
 
 # 2. 替换8个占位符

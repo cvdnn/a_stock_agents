@@ -10,6 +10,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # 智能选股系统（ISS）
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 把"我想要一套可复用、可版本化、可调度的选股规则"转成可编译、可发布、可审计、可回滚的模型资产。
 
 ## 定位与边界
@@ -69,10 +71,9 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 ## 关键参考
 
-- 主规范：[selection-system-specification.md](../../../docs/guidelines/algorithm/selection-system-specification.md)
-- 模型类型契约：`docs/guidelines/algorithm/selection-model-types-specification.md`
-- 实施看板：`docs/specs/algorithm/selection-system-plan.md`
-- 实现审查：`docs/audits/2026-10-07-selection-system-implementation-review.md`
+- 权威规范编号：`SPEC-ALGO-ISS-001`（规范正文、模型类型契约、实施看板与实现审查属开发仓库设计文档，不随 Release 分发）
+- 运行期权威实现：[selection_models 包](../../runtime/core/selection_models/__init__.py)
+- 运行契约：以本文件与 `astock funnel validate --json` 的校验结果为准
 
 ## 回答风格
 

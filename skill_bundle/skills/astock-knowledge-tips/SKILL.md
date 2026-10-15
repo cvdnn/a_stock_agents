@@ -12,6 +12,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # astock-knowledge-tips — A股实战经验与API降级避坑指南
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## 核心定位
 
 **astock-knowledge-tips** 沉淀了 A股量化交易与多智能体实战运行中总结的**高价值避坑铁律、容灾降级方案与日内交易 SOP**。

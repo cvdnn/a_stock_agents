@@ -18,6 +18,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # 多Agent投研分析 — 多角色量化协同研判体系
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## Overview
 
 将 [多智能体辩论框架](https://github.com/simonlin1212/多智能体辩论框架)（1750⭐）的 7 分析师多 Agent 辩论管道，与 A-Stock Agents 的量化内核深度融合。底层提供 4 级数据降级、多因子打分、模拟盘撮合与风控决策。
@@ -150,7 +152,7 @@ Phase 3 — 执行 & 监控（量化数据与评分）
 
 ```bash
 VENV_PY="python3"
-SKILL_DIR="skill_bundle/skills/astock-agent-debate"
+SKILL_DIR="$BUNDLE/skills/astock-agent-debate"
 
 # 基础分析（自动同步到自选股池）
 $VENV_PY $SKILL_DIR/scripts/ta_analyze.py 600519 --date 2026-07-09
@@ -426,7 +428,7 @@ _EXECUTE_MAP = {
 ## 已知问题与踩坑
 
 1. **LLM API Key 缺失** — ta_analyze.py 需要 `.env` 文件在 TA 项目根目录。首次运行检查：`test -f $TA_PROJECT_DIR/.env && echo OK`
-2. **多智能体分析引擎 模块不全（常见陷阱 ⚠️）** — 项目根目录 `tradingagents/` 可能只有 `dataflows/` 子模块，缺少 `agents/graph/llm_clients`。**必须从 `_original_src/` 安装**：`cd .../_original_src && pip install -e .`。ta_analyze.py 的 `phase2_multiagent_analysis()` 已内置缺失模块检测。
+2. **多智能体分析引擎 模块不全（常见陷阱 ⚠️）** — 项目根目录 `tradingagents/` 可能只有 `dataflows/` 子模块，缺少 `agents/graph/llm_clients`。**必须在外部源码目录安装**：`pip install -e /path/to/_original_src`。ta_analyze.py 的 `phase2_multiagent_analysis()` 已内置缺失模块检测。
 3. **`DEFAULT_CONFIG` 缺失字段（子进程 KeyError）** — `phase2_multiagent_analysis()` 的 config dict 必须 merge `DEFAULT_CONFIG`，否则 `多智能体分析引擎Graph.__init__` 报 `KeyError: 'data_cache_dir'`。已修复：`config = dict(DEFAULT_CONFIG); config.update({...})`。如果新增类似子进程代码，一定要先加载 DEFAULT_CONFIG 再覆盖。
 4. **`.env` 路径在 `_original_src` 下不存在** — 当 TA_DIR 指向 `_original_src` 时，`.env` 在父目录 (`多智能体分析引擎/.env`)。子进程代码已添加 fallback：`Path(TA_DIR) / '.env'` -> `Path(TA_DIR).parent / '.env'`。
 5. **`langgraph.graph` 首次导入极慢（~12s）** — 这是 `langgraph` 包的正常冷启动行为，非卡死。ta_analyze.py 的子进程 timeout=300s 足够覆盖。如需在交互式终端中测试，用 `timeout 60` 而非 `timeout 30`。

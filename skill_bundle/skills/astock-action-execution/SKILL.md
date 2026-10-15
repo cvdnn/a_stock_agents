@@ -12,6 +12,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # astock-action-execution — 实战交易反应动作与精确保本决策中枢
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## 定位与核心价值
 
 **astock-action-execution** 是 A股量化投研系统的**执行反应中枢 (EMS 2.0)**。它将静态的技术分析与评分转化为**盘中毫秒级可执行动作**，杜绝散户因犹豫、幻想、四舍五入摩擦成本计算不准导致的隐性亏损。

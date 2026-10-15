@@ -13,6 +13,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # A股预测模型可靠性验证
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## 定位
 
 在决定是否把任何外部预测模型（Kronos、TimesFM、Chronos、自训时序模型等）作为信号接入 A股分析平台之前，

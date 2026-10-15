@@ -11,6 +11,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # A股数据综合分析
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 ## 核心原则
 
 所有行情与指标查询必须通过项目统一 CLI，并追加 `--json`。禁止临时编写网络爬虫，禁止把用户数据写入技能目录。
@@ -18,13 +20,13 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 ## 快速调用
 
 ```powershell
-.\bin\astock.ps1 data quote 600519 --json
-.\bin\astock.ps1 data tech 600519 --json
-.\bin\astock.ps1 events 600519 --json
-.\bin\astock.ps1 cyq 600519 --json
+& "$BUNDLE/runtime/astock.ps1" data quote 600519 --json
+& "$BUNDLE/runtime/astock.ps1" data tech 600519 --json
+& "$BUNDLE/runtime/astock.ps1" events 600519 --json
+& "$BUNDLE/runtime/astock.ps1" cyq 600519 --json
 ```
 
-Linux/macOS 使用 `./bin/astock`；仅当启动器不可用时，才调用 `python skill_bundle/runtime/core/cli.py ... --json`。
+Linux/macOS 使用 `"$BUNDLE/runtime/astock"`；仅当启动器不可用时，才调用 `python "$BUNDLE/runtime/cli.py" ... --json`。
 
 ## 路由
 

@@ -22,7 +22,7 @@
 ## 集成冒烟测试
 
 ```bash
-cd skill_bundle/skills/astock-platform-evaluate/scripts && python3 -c "
+cd $BUNDLE/skills/astock-platform-evaluate/scripts && python3 -c "
 from data_bridge import DataBridge; b=DataBridge()
 assert len(b.tencent_kline('600519',30))>=26
 assert b.get_realtime_quote('600519') is not None

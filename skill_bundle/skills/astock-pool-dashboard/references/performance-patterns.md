@@ -39,7 +39,7 @@ If akshare-proxy-patch stabilizes, the `_get_quote()` call may become reliable a
 System Python 3.9 has numpy version conflicts with akshare-proxy-patch dependencies. Always use:
 
 ```bash
-python skill_bundle/runtime/core/cli.py data quote 600760 --json
+python "$BUNDLE/runtime/cli.py" data quote 600760 --json
 # 所有行情请求均通过项目统一 CLI 发起
 ```
 

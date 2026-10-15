@@ -14,6 +14,8 @@ compatibility: Requires the complete a_stock_agents bundle and Python 3.9+; shar
 
 # 5a-stock-rotation — 五维共振旋转选股引擎 (v5.0 风险与基本面增强版)
 
+> **调用约定**：从本文件真实路径向上定位含 `bundle.json` 的集合根（下称 `$BUNDLE`，即本文件所在目录的上两级），不依赖当前工作目录。Windows 调用 `$BUNDLE/runtime/astock.ps1`，macOS/Linux 调用 `$BUNDLE/runtime/astock`，启动器不可用时回退 `python $BUNDLE/runtime/cli.py`；所有正式调用追加 `--json`。下文 `astock <子命令>` 均指该启动器。`output/`、`log/`、`temp/`、`local/` 指工作区数据根（`core.workspace.WORKSPACE_ROOT`），不是集合根。共用契约见 [execution-contract.md](../../references/execution-contract.md)。
+
 > **v5.0 (2026-08-19 重大升级)**:
 > - **前置基本面与五大风险过滤层 (`FundamentalFilter`)**：基于《A股选股模型风险审查与改进》报告，建立 **“基本面过滤 $\rightarrow$ 大盘门控 $\rightarrow$ 五维评分 $\rightarrow$ 轮动风控”** 三层漏斗体系。
 > - **五大风险全覆盖拦截**：
