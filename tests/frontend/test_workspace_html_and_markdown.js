@@ -63,9 +63,9 @@ assert(styleCss.includes('.deliverable-doc-name {\n  text-decoration: underline 
 assert(styleCss.includes('.deliverable-doc-icon') && styleCss.includes('text-decoration: none !important;'), '图标必须绝对杜绝下划线穿透');
 console.log('✅ PASS [需求 2]: web/css/style.css 具备完备的双格式呈现、沙箱视窗与胶囊交互样式，并彻底清除虚线与小图标下划线');
 
-// 3. 后端接口白名单断言：scripts/server/app.py
+// 3. 后端接口白名单断言：apps/web-console/backend/server/app.py
 console.log('\n--- 3. 后端 /api/docs/read 与 /api/docs/save 白名单断言 ---');
-const appPy = fs.readFileSync(path.join(__dirname, '../../scripts/server/app.py'), 'utf8');
+const appPy = fs.readFileSync(path.join(__dirname, '../../apps/web-console/backend/server/app.py'), 'utf8');
 
 assert(appPy.includes('.html') && appPy.includes('.htm'), 'app.py /api/docs/read 必须将 .html 和 .htm 纳入允许扩展名');
 assert(appPy.includes('doc_format = "html"') || appPy.includes('"format": doc_format'), 'app.py /api/docs/read 必须返回文档格式字段');

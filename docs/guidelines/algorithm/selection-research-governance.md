@@ -3,7 +3,7 @@
 > **文档类别**：算法治理指南与规则 (Guidelines / Governance)
 > **适用范围**：智能选股系统（`SPEC-ALGO-ISS-001`）的模型评价触发阈值、优化建议闭环与「建议不得自动改版」评审流程
 > **关联看板**：[`selection-system-plan.md`](../../specs/algorithm/selection-system-plan.md)（`SPEC-ALGO-ISS-001`）、[`pending-backlog-plan.md`](../../specs/algorithm/pending-backlog-plan.md)
-> **关联规范**：[`algorithm-governance.md`](./algorithm-governance.md)、[`selection-system-specification.md`](./selection-system-specification.md)
+> **关联规范**：[`algorithm-governance.md`](algorithm-governance.md)、[`selection-system-specification.md`](selection-system-specification.md)
 
 ---
 
@@ -85,5 +85,5 @@
 
 - 实施进度看板：[`selection-system-plan.md`](../../specs/algorithm/selection-system-plan.md)（`SPEC-ALGO-ISS-001`）
 - 待办登记：[`pending-backlog-plan.md`](../../specs/algorithm/pending-backlog-plan.md)
-- 系统建设规范：[`selection-system-specification.md`](./selection-system-specification.md)
-- 算法治理规范：[`algorithm-governance.md`](./algorithm-governance.md)
+- 系统建设规范：[`selection-system-specification.md`](selection-system-specification.md)
+- 算法治理规范：[`algorithm-governance.md`](algorithm-governance.md)

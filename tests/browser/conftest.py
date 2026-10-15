@@ -174,7 +174,7 @@ def isolated_browser_server(tmp_path_factory):
             "A_STOCK_LOCAL_DIR": str(runtime_root / "local"),
             "A_STOCK_DATA_SYNC_SETTINGS_FILE": str(settings_path),
             "ASTOCK_LOG_TO_FILE": "false",
-            "PYTHONPATH": os.pathsep.join((str(ROOT / "scripts"), str(ROOT))),
+            "PYTHONPATH": os.pathsep.join((str(ROOT / "skill_bundle" / "runtime"), str(ROOT))),
         }
     )
     server_log_path = log_dir / "server.log"

@@ -17,6 +17,7 @@
 | 编号 | 规范名称 | 实施看板路径 | 权威设计指南 (SSOT) | 实施状态 | 核心落地成果与交付点 |
 |:---:|:---|:---|:---|:---:|:---|
 | `SPEC-ENG-001` | 项目工程结构与工作区架构设计规范 | [`engineering/eng-project-structure-and-workspace.md`](engineering/eng-project-structure-and-workspace.md) | [`project-structure-specification.md`](../guidelines/engineering/project-structure-specification.md) | 🚧 实施中 | 原基线声明待整改验收；当前进度见 [验收台账](engineering/eng-remediation-acceptance.md) |
+| — | 技能总包与跨平台接入改造 | [`engineering/eng-skill-suite-portability-plan.md`](engineering/eng-skill-suite-portability-plan.md) | [`skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) | 结构已实施，扩展验收待完成 | 归属 SPEC-ENG-001；Windows P0与项目引用通过，P1/浏览器/其他OS及宿主待验 |
 | `SPEC-SEC-001` | 系统安全加固与渗透测试漏洞整改 | [`engineering/security-remediation-plan.md`](engineering/security-remediation-plan.md) | [`security-hardening-guide.md`](../guidelines/engineering/security-hardening-guide.md) | ✅ 已完成 (Completed & Verified) | 8 项漏洞场景闭环修复、物理沙箱隔离、iframe 降权、DNS 防 SSRF；证据见 [渗透测试报告](../audits/2026-09-14-penetration-testing-report.md) |
 | — | 工程质量整改总计划（10 项受审规格聚合） | [`engineering/eng-remediation-plan.md`](engineering/eng-remediation-plan.md) | [`code-review.md`](../guidelines/engineering/code-review.md) | 📋 规划中 (RFC) | 审查基准 `88f1f71`；发现项拆分至各领域整改子计划统一验收 |
 | — | 运行时与测试体系整改计划 | [`engineering/eng-runtime-and-test-remediation-plan.md`](engineering/eng-runtime-and-test-remediation-plan.md) | [`testing-guide.md`](../guidelines/engineering/testing-guide.md) | 📋 规划中 (RFC) | 归属 `SPEC-ENG-001`；发现 E1/E2/E3/T1，按 E1→E4 顺序推进 |
@@ -75,7 +76,7 @@
 | — | 智能选股工作区修复计划 | [`algorithm/selection-workbench-remediation-plan.md`](algorithm/selection-workbench-remediation-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 归属 `SPEC-ALGO-ISS-001`；修复 Web 闭环阻断、运行详情数据契约与状态显示，重验 M-04 |
 | — | 智能选股漏斗板块重设计计划 | [`algorithm/intelligent-selection-funnel-redesign-plan.md`](algorithm/intelligent-selection-funnel-redesign-plan.md) | [`selection-system-specification.md`](../guidelines/algorithm/selection-system-specification.md) | 📋 规划中 (RFC) | 在侧栏【策略选股】紧下方新增平级【智能选股】菜单；工作台内用「选股记录 / 模型管理」Tab，优先完成漏斗模型；主计划直接定义中文规则编译流程并统一使用系统 `quant` 配置，F0～F5 验收基础工作台，F6～F7 独立评估盘中影子判断与正式准入 |
 | — | 第一期条件选股规则目录（设计输入） | [`../guidelines/algorithm/selection-condition-rule-catalog.md`](../guidelines/algorithm/selection-condition-rule-catalog.md) | [`selection-condition-rule-catalog.md`](../guidelines/algorithm/selection-condition-rule-catalog.md) | 📋 目录待落地 | 主流条件分类、示例一四层覆盖、通用规则优先级及新高口径与数据门禁缺口；执行任务纳入上行重设计计划 F2 |
-| 🗄️ 归档 | 历史 ADR / RFC / 审计报告（6 篇，不可变） | [`algorithm/archive/`](algorithm/archive/) | — | 🔒 已归档 | 保留 `YYYY-MM-DD-*.md` 日期前缀，豁免 `-plan.md` 命名规则，只增不改 |
+| 🗄️ 归档 | 历史 ADR / RFC / 审计报告（6 篇，不可变） | [`algorithm/archive/`](algorithm/archive) | — | 🔒 已归档 | 保留 `YYYY-MM-DD-*.md` 日期前缀，豁免 `-plan.md` 命名规则，只增不改 |
 
 ### 7. 数据架构与同步机制设计 (`data/`)
 
@@ -110,5 +111,5 @@ stateDiagram-v2
 ## 三、 归档与不可变留痕约定
 
 - **`<domain>/archive/`**：历史 ADR / RFC / 审计报告归档区，**只增不改**，保留 `YYYY-MM-DD-*.md` 日期前缀，豁免 `-plan.md` 命名规则。
-- **[`docs/audits/`](../audits/)**：审查报告与留痕归档区（项目规格审查、代码审查、渗透测试、硬编码数据审计），**只增不改**；实施计划类内容一律迁入本目录对应领域，不在 `audits/` 承载任务矩阵。
+- **[`docs/audits/`](../audits)**：审查报告与留痕归档区（项目规格审查、代码审查、渗透测试、硬编码数据审计），**只增不改**；实施计划类内容一律迁入本目录对应领域，不在 `audits/` 承载任务矩阵。
 - 命名范式与目录分层标准见 [`naming-conventions.md` §四](../guidelines/engineering/naming-conventions.md)。

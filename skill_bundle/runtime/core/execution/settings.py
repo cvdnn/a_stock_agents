@@ -1,0 +1,140 @@
+# -*- coding: utf-8 -*-
+"""
+core.execution.settings - Server-wide settings and environment management.
+"""
+from __future__ import annotations
+
+import os
+import ipaddress
+from pathlib import Path
+from typing import List, Optional
+from pydantic import BaseModel, Field
+
+# Root directory resolution
+SERVER_DIR = Path(__file__).resolve().parent
+from core.config import LOCAL_SERVER_DIR, PROJECT_ROOT
+
+DEFAULT_DB_PATH = LOCAL_SERVER_DIR / "chats.db"
+
+
+class ServerSettings(BaseModel):
+    """Configuration settings for FastAPI server and Agent runtime."""
+    host: str = Field(default="127.0.0.1", description="Server listening host")
+    port: int = Field(default=6300, description="Server listening port")
+    reload: bool = Field(default=False, description="Enable auto-reload on code change")
+    runtime_mode: str = Field(default="production", description="production or test")
+    cors_origins: List[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+        ],
+        description="Allowed CORS origins"
+    )
+
+    # SQLite Database
+    db_path: Path = Field(default=DEFAULT_DB_PATH, description="Path to SQLite chats.db")
+
+    # API Authentication (Optional Bearer Token)
+    api_token: Optional[str] = Field(default=None, description="Optional API Bearer token for authentication")
+
+    # LLM Settings
+    default_model: str = Field(default="deepseek-chat", description="Default LLM model")
+    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API Key")
+    openai_base_url: Optional[str] = Field(default=None, description="OpenAI API Base URL")
+    deepseek_api_key: Optional[str] = Field(default=None, description="DeepSeek API Key")
+    deepseek_base_url: str = Field(default="https://api.deepseek.com/v1", description="DeepSeek Base URL")
+    gemini_api_key: Optional[str] = Field(default=None, description="Google Gemini API Key")
+    anthropic_api_key: Optional[str] = Field(default=None, description="Anthropic Claude API Key")
+    ollama_base_url: str = Field(default="http://localhost:11434", description="Ollama Base URL")
+
+    # Timeout and retry
+    request_timeout: float = Field(default=60.0, description="LLM request timeout in seconds")
+
+
+def ensure_safe_test_bind(host: str, runtime_mode: str) -> None:
+    """Refuse to expose an explicitly test-mode service beyond loopback.
+
+    Test mode may contain temporary accounts and deterministic providers.  It
+    is therefore an error to bind an official launcher to a LAN/public
+    address.  Production binding policy is unchanged.
+    """
+    if str(runtime_mode).strip().lower() != "test":
+        return
+    value = str(host or "").strip().lower()
+    if value == "localhost":
+        return
+    try:
+        if ipaddress.ip_address(value).is_loopback:
+            return
+    except ValueError:
+        pass
+    raise ValueError("test runtime must bind to a loopback host (127.0.0.1, ::1, or localhost)")
+
+
+def load_server_settings() -> ServerSettings:
+    """Load settings from environment variables and defaults."""
+    db_str = os.getenv("A_STOCK_DB_PATH")
+    db_path = Path(db_str).resolve() if db_str else DEFAULT_DB_PATH
+    # 兼容性平滑迁移: 若原 output/cache/chats.db 存在且当前不存在，自动迁移至 local/server
+    legacy_chats = PROJECT_ROOT / "output" / "cache" / "chats.db"
+    if not db_str and not db_path.exists() and legacy_chats.exists():
+        try:
+            import shutil
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(legacy_chats, db_path)
+        except Exception:
+            pass
+
+    # Production never infers Mock. Tests must opt in explicitly.
+    default_model = os.getenv("A_STOCK_DEFAULT_MODEL")
+    if not default_model:
+        if os.getenv("DEEPSEEK_API_KEY"):
+            default_model = "deepseek-chat"
+        elif os.getenv("OPENAI_API_KEY"):
+            default_model = "gpt-4o"
+        elif os.getenv("GEMINI_API_KEY"):
+            default_model = "gemini-1.5-flash"
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            default_model = "claude-3-5-sonnet-20241022"
+        else:
+            default_model = "deepseek-chat"
+
+    cors_str = os.getenv("A_STOCK_CORS_ORIGINS")
+    configured_origins = [s.strip() for s in cors_str.split(",") if s.strip()] if cors_str else [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+    cors_origins = [origin for origin in configured_origins if origin != "*"]
+
+    token_str = os.getenv("A_STOCK_SERVER_TOKEN")
+    api_token = token_str.strip() if token_str and token_str.strip() else None
+
+    host = os.getenv("A_STOCK_SERVER_HOST", "127.0.0.1")
+    runtime_mode = os.getenv("A_STOCK_RUNTIME_MODE", "production").strip().lower()
+    ensure_safe_test_bind(host, runtime_mode)
+
+    return ServerSettings(
+        host=host,
+        port=int(os.getenv("A_STOCK_SERVER_PORT", "6300")),
+        reload=os.getenv("A_STOCK_SERVER_RELOAD", "false").lower() in ("true", "1", "yes"),
+        runtime_mode=runtime_mode,
+        cors_origins=cors_origins,
+        db_path=db_path,
+        api_token=api_token,
+        default_model=default_model,
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        openai_base_url=os.getenv("OPENAI_BASE_URL"),
+        deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+        deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
+        gemini_api_key=os.getenv("GEMINI_API_KEY"),
+        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+        ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+        request_timeout=float(os.getenv("A_STOCK_LLM_TIMEOUT", "60.0")),
+    )
+
+
+server_settings = load_server_settings()

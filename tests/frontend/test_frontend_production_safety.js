@@ -2,7 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const source = fs.readFileSync('web/js/api.js', 'utf8');
+const source = fs.readFileSync('apps/web-console/frontend/js/api.js', 'utf8');
 
 function responseFromSSE(text, ok = true, status = 200) {
   let delivered = false;
@@ -76,7 +76,7 @@ async function runStream(api, payload) {
   assert.strictEqual(source.includes('Fallback Mock'), false);
   assert.strictEqual(source.includes("model = 'mock'"), false);
 
-  const components = fs.readFileSync('web/js/components/astock.js', 'utf8');
+  const components = fs.readFileSync('apps/web-console/frontend/js/components/astock.js', 'utf8');
   for (const fabricated of ['3426.56', '10892.14', '1.28万亿元', '78分 贪婪', 'props.cost || 320.0']) {
     assert.strictEqual(components.includes(fabricated), false);
   }

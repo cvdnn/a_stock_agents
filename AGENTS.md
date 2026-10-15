@@ -3,9 +3,17 @@
 欢迎进入 **A-Stock Agents** 工作区。本项目是一套高内聚、自包含、生产就绪的 A股全流程量化投研与实战反应决策系统。
 
 > [!IMPORTANT]
-> **零全局污染原则 (Zero Global Pollution)**：
-> 本项目的全部 19 项技能及底层量化引擎**完全就地运行在当前工作区内**。
-> **严禁**将本项目的技能或配置复制到系统全局目录（如 `~/.gemini/config/skills`、`~/.hermes/skills` 或系统级路径）。无论在 Antigravity、Hermes、Codex 还是 Claude Code 中，直接在本项目工作区内就地按需调用即可。
+> 本仓库用于技能开发和 Release 构建。AI 工具使用发布版本；不维护项目发现模式，不将开发源码注册到全局技能目录。Release 是生成产物，不作为第二套源码维护。
+
+## 当前源码与接入契约（2026-10-14）
+
+技能唯一来源为 `skill_bundle/skills/`，公共运行时为 `skill_bundle/runtime/core/`；不建立`.agents/skills`项目发现入口。总入口`a-stock-agents`与19项专业技能共20个入口，业务清单仍为19项。
+
+公共配置/模板位于`skill_bundle/assets/`，共用说明位于`skill_bundle/references/`，有效用户配置位于`local/settings/application.yaml`（支持A_STOCK_CONFIG_PATH）；技能环境变量和凭据放在`local/settings/.env`。Web应用位于`apps/web-console/`，其开发端口和容器配置放在`tools/containers/web-console/`，不得复制公共算法。
+
+路径统一从`core.workspace`导入：PACKAGE_ROOT、RUNTIME_ROOT、SKILLS_ROOT为代码根；WORKSPACE_ROOT为可写根，旧PROJECT_ROOT兼容为WORKSPACE_ROOT。所有output/log/temp/local写入仍通过该接口。禁止用固定父目录层数或链接别名定位公共源码。
+
+Release本身不依赖链接；接收端引用允许使用经验证的符号链接/Windows junction；失败不复制。用户级引用须属于明确授权的宿主接入任务，不默认创建；链接卸载只能移除入口，不删除目标源码。Windows/macOS/Linux宿主接入分别验收。
 
 ---
 
@@ -19,7 +27,7 @@
 | :--- | :--- | :--- |
 | **Linux / macOS** | `./bin/astock <subcommand> --json` | `./bin/astock data quote 600519 --json` |
 | **Windows (PowerShell 优先 / CMD)** | `.\bin\astock.ps1 <subcommand> --json`<br>(CMD: `.\bin\astock.cmd <subcommand> --json`) | `.\bin\astock.ps1 data quote 600519 --json` |
-| **全平台通用 Python 回退** | `python scripts/core/cli.py <subcommand> --json` | `python scripts/core/cli.py data quote 600519 --json` |
+| **全平台通用 Python 回退** | `python skill_bundle/runtime/cli.py <subcommand> --json` | `python skill_bundle/runtime/cli.py data quote 600519 --json` |
 
 ---
 
@@ -34,10 +42,10 @@
 | **`temp/`** | 数据导出中间产物、脚本执行临时缓存、单次会话中间态、临时下载文件与可重建的中间计算结果 | 可重建中间产物暂存区；**严禁**保存任何用户最终交付物；任务结束后应显式或自动清理 |
 
 ### 1. 路径发现与跨平台访问契约
-所有读写上述三个目录的代码**必须**通过 [`scripts/core/workspace.py`](file:///c:/Users/cvdnn/coding/a_stock_agents/scripts/core/workspace.py) 中的 `PROJECT_ROOT` 解析根路径，禁止任何形式的硬编码绝对路径或运行期相对路径字符串拼接：
+所有读写上述三个目录的代码**必须**通过 [`skill_bundle/runtime/core/workspace.py`](file:///c:/Users/cvdnn/coding/a_stock_agents/skill_bundle/runtime/core/workspace.py) 中的 `PROJECT_ROOT` 解析根路径，禁止任何形式的硬编码绝对路径或运行期相对路径字符串拼接：
 
 ```python
-from scripts.core.workspace import PROJECT_ROOT
+from core.workspace import PROJECT_ROOT
 
 OUTPUT_DIR = PROJECT_ROOT / "output"
 LOG_DIR    = PROJECT_ROOT / "log"
@@ -58,9 +66,9 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 
 ## 🧭 19 项就地技能全景清单与意图路由 (Skills Manifest)
 
-当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** [`.agents/skills/<skill_id>/SKILL.md`](file:///Users/handy/workon/a_stock_agents/.agents/skills) 或 [`config/skills_manifest.json`](file:///Users/handy/workon/a_stock_agents/config/skills_manifest.json)。
+当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** `skill_bundle/skills/<skill_id>/SKILL.md` 或 [权威技能清单](skill_bundle/assets/config/skills_manifest.json)。
 
-| 技能 ID (`.agents/skills/`) | 适用场景与触发词 | 统一 CLI 调用入口 | 核心能力描述 |
+| 技能 ID (`skill_bundle/skills/`) | 适用场景与触发词 | 统一 CLI 调用入口 | 核心能力描述 |
 | :--- | :--- | :--- | :--- |
 | **`astock-data-feed`** | 行情、现价、K线、筹码分布、技术指标、板块资金 | `astock data quote <代码> --json`<br>`astock data tech <代码> --json` | 4级降级实时行情与日K线，全套经典技术指标与筹码模型 |
 | **`astock-platform-evaluate`** | 全流程分析、股票诊断、综合打分、大盘健康度 | `astock evaluate <代码> --json` | 100分制量化打分、解套决策树与大盘健康度综合研判 |

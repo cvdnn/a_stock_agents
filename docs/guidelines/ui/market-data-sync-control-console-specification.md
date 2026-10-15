@@ -18,7 +18,7 @@
 
 ## 二、与现有系统的视觉契约
 
-本页面只调整信息架构，不建立独立视觉语言。所有新增组件必须复用 [`ui-design-guide.md`](./ui-design-guide.md) 和 `web/css/style.css` 的现有语义 Token。
+本页面只调整信息架构，不建立独立视觉语言。所有新增组件必须复用 [`ui-design-guide.md`](ui-design-guide.md) 和 `web/css/style.css` 的现有语义 Token。
 
 | 界面层级 | 必须遵循的系统规范 |
 |:---|:---|
@@ -239,6 +239,6 @@ mode = incremental | full | audit | repair
 ## 附：关联索引
 
 - 实施进度看板：[`SPEC-UI-003`](../../specs/ui/market-data-sync-control-console-plan.md)
-- 全局界面指南：[`ui-design-guide.md`](./ui-design-guide.md)
+- 全局界面指南：[`ui-design-guide.md`](ui-design-guide.md)
 - 数据同步规范：[`market-data-sync-specification.md`](../data/market-data-sync-specification.md)
 - 行情接口规范：[`market-data-api-specification.md`](../data/market-data-api-specification.md)

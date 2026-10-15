@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 
-const source = fs.readFileSync('web/js/app.js', 'utf8');
+const source = fs.readFileSync('apps/web-console/frontend/js/app.js', 'utf8');
 const match = source.match(/function formatOptionalDecimal\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
 
 assert.ok(match, 'app.js must define formatOptionalDecimal for nullable market values');

@@ -1,0 +1,27 @@
+[General]
+Name=MACDν
+Type=ѡ
+
+// ==========================================
+// MACDνѡ
+// Դ: macd-second-golden-cross skill
+// : ˮ¶ν + DIF͵̧
+// ==========================================
+
+DIF:="MACD.DIF"(#DAY);
+DEA:="MACD.DEA"(#DAY);
+
+// һν棨20ڣ
+1:=COUNT(CROSS(DIF,DEA),20)>=1;
+// ڶν
+2:=CROSS(DIF,DEA);
+// ڶνλøڵһ
+REFDIF1:=REF(DIF,BARSLAST(CROSS(DIF,DEA))+1);
+λ̧:=DIF>REFDIF1;
+// ḽ
+ḽ:=DIF<0.5;
+// ST
+ST:=NAMELIKE('ST')=0 AND NAMELIKE('*ST')=0;
+
+// ---- ѡ ----
+ѡ:1 AND 2 AND λ̧ AND ḽ AND ST;

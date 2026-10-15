@@ -278,7 +278,7 @@ a_stock_agents/
 
 ## 四、18 技能体系（6+1 现代分层架构）
 
-全部 19 项技能严格遵循**零全局污染原则**，完全就地存放在 [`.agents/skills/`](../.agents/skills) 目录下，通过统一清单 [`config/skills_manifest.json`](../config/skills_manifest.json) 驱动：
+全部 19 项技能严格遵循**零全局污染原则**，完全就地存放在 [`.agents/skills/`](../.agents/skills) 目录下，通过统一清单 [`config/skills_manifest.json`](../skill_bundle/assets/config/skills_manifest.json) 驱动：
 
 ```mermaid
 mindmap
@@ -387,7 +387,7 @@ flowchart TD
   subgraph 入口层 [交互与调用入口]
     U1[浏览器 Web UI 工作台]
     U2[全平台 CLI 工具 bin/astock]
-    U3[主流 AI Agent 平台 Antigravity / Hermes / Codex / Claude Code]
+    U3[AI 工具通过技能 Release 接入]
   end
 
   subgraph 服务与网关 [scripts/server & scripts/core]

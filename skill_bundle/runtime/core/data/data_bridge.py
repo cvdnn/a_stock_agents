@@ -1,0 +1,922 @@
+"""
+aStocks 数据桥接层 — 4级降级数据获取
+
+整合 a-share-data skill 的脚本，提供统一数据接口：
+  L1: 腾讯 qt.gtimg.cn 直连 (~0.1s, 零依赖)
+  L2: a-share-data 新浪/腾讯脚本 (~3-5s)
+  L3: 东财 proxy-patch (~0.4-2s, 消耗积分)
+  L4: efinance (~0.2s, 零积分)
+  Fallback: 腾讯 web.ifzq.gtimg.cn 历史K线
+
+设计为独立运行，不依赖 TACN/TradingAgents 项目。
+"""
+
+import json
+import os
+import re
+import sys
+import time
+import urllib.request
+from pathlib import Path
+from datetime import datetime, timedelta
+import pandas as pd
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+try:
+    from core.config import PROJECT_ROOT, CONFIG_DIR, SKILLS_DIR, GLOBAL_CONFIG, get_logger
+    logger = get_logger("core.data.data_bridge")
+except ImportError:
+    import logging
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+    CONFIG_DIR = PROJECT_ROOT / "config"
+    SKILLS_DIR = PROJECT_ROOT / "skills"
+    GLOBAL_CONFIG = {}
+    logger = logging.getLogger("core.data.data_bridge")
+
+try:
+    from core.data.tencent_fields import parse_tencent_quote
+except ImportError:
+    from data.tencent_fields import parse_tencent_quote
+
+# 外部行情源优先级（external_sources.order / enabled）的 core 层只读入口：
+# 使控制台配置的降级顺序真正驱动本文件的取数执行层，而非仅作 UI 回显。
+try:
+    from core.data import sync_settings
+except ImportError:
+    from data import sync_settings
+
+
+def _validate_stock_code(code: str) -> str:
+    """白名单校验股票代码，支持纯代码、带市场前缀/后缀代码及常用指数别名，防范命令注入。"""
+    if not code or not isinstance(code, str):
+        raise ValueError(f"Invalid stock code: {code}")
+    raw = code.strip()
+    if re.match(r"^[a-zA-Z0-9]{1,10}$", raw):
+        return raw
+    normalized = DataBridge.normalize_symbol(raw, with_prefix=True)
+    clean = normalized.replace("sh", "").replace("sz", "").replace("bj", "")
+    if not re.match(r"^[a-zA-Z0-9]{1,10}$", clean):
+        raise ValueError(f"Stock code contains illegal characters: {code}")
+    return normalized
+
+
+class QuoteDict(dict):
+    """行情字典容器：主键为唯一 symbol (如 sh600519), 同时支持 600519、贵州茅台 等别名透明检索。"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._alias_map: Dict[str, str] = {}
+
+    def add(self, item: Dict[str, Any]):
+        """便捷添加行情字典项，自动以 code_raw (或 code) 为主键，并注册代码与名称别名。"""
+        code = item.get("code", "")
+        code_raw = item.get("code_raw", "")
+        name = item.get("name", "")
+        if not code_raw and code:
+            code_raw = code.replace("sh", "").replace("sz", "").replace("bj", "").split(".")[0]
+        primary_key = code_raw or code
+        if primary_key:
+            self[primary_key] = item
+            if code and code != primary_key:
+                self.register_alias(code, primary_key)
+            if name:
+                self.register_alias(name, primary_key)
+
+    def register_alias(self, alias: str, primary_key: str):
+        if alias and alias != primary_key:
+            self._alias_map[alias] = primary_key
+
+    def __getitem__(self, key: str):
+        if super().__contains__(key):
+            return super().__getitem__(key)
+        target = self._alias_map.get(key)
+        if target and super().__contains__(target):
+            return super().__getitem__(target)
+        key_clean = str(key).strip().lower()
+        target = self._alias_map.get(key_clean)
+        if target and super().__contains__(target):
+            return super().__getitem__(target)
+        raise KeyError(key)
+
+    def get(self, key: str, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __contains__(self, key: object) -> bool:
+        if super().__contains__(key):
+            return True
+        key_str = str(key).strip().lower()
+        return key in self._alias_map or key_str in self._alias_map
+
+
+# ─── 路径配置 (优先级: env > config.yaml > 默认值) ──────
+def _load_path_config() -> Dict[str, str]:
+    """加载路径配置，优先级: 环境变量 > config.yaml > 默认值"""
+    cfg = {}
+
+    # 1. 尝试从 GLOBAL_CONFIG 或 config.yaml 加载
+    if GLOBAL_CONFIG:
+        python_cfg = GLOBAL_CONFIG.get("python", {})
+        cfg["venv_python"] = python_cfg.get("venv_python", "")
+        cfg["system_python"] = python_cfg.get("system_python", sys.executable or "python3")
+        cfg["a_share_data_dir"] = GLOBAL_CONFIG.get("skills", {}).get("a_share_data", "")
+    else:
+        from core.config import resolve_config_file
+        config_path = resolve_config_file()
+        if config_path.exists():
+            try:
+                import yaml
+                data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+                if data:
+                    cfg["venv_python"] = data.get("python", {}).get("venv_python", "")
+                    cfg["system_python"] = data.get("python", {}).get("system_python", sys.executable or "python3")
+                    skill_paths = data.get("skills", {})
+                    cfg["a_share_data_dir"] = skill_paths.get("a_share_data", "")
+            except Exception as exc:
+                logger.debug(f"Failed loading config.yaml: {exc}")
+
+    # 2. 环境变量覆盖 (优先级最高)
+    env_map = {
+        "ASTOCKS_VENV_PY": "venv_python",
+        "ASTOCKS_SYSTEM_PY": "system_python",
+        "ASTOCKS_A_SHARE_DATA_DIR": "a_share_data_dir",
+    }
+    for env_key, cfg_key in env_map.items():
+        val = os.environ.get(env_key, "")
+        if val:
+            cfg[cfg_key] = val
+
+    # 3. 默认值回退
+    if not cfg.get("a_share_data_dir"):
+        candidates = [
+            SKILLS_DIR / "astock-data-feed",
+            PROJECT_ROOT / "skills" / "astock-data-feed",
+            SKILLS_DIR / "a-share-data",
+            PROJECT_ROOT / "skills" / "a-share-data",
+        ]
+        for candidate in candidates:
+            if candidate.is_dir():
+                cfg["a_share_data_dir"] = str(candidate)
+                break
+        if not cfg.get("a_share_data_dir"):
+            cfg["a_share_data_dir"] = ""
+
+    if not cfg.get("venv_python"):
+        cfg["venv_python"] = sys.executable or "python3"
+
+    if not cfg.get("system_python"):
+        cfg["system_python"] = sys.executable or "python3"
+
+    return cfg
+
+_PATH_CFG = _load_path_config()
+A_SHARE_DATA_DIR = Path(_PATH_CFG["a_share_data_dir"]) if _PATH_CFG.get("a_share_data_dir") else None
+A_SHARE_SCRIPTS = A_SHARE_DATA_DIR / "scripts" if A_SHARE_DATA_DIR else None
+VENV_PY = _PATH_CFG.get("venv_python", "python3")
+SYSTEM_PY = _PATH_CFG.get("system_python", "python3")
+
+
+class DataBridge:
+    """统一数据桥接层 — 自动降级路由"""
+
+    def __init__(self, config: Optional[Dict] = None):
+        self.cfg = config or self._load_config()
+
+    def _load_config(self) -> Dict:
+        if A_SHARE_DATA_DIR:
+            path = A_SHARE_DATA_DIR / "scripts" / "config.yaml"
+            if path.exists():
+                try:
+                    import yaml
+                    return yaml.safe_load(path.read_text()) or {}
+                except Exception as exc:
+                    logger.debug(f"Failed loading A_SHARE_SCRIPTS config: {exc}")
+        return {}
+
+    @staticmethod
+    def infer_market_prefix(code: str) -> str:
+        """推断市场前缀 (sh/sz/bj) — 委托至 core.config (SSOT)"""
+        from core.config import infer_market_prefix as _infer
+        return _infer(code)
+
+    @staticmethod
+    def normalize_symbol(code: str, with_prefix: bool = True) -> str:
+        """标准化股票代码为带前缀或纯数字格式，如 sh600519 或 600519 — 委托至 core.config (SSOT)"""
+        from core.config import normalize_symbol as _norm
+        return _norm(code, with_prefix=with_prefix)
+
+
+    # ═══════════════════════════════════════════════════
+    #  L1: 腾讯 qt.gtimg.cn 直连 — 零依赖，任何Python环境
+    # ═══════════════════════════════════════════════════
+
+    @staticmethod
+    def tencent_quote(codes: List[str]) -> Dict[str, Dict]:
+        """批量获取腾讯实时行情，返回 QuoteDict (主键为唯一带前缀代码，支持纯代码/名称等别名检索)"""
+        if not codes:
+            return QuoteDict()
+        codes_param = ",".join(codes)
+        url = f"https://qt.gtimg.cn/q={codes_param}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        try:
+            resp = urllib.request.urlopen(req, timeout=10)
+            text = resp.read().decode("gbk")
+        except Exception as e:
+            logger.warning(f"[L1] 腾讯行情直连失败: {e}")
+            return QuoteDict()
+
+        results = QuoteDict()
+        for line in text.strip().split("\n"):
+            parsed = parse_tencent_quote(line)
+            if not parsed:
+                continue
+
+            code = parsed["code_raw"]
+            price = parsed["price"]
+            outer, inner = parsed["outer"], parsed["inner"]
+            o_ratio = (outer / (outer + inner) * 100) if (outer + inner) > 0 else 50
+
+            item = {
+                "code": code,
+                "name": parsed["name"],
+                "price": round(price, 2),
+                "change": round(parsed["change"], 2),
+                "change_pct": round(parsed["change_pct"], 2),
+                "prev_close": round(parsed["prev_close"], 2),
+                "open": round(parsed["open"] if parsed["open"] is not None else price, 2),
+                "high": round(parsed["high"] if parsed["high"] is not None else price, 2),
+                "low": round(parsed["low"] if parsed["low"] is not None else price, 2),
+                "volume_hands": parsed["volume_hands"],
+                # 内外盘原始值（手）：D10 资金流代理档推导用（dataset_sync.sync_capital_flow）
+                "outer": parsed["outer"],
+                "inner": parsed["inner"],
+                # T-09: 五档盘口统一结构（缺失或卖盘为 0 → None，消费方判 UNKNOWN）
+                "order_book": parsed["order_book"],
+                "amount": parsed["amount"] or 0,
+                "amount_wan": parsed["amount_wan"] or 0,
+                "vol_ratio": round(parsed["vol_ratio"], 2) if parsed["vol_ratio"] is not None else 1.0,
+                "turnover_pct": round(parsed["turnover_pct"], 2) if parsed["turnover_pct"] is not None else 0,
+                # §7.7.7: 缺失→None；负值(亏损) 原样保留由规则层显式判定
+                "pe": parsed["pe"],
+                # §7.7.7: 缺失→None（W-10 缺失禁置零）；历史缺陷未透传此键，
+                # 导致下游 sync_today_snapshot 读 q["pb"] 恒取默认值 0
+                "pb": parsed["pb"],
+                # W-09 单位口径: 本层沿用腾讯快照原值，单位亿元（入库层单点 ×1e8 换算为元）
+                # W-10 缺失禁置零: 缺失一律 None，不得以 0 参与比较（0 市值不成立）
+                "circulating_market_cap": round(parsed["circulating_market_cap"], 2) if parsed["circulating_market_cap"] else None,  # 单位: 亿元
+                "total_market_cap": round(parsed["total_market_cap"], 2) if parsed["total_market_cap"] else None,  # 单位: 亿元
+                "amplitude": round(parsed["amplitude"], 2) if parsed["amplitude"] is not None else 0,
+                "o_ratio": round(o_ratio, 1),
+                "time": parsed["time"],
+            }
+            primary_key = parsed["code_raw"]
+            results[primary_key] = item
+            results.register_alias(code, primary_key)
+            results.register_alias(parsed["name"], primary_key)
+        return results
+
+    @staticmethod
+    def tencent_index(codes: List[str] = None) -> Dict[str, Dict]:
+        """获取大盘指数"""
+        defaults = ["sh000001", "sz399001", "sz399006", "sh000688"]
+        return DataBridge.tencent_quote(codes or defaults)
+
+    _KLINE_CACHE: Dict[str, Dict[str, Any]] = {}
+
+    @staticmethod
+    def tencent_kline(code: str, count: int = 120) -> List[List]:
+        """获取腾讯前复权日K线（零依赖，个股取qfqday，指数取day，支持备用域名与重试）
+        返回: [[date, open, close, high, low, volume], ...]
+        """
+        norm = DataBridge.normalize_symbol(code)
+        urls = [
+            f"http://ifzq.gtimg.cn/appstock/app/fqkline/get?param={norm},day,,,{count},qfq",
+            f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={norm},day,,,{count},qfq",
+        ]
+        for url in urls:
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                resp = urllib.request.urlopen(req, timeout=6)
+                data = json.loads(resp.read().decode("utf-8"))
+                if norm in data.get("data", {}):
+                    node_data = data["data"][norm]
+                    res = node_data.get("qfqday") or node_data.get("day") or []
+                    if res and len(res) > 0:
+                        return res
+            except Exception as e:
+                logger.debug(f"[L1] 腾讯K线单次获取重试/备选失败 ({url}): {e}")
+        return []
+
+    @staticmethod
+    def sina_kline(code: str, count: int = 120) -> List[List]:
+        """获取新浪日K线降级源 (零依赖，前复权/不复权日线快速获取)
+        返回: [[date, open, close, high, low, volume], ...]
+        """
+        norm = DataBridge.normalize_symbol(code)
+        url = f"http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={norm}&scale=240&ma=5&datalen={count}"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = urllib.request.urlopen(req, timeout=6)
+            raw = resp.read().decode("utf-8")
+            data = json.loads(raw)
+            if isinstance(data, list) and len(data) > 0:
+                result = []
+                for item in data:
+                    # 统一为: [date, open, close, high, low, volume]
+                    result.append([
+                        str(item.get("day", "")),
+                        str(item.get("open", "0")),
+                        str(item.get("close", "0")),
+                        str(item.get("high", "0")),
+                        str(item.get("low", "0")),
+                        str(item.get("volume", "0")),
+                    ])
+                return result
+        except Exception as e:
+            logger.debug(f"[L2] 新浪日K线降级获取失败 ({code}): {e}")
+        return []
+
+    @staticmethod
+    def eastmoney_kline(code: str, count: int = 120) -> List[List]:
+        """获取东方财富前复权日K线（零依赖，push2his 公开接口）
+        返回: [[date, open, close, high, low, volume], ...]
+
+        secid 市场前缀：沪市/沪指数为 1，深市/深指数与北交所为 0；
+        fqt=1 前复权、klt=101 日线，与腾讯 qfqday 口径对齐，保证降级源之间可直接互换。
+        """
+        norm = DataBridge.normalize_symbol(code)
+        digits = norm[-6:]
+        secid = f"{'1' if norm.startswith('sh') else '0'}.{digits}"
+        url = (
+            "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+            f"?secid={secid}&fields1=f1,f2,f3,f4,f5,f6"
+            "&fields2=f51,f52,f53,f54,f55,f56,f57"
+            f"&klt=101&fqt=1&end=20500101&lmt={count}"
+        )
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = urllib.request.urlopen(req, timeout=6)
+            data = json.loads(resp.read().decode("utf-8"))
+            klines = (data.get("data") or {}).get("klines") or []
+            result = []
+            for line in klines:
+                # fields2 顺序: f51日期 f52开 f53收 f54高 f55低 f56量 f57额
+                parts = str(line).split(",")
+                if len(parts) < 6:
+                    continue
+                result.append([parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]])
+            return result
+        except Exception as e:
+            logger.debug(f"[L3] 东方财富日K线降级获取失败 ({code}): {e}")
+        return []
+
+    @classmethod
+    def kline_fetcher(cls, provider: str):
+        """external_sources.order 中的 provider key → 真实取数实现（无对应实现返回 None）。"""
+        return {
+            "tencent": cls.tencent_kline,
+            "sina": cls.sina_kline,
+            "eastmoney": cls.eastmoney_kline,
+        }.get(provider)
+
+    @classmethod
+    def fetch_remote_kline_strictly(
+        cls, code: str, count: int = 120, providers: Optional[List[str]] = None, with_meta: bool = False
+    ) -> Union[List[List], Tuple[List[List], Optional[str]]]:
+        """严格从远程外部数据源获取真实日K线数据，专供数据同步底座使用。
+
+        取数顺序由设置 `external_sources.order` / `enabled` 驱动（`providers` 可显式覆盖），
+        控制台配置的行情源优先级在此真正生效；设置不可用时回落默认链 腾讯→新浪→东财。
+
+        遵循零虚假数据原则：
+        1. 按配置顺序遍历已启用的外部行情源
+        2. Ashare 多源聚合器作为不参与排序的末端兜底
+        【铁律】：严禁从本地 SQLite 数据库回读（防止同步自旋死循环），严禁合成任何伪造假数据！
+        若外部数据源均不可用，记录告警并直接返回空列表 []。
+
+        `with_meta=True` 时返回 `(rows, provider)`，`provider` 为实际命中的行情源 key
+        （`tencent`/`sina`/`eastmoney`/`ashare`，无数据为 `None`），供落库层标注复权口径（§11.1）。
+        """
+        clean_code = str(code).strip()
+        norm = cls.normalize_symbol(clean_code)
+
+        chain, chain_source = sync_settings.resolve_provider_order(providers)
+
+        # Step 1..N: 按配置的行情源优先级依次尝试，前级无数据即平滑下切
+        for provider in chain:
+            fetcher = cls.kline_fetcher(provider)
+            if fetcher is None:
+                continue
+            try:
+                res = fetcher(clean_code, count=count)
+            except Exception as e:
+                logger.debug(f"[RemoteStrict] {provider} 取数异常 ({clean_code}): {e}")
+                continue
+            if res and len(res) >= 1:
+                if with_meta:
+                    return res, provider
+                return res
+
+        # 末端兜底: Ashare 多源聚合器（非单一 provider，不纳入优先级排序配置）
+        try:
+            from .Ashare import get_price
+            df = get_price(norm, count=count, frequency='1d')
+            if df is not None and not df.empty and len(df) >= 1:
+                res_ashare = []
+                for idx, row in df.iterrows():
+                    d_str = idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx).split()[0]
+                    res_ashare.append([
+                        d_str,
+                        str(row.get("open", 0)),
+                        str(row.get("close", 0)),
+                        str(row.get("high", 0)),
+                        str(row.get("low", 0)),
+                        str(row.get("volume", 0)),
+                    ])
+                if len(res_ashare) >= 1:
+                    if with_meta:
+                        return res_ashare, "ashare"
+                    return res_ashare
+        except Exception as e:
+            logger.debug(f"[RemoteStrict] Ashare 降级读取失败: {e}")
+
+        logger.warning(
+            f"[RemoteStrict] 标的 {clean_code} 外部数据源均无法访问或无数据"
+            f"（已按 {chain_source} 顺序尝试 {','.join(chain)} + Ashare），返回空切片（严禁伪造数据）"
+        )
+        if with_meta:
+            return [], None
+        return []
+
+    @classmethod
+    def get_kline_robust(cls, code: str, count: int = 120) -> List[List]:
+        """多级降级坚固日K线获取管道：
+        0. 进程内 10 分钟 TTL 内存缓存
+        1. 按设置 `external_sources.order` / `enabled` 遍历外部行情源（腾讯/新浪/东财）
+        2. Ashare 多源聚合器（不参与优先级排序配置）
+        3. 本地 SQLite 同步库真实历史数据降级
+        【零虚假数据原则】：严禁伪造任何数学正弦波或合成走势！全不可用时返回空列表 []
+        """
+        clean_code = str(code).strip()
+        norm = cls.normalize_symbol(clean_code)
+        now_ts = time.time()
+
+        # Step 0: 检查缓存
+        cached = cls._KLINE_CACHE.get(norm)
+        if cached and (now_ts - cached.get("ts", 0) < 600) and len(cached.get("data", [])) >= min(count, 30):
+            return cached["data"][-count:]
+
+        # Step 1: 按控制台配置的行情源优先级依次尝试（分析链路要求 >= 15 根方可用）
+        chain, _chain_source = sync_settings.resolve_provider_order()
+        for provider in chain:
+            fetcher = cls.kline_fetcher(provider)
+            if fetcher is None:
+                continue
+            try:
+                res = fetcher(clean_code, count=count)
+            except Exception as e:
+                logger.debug(f"[KlineRobust] {provider} 取数异常 ({clean_code}): {e}")
+                continue
+            if res and len(res) >= 15:
+                cls._KLINE_CACHE[norm] = {"ts": now_ts, "data": res}
+                return res
+
+        # Step 2: Ashare / fetch_history.py 降级
+        try:
+            from .Ashare import get_price
+            df = get_price(norm, count=count, frequency='1d')
+            if df is not None and not df.empty and len(df) >= 15:
+                res_ashare = []
+                for idx, row in df.iterrows():
+                    d_str = idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx).split()[0]
+                    res_ashare.append([
+                        d_str,
+                        str(row.get("open", 0)),
+                        str(row.get("close", 0)),
+                        str(row.get("high", 0)),
+                        str(row.get("low", 0)),
+                        str(row.get("volume", 0)),
+                    ])
+                if len(res_ashare) >= 15:
+                    cls._KLINE_CACHE[norm] = {"ts": now_ts, "data": res_ashare}
+                    return res_ashare
+        except Exception as e:
+            logger.debug(f"[L3] Ashare 降级读取失败: {e}")
+
+        # Step 3: 从本地同步数据库读取 (保障断网/降级下使用真实历史K线)
+        try:
+            from core.data.sync_engine import MarketDataStore
+            store = MarketDataStore()
+            local_data = store.get_klines(norm, count=count)
+            if local_data and len(local_data) >= 15:
+                res_local = [
+                    [k["date"], str(k["open"]), str(k["close"]), str(k["high"]), str(k["low"]), str(k["volume"])]
+                    for k in local_data
+                ]
+                cls._KLINE_CACHE[norm] = {"ts": now_ts, "data": res_local}
+                return res_local
+        except Exception as e:
+            logger.debug(f"[LocalDB] 本地数据读取失败: {e}")
+
+        # 若原缓存有任意数据，即便稍过期也作为备用返回
+        if cached and cached.get("data"):
+            return cached["data"][-count:]
+
+        # 【零虚假数据原则】：外部数据源均不可用且本地数据库无历史缓存时，直接返回空列表，严禁合成伪造数据
+        logger.warning(f"标的 {clean_code} 外部数据源均不可用且本地无历史数据，无法返回K线（严禁伪造数据）")
+        return []
+
+    # ═══════════════════════════════════════════════════
+    #  L2/L3: a-share-data skill 脚本调用
+    # ═══════════════════════════════════════════════════
+
+    @staticmethod
+    def _run_script(script_name: str, args: str, timeout: int = 30, use_patch: bool = False) -> Optional[Dict]:
+        """调用数据获取脚本 (支持 a-share-data/astock-data-feed 以及 core/data 本地实现)"""
+        script_path = None
+        if A_SHARE_SCRIPTS and (A_SHARE_SCRIPTS / script_name).exists():
+            script_path = A_SHARE_SCRIPTS / script_name
+        else:
+            local_candidate = Path(__file__).resolve().parent / script_name
+            if local_candidate.exists():
+                script_path = local_candidate
+
+        if not script_path or not script_path.exists():
+            return None
+
+        import subprocess
+        python = VENV_PY if Path(VENV_PY).is_file() else SYSTEM_PY
+        if use_patch and A_SHARE_SCRIPTS and (A_SHARE_SCRIPTS / "fetch_patched.py").exists():
+            cmd = [python, str(A_SHARE_SCRIPTS / "fetch_patched.py"), script_name] + args.split()
+        else:
+            cmd = [python, str(script_path)] + args.split()
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            if result.returncode == 0 and result.stdout:
+                try:
+                    return json.loads(result.stdout)
+                except json.JSONDecodeError:
+                    return {"text": result.stdout}
+        except (subprocess.TimeoutExpired, Exception) as e:
+            logger.debug(f"[L2/L3] 脚本调用失败 ({script_name}): {e}")
+        return None
+
+    def get_realtime_quote(self, code: str) -> Optional[Dict]:
+        """获取单只股票实时行情 — 自动降级"""
+        try:
+            clean_code = _validate_stock_code(code)
+        except ValueError as exc:
+            logger.warning(f"Invalid stock code in get_realtime_quote: {exc}")
+            return None
+
+        norm = self.normalize_symbol(clean_code)
+        result = self.tencent_quote([norm])
+        if result:
+            return result.get(norm) or result.get(clean_code) or list(result.values())[0]
+
+        # L2: a-share-data 脚本
+        pure_num = clean_code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_realtime.py", f"--quote {pure_num} --json")
+
+    def get_kline(self, code: str, start: str, end: str) -> Optional[Dict]:
+        """获取K线数据 — 自动降级"""
+        # 4级降级K线获取
+        klines = self.get_kline_robust(code)
+        if klines and len(klines) > 0:
+            return {
+                "source": "robust_kline_pipeline",
+                "code": code,
+                "freq": "d",
+                "count": len(klines),
+                "data": klines,
+            }
+
+        # 备选: a-share-data 脚本
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_history.py", f"--kline {clean} --start {start} --end {end} --freq d --json")
+
+    def get_technical(self, code: str, count: int = 120) -> Optional[Dict]:
+        """获取技术指标 — 优先 4 级降级 K 线原地计算"""
+        klines = self.get_kline_robust(code, count)
+        if klines and len(klines) >= 15:
+            from . import technical_indicators as ti
+            result = ti.calc_all(klines)
+            return {"source": "robust_pipeline+local_calc", "code": code, **result}
+
+        # 备选: a-share-data 脚本
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_technical.py", f"{clean} --freq 1d --count {count} --indicators MA,MACD,KDJ,RSI,BOLL --json")
+
+    def get_sector_info(self, code: str) -> Optional[Dict]:
+        """获取行业信息"""
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_sector_info.py", f"--no-concepts --json {clean}")
+
+    def get_board_summary(self, limit: int = 20) -> Optional[Dict]:
+        """获取板块排行"""
+        return self._run_script("fetch_realtime.py", f"--boards-summary --boards-limit {limit} --json")
+
+    def get_board_detail(self, group_key: str, limit: int = 50) -> Optional[Dict]:
+        """获取指定板块的成分标的详情"""
+        clean_key = str(group_key).strip()
+        return self._run_script("fetch_realtime.py", f"--boards-detail --boards-group-key {clean_key} --boards-items-limit {limit} --json")
+
+    def get_active_market_quotes(self, sort_by: str = "amount_desc", top: int = 50) -> Optional[List[Dict[str, Any]]]:
+        """动态拉取全市场活跃度/成交额/涨幅排名靠前的标的行情列表"""
+        valid_sorts = {
+            "amount_desc", "change_pct_desc", "change_pct_asc",
+            "turnover_rate_desc", "market_cap_desc"
+        }
+        actual_sort = sort_by if sort_by in valid_sorts else "amount_desc"
+        result = self._run_script("fetch_realtime.py", f"--all-quote --sort {actual_sort} --top {top} --json")
+        if isinstance(result, dict) and "data" in result:
+            return result.get("data", [])
+        elif isinstance(result, list):
+            return result
+        return None
+
+    def get_fund_flow(self, code: str, days: int = 5) -> Optional[Dict]:
+        """获取资金流向"""
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        return self._run_script("fetch_realtime.py", f"--fund-flow {clean} --days {days} --json")
+
+    # ═══════════════════════════════════════════════════
+    #  P0 新增：筹码分布、个股事件、积分余额、A+H
+    # ═══════════════════════════════════════════════════
+
+    def get_cyq(self, code: str) -> Optional[Dict[str, Any]]:
+        """获取筹码分布(CYQ) — 需 proxy-patch 模式
+        返回: {profit_ratio, avg_cost, concentration_90, concentration_70, ...}
+        """
+        try:
+            clean_code = _validate_stock_code(code)
+        except ValueError as exc:
+            logger.warning(f"Invalid stock code for CYQ: {exc}")
+            return None
+
+        pure_num = clean_code.replace("sh", "").replace("sz", "").replace("bj", "")
+        result = self._run_script("fetch_patched.py",
+                                   f"fetch_realtime.py --cyq {pure_num} --json",
+                                   use_patch=True, timeout=30)
+        if result:
+            return result
+        # 尝试直接调用 akshare (需要 venv)
+        python = VENV_PY if Path(VENV_PY).is_file() else SYSTEM_PY
+        if not A_SHARE_SCRIPTS:
+            return None
+        import subprocess
+        cmd = [
+            python, "-c",
+            "import sys\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "from _init_patch import patched_akshare as ak\n"
+            "try:\n"
+            "    df = ak.stock_cyq_em(symbol=sys.argv[2])\n"
+            "    import json\n"
+            "    print(json.dumps(df.tail(3).to_dict('records'), ensure_ascii=False))\n"
+            "except Exception as e:\n"
+            "    import json\n"
+            "    print(json.dumps({'error': str(e)}))\n",
+            str(A_SHARE_SCRIPTS),
+            clean_code,
+        ]
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if r.returncode == 0 and r.stdout:
+                data = json.loads(r.stdout)
+                if isinstance(data, list) and data:
+                    latest = data[-1]
+                    return {
+                        "code": clean_code,
+                        "profit_ratio": latest.get("获利比例", 0),
+                        "avg_cost": latest.get("平均成本", 0),
+                        "cost_90_low": latest.get("90成本-低", 0),
+                        "cost_90_high": latest.get("90成本-高", 0),
+                        "concentration_90": latest.get("90集中度", 0),
+                        "cost_70_low": latest.get("70成本-低", 0),
+                        "cost_70_high": latest.get("70成本-高", 0),
+                        "concentration_70": latest.get("70集中度", 0),
+                    }
+        except Exception as e:
+            logger.warning(f"[P0] CYQ获取失败 ({clean_code}): {e}")
+        return None
+
+    def get_stock_events(self, code: str, name: str = "", limit: int = 20) -> Optional[Dict]:
+        """获取个股事件"""
+        clean = code.replace("sh", "").replace("sz", "").replace("bj", "")
+        name_arg = f"--name {name}" if name else ""
+        return self._run_script("fetch_stock_events.py",
+                                f"--code {clean} {name_arg} --limit {limit} --json",
+                                use_patch=True, timeout=30)
+
+    def get_ah_stocks(self) -> Optional[Dict]:
+        """获取A+H双重上市列表"""
+        return self._run_script("fetch_ah_stocks.py", "--json", use_patch=True, timeout=30)
+
+    def check_proxy_balance(self) -> Optional[Dict]:
+        """检查代理积分余额"""
+        if not A_SHARE_SCRIPTS:
+            return None
+        import subprocess
+        cmd = [SYSTEM_PY, str(A_SHARE_SCRIPTS / "fetch_realtime.py"), "--balance"]
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            if r.returncode == 0:
+                try:
+                    return json.loads(r.stdout)
+                except json.JSONDecodeError:
+                    return {"raw": r.stdout}
+        except Exception as e:
+            return {"error": str(e)}
+        return None
+
+    def get_tencent_pe(self, code: str) -> Optional[float]:
+        """从腾讯行情获取PE (零依赖)
+
+        §7.7.7: 缺失记 None；负值(亏损) 原样返回，不折算为 None。
+        """
+        norm = self.normalize_symbol(code)
+        result = self.tencent_quote([norm])
+        if result:
+            data = result.get(norm) or list(result.values())[0]
+            return data.get("pe")
+        return None
+
+    def get_fundamentals(self, code: str) -> Dict[str, Any]:
+        """获取基本面数据聚合 — L1优先，逐级降级
+
+        返回: {
+            pe, circulating_market_cap, total_market_cap, turnover_pct (L1腾讯),
+            pb, roe, revenue_growth (L4 efinance, 可选),
+            source: 数据来源层级
+        }
+
+        口径契约 (SPEC-DATA §5.4):
+        - W-10 缺失禁置零: pe/circulating_market_cap/total_market_cap 缺失一律返回 None 并记入
+          blocking_fields；缺失不得以 0 参与比较（0 市值/0 PE 不成立，规则层须判 UNKNOWN）。
+        - W-09 单位口径: 本层 circulating_market_cap/total_market_cap 沿用腾讯快照原值，单位亿元；
+          D7 存储层 capital_snapshot 单位为元。两处单位不同，规则层禁止各自换算。
+        """
+        _missing_keys = ("pe", "circulating_market_cap", "total_market_cap", "turnover_pct")
+
+        try:
+            clean_code = _validate_stock_code(code)
+        except ValueError as exc:
+            logger.warning(f"Invalid stock code for fundamentals: {exc}")
+            return {"code": code, "source": "invalid_code", "pe": None,
+                    "circulating_market_cap": None, "total_market_cap": None, "turnover_pct": None,
+                    "blocking_fields": list(_missing_keys)}
+
+        result = {"code": clean_code, "source": "L1_tencent", "blocking_fields": []}
+
+        # L1: PE/市值/换手率 (腾讯直连，零依赖)
+        quote = self.get_realtime_quote(clean_code)
+        if not quote:
+            result["source"] = "L1_unavailable"
+            for key in _missing_keys:
+                result[key] = None
+                result["blocking_fields"].append(key)
+        else:
+            result["pe"] = quote.get("pe")  # §7.7.7: 保留负值，缺失为 None
+            # W-10: quote 层把缺失折算为 0 —— 0 市值不成立，视为缺失（0 ≠ 缺失 回归保护）
+            circ = quote.get("circulating_market_cap")
+            total = quote.get("total_market_cap")
+            result["circulating_market_cap"] = circ if circ else None
+            result["total_market_cap"] = total if total else None
+            # 换手率 0 可为真实值（停牌/一字板），不按缺失处理
+            result["turnover_pct"] = quote.get("turnover_pct", 0)
+            for key in ("pe", "circulating_market_cap", "total_market_cap"):
+                if result[key] is None:
+                    result["blocking_fields"].append(key)
+
+        # L4: efinance 基本面 (可选，需 efinance 包)
+        try:
+            import subprocess
+            python = SYSTEM_PY
+            cmd = [
+                python, "-c",
+                "import sys, json\n"
+                "try:\n"
+                "    import efinance as ef\n"
+                "    code = sys.argv[1]\n"
+                "    info = ef.stock.get_base_info(code)\n"
+                "    if info is not None:\n"
+                "        row = info.iloc[0].to_dict() if hasattr(info, 'iloc') else info\n"
+                "        print(json.dumps({k: str(v) for k, v in row.items()}, ensure_ascii=False))\n"
+                "    else:\n"
+                "        print(json.dumps({}))\n"
+                "except Exception as e:\n"
+                "    print(json.dumps({'error': str(e)}))\n",
+                clean_code,
+            ]
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            if r.returncode == 0 and r.stdout:
+                efinfo = json.loads(r.stdout)
+                if efinfo and "error" not in efinfo:
+                    result["source"] = "L4_efinance"
+                    for ef_key, our_key in [
+                        ("市盈率-动态", "pe_dynamic"),
+                        ("市净率", "pb"),
+                        ("ROE", "roe"),
+                        ("营业收入", "revenue"),
+                        ("净利润", "net_profit"),
+                    ]:
+                        if ef_key in efinfo:
+                            result[our_key] = efinfo[ef_key]
+        except Exception as exc:
+            logger.debug(f"efinance fundamentals fallback failed: {exc}")
+
+        return result
+
+    # ═══════════════════════════════════════════════════
+    #  综合数据获取 — 全链路降级
+    # ═══════════════════════════════════════════════════
+
+    def fetch_full_snapshot(self, code: str, with_technical: bool = True) -> Dict[str, Any]:
+        """获取单只股票的全维快照"""
+        result = {"code": code, "ts": time.time()}
+
+        # 实时行情
+        quote = self.get_realtime_quote(code)
+        result["quote"] = quote
+
+        # 技术指标
+        if with_technical:
+            tech = self.get_technical(code)
+            result["technical"] = tech
+
+        return result
+
+    def fetch_batch_snapshot(self, codes: List[Any]) -> List[Dict]:
+        """批量获取实时行情"""
+        clean_codes = [c.get("code", "") if isinstance(c, dict) else str(c) for c in codes]
+        prefix_codes = [self.normalize_symbol(c) for c in clean_codes if c]
+        results = self.tencent_quote(prefix_codes)
+        output = []
+        for c in clean_codes:
+            if not c:
+                continue
+            norm = self.normalize_symbol(c)
+            clean = c.replace("sh", "").replace("sz", "").replace("bj", "")
+            data = results.get(norm) or results.get(clean) or results.get(c)
+            if data:
+                output.append(data)
+        return output
+
+
+# ─── 便捷函数 ─────────────────────────────────────────
+
+infer_market_prefix = DataBridge.infer_market_prefix
+normalize_symbol = DataBridge.normalize_symbol
+
+
+def get_bridge() -> DataBridge:
+    return DataBridge()
+
+
+def batch_quote(codes: List[str]) -> Dict[str, Dict]:
+    codes_with_prefix = [DataBridge.normalize_symbol(c) for c in codes]
+    return DataBridge.tencent_quote(codes_with_prefix)
+
+
+def index_snapshot() -> Dict[str, Dict]:
+    return DataBridge.tencent_index()
+
+
+# ─── CLI ──────────────────────────────────────────────
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="aStocks 数据桥接层")
+    parser.add_argument("action", choices=["quote", "kline", "technical", "index", "batch",
+                                            "sector", "boards", "fund-flow"])
+    parser.add_argument("--code", help="股票代码")
+    parser.add_argument("--codes", help="批量代码，逗号分隔")
+    parser.add_argument("--start", help="开始日期 YYYYMMDD")
+    parser.add_argument("--end", help="结束日期 YYYYMMDD")
+    parser.add_argument("--count", type=int, default=120, help="K线数量")
+    parser.add_argument("--json", action="store_true", default=True)
+    args = parser.parse_args()
+
+    bridge = DataBridge()
+
+    if args.action == "quote":
+        result = bridge.get_realtime_quote(args.code)
+    elif args.action == "kline":
+        result = bridge.get_kline(args.code, args.start or "20250101", args.end or time.strftime("%Y%m%d"))
+    elif args.action == "technical":
+        result = bridge.get_technical(args.code, args.count)
+    elif args.action == "index":
+        result = index_snapshot()
+    elif args.action == "batch":
+        codes = args.codes.split(",") if args.codes else []
+        result = bridge.fetch_batch_snapshot(codes)
+    elif args.action == "sector":
+        result = bridge.get_sector_info(args.code)
+    elif args.action == "boards":
+        result = bridge.get_board_summary()
+    elif args.action == "fund-flow":
+        result = bridge.get_fund_flow(args.code)
+
+    print(json.dumps(result, ensure_ascii=False, indent=2))

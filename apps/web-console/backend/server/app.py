@@ -1,0 +1,569 @@
+# -*- coding: utf-8 -*-
+"""
+server.app - FastAPI application factory with lifespan and CORS configuration.
+"""
+from __future__ import annotations
+
+import hmac
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import AsyncIterator, Optional
+
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+
+from core.config import VERSION, get_logger
+from server.api import (
+    audit_router,
+    auth_router,
+    chat_router,
+    data_sync_router,
+    health_router,
+    market_data_router,
+    menus_router,
+    models_mgmt_router,
+    roles_router,
+    selection_models_router,
+    sessions_router,
+    skills_router,
+    tasks_router,
+    users_router,
+)
+from server.config import server_settings
+from server.db import init_db, sync_super_admin_from_config
+from server.models import SaveDocRequest
+from server.port_utils import remove_server_lockfile
+
+logger = get_logger("server.app")
+
+
+async def _market_post_settle_cron() -> None:
+    """盘后定盘定时巡检协程（SPEC-UI-003 §4.2/§4.3 + §6.2）。
+
+    每轮读取服务端有效设置（白名单校验后持久化于 local/settings/data_sync.json）：
+    - 定时守护总开关关闭时不触发任何自动同步；
+    - P0 持仓池按 daemon.p0_time、P1 自选/关注 + P2 指数按 daemon.p1_time 触发；
+    - P3 全市场增量按 p3.time（默认 16:00）触发，仅交易日、仅增量模式；
+    - P3 经 SYNC_ARBITER 单任务互斥，且 P0/P1 进行中不得抢占（冲突则下一轮重试，不标记完成）。
+    启停与参数与 /api/market_data/daemon/control、/api/data-sync/settings 共享同一份真实状态。
+    独立 CLI 守护进程 DataSyncDaemon 属于另一个进程，不受此协程状态影响。
+    """
+    import asyncio
+    from datetime import datetime
+    from core.data.sync_daemon import (
+        SERVER_SYNC_RUNTIME, is_auto_tier_due, record_sync_runtime_event,
+        release_p3, set_core_sync_active, try_acquire_p3,
+    )
+    from server.services.data_sync_settings import apply_to_runtime, effective_settings
+
+    executed_dates: dict = {}
+    last_enabled = None
+    last_dataset_attempt = None
+
+    while True:
+        try:
+            settings = effective_settings()
+            await asyncio.sleep(max(15, int(settings["daemon"]["interval_seconds"])))
+            # 每轮回灌有效设置：新参数只影响后续轮次，不中断运行中任务（SSOT §6.2）
+            apply_to_runtime(settings)
+            now = datetime.now()
+            today_str = now.strftime("%Y-%m-%d")
+            SERVER_SYNC_RUNTIME["last_check"] = now.strftime("%Y-%m-%d %H:%M:%S")
+
+            enabled = bool(SERVER_SYNC_RUNTIME.get("enabled", True))
+            if enabled != last_enabled:
+                record_sync_runtime_event(
+                    "服务内自动巡检运行中" if enabled else "服务内自动巡检处于暂停状态", "info",
+                )
+                last_enabled = enabled
+            if not enabled:
+                continue
+
+            from core.data.sync_engine import TradeCalendar, DataSyncEngine
+            if not TradeCalendar.is_trading_day(now):
+                continue
+
+            loop = asyncio.get_running_loop()
+            engine = DataSyncEngine()
+
+            async def _run_core(tier: str, symbols, workers: int, label: str):
+                owner = f"cron:{tier}:{today_str}"
+                SERVER_SYNC_RUNTIME["last_run"] = now.strftime("%Y-%m-%d %H:%M:%S")
+                record_sync_runtime_event(f"{today_str} {label} 自动定盘同步开始（并发 {workers} 线程）", "running")
+                set_core_sync_active(True)
+                try:
+                    res = await loop.run_in_executor(
+                        None,
+                        lambda: engine.sync_batch(symbols, mode="incremental", max_workers=workers),
+                    )
+                finally:
+                    set_core_sync_active(False)
+                summary = res if isinstance(res, dict) else {}
+                status = "success" if summary.get("failed_count", 0) == 0 else "degraded"
+                message = (
+                    f"{today_str} {label}：{summary.get('total_requested', len(symbols))} 只标的，"
+                    f"成功 {summary.get('success_count', 0)}，失败 {summary.get('failed_count', 0)}，"
+                    f"耗时 {summary.get('elapsed_seconds', 0)}s"
+                )
+                record_sync_runtime_event(message, status)
+                logger.info(f"[Cron] {message}")
+                executed_dates[tier] = today_str
+
+            # P0 持仓池
+            if is_auto_tier_due(now, "P0", settings, executed_dates):
+                symbols = engine.resolve_symbols(pool="holdings")
+                if symbols:
+                    await _run_core("P0", symbols, int(settings["base"]["concurrency"]), "P0 持仓池定盘同步")
+                else:
+                    executed_dates["P0"] = today_str
+                    record_sync_runtime_event(f"{today_str} P0 持仓池为空，跳过定盘同步（不伪造执行）", "info")
+
+            # P1 自选/关注 + P2 核心指数
+            if is_auto_tier_due(now, "P1", settings, executed_dates):
+                symbols = engine.resolve_symbols(pool="watchlist", include_indices=True)
+                symbols += engine.resolve_symbols(pool="focus")
+                symbols = list(dict.fromkeys(symbols))
+                if symbols:
+                    await _run_core("P1", symbols, int(settings["base"]["concurrency"]), "P1/P2 自选关注与指数定盘同步")
+                else:
+                    executed_dates["P1"] = today_str
+                    record_sync_runtime_event(f"{today_str} P1/P2 池为空，跳过定盘同步（不伪造执行）", "info")
+
+            # 网页服务自身负责必需数据集水位；独立 CLI 守护进程并非前置依赖。
+            # D2 定盘窗口后才计算日线水位，失败每 30 分钟重试，避免每轮触网。
+            from core.data import dataset_sync
+            due_for_dataset = now.time() >= dataset_sync.DATASET_WINDOWS["daily_kline"]
+            retry_due = last_dataset_attempt is None or (now - last_dataset_attempt).total_seconds() >= 1800
+            if (due_for_dataset and executed_dates.get("POST_CLOSE_WATERMARKS") != today_str
+                    and retry_due):
+                last_dataset_attempt = now
+                outcome = await loop.run_in_executor(None, dataset_sync.ensure_post_close_required)
+                if outcome["ready"]:
+                    executed_dates["POST_CLOSE_WATERMARKS"] = today_str
+                result_labels = ", ".join(
+                    f"{item['key']}={item['status']}" for item in outcome["results"]
+                ) or "已有当日完整水位"
+                record_sync_runtime_event(
+                    f"{today_str} 选股数据水位：{result_labels}；"
+                    f"门禁{'就绪' if outcome['ready'] else '未就绪，30 分钟后重试'}",
+                    "success" if outcome["ready"] else "degraded",
+                )
+
+            # P3 全市场定时增量（单任务互斥 + 不抢占；冲突时下一轮重试，不标记完成）
+            if is_auto_tier_due(now, "P3", settings, executed_dates):
+                owner = f"cron:P3:{today_str}"
+                acquired, reason = try_acquire_p3(owner)
+                if not acquired:
+                    logger.info(f"[Cron] P3 本轮让路：{reason}")
+                else:
+                    try:
+                        market_symbols = await loop.run_in_executor(
+                            None, lambda: engine.list_market_symbols("full_market")
+                        )
+                        if not market_symbols:
+                            record_sync_runtime_event(
+                                f"{today_str} P3 全市场清单上游不可用，本轮跳过（拒绝伪造清单空跑）", "degraded")
+                            executed_dates["P3"] = today_str
+                            continue
+                        p3_cfg = settings["p3"]
+                        batch_size = int(p3_cfg["batch_size"])
+                        workers = int(p3_cfg["concurrency"])
+                        SERVER_SYNC_RUNTIME["last_run"] = now.strftime("%Y-%m-%d %H:%M:%S")
+                        record_sync_runtime_event(
+                            f"{today_str} P3 全市场定时增量开始：{len(market_symbols)} 只标的，"
+                            f"批次 {batch_size}，并发 {workers}", "running")
+                        total_ok = total_fail = 0
+                        batches = [market_symbols[i:i + batch_size] for i in range(0, len(market_symbols), batch_size)]
+                        for bi, chunk in enumerate(batches, start=1):
+                            res = await loop.run_in_executor(
+                                None,
+                                lambda c=chunk: engine.sync_batch(c, mode="incremental", max_workers=workers),
+                            )
+                            total_ok += res.get("success_count", 0)
+                            total_fail += res.get("failed_count", 0)
+                            record_sync_runtime_event(
+                                f"{today_str} P3 批次 {bi}/{len(batches)}：累计成功 {total_ok}，失败 {total_fail}",
+                                "running",
+                            )
+                        status = "success" if total_fail == 0 and total_ok > 0 else ("degraded" if total_ok > 0 else "failed")
+                        record_sync_runtime_event(
+                            f"{today_str} P3 全市场定时增量完成：成功 {total_ok}，失败 {total_fail}（{status}）", status)
+                        executed_dates["P3"] = today_str
+                    finally:
+                        release_p3(owner)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            record_sync_runtime_event(f"盘后定盘自动同步异常：{exc}", "failed")
+            logger.warning(f"[Cron] 盘后定时同步巡检异常: {exc}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Application lifespan: initialize database schemas on startup, cleanup on shutdown."""
+    import asyncio
+    logger.info("Initializing A-Stock Agents server database...")
+    init_db(server_settings.db_path)
+    # Defensive: ensure the locally configured super admin is persisted to the DB on every boot.
+    try:
+        sync_super_admin_from_config()
+    except Exception as exc:
+        logger.warning(f"sync_super_admin_from_config failed: {exc}")
+    logger.info(f"Database ready at: {server_settings.db_path}")
+
+    # 启动盘后 15:35 自动定盘巡检后台协程
+    cron_task = asyncio.create_task(_market_post_settle_cron())
+
+    yield
+
+    logger.info("A-Stock Agents server shutting down.")
+    cron_task.cancel()
+    remove_server_lockfile()
+
+
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application instance."""
+    app = FastAPI(
+        title="A-Stock Agents Web AIChat & Governance API",
+        description="Unified backend service providing Native Agent Runtime, SSE streaming, and Skill Governance.",
+        version=VERSION,
+        lifespan=lifespan,
+    )
+
+    # CORS configuration
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=server_settings.cors_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Accept", "Content-Type", "Authorization"],
+    )
+
+    # Authentication Middleware: prefers user session tokens (Bearer or `access_token` cookie),
+    # with optional fallback to a static `server_settings.api_token` for machine integrations.
+    @app.middleware("http")
+    async def api_token_auth_middleware(request: Request, call_next):
+        # 豁免 OPTIONS 预检请求以支持 CORS
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
+        path = request.url.path
+
+        # 1. 白名单：完全不需要鉴权 (登录、注册不可用提示、健康检查、Web UI)
+        public_prefixes = (
+            "/api/auth/login",
+            "/api/auth/logout",
+            "/api/auth/config",
+            "/api/health",
+        )
+        if any(path == p or path.startswith(p + "/") for p in public_prefixes):
+            return await call_next(request)
+
+        # Web UI 与静态资源
+        if path in {"/", "/favicon.ico"} or path.startswith(("/ui", "/css", "/js", "/assets")):
+            response = await call_next(request)
+            # 强制协商缓存：每次携带 ETag/Last-Modified 回源校验，命中则 304，
+            # 杜绝前端 JS/CSS 更新后浏览器沿用启发式缓存的旧副本导致页面空白。
+            response.headers["Cache-Control"] = "no-cache"
+            return response
+
+        # 2. 用户会话 Token (优先于静态 API Token)
+        from server.db import lookup_auth_token
+        provided_token = None
+
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.lower().startswith("bearer "):
+            provided_token = auth_header[7:].strip()
+        if not provided_token:
+            provided_token = request.cookies.get("access_token")
+
+        if provided_token:
+            record = lookup_auth_token(provided_token)
+            if record:
+                return await call_next(request)
+            # 会话不成立时，才允许静态 API Token 兜底：无浏览器会话的机器集成
+            # (cron/CLI/外部编排) 只能持有一个长期 Token，没有任何途径获得会话。
+            # 此处不构成降级放行——必须逐字节命中配置值，且用常数时间比较防时序侧信道。
+            static_token = getattr(server_settings, "api_token", None)
+            if static_token and hmac.compare_digest(
+                provided_token.encode("utf-8"), str(static_token).encode("utf-8")
+            ):
+                return await call_next(request)
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=401,
+                content={"detail": {"error": "invalid_token", "message": "会话已过期或凭据无效，请重新登录"}},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # 3. 没有携带任何凭证 → 401（fail-closed，静态 Token 也必须显式携带）
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=401,
+            content={"detail": {"error": "unauthorized", "message": "请先登录"}},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Register API Routers
+    app.include_router(health_router)
+    app.include_router(auth_router)
+    app.include_router(users_router)
+    app.include_router(roles_router)
+    app.include_router(menus_router)
+    app.include_router(audit_router)
+    app.include_router(sessions_router)
+    app.include_router(chat_router)
+    app.include_router(skills_router)
+    app.include_router(tasks_router)
+    app.include_router(models_mgmt_router)
+    app.include_router(market_data_router)
+    app.include_router(data_sync_router)
+    app.include_router(selection_models_router)
+
+    # Mount Static Web UI & Assets
+    web_dir = Path(__file__).resolve().parents[2] / "frontend"
+    if web_dir.exists():
+        from fastapi.responses import FileResponse
+        from fastapi.staticfiles import StaticFiles
+
+        # Static mounts for relative assets in index.html (css, js, assets, etc.)
+        app.mount("/ui", StaticFiles(directory=str(web_dir), html=True), name="ui")
+        if (web_dir / "css").exists():
+            app.mount("/css", StaticFiles(directory=str(web_dir / "css")), name="css")
+        if (web_dir / "js").exists():
+            app.mount("/js", StaticFiles(directory=str(web_dir / "js")), name="js")
+        if (web_dir / "assets").exists():
+            app.mount("/assets", StaticFiles(directory=str(web_dir / "assets")), name="assets")
+
+        # 2) 主 Web 界面: http://127.0.0.1:6300 (根路径直接提供主工作台)
+        @app.get("/", tags=["Web UI"], include_in_schema=False)
+        async def main_web_ui():
+            return FileResponse(web_dir / "index.html")
+
+    # 2.1) 安全只读文档读取接口 (供工作区渲染 .md 交付物与指南)
+    @app.get("/api/docs/read", tags=["Documents"])
+    async def read_workspace_doc(path: str = Query(..., description="文档相对路径或名称")):
+        workspace_root = Path(__file__).resolve().parent.parent.parent
+        # 处理 file:// 前缀
+        clean_path = path.strip()
+        if clean_path.startswith("file://"):
+            clean_path = clean_path[7:]
+
+        target_file = Path(clean_path)
+        if not target_file.is_absolute():
+            target_file = (workspace_root / target_file).resolve()
+        else:
+            target_file = target_file.resolve()
+
+        # 安全边界验证：严禁逃逸工作区
+        try:
+            target_file.relative_to(workspace_root)
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied: outside workspace boundary")
+
+        # 扩展名限制 (支持 Markdown 与 HTML 研报及文本交付物，彻底排除 .py 格式)
+        allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".html", ".htm"}
+        if target_file.suffix.lower() not in allowed_exts:
+            raise HTTPException(status_code=400, detail="Unsupported file format for workspace viewer")
+
+        # 敏感目录黑名单拦截：严禁探测 scripts、tests、.git、.venv、.env 等核心目录
+        forbidden_roots = {"scripts", "tests", ".git", ".github", ".venv", "venv", "node_modules"}
+        rel_parts = target_file.relative_to(workspace_root).parts
+        if any(part in forbidden_roots for part in rel_parts) or any(part.startswith(".") and part not in {".agents"} for part in rel_parts):
+            raise HTTPException(status_code=403, detail="Access denied: access to restricted directory")
+        if target_file.name in {".env", "docker-compose.yml"}:
+            raise HTTPException(status_code=403, detail="Access denied: access to sensitive configuration is forbidden")
+
+        # 若直接路径不存在，尝试在常见交付物与文档子目录下检索
+        if not target_file.is_file():
+            filename = Path(clean_path).name
+            candidates = [
+                workspace_root / "output" / "reports" / filename,
+                workspace_root / "reports" / filename,
+                workspace_root / "output" / filename,
+                workspace_root / "docs" / filename,
+                workspace_root / ".agents" / "skills" / "astock-data-feed" / "templates" / filename,
+            ]
+            for cand in candidates:
+                if cand.is_file():
+                    target_file = cand
+                    break
+
+        # 校验最终命中的文件是否在受信任的文档根目录下
+        allowed_dirs = [
+            workspace_root / "output",
+            workspace_root / "reports",
+            workspace_root / "docs",
+            workspace_root / ".agents" / "skills",
+        ]
+        is_in_allowed_dir = False
+        for allowed_dir in allowed_dirs:
+            try:
+                target_file.relative_to(allowed_dir)
+                is_in_allowed_dir = True
+                break
+            except ValueError:
+                continue
+
+        if not is_in_allowed_dir:
+            raise HTTPException(status_code=403, detail="Access denied: file outside permitted document directories")
+
+        if not target_file.is_file():
+            raise HTTPException(status_code=404, detail=f"File not found: {target_file.name}")
+
+        elif target_file.suffix.lower() in {".html", ".htm"}:
+            # 若命中的文件不是真实 HTML（例如被 Markdown 覆写），但 output/reports 下存在同名真实 HTML，优先采用真实 HTML
+            filename = target_file.name
+            out_cand = workspace_root / "output" / "reports" / filename
+            if out_cand.is_file() and out_cand != target_file:
+                try:
+                    cur_text = target_file.read_text(encoding="utf-8")
+                    out_text = out_cand.read_text(encoding="utf-8")
+                    if ("<!DOCTYPE html" in out_text or "<html" in out_text) and not ("<!DOCTYPE html" in cur_text or "<html" in cur_text):
+                        target_file = out_cand
+                except Exception:
+                    pass
+
+        try:
+            content = target_file.read_text(encoding="utf-8")
+            doc_format = "html" if target_file.suffix.lower() in {".html", ".htm"} else "markdown"
+
+            # 强韧性保护：若文件名为 .html，但文件内容为纯 Markdown，自动转为自包含标准 HTML，杜绝 iframe 乱码
+            if doc_format == "html" and not ("<!DOCTYPE html" in content or "<html" in content):
+                from core.reporting.report_generator import wrap_markdown_as_html_report
+                content = wrap_markdown_as_html_report(content, title=target_file.stem, filename=target_file.name)
+
+            rel_path = target_file.relative_to(workspace_root).as_posix()
+            return {
+                "status": "ok",
+                "path": rel_path,
+                "filename": target_file.name,
+                "format": doc_format,
+                "size_bytes": len(content.encode("utf-8")),
+                "content": content,
+            }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to read file: {str(exc)}")
+
+    # 2.2) 文档保存持久化接口 (供研报交付物自动保存与工作区联动)
+    @app.post("/api/docs/save", tags=["Documents"])
+    async def save_workspace_doc(req: SaveDocRequest):
+        workspace_root = Path(__file__).resolve().parent.parent.parent
+        reports_dir = (workspace_root / "output" / "reports").resolve()
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
+        clean_path = req.path.strip()
+        if clean_path.startswith("file://"):
+            clean_path = clean_path[7:]
+
+        clean_p = Path(clean_path)
+
+        # 严格防御路径穿越与目录逃逸：拦截包含 .. 或尝试写入受保护系统目录的请求
+        forbidden_prefixes = {"web", "config", "scripts", "tests", ".git", ".agents", ".gemini", "node_modules"}
+        if any(part in forbidden_prefixes for part in clean_p.parts) or ".." in clean_p.parts:
+            raise HTTPException(status_code=403, detail="Access denied: write operation restricted to reports directory")
+
+        # 扩展名限制
+        allowed_exts = {".md", ".markdown", ".txt", ".json", ".csv", ".html", ".htm"}
+        if clean_p.suffix.lower() not in allowed_exts:
+            raise HTTPException(status_code=400, detail="Unsupported file format for saving document")
+
+        # 强制将保存文件锁定在 output/reports 目录，仅提取安全文件名，拒绝包含路径分隔符
+        safe_filename = clean_p.name
+        if not safe_filename or safe_filename in {".", ".."} or "/" in safe_filename or "\\" in safe_filename:
+            raise HTTPException(status_code=400, detail="Invalid filename for document save")
+
+        target_file = (reports_dir / safe_filename).resolve()
+
+        # 安全边界验证：严禁逃逸 output/reports 沙箱目录
+        try:
+            target_file.relative_to(reports_dir)
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied: outside reports boundary")
+
+        content_to_save = req.content
+        if target_file.suffix.lower() in {".html", ".htm"}:
+            trimmed = content_to_save.strip() if isinstance(content_to_save, str) else ""
+            is_valid_html = "<!DOCTYPE html" in trimmed or "<html" in trimmed
+
+            # 1. 如果磁盘上已存在合法的真实 HTML 报告，且传入的不是合法 HTML（比如传入的是 Markdown 摘要），严禁覆写！
+            if target_file.is_file():
+                try:
+                    existing_text = target_file.read_text(encoding="utf-8")
+                    if ("<!DOCTYPE html" in existing_text or "<html" in existing_text) and not is_valid_html:
+                        return {
+                            "status": "ok",
+                            "path": target_file.relative_to(workspace_root).as_posix(),
+                            "filename": target_file.name,
+                            "size_bytes": len(existing_text.encode("utf-8")),
+                            "notice": "Retained existing genuine HTML report without overwriting with Markdown"
+                        }
+                except Exception:
+                    pass
+
+            # 2. 如果保存的文件是 .html，但传入内容是 Markdown 格式，必须转换为标准自包含 HTML
+            if not is_valid_html:
+                from core.reporting.report_generator import wrap_markdown_as_html_report
+                content_to_save = wrap_markdown_as_html_report(
+                    content_to_save,
+                    title=req.title or target_file.stem,
+                    filename=target_file.name
+                )
+
+        try:
+            target_file.write_text(content_to_save, encoding="utf-8")
+            rel_path = target_file.relative_to(workspace_root).as_posix()
+            return {
+                "status": "ok",
+                "path": rel_path,
+                "filename": target_file.name,
+                "size_bytes": len(content_to_save.encode("utf-8")),
+            }
+
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to save document: {str(exc)}")
+
+    # 3) 对外 API 接口导航与元信息: http://127.0.0.1:6300/api
+    @app.get("/api", tags=["API Root"])
+    @app.get("/api/", tags=["API Root"])
+    async def api_root():
+        """对外 API 接口目录与可用服务导航 (http://127.0.0.1:6300/api)"""
+        return {
+            "name": "A-Stock Agents Web API Gateway",
+            "version": VERSION,
+            "status": "online",
+            "docs_url": "/docs",
+            "redoc_url": "/redoc",
+            "openapi_url": "/openapi.json",
+            "endpoints": {
+                "health": "/api/health",
+                "auth_login": "/api/auth/login",
+                "auth_logout": "/api/auth/logout",
+                "auth_me": "/api/auth/me",
+                "auth_change_password": "/api/auth/change-password",
+                "users": "/api/users",
+                "roles": "/api/roles",
+                "menus": "/api/menus",
+                "audit_auth": "/api/audit/auth",
+                "chat_stream": "/api/chat/completions/stream",
+                "chat_sessions": "/api/chat/sessions",
+                "docs_read": "/api/docs/read",
+                "docs_save": "/api/docs/save",
+                "skills_governance": "/api/skills",
+                "market_indices": "/api/market/indices",
+                "market_sentiment": "/api/market/sentiment",
+                "market_kline": "/api/market/kline",
+                "market_ranks": "/api/market/ranks",
+                "portfolio_overview": "/api/portfolio/overview",
+                "portfolio_analysis": "/api/portfolio/analysis",
+                "watchlist": "/api/watchlist",
+                "monitor_stream": "/api/monitor/stream",
+            },
+        }
+
+    return app
+
+
+app = create_app()

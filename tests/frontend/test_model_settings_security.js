@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 
-const source = fs.readFileSync('web/js/app.js', 'utf8');
+const source = fs.readFileSync('apps/web-console/frontend/js/app.js', 'utf8');
 
 assert.strictEqual(/localStorage\.(getItem|setItem)\(['"]astock_llm_providers/.test(source), false);
 assert.strictEqual(source.includes('loadProvidersFromLocalStorage'), false);

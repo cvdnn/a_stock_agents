@@ -61,7 +61,7 @@ class TestCustomOutputIsolation(unittest.TestCase):
             "import sys\n"
             "from pathlib import Path\n"
             "ROOT = Path('.').resolve()\n"
-            "for p in [ROOT, ROOT / 'scripts', ROOT / 'scripts' / 'core']:\n"
+            "for p in [ROOT, ROOT / 'skill_bundle' / 'runtime', ROOT / 'skill_bundle' / 'runtime' / 'core']:\n"
             "    if p.exists() and str(p) not in sys.path:\n"
             "        sys.path.insert(0, str(p))\n"
             "from core.config import get_active_paths, OUTPUT_DIR, OUTPUT_POOLS_DIR, IS_CUSTOM_OUTPUT\n"
@@ -106,7 +106,7 @@ class TestCustomOutputIsolation(unittest.TestCase):
 
         def _resolve(rel_path: str) -> str:
             if rel_path.startswith("core/"):
-                cand = ROOT / "scripts" / rel_path
+                cand = ROOT / "skill_bundle" / "runtime" / rel_path
                 if cand.exists():
                     return str(cand)
             return str(ROOT / rel_path)
@@ -157,7 +157,7 @@ class TestCustomOutputIsolation(unittest.TestCase):
         env["A_STOCK_OUTPUT_DIR"] = str(self.test_custom_dir)
 
         # Initialize and add stock in custom output dir
-        pm_script = ROOT / "scripts" / "core" / "strategy" / "pool_manager.py" if (ROOT / "scripts" / "core" / "strategy" / "pool_manager.py").exists() else ROOT / "core" / "strategy" / "pool_manager.py"
+        pm_script = ROOT / "skill_bundle" / "runtime" / "core" / "strategy" / "pool_manager.py" if (ROOT / "skill_bundle" / "runtime" / "core" / "strategy" / "pool_manager.py").exists() else ROOT / "core" / "strategy" / "pool_manager.py"
         cmd = [sys.executable, str(pm_script), "add", "--pool", "selected", "--code", "600000", "--name", "浦发银行", "--reason", "测试隔离", "--sector", "银行"]
         res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT), env=env)
         self.assertEqual(res.returncode, 0, f"Add to custom pool failed:\n{res.stderr}")

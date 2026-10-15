@@ -5,9 +5,9 @@
 
 import pytest
 import os
-from scripts.core.data.data_bridge import DataBridge
-from scripts.server.agent.tools import _sync_astock_report_html
-from scripts.core.reporting.report_generator import generate_simple_report
+from core.data.data_bridge import DataBridge
+from server.agent.tools import _sync_astock_report_html
+from core.reporting.report_generator import generate_simple_report
 
 
 def test_get_kline_robust_normal():
@@ -43,7 +43,7 @@ def test_get_kline_robust_never_synthesizes_from_quote(monkeypatch):
     monkeypatch.setattr(DataBridge, "tencent_kline", lambda code, count=120: [])
     monkeypatch.setattr(DataBridge, "sina_kline", lambda code, count=120: [])
     monkeypatch.setattr(DataBridge, "eastmoney_kline", lambda code, count=120: [])
-    import scripts.core.data.Ashare as AshareModule
+    import core.data.Ashare as AshareModule
     monkeypatch.setattr(AshareModule, "get_price", lambda *args, **kwargs: None)
     # 清空对应缓存
     norm = DataBridge.normalize_symbol("000002")

@@ -9,7 +9,7 @@
 | 层级 | 文档 | 职责 |
 |---|---|---|
 | 中枢（接口与指标规范） | **本文**（`SPEC-DATA-001`） | 4 级容灾数据源分层、实时行情快照与全周期 K 线接口协议字典、本地闭环技术指标计算标准与调用量级容量模型 |
-| 成员（同步与隔离规范） | [`market-data-sync-specification.md`](./market-data-sync-specification.md)（`SPEC-DATA-001`） | 交易日时钟驱动同步调度、完整性 Gap 探测自愈、SQLite 嵌入式存储与 `local/` 700 权限物理隔离 |
+| 成员（同步与隔离规范） | [`market-data-sync-specification.md`](market-data-sync-specification.md)（`SPEC-DATA-001`） | 交易日时钟驱动同步调度、完整性 Gap 探测自愈、SQLite 嵌入式存储与 `local/` 700 权限物理隔离 |
 
 ---
 

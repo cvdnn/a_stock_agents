@@ -8,10 +8,10 @@ const assert = require('assert');
 
 console.log('=== [【市场行情】工作区自适应布局与组件完整性验证] ===\n');
 
-const html = fs.readFileSync('web/index.html', 'utf8');
-const css = fs.readFileSync('web/css/style.css', 'utf8');
-const appJs = fs.readFileSync('web/js/app.js', 'utf8');
-const chartsJs = fs.readFileSync('web/js/charts.js', 'utf8');
+const html = fs.readFileSync('apps/web-console/frontend/index.html', 'utf8');
+const css = fs.readFileSync('apps/web-console/frontend/css/style.css', 'utf8');
+const appJs = fs.readFileSync('apps/web-console/frontend/js/app.js', 'utf8');
+const chartsJs = fs.readFileSync('apps/web-console/frontend/js/charts.js', 'utf8');
 
 // --------------------------------------------------------------------------
 // 1. 结构完整性断言：Row 1 (市场概览 + 今日要闻)

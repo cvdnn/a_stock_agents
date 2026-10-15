@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -e
+RUNTIME_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUNDLE_ROOT="$(cd "$RUNTIME_ROOT/.." && pwd)"
+WORKSPACE_ROOT="${A_STOCK_WORKSPACE_ROOT:-${A_STOCK_AGENTS_ROOT:-$(dirname "$BUNDLE_ROOT")}}"
+PYTHON_EXEC="${A_STOCK_PYTHON:-}"
+if [ -z "$PYTHON_EXEC" ]; then
+  if [ -x "$WORKSPACE_ROOT/.venv/bin/python" ]; then PYTHON_EXEC="$WORKSPACE_ROOT/.venv/bin/python"
+  elif command -v python3 >/dev/null 2>&1; then PYTHON_EXEC=python3
+  else PYTHON_EXEC=python; fi
+fi
+export PYTHONPATH="$RUNTIME_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON_EXEC" "$RUNTIME_ROOT/cli.py" "$@"

@@ -14,9 +14,9 @@ from server.agent.tools import TOOL_MAP
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SKILLS_DIR = ROOT / ".agents" / "skills"
-MANIFEST_PATH = ROOT / "config" / "skills_manifest.json"
-WEB_APP_PATH = ROOT / "web" / "js" / "app.js"
+SKILLS_DIR = ROOT / "skill_bundle" / "skills"
+MANIFEST_PATH = ROOT / "skill_bundle" / "assets" / "config" / "skills_manifest.json"
+WEB_APP_PATH = ROOT / "apps" / "web-console" / "frontend" / "js" / "app.js"
 
 
 def _manifest() -> dict:
@@ -128,7 +128,7 @@ def test_skill_markdown_has_no_broken_relative_links_or_legacy_roots() -> None:
     legacy: list[str] = []
     banned = (
         r"skills/a-stocks",
-        r"(?<!\.agents/)skills/astock-",
+        r"(?<!\.agents/)(?<!skill_bundle/)skills/astock-",
         r"\$HOME/my_holdings",
         r"~/多智能体辩论框架",
     )
@@ -160,7 +160,7 @@ def test_skill_runtime_assets_do_not_reference_global_runtime_roots() -> None:
     )
     violations: list[str] = []
     text_suffixes = {".md", ".py", ".sh", ".yaml", ".yml"}
-    for scan_root in (SKILLS_DIR, ROOT / "scripts" / "core"):
+    for scan_root in (SKILLS_DIR, ROOT / "skill_bundle" / "runtime" / "core"):
         for path in scan_root.rglob("*"):
             if not path.is_file() or path.suffix.lower() not in text_suffixes:
                 continue

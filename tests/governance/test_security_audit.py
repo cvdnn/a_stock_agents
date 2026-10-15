@@ -23,7 +23,7 @@ def test_docs_save_blocks_overwriting_web_index(client: TestClient):
     """Attempting to overwrite web/index.html via /api/docs/save must return 403 Forbidden."""
     res = client.post(
         "/api/docs/save",
-        json={"path": "web/index.html", "content": "<h1>Hacked</h1>", "title": "test"},
+        json={"path": "apps/web-console/frontend/index.html", "content": "<h1>Hacked</h1>", "title": "test"},
     )
     assert res.status_code == 403
     assert "restricted" in res.json().get("detail", "").lower() or "access denied" in res.json().get("detail", "").lower()
@@ -44,7 +44,7 @@ def test_docs_save_blocks_directory_traversal(client: TestClient, evil_path: str
 
 def test_docs_save_blocks_scripts_and_config_dirs(client: TestClient):
     """Attempting to write to scripts/ or config/ must return 403 Forbidden."""
-    for bad_path in ["scripts/server/malicious.py", "config/evil.json"]:
+    for bad_path in ["apps/web-console/backend/server/malicious.py", "config/evil.json"]:
         res = client.post(
             "/api/docs/save",
             json={"path": bad_path, "content": "{}", "title": "test"},
@@ -73,9 +73,9 @@ def test_docs_save_confines_to_reports_dir(client: TestClient):
 # ==============================================================================
 
 @pytest.mark.parametrize("forbidden_path", [
-    "scripts/server/app.py",   # 后端源码
-    "scripts/core/cli.py",     # CLI 源码
-    "scripts/server/db.py",    # 数据层源码
+    "apps/web-console/backend/server/app.py",   # 后端源码
+    "skill_bundle/runtime/core/cli.py",     # CLI 源码
+    "apps/web-console/backend/server/db.py",    # 数据层源码
     "tests/conftest.py",       # 测试基座（含临时路径构造细节）
     ".env",                    # 本地私密覆盖（API Key 等）
 ])
@@ -101,7 +101,7 @@ def test_docs_read_allows_whitelisted_docs(client: TestClient):
 
 def test_iframe_sandbox_excludes_same_origin():
     """Ensure web/index.html iframe sandbox does not combine allow-scripts with allow-same-origin."""
-    index_html = (PROJECT_ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    index_html = (PROJECT_ROOT / "apps" / "web-console" / "frontend" / "index.html").read_text(encoding="utf-8")
     assert 'id="workspaceHtmlFrame"' in index_html
     # Must NOT have allow-same-origin
     assert 'sandbox="allow-scripts allow-same-origin allow-popups"' not in index_html
@@ -116,7 +116,7 @@ def test_iframe_sandbox_excludes_same_origin():
 def test_dompurify_disallows_onclick_attribute():
     """Ensure chat_presentation.js does not allow 'onclick' attribute in DOMPurify sanitize options."""
     import re
-    chat_js = (PROJECT_ROOT / "web" / "js" / "chat_presentation.js").read_text(encoding="utf-8")
+    chat_js = (PROJECT_ROOT / "apps" / "web-console" / "frontend" / "js" / "chat_presentation.js").read_text(encoding="utf-8")
     m = re.search(r"ADD_ATTR:\s*\[(.*?)\]", chat_js)
     assert m is not None, "ADD_ATTR configuration block must be present in DOMPurify sanitize call"
     add_attrs = m.group(1)
@@ -143,7 +143,7 @@ def test_report_generator_sandboxes_output_path():
 
 def test_docker_compose_binds_to_localhost():
     """docker-compose.yml port mapping must be strictly bound to 127.0.0.1."""
-    compose_text = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    compose_text = (PROJECT_ROOT / "tools/containers/web-console/compose.yaml").read_text(encoding="utf-8")
     assert '127.0.0.1:${A_STOCK_SERVER_PORT:-6300}:6300' in compose_text, (
         "docker-compose.yml must bind port to 127.0.0.1 to avoid exposing 0.0.0.0 publicly"
     )
@@ -301,7 +301,7 @@ def test_ssrf_rejects_dns_rebind(monkeypatch):
 def test_dompurify_and_fallback_sanitization_rules():
     """Verify chat_presentation.js strips onclick, onmouseover, and javascript: links."""
     import re
-    chat_js = (PROJECT_ROOT / "web" / "js" / "chat_presentation.js").read_text(encoding="utf-8")
+    chat_js = (PROJECT_ROOT / "apps" / "web-console" / "frontend" / "js" / "chat_presentation.js").read_text(encoding="utf-8")
     m = re.search(r"ADD_ATTR:\s*\[(.*?)\]", chat_js)
     assert m and "onclick" not in m.group(1)
     assert "javascript:" in chat_js

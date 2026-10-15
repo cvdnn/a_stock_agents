@@ -1,6 +1,6 @@
 # 智能选股系统 · 选股模型通用设计规范 (Selection Model General Specification)
 
-> 文档 ID：`SPEC-ALGO-003` · 家族定位：选股模型定义规范的**通用维度**，与[《智能选股系统 · 模型类型设计规范》](./selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`，类型维度）并列，共同隶属于[《智能选股系统 · 功能建设规范》](./selection-system-specification.md)（`SPEC-ALGO-ISS-001`）。
+> 文档 ID：`SPEC-ALGO-003` · 家族定位：选股模型定义规范的**通用维度**，与[《智能选股系统 · 模型类型设计规范》](selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`，类型维度）并列，共同隶属于[《智能选股系统 · 功能建设规范》](selection-system-specification.md)（`SPEC-ALGO-ISS-001`）。
 > 适用范围：把「T日盘后选股 → T+1 早盘择时触发」这一类战法抽象为**可复用的通用选股模型**，覆盖条件谓词模型、SFTC 五阶段流水线、时点契约与数据就绪矩阵、Stage 0-4 详细规格、策略 YAML Schema 与回测治理口径。
 > 核心目标：不把任何一套具体条件写死成一个策略，而是抽象出「条件谓词 + 阶段流水线 + 时点契约」三件套，让用户能用一份 YAML 配出新战法；每个条件声明数据依赖并由调度器决定可运行时点，杜绝"盘中现算全市场"类性能陷阱与未来函数。
 
@@ -8,7 +8,7 @@
 
 > **文档定位（规范与示例分离）**：本文是**通用规范层**，只承载可复用的抽象约束——条件谓词模型（Predicate Schema）、SFTC 阶段流水线、时点契约与数据就绪矩阵、编译期派生约束、回测方法与治理门禁口径。
 > **本文不出现任何具体战法的阈值取值、时间点、评分权重与配置样例**；一切具体取值由以下两处单点承载，本文与二者不得互相复制：
-> - 唯一示例（业务叙事 + 可执行漏斗口径 + 参数化评估）：[选股漏斗示例 1](./selection-funnel-example-1.md)
+> - 唯一示例（业务叙事 + 可执行漏斗口径 + 参数化评估）：[选股漏斗示例 1](selection-funnel-example-1.md)
 > - 可执行配置（阈值唯一权威）：`config/funnel_strategy.yaml`
 >
 > 示例中的一切阈值均由用户在可视化配置中**参数化**设定，并纳入 `definition_hash`。
@@ -34,7 +34,7 @@
 2. **归入阶段**：按该条件的数据就绪时刻，归入 SFTC 中最早可运行的阶段（见 §3、§5）；
 3. **暴露参数**：把一切具体取值（窗口周期、均线、门槛、上限、区间）从表达式中摘出为 `params`，禁止硬编码。
 
-具体战法的条件清单、取值、问财语句与业务叙事，见[选股漏斗示例 1](./selection-funnel-example-1.md)。
+具体战法的条件清单、取值、问财语句与业务叙事，见[选股漏斗示例 1](selection-funnel-example-1.md)。
 
 ### 2.2 两条强制参数化约束（规范）
 
@@ -47,13 +47,13 @@
 - (b) T+1 制度下当日无法止损，高开越多次日跳空低开亏损越大；
 - (c) 极易遇"高开低走"出货形态，与本类"回调后拐点买入"战法的前提（洗盘而非出货）相冲突。
 
-上限具体数值须回测标定；示例战法的分档预设见[选股漏斗示例 1](./selection-funnel-example-1.md)。
+上限具体数值须回测标定；示例战法的分档预设见[选股漏斗示例 1](selection-funnel-example-1.md)。
 
 ---
 
 ## 3. 核心抽象：SFTC 五阶段流水线
 
-这是整套体系的骨架。任何"T日选股 + T+1择时"类战法都可以映射到这五个阶段。下图只标注**阶段角色**与**相对时点**；各阶段的**具体时钟与标的数量级属示例口径**，须由用户在配置中参数化设定（见[选股漏斗示例 1](./selection-funnel-example-1.md)）。
+这是整套体系的骨架。任何"T日选股 + T+1择时"类战法都可以映射到这五个阶段。下图只标注**阶段角色**与**相对时点**；各阶段的**具体时钟与标的数量级属示例口径**，须由用户在配置中参数化设定（见[选股漏斗示例 1](selection-funnel-example-1.md)）。
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -203,7 +203,7 @@ class Predicate:
 
 ## 5. 时点契约与数据就绪矩阵
 
-**这是本设计最关键的工程章节。** 时点契约的**规范性要求**是：每个条件必须声明数据依赖，由调度器推导其最早可运行时点，杜绝盘中现算全市场与未来函数。下表只给出**数据就绪的相对关系与硬约束**；各阶段的具体调度时钟属示例口径，须由用户在配置中参数化设定（见[选股漏斗示例 1](./selection-funnel-example-1.md)）。
+**这是本设计最关键的工程章节。** 时点契约的**规范性要求**是：每个条件必须声明数据依赖，由调度器推导其最早可运行时点，杜绝盘中现算全市场与未来函数。下表只给出**数据就绪的相对关系与硬约束**；各阶段的具体调度时钟属示例口径，须由用户在配置中参数化设定（见[选股漏斗示例 1](selection-funnel-example-1.md)）。
 
 ### 5.1 数据就绪矩阵
 
@@ -254,7 +254,7 @@ T日盘后用 T日收盘价预判（给用户睡前参考），T+1 开盘前用�
 
 ## 6. Stage 0-2 详细规格
 
-> **规范与示例边界**：本章各表只给出**谓词 id、条件语义、数据依赖与实现要点**；一切具体阈值取自示例战法口径，见[选股漏斗示例 1](./selection-funnel-example-1.md) 与 `config/funnel_strategy.yaml`。
+> **规范与示例边界**：本章各表只给出**谓词 id、条件语义、数据依赖与实现要点**；一切具体阈值取自示例战法口径，见[选股漏斗示例 1](selection-funnel-example-1.md) 与 `config/funnel_strategy.yaml`。
 
 ### 6.1 Stage 0 · Universe Gate
 
@@ -292,7 +292,7 @@ T日盘后用 T日收盘价预判（给用户睡前参考），T+1 开盘前用�
 | B. 连续比较 | `MA_T > MA_{T-1} > MA_{T-2}` | 严格，要求连续多日上行 |
 | C. 归一化斜率 | `(MA_T - MA_{T-lag}) / MA_{T-lag} / lag > θ` | 可跨股价比较，θ 可标定 |
 
-**规范建议**：默认取 A（与用户"均线向上"的字面表述一致），并把 C 作为 Stage 1.5 的排序因子 —— 斜率越陡说明趋势动能越强，用于 Top-N 截断时优先保留。**具体 `lag` 取值、`min_slope` 与 θ 均为配置参数**；引擎实现必须与配置中的 `lag` 保持同一口径，其示例取值见[选股漏斗示例 1](./selection-funnel-example-1.md)。
+**规范建议**：默认取 A（与用户"均线向上"的字面表述一致），并把 C 作为 Stage 1.5 的排序因子 —— 斜率越陡说明趋势动能越强，用于 Top-N 截断时优先保留。**具体 `lag` 取值、`min_slope` 与 θ 均为配置参数**；引擎实现必须与配置中的 `lag` 保持同一口径，其示例取值见[选股漏斗示例 1](selection-funnel-example-1.md)。
 
 #### 关于涨幅上限的板块差异化（规范）
 
@@ -315,7 +315,7 @@ T日盘后用 T日收盘价预判（给用户睡前参考），T+1 开盘前用�
 | `change_pct_sweet` | 涨幅落入钟形成分区间 | 钟形 | 涨幅太小动能不足，太大追高风险 |
 | `float_cap_score` | 流通市值落入钟形成分区间 | 钟形 | 太小易操纵，太大弹性不足 |
 
-> **规范要求**：各因子权重为工程初值，**必须经回测标定**（见第 10 章）并纳入 `definition_hash`；禁止直接用于实盘。示例权重见[选股漏斗示例 1](./selection-funnel-example-1.md) 与 `config/funnel_strategy.yaml`。
+> **规范要求**：各因子权重为工程初值，**必须经回测标定**（见第 10 章）并纳入 `definition_hash`；禁止直接用于实盘。示例权重见[选股漏斗示例 1](selection-funnel-example-1.md) 与 `config/funnel_strategy.yaml`。
 
 ### 6.4 Stage 2 · Regime Gate（一票否决）
 
@@ -363,7 +363,7 @@ regime_gate:
 
 ### 7.2 Stage 3b · 拐点识别：ERS 复合评分方法论规范
 
-> **规范与示例边界**：本节只规定 ERS（Exhaustion-Reversal Score）的**模型结构与判定方法论**；具体指标定义、满分配额、权重、阈值与降级折算系数为**示例实例**，见[选股漏斗示例 1](./selection-funnel-example-1.md)。评分模型的**规范定义**（`scoring_rank` 类型的过滤层/评分层/排序层/输出层、权重归一化、三态求值）见 [`SPEC-ALGO-ISS-MT-001` §5](./selection-model-types-specification.md)。
+> **规范与示例边界**：本节只规定 ERS（Exhaustion-Reversal Score）的**模型结构与判定方法论**；具体指标定义、满分配额、权重、阈值与降级折算系数为**示例实例**，见[选股漏斗示例 1](selection-funnel-example-1.md)。评分模型的**规范定义**（`scoring_rank` 类型的过滤层/评分层/排序层/输出层、权重归一化、三态求值）见 [`SPEC-ALGO-ISS-MT-001` §5](selection-model-types-specification.md)。
 
 **模型结构（规范）**：ERS 不是一个指标，而是**三组指标的综合评分**，且要求多组同时达标，防止单侧偏科误判：
 - **A 组 · 卖盘枯竭分（Exhaustion）**：刻画抛压自然衰竭；
@@ -647,7 +647,7 @@ stage4_exit:
   breakeven: {skill: astock-action-execution, round: ceil_to_cent}
 ```
 
-> 本示例配置的**唯一真实取值**见 `config/funnel_strategy.yaml`；业务叙事、问财语句与参数化评估见[选股漏斗示例 1](./selection-funnel-example-1.md)。
+> 本示例配置的**唯一真实取值**见 `config/funnel_strategy.yaml`；业务叙事、问财语句与参数化评估见[选股漏斗示例 1](selection-funnel-example-1.md)。
 
 ---
 
@@ -703,9 +703,9 @@ T日盘后选股 + T+1 成交本身合法，但回测引擎若在 T日 bar 上�
 
 ## 附：关联索引
 
-- 唯一示例（业务叙事 + 可执行口径 + 参数化评估）：[选股漏斗示例 1](./selection-funnel-example-1.md)
+- 唯一示例（业务叙事 + 可执行口径 + 参数化评估）：[选股漏斗示例 1](selection-funnel-example-1.md)
 - 可执行配置（阈值唯一权威）：`config/funnel_strategy.yaml`
 - 实施进度看板：[`general-selection-and-turning-point-plan.md`](../../specs/algorithm/general-selection-and-turning-point-plan.md)
-- 系统建设规范：[`selection-system-specification.md`](./selection-system-specification.md)
-- 模型类型定义：[`selection-model-types-specification.md`](./selection-model-types-specification.md)
-- 算法治理规范：[`algorithm-governance.md`](./algorithm-governance.md)
+- 系统建设规范：[`selection-system-specification.md`](selection-system-specification.md)
+- 模型类型定义：[`selection-model-types-specification.md`](selection-model-types-specification.md)
+- 算法治理规范：[`algorithm-governance.md`](algorithm-governance.md)

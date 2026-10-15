@@ -11,12 +11,12 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_production_sources_have_no_fabricated_runtime_patterns() -> None:
     server = "\n".join(
         path.read_text(encoding="utf-8")
-        for path in (ROOT / "scripts/server").rglob("*.py")
+        for path in (ROOT / "apps/web-console/backend/server").rglob("*.py")
         if path.name != "mock_provider.py"
     )
-    api_js = (ROOT / "web/js/api.js").read_text(encoding="utf-8")
-    app_js = (ROOT / "web/js/app.js").read_text(encoding="utf-8")
-    components = (ROOT / "web/js/components/astock.js").read_text(encoding="utf-8")
+    api_js = (ROOT / "apps/web-console/frontend/js/api.js").read_text(encoding="utf-8")
+    app_js = (ROOT / "apps/web-console/frontend/js/app.js").read_text(encoding="utf-8")
+    components = (ROOT / "apps/web-console/frontend/js/components/astock.js").read_text(encoding="utf-8")
 
     server_forbidden = (
         '"status": "simulated"',
@@ -72,7 +72,7 @@ def test_datafeed_fallback_panel_is_probe_driven_not_static() -> None:
     Baostock / DuckDB 两级链路——三者均与 data_bridge 真实降级链不符，属伪造运行态。
     现口径：延迟一律来自 GET /api/market_data/ping，未测速前只显示「○ 未检测」。
     """
-    index_html = (ROOT / "web/index.html").read_text(encoding="utf-8")
+    index_html = (ROOT / "apps/web-console/frontend/index.html").read_text(encoding="utf-8")
     parts = index_html.split('id="sec-datafeed"', 1)
     assert len(parts) == 2, "设置弹窗缺少行情数据源降级面板 (sec-datafeed)"
     # 截取本面板内容：到下一个 settings-sec 之前
@@ -106,7 +106,7 @@ def test_workbench_panes_have_no_fabricated_fallback_data() -> None:
       属死代码却仍在启动时白发 5 个后端请求并写死 454.24 总资产与 78 分表盘；
     - `switchTrendPeriod` 对伪造数组乘 0.3/0.5/0.8 系数"生成"多周期曲线。
     """
-    app_js = (ROOT / "web/js/app.js").read_text(encoding="utf-8")
+    app_js = (ROOT / "apps/web-console/frontend/js/app.js").read_text(encoding="utf-8")
     for dead in (
         "MarketFallbackData", "WatchlistFallbackData", "ReturnsFallbackData",
         "generateKlines", "initDashboardCharts", "loadDashboardData",
@@ -126,7 +126,7 @@ def test_index_html_has_no_static_fabricated_market_values() -> None:
     静态值只在"接口尚未返回"时可见，一旦写死具体数字就会在接口失败时永久挂盘，
     等同于伪造。合规写法是 `--` 或 skeleton 占位（同文件情绪卡即为范本）。
     """
-    index_html = (ROOT / "web/index.html").read_text(encoding="utf-8")
+    index_html = (ROOT / "apps/web-console/frontend/index.html").read_text(encoding="utf-8")
     forbidden = (
         "3,426.56", "3410.32", "3398.76", "3376.21",   # 上证指数与 MA 图例
         "18.72%", "6.34%", "2.87%", "0.63%",           # 收益构成图例
@@ -158,7 +158,7 @@ def test_unconnected_market_endpoints_fail_closed_in_source() -> None:
     断言用 `"source": "<engine>"` 的赋值形态匹配，避免误伤文档字符串中
     对历史缺陷的说明性引用。
     """
-    source = (ROOT / "scripts/server/api/market_data.py").read_text(encoding="utf-8")
+    source = (ROOT / "apps/web-console/backend/server/api/market_data.py").read_text(encoding="utf-8")
     for capability in ("market.sentiment", "market.ranks", "portfolio.analysis"):
         assert f'_unavailable("{capability}")' in source, f"{capability} 未 fail-closed"
     for lie in ('"source": "market_sentiment_engine"',
@@ -168,7 +168,7 @@ def test_unconnected_market_endpoints_fail_closed_in_source() -> None:
 
 
 def test_mock_provider_is_guarded_by_explicit_test_mode() -> None:
-    factory = (ROOT / "scripts/server/llm/factory.py").read_text(encoding="utf-8")
+    factory = (ROOT / "skill_bundle/runtime/core/llm/factory.py").read_text(encoding="utf-8")
     assert 'server_settings.runtime_mode != "test"' in factory
     assert "return MockLLMProvider" in factory
     assert factory.index('server_settings.runtime_mode != "test"') < factory.index("return MockLLMProvider")
@@ -187,8 +187,8 @@ def test_selection_workbench_is_fail_closed_not_fabricated() -> None:
 
     除字面量黑名单外，本用例另加五条结构性断言，防止"换一批假数字"绕过黑名单而复现。
     """
-    app_js = (ROOT / "web/js/app.js").read_text(encoding="utf-8")
-    index_html = (ROOT / "web/index.html").read_text(encoding="utf-8")
+    app_js = (ROOT / "apps/web-console/frontend/js/app.js").read_text(encoding="utf-8")
+    index_html = (ROOT / "apps/web-console/frontend/index.html").read_text(encoding="utf-8")
 
     for dead in ("SelectionData", "drawSelectionPriceChart", "switchSelAnalysisTab",
                  "switchSelPeriod", "exportFunnelResults", "openNewFunnelModelModal"):
@@ -196,8 +196,8 @@ def test_selection_workbench_is_fail_closed_not_fabricated() -> None:
 
     # 旧内存工作台必须退出；真实空态与错误态由 SelModels 统一渲染。
     assert "SelectionWorkbench" not in app_js
-    selection_js = (ROOT / "web/js/selection-models/index.js").read_text(encoding="utf-8")
-    state_js = (ROOT / "web/js/selection-models/state_views.js").read_text(encoding="utf-8")
+    selection_js = (ROOT / "apps/web-console/frontend/js/selection-models/index.js").read_text(encoding="utf-8")
+    state_js = (ROOT / "apps/web-console/frontend/js/selection-models/state_views.js").read_text(encoding="utf-8")
     assert "global.SelModels.bootstrap = bootstrap" in selection_js
     assert "stateViews.empty" in selection_js
     assert "sel-state-error" in state_js
@@ -228,7 +228,7 @@ def test_selection_workbench_is_fail_closed_not_fabricated() -> None:
     # 结构断言 5：web/ 被 StaticFiles 整目录挂载（/ui/*），归档/备份 html 同样能被浏览器直接
     # 打开，必须显式声明为非生产原型，否则备份页会变成第二块"看起来像真实结果"的假面板。
     production_pages = {"index.html", "login.html"}
-    for html_path in sorted((ROOT / "web").rglob("*.html")):
+    for html_path in sorted((ROOT / "apps" / "web-console" / "frontend").rglob("*.html")):
         if html_path.name in production_pages:
             continue
         assert "非生产设计原型" in html_path.read_text(encoding="utf-8"), \
@@ -273,7 +273,7 @@ def _literal_market_values(node: ast.expr) -> list[object]:
 
 
 def test_market_projection_has_no_hardcoded_market_values() -> None:
-    """`scripts/server/api/market_data.py` 不得把行情/资金/收益数值写成源码字面量。
+    """`apps/web-console/backend/server/api/market_data.py` 不得把行情/资金/收益数值写成源码字面量。
 
     刻意走 AST 只检查 dict 字面量的**取值**：docstring 与注释里的历史假值（3888.11、328.56、
     '+1.28亿'、'+¥1,850.00' 等缺陷叙述）不参与判定，因此既能长期留档成因，又不会误报；
@@ -287,7 +287,7 @@ def test_market_projection_has_no_hardcoded_market_values() -> None:
     - `/api/watchlist` 写死 price 328.56、net_inflow '+1.28亿' 与 volume/amount/industry/pe/pb/ma
       及资金流、北向、主力持仓全套画像。
     """
-    source = (ROOT / "scripts/server/api/market_data.py").read_text(encoding="utf-8")
+    source = (ROOT / "apps/web-console/backend/server/api/market_data.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
 
     offenders: list[str] = []

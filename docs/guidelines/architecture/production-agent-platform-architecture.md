@@ -74,7 +74,7 @@ Web 模式提供模型配置、会话、任务编排、SSE 状态和结果展示
 
 ### 5.2 外部宿主模式
 
-Hermes、Codex、Antigravity 或 Claude Code 在项目工作区中读取 `.agents/skills` 和 `AGENTS.md`，使用宿主自身的大模型规划任务，通过统一 CLI 的 `--json` 输出执行能力。它们不需要启动 FastAPI，也不读取 Web 的供应商配置。
+AI 工具通过本项目生成的 Skill Release 接入，使用宿主自身的大模型规划任务，并通过统一 CLI 的 `--json` 输出执行能力。开发源码不作为项目发现入口；宿主原生导入与发现能力按平台单独验证。技能 CLI 不需要启动 FastAPI。
 
 Skill 的错误、来源和时间契约必须足以让外部宿主执行与 Web 相同的主次失败决策。宿主可以使用项目提供的任务规划提示词规范，但不依赖 Web 的 Python Agent Runtime。
 

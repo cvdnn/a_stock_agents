@@ -912,3 +912,120 @@ def test_selection_r5_inline_run_workspace_isolated_and_responsive(browser_page,
     }""")
     assert dimensions["scroll"] <= dimensions["width"] + 1
     assert page.locator("#selRunSelect").input_value() == runs["first"]
+
+
+def test_intelligent_selection_f1_read_only_workspace(browser_page, isolated_browser_server) -> None:
+    """新一级入口只展示真实漏斗资产；只读身份看不到模型写操作。"""
+    page = browser_page
+    runtime = isolated_browser_server
+    _login(page, runtime)
+    entry = page.locator('.sidebar-nav-section .nav-item[data-tab="intelligent_selection"]')
+    assert entry.count() == 1
+    assert entry.is_visible()
+    assert page.locator('.sidebar-nav-section .nav-item', has_text="运行记录").count() == 0
+    entry.focus()
+    page.keyboard.press("Enter")
+    page.wait_for_function("document.querySelector('#pane-intelligent_selection')?.classList.contains('active')")
+    assert page.locator("#issRunsPanel").is_visible()
+    assert page.locator("#issRunsPanel.selection-workbench-layout .selection-detail-body").count() == 1
+    assert page.locator("#pane-intelligent_selection .iss-header").count() == 0
+    assert page.locator("#issModelCol").is_visible()
+    page.locator("#issTabModels").click()
+    assert page.locator("#issModelsPanel").is_visible()
+    assert page.locator("#issCreateForm").is_hidden()
+    page.locator(f'#issModelList [data-model-id="{runtime["model_ids"][1]}"]').click()
+    page.wait_for_function("!document.querySelector('#issModelControls')?.hidden")
+    assert page.locator("#issDraftEditor").is_disabled()
+    assert page.locator("#issSaveDraft").is_hidden()
+    assert page.locator("#issPublish").is_hidden()
+    assert page.locator("#issScheduleSave").count() == 0
+    page.locator("#issTabRuns").click()
+    assert page.locator("#issRunsPanel").is_visible()
+
+
+def test_intelligent_selection_f1_draft_and_version_controls(browser_page, isolated_browser_server) -> None:
+    """隔离管理员在新工作区创建、保存、校验和发布；未保存修改阻止离开。"""
+    page = browser_page
+    runtime = {**isolated_browser_server,
+               "username": isolated_browser_server["admin_username"],
+               "password": isolated_browser_server["admin_password"]}
+    _login(page, runtime)
+    page.locator('.sidebar-nav-section .nav-item[data-tab="intelligent_selection"]').click()
+    page.locator("#issTabModels").click()
+    page.locator("#issCreateForm").wait_for(state="visible")
+    page.locator("#issCreateName").fill("F1 隔离漏斗")
+    page.locator("#issCreateForm button").click()
+    page.get_by_role("heading", name="F1 隔离漏斗").wait_for()
+    page.wait_for_function("!document.querySelector('#issModelControls')?.hidden")
+    created_id = page.locator("#issModelDetail").inner_text().split("模型 ID：", 1)[1].splitlines()[0].strip()
+    editor = page.locator("#issDraftEditor")
+    assert editor.is_enabled()
+    definition = json.loads(editor.input_value())
+    definition["model"]["name"] = "F1 隔离漏斗修订"
+    editor.fill(json.dumps(definition, ensure_ascii=False, indent=2))
+    assert page.locator("#issPublish").is_disabled()
+    page.once("dialog", lambda dialog: dialog.dismiss())
+    page.locator("#issTabRuns").click()
+    assert page.locator("#issModelsPanel").is_visible()
+    page.locator("#issSaveDraft").click()
+    page.get_by_text("草稿已保存，修订").wait_for()
+    page.locator("#issValidate").click()
+    page.get_by_text("校验通过：").wait_for()
+    page.locator("#issPublish").click()
+    page.get_by_text("已发布 v1").wait_for()
+    assert "v1" in page.locator("#issVersions").inner_text()
+    page.locator('#issVersions [data-activate-version="1"]').click()
+    page.get_by_text("已激活 v1").wait_for()
+    assert page.locator("#issSchedulePause").is_enabled()
+    page.locator("#issSchedulePause").click()
+    page.get_by_text("自动调度已暂停").wait_for()
+    assert "已暂停" in page.locator("#issSchedule").inner_text()
+    page.locator("#issSchedulePause").click()
+    page.get_by_text("自动调度已恢复").wait_for()
+    old_id = isolated_browser_server["model_ids"][1]
+    page.evaluate("""id => {
+      const original = AStockAPI._fetchJSON.bind(AStockAPI);
+      AStockAPI._fetchJSON = (path, options) => {
+        if (path !== `/api/selection-models/${id}`) return original(path, options);
+        return new Promise((resolve, reject) => {
+          window.__f1ReleaseDelayedModel = async () => {
+            try { resolve(await original(path, options)); }
+            catch (error) { reject(error); }
+            finally { window.__f1DelayedDone = true; }
+          };
+        });
+      };
+    }""", old_id)
+    page.locator(f'#issModelList [data-model-id="{old_id}"]').click()
+    page.wait_for_function("!!window.__f1ReleaseDelayedModel")
+    page.locator(f'#issModelList [data-model-id="{created_id}"]').click()
+    page.get_by_role("heading", name="F1 隔离漏斗修订").wait_for()
+    page.evaluate("window.__f1ReleaseDelayedModel()")
+    page.wait_for_function("window.__f1DelayedDone")
+    assert "F1 隔离漏斗修订" in page.locator("#issModelDetail").inner_text()
+    run_ids = page.evaluate("""async id => {
+      const closes = Array.from({length: 70}, (_, i) => i + 1);
+      const first = await SelModels.api.createRun(id, {version: 1, records: [{code: '600001', closes}]});
+      const second = await SelModels.api.createRun(id, {version: 1, records: [{code: '600002', closes}]});
+      if (first.status !== 'ok' || second.status !== 'ok') throw Error('隔离运行失败');
+      return [first.data.run_id, second.data.run_id];
+    }""", created_id)
+    page.locator("#issTabRuns").click()
+    page.locator("#issRefresh").click()
+    assert page.locator("#issRunSelect").count() == 0
+    page.wait_for_function("document.querySelector('#issCandidates')?.textContent.includes('600002')")
+    assert run_ids[1] in page.locator("#issRunMeta").inner_text()
+    assert run_ids[0] not in page.locator("#issRunMeta").inner_text()
+    assert "共 1 层筛选" in page.locator("#issStageCount").inner_text()
+    page.screenshot(path=str(runtime["artifacts_dir"] / "iss-reference-overview.png"), full_page=True)
+    page.locator('#issCandidates [data-candidate-index="0"]').click()
+    assert "collapsed" not in (page.locator("#issAnalysis").get_attribute("class") or "")
+    assert "collapsed" in (page.locator("#issModelCol").get_attribute("class") or "")
+    assert "600002" in page.locator("#issAnalysisContent").inner_text()
+    page.screenshot(path=str(runtime["artifacts_dir"] / "iss-reference-analysis.png"), full_page=True)
+    page.set_viewport_size({"width": 1920, "height": 1080})
+    page.screenshot(path=str(runtime["artifacts_dir"] / "iss-reference-analysis-wide.png"), full_page=True)
+    page.locator("#issCloseAnalysis").click()
+    assert "collapsed" in (page.locator("#issAnalysis").get_attribute("class") or "")
+    assert "600001" not in page.locator("#issCandidates").inner_text()
+    assert run_ids[1] in page.locator("#issRunMeta").inner_text()

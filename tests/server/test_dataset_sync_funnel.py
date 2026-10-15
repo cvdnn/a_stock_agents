@@ -18,7 +18,7 @@ from unittest.mock import patch
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "skill_bundle" / "runtime"))
 sys.path.insert(0, str(ROOT))
 
 from core.data import dataset_sync

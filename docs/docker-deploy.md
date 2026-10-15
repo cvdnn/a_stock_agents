@@ -1,125 +1,50 @@
-# A-Stock Agents Docker 部署指南
+# 可选 Web 调试容器指南
 
-本项目全面支持 Docker 及 Docker Compose 容器化部署，具有**环境纯净**、**秒级交付**、**开箱即用**、**数据安全持久化**的特性。
+Docker属于开发辅助工具，不是技能Release安装前提。当前文件仅用于调试apps/web-console；基础技能通过runtime/CLI执行，不要求HTTP服务或Docker。
 
----
+## 文件位置与职责
 
-## 🚀 快速启动 (Docker Compose 推荐)
+- tools/containers/web-console/Dockerfile：Web调试镜像定义，只复制技能集合、Web应用和入口。
+- tools/containers/web-console/compose.yaml：显式启动的开发组合，无自动重启和固定容器名。
+- tools/containers/web-console/entrypoint.sh：默认启动Web，可显式执行一次性CLI。
+- tools/containers/web-console/Dockerfile.dockerignore：按 WebUI Dockerfile 单独排除开发文件；local/output/log/temp和私有环境文件不进入镜像。
 
-### 1. 准备配置文件
+## 配置和数据
 
-进入项目根目录，复制环境变量模版：
+技能运行配置和凭据保存在`local/settings/`，可从`skill_bundle/assets/config/runtime.env.example`创建`.env`。WebUI端口等开发参数独立放在`tools/containers/web-console/.env`；首次使用时从该目录的`.env.example`复制，后续Compose命令用`--env-file`读取端口配置。示例本机监听127.0.0.1；Compose在容器内监听0.0.0.0，发布端口只绑定宿主回环。A_STOCK_RUNTIME_MODE=production保留认证策略，不表示调试容器已经通过生产验收。
 
-```bash
-cp .env.example .env
-```
+容器代码在/app，数据根在/data。Compose显式覆盖数据路径，避免把宿主`local/settings/.env`中的绝对路径直接当容器路径。
 
-使用编辑器（如 `vim .env` 或 `nano .env`）配置您的大模型 API 密钥（如 DeepSeek、OpenAI、Gemini 等）：
+| 宿主目录 | 容器目录 | 用途 |
+|---|---|---|
+| output | /data/output | 用户结果、报告、缓存 |
+| local | /data/local | 有效配置、数据库及本地市场状态 |
+| log | /data/log | 日志及审计 |
+| 无持久化绑定 | /data/temp | UID1000可写的tmpfs，容器移除即清理 |
 
-```env
-DEEPSEEK_API_KEY=sk-your-deepseek-key-here
-A_STOCK_DEFAULT_MODEL=deepseek-chat
-```
+有效配置为/data/local/settings/application.yaml；local必须可写，不能将整个目录只读挂载。该环境会访问绑定的开发数据；隔离测试应使用测试fixture另建临时数据根，不能复用真实local/output。
 
-### 2. 构建并启动容器
+Linux宿主需事先确认绑定目录对UID1000可写；不自动递归修改宿主权限。Windows/macOS依赖Docker Desktop的共享目录与权限，实际运行需分别验证。
 
-执行以下命令一键拉起容器：
+## 后续显式使用命令
 
-```bash
-docker compose up -d --build
-```
-
-*(如果在国内构建下载依赖较慢，可开启 `docker-compose.yml` 中的清华源 `PIP_INDEX_URL` 参数)*
-
-### 3. 访问系统
-
-启动成功后，即可通过浏览器访问：
-- **Web 智能工作台**: [http://localhost:6300](http://localhost:6300)
-- **API 交互式文档**: [http://localhost:6300/docs](http://localhost:6300/docs)
-- **服务健康检查**: [http://localhost:6300/api/health](http://localhost:6300/api/health)
-
----
-
-## 🛠️ 常用运维指令
-
-### 查看运行状态与日志
+以下仅是使用说明，不代表本轮已执行构建或启动：
 
 ```bash
-# 查看容器状态（健康状况显示 healthy）
-docker compose ps
+# 在仓库根执行；首次使用需要明确构建镜像
+# 不属于本轮“无需构建”任务
+# docker compose --env-file tools/containers/web-console/.env -f tools/containers/web-console/compose.yaml build
 
-# 查看实时日志
-docker compose logs -f
+# 使用已存在的镜像，按需启动；不自动构建
+# docker compose --env-file tools/containers/web-console/.env -f tools/containers/web-console/compose.yaml up --no-build
+
+# 查看状态与停止
+# docker compose --env-file tools/containers/web-console/.env -f tools/containers/web-console/compose.yaml ps
+# docker compose --env-file tools/containers/web-console/.env -f tools/containers/web-console/compose.yaml down
 ```
 
-### 停止与重启服务
+容器CLI示例：docker compose -f tools/containers/web-console/compose.yaml run --rm --no-deps web-console astock data quote 600519 --json。此命令会触网，须在明确授权的行情或验证任务中执行；一次性CLI不以HTTP HEALTHCHECK判断成功。
 
-```bash
-# 停止容器
-docker compose stop
+requirements.txt从现有uv.lock导出并固定基础版本，使用tools/development/export_dependencies.py（Python3.11+，离线，不修改锁）。基础声明不一致时导出拒绝执行。浏览器/并行测试extras未全部进入现有锁；开发初始化显式安装test，browser/full另选，并以基础requirements约束版本。锁补齐应作为显式依赖维护任务，不在不构建任务中重解析。
 
-# 启动容器
-docker compose start
-
-# 重启服务
-docker compose restart
-
-# 完全销毁容器（注意：宿主机 ./output 数据完整保留）
-docker compose down
-```
-
----
-
-## 💻 容器内执行 CLI 量化命令
-
-在无需进入容器的情况下，直接通过 Docker 调用项目内置的 18 项投研与量化 CLI 技能：
-
-```bash
-# 查询股票实时行情
-docker compose exec astock-agents python scripts/core/cli.py data quote 600519 --json
-
-# 7大分析师多空辩论
-docker compose exec astock-agents python scripts/core/cli.py debate 600519 --json
-
-# 查看股票池状态
-docker compose exec astock-agents python scripts/core/cli.py pool list --json
-
-# 5A 五维共振多因子选股
-docker compose exec astock-agents python scripts/core/cli.py screen 5a --json
-```
-
----
-
-## 📦 纯 Docker CLI 单独运行方式 (可选)
-
-如果不使用 Docker Compose，可以直接用原生 `docker` 命令进行构建与运行：
-
-```bash
-# 1. 构建镜像
-docker build -t a-stock-agents:latest .
-
-# 2. 运行容器
-docker run -d \
-  --name a_stock_agents \
-  -p 6300:6300 \
-  -v "$(pwd)/output:/app/output" \
-  --env-file .env \
-  a-stock-agents:latest
-
-# 3. 容器内直接执行单次命令
-docker run --rm \
-  -v "$(pwd)/output:/app/output" \
-  --env-file .env \
-  a-stock-agents:latest astock data quote 000001 --json
-```
-
----
-
-## 📁 数据持久化说明
-
-宿主机目录与容器内路径映射关系如下：
-
-| 宿主机路径 | 容器内路径 | 说明 |
-| :--- | :--- | :--- |
-| `./output` | `/app/output` | **核心数据目录**（包含自选/持仓池 `positions.csv`、SQLite 对话历史 `chats.db`、研报输出、缓存等） |
-| `./config` | `/app/config` | 核心全局配置（只读挂载，方便用户修改 `config.yaml` 覆盖默认规则） |
+本轮未构建镜像、未启动容器，未证明容器可运行；Docker实测与三系统兼容须单独登记。

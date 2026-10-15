@@ -41,4 +41,4 @@
 ## 四、相关索引
 
 - 保本价精算速查 → [`breakeven-rules.md`](breakeven-rules.md)
-- 执行层技能参考原文 → [`../../.agents/skills/astock-platform-evaluate/references/action-execution-manual.md`](../../.agents/skills/astock-platform-evaluate/references/action-execution-manual.md)
+- 执行层技能参考原文 → [`../../.agents/skills/astock-platform-evaluate/references/action-execution-manual.md`](../../skill_bundle/skills/astock-platform-evaluate/references/action-execution-manual.md)

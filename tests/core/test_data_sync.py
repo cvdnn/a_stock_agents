@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 # Ensure project root in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+sys.path.insert(0, str(PROJECT_ROOT / "skill_bundle" / "runtime"))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.data.data_bridge import DataBridge

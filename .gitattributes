@@ -1,0 +1,17 @@
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+bin/astock text eol=lf
+skill_bundle/runtime/astock text eol=lf
+
+*.dockerignore text eol=lf
+*.env.example text eol=lf
+Dockerfile text eol=lf
+requirements.txt text eol=lf

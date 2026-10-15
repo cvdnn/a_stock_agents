@@ -97,11 +97,11 @@ except ValueError:
 
 ### 2. SEC-02: Docker 容器网络边界与 API 鉴权规范 (CWE-306 / CWE-284)
 - **风险等级**：🔴 **高危 (CVSS 8.2)**
-- **易发位置**：`docker-compose.yml` 端口映射、FastAPI 全局路由
+- **易发位置**：`tools/containers/web-console/compose.yaml` 端口映射、FastAPI 全局路由
 - **典型漏洞模式**：
   Docker 配置直接使用 `6300:6300` 监听宿主机全网卡 `0.0.0.0`，同时所有核心控制端点（模拟交易下单、会话读取、模型调度）无任何身份鉴权机制，外部局域网或公网直接完全接管服务。
 - **防御编码规约**：
-  1. **容器端口显式绑定回环**：在 `docker-compose.yml` 中必须强制指定 `127.0.0.1` 绑定；
+  1. **容器端口显式绑定回环**：在 `tools/containers/web-console/compose.yaml` 中必须强制指定 `127.0.0.1` 绑定；
      ```yaml
      # [正确配置]
      ports:
@@ -293,7 +293,7 @@ pytest tests/governance/test_security_audit.py -v
 - [ ] **5. [前端渲染净化]** DOMPurify 净化配置是否绝对没有包含 `onclick` 等 `on*` 原生事件？
 - [ ] **6. [前端事件绑定]** 交互按钮是否统一采用 `data-action` 结合事件委托，而非在 HTML 中内联写 JS？
 - [ ] **7. [网络请求 SSRF]** 后端在请求外部 URL 前，是否执行了前置的物理 DNS 解析与私有/回环 IP 过滤？
-- [ ] **8. [网络边界暴露]** 容器部署文件（如 `docker-compose.yml`）中的端口映射是否均锁定为 `127.0.0.1:PORT:PORT`？
+- [ ] **8. [网络边界暴露]** 容器部署文件（如 `tools/containers/web-console/compose.yaml`）中的端口映射是否均锁定为 `127.0.0.1:PORT:PORT`？
 - [ ] **9. [凭据存储]** 新增的数据库表或文件落盘逻辑中，是否避免了明文写入各类 Token、API Key 或交易密码？
 - [ ] **10. [测试防退化]** 修改相关安全边界逻辑后，是否同步运行了 `pytest tests/governance/test_security_audit.py` 并保持全绿？
 

@@ -1,6 +1,6 @@
 # 智能选股系统 · 模型类型设计规范 (Selection Model Types Specification)
 
-> 文档 ID：`SPEC-ALGO-ISS-MT-001` · 上级规范：[`selection-system-specification.md`](./selection-system-specification.md)（`SPEC-ALGO-ISS-001`）§3
+> 文档 ID：`SPEC-ALGO-ISS-MT-001` · 上级规范：[`selection-system-specification.md`](selection-system-specification.md)（`SPEC-ALGO-ISS-001`）§3
 > 适用范围：模型类型注册中心、`condition_tree`（条件选股）、`funnel`（漏斗选股）、`scoring_rank`（评分排序）、`composite`（组合模型）四类选股模型的配置 Schema、编译规则、输出契约与扩展规则。
 > 核心目标：把「模型类型」这一维度从主规范中独立出来，明确每种类型的结构契约、编译产物与首期状态，使新增类型可插件式扩展而不改动已有类型定义。
 > 边界：本文只定义**类型级设计与规范**。配置模型机制（层级字段、规则元数据、三态求值、存储与版本）见主规范 §7；用户自建流程与引导式意图匹配见主规范 §3.4/§3.4.1。任何具体策略参数（如 20 日新高、高开区间）属**示例口径**，只以「示例说明」出现，不构成类型规范。
@@ -199,8 +199,8 @@ expression:
 
 ## 附：关联索引
 
-- 主规范（系统建设）：[`selection-system-specification.md`](./selection-system-specification.md)（`SPEC-ALGO-ISS-001`）§7 配置模型设计、§7.7 三态求值
-- 选股模型通用设计规范（通用维度）：[`selection-model-general-specification.md`](./selection-model-general-specification.md)（`SPEC-ALGO-003`）
-- 算法治理规范：[`algorithm-governance.md`](./algorithm-governance.md)（`SPEC-ALGO-001`）
+- 主规范（系统建设）：[`selection-system-specification.md`](selection-system-specification.md)（`SPEC-ALGO-ISS-001`）§7 配置模型设计、§7.7 三态求值
+- 选股模型通用设计规范（通用维度）：[`selection-model-general-specification.md`](selection-model-general-specification.md)（`SPEC-ALGO-003`）
+- 算法治理规范：[`algorithm-governance.md`](algorithm-governance.md)（`SPEC-ALGO-001`）
 - 实施进度看板：[`selection-system-plan.md`](../../specs/algorithm/selection-system-plan.md)
-- 模型唯一示例（案例说明，非规范）：漏斗模型示例 1：[`selection-funnel-example-1.md`](./selection-funnel-example-1.md)
+- 模型唯一示例（案例说明，非规范）：漏斗模型示例 1：[`selection-funnel-example-1.md`](selection-funnel-example-1.md)

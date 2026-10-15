@@ -59,30 +59,30 @@
 
 | 任务 | 关联代码路径 | 状态 |
 |:---|:---|:---:|
-| E0-1 固化覆盖率分母与必需集口径（对齐 SSOT §5.5 与裁定 A-05 分层分母），把"当日候选池标的清单"落为可复现输入 | [`data_assembler.py`](../../../scripts/core/data/data_assembler.py)（`build_universe_watermark` / `layer_denominator` / `coverage_gate`） | ⬜ 待办 |
-| E0-2 覆盖率只读实测报告：逐数据集水位与 `post_close` 就绪判定（真实水位驱动，不伪造） | [`dataset_sync.py`](../../../scripts/core/data/dataset_sync.py)（`get_universe_watermark` / `check_post_close_ready`）、CLI `astock dataset --watermark` | ✅ 已具备（复核口径） |
+| E0-1 固化覆盖率分母与必需集口径（对齐 SSOT §5.5 与裁定 A-05 分层分母），把"当日候选池标的清单"落为可复现输入 | [`data_assembler.py`](../../../skill_bundle/runtime/core/data/data_assembler.py)（`build_universe_watermark` / `layer_denominator` / `coverage_gate`） | ⬜ 待办 |
+| E0-2 覆盖率只读实测报告：逐数据集水位与 `post_close` 就绪判定（真实水位驱动，不伪造） | [`dataset_sync.py`](../../../skill_bundle/runtime/core/data/dataset_sync.py)（`get_universe_watermark` / `check_post_close_ready`）、CLI `astock dataset --watermark` | ✅ 已具备（复核口径） |
 
 ### E1 · D3 分钟线投产（关键路径第一缺口）
 
 | 任务 | 关联代码路径 | 状态 |
 |:---|:---|:---:|
-| E1-1 增加腾讯 mkline 通道（SSOT §5.1 D3 已确认渠道之一），作为东财 push2his 不可达时的可取数路径；保留 W-04 回补深度校验，**不得造出假水位** | [`dataset_sync.py`](../../../scripts/core/data/dataset_sync.py)（`sync_minute_kline` / `_expected_min_date`） | ⬜ 待办 |
-| E1-2 前向采集切片终局落表：盘中 `intraday_archiver` 切片（append-only、ts 去重）在盘后 seal 时归并入 `minute_kline`（与其水位对齐） | [`intraday_archiver.py`](../../../scripts/core/data/intraday_archiver.py)、[`sync_daemon.py`](../../../scripts/core/data/sync_daemon.py) | ⬜ 待办 |
-| E1-3 D3 完整性稽核接入控制台覆盖表（SSOT §5.3 条件 3） | [`data_sync_overview.py`](../../../scripts/server/services/data_sync_overview.py) | ⬜ 待办 |
+| E1-1 增加腾讯 mkline 通道（SSOT §5.1 D3 已确认渠道之一），作为东财 push2his 不可达时的可取数路径；保留 W-04 回补深度校验，**不得造出假水位** | [`dataset_sync.py`](../../../skill_bundle/runtime/core/data/dataset_sync.py)（`sync_minute_kline` / `_expected_min_date`） | ⬜ 待办 |
+| E1-2 前向采集切片终局落表：盘中 `intraday_archiver` 切片（append-only、ts 去重）在盘后 seal 时归并入 `minute_kline`（与其水位对齐） | [`intraday_archiver.py`](../../../skill_bundle/runtime/core/data/intraday_archiver.py)、[`sync_daemon.py`](../../../skill_bundle/runtime/core/data/sync_daemon.py) | ⬜ 待办 |
+| E1-3 D3 完整性稽核接入控制台覆盖表（SSOT §5.3 条件 3） | [`data_sync_overview.py`](../../../apps/web-console/backend/server/services/data_sync_overview.py) | ⬜ 待办 |
 
 ### E2 · D1 / D10 覆盖候选池
 
 | 任务 | 关联代码路径 | 状态 |
 |:---|:---|:---:|
-| E2-1 D1 基础资料按已登记标的对齐覆盖率；上市状态/ST/board 维持派生口径（W-03），**不建未确认列** | [`dataset_sync.py`](../../../scripts/core/data/dataset_sync.py)（`sync_stock_basic`） | 🟡 管线已具备，待覆盖率达标 |
-| E2-2 D10 逐标的覆盖候选池（当前 7 → 候选池全量）；精算档 `finalized` 才可进正式规则，代理档判 `degraded`（W-07） | [`dataset_sync.py`](../../../scripts/core/data/dataset_sync.py)（`sync_capital_flow`） | 🟡 管线已具备，待覆盖达标 |
-| E2-3 幂等回填 + 去重 + 容量淘汰（SSOT §5.1 保留深度 / 裁定 D-18） | [`sync_engine.py`](../../../scripts/core/data/sync_engine.py)（`MarketDataStore` upsert 族）、[`dataset_sync.py`](../../../scripts/core/data/dataset_sync.py) | 🟡 已具备幂等写入，待退役任务核验 |
+| E2-1 D1 基础资料按已登记标的对齐覆盖率；上市状态/ST/board 维持派生口径（W-03），**不建未确认列** | [`dataset_sync.py`](../../../skill_bundle/runtime/core/data/dataset_sync.py)（`sync_stock_basic`） | 🟡 管线已具备，待覆盖率达标 |
+| E2-2 D10 逐标的覆盖候选池（当前 7 → 候选池全量）；精算档 `finalized` 才可进正式规则，代理档判 `degraded`（W-07） | [`dataset_sync.py`](../../../skill_bundle/runtime/core/data/dataset_sync.py)（`sync_capital_flow`） | 🟡 管线已具备，待覆盖达标 |
+| E2-3 幂等回填 + 去重 + 容量淘汰（SSOT §5.1 保留深度 / 裁定 D-18） | [`sync_engine.py`](../../../skill_bundle/runtime/core/data/sync_engine.py)（`MarketDataStore` upsert 族）、[`dataset_sync.py`](../../../skill_bundle/runtime/core/data/dataset_sync.py) | 🟡 已具备幂等写入，待退役任务核验 |
 
 ### E3 · 覆盖率硬门禁实测与冻结
 
 | 任务 | 关联代码路径 | 状态 |
 |:---|:---|:---:|
-| E3-1 目标候选池覆盖率主口径稳定 100%，发布门禁 13 实测通过 | [`data_assembler.py`](../../../scripts/core/data/data_assembler.py)（`coverage_gate`） | ⬜ 待办 |
+| E3-1 目标候选池覆盖率主口径稳定 100%，发布门禁 13 实测通过 | [`data_assembler.py`](../../../skill_bundle/runtime/core/data/data_assembler.py)（`coverage_gate`） | ⬜ 待办 |
 | E3-2 与选股侧 M-03 判定联动：`部分达标 → 达成`；更新 [`selection-system-plan.md`](selection-system-plan.md) §七 里程碑表 | 文档回写 + 门禁证据 | ⬜ 待办 |
 | E3-3 更新 [`SPEC-DATA-001`](../data/market-data-sync-implementation-plan.md) 遗留项与覆盖表（真实水位驱动翻正） | 文档回写 | ⬜ 待办 |
 

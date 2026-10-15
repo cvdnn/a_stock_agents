@@ -4,10 +4,10 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.join(__dirname, '../..');
-const html = fs.readFileSync(path.join(root, 'web/index.html'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'web/css/style.css'), 'utf8');
-const app = fs.readFileSync(path.join(root, 'web/js/app.js'), 'utf8');
-const apiSource = fs.readFileSync(path.join(root, 'web/js/api.js'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'apps/web-console/frontend/index.html'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'apps/web-console/frontend/css/style.css'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'apps/web-console/frontend/js/app.js'), 'utf8');
+const apiSource = fs.readFileSync(path.join(root, 'apps/web-console/frontend/js/api.js'), 'utf8');
 
 const results = [];
 
@@ -218,7 +218,7 @@ function jsonResponse(data) {
     assert.match(app, /async function loadDatasyncSettings/, 'UI must read server-effective settings');
     assert.match(app, /capsule\.textContent = `自动增量：[\s\S]{0,300}p3\.time/, 'P3 auto-state capsule must show the scheduled time from settings');
     assert.match(app, /if \(nextTab === ['"]settings['"]\) loadDatasyncSettings\(\)/, 'settings tab must hydrate from the server');
-    const settingsSource = fs.readFileSync(path.join(root, 'scripts/server/services/data_sync_settings.py'), 'utf8');
+    const settingsSource = fs.readFileSync(path.join(root, 'apps/web-console/backend/server/services/data_sync_settings.py'), 'utf8');
     assert.match(settingsSource, /ENV_OVERRIDE = ['"]A_STOCK_DATA_SYNC_SETTINGS_FILE['"]/, 'settings path must be overridable for test isolation');
     assert.match(settingsSource, /LOCAL_DIR \/ ['"]settings['"]/, 'settings must resolve under workspace LOCAL_DIR');
     assert.match(settingsSource, /os\.chmod\(tmp, 0o600\)|chmod\(path, 0o600\)/, 'persisted settings must be owner-only readable');
@@ -248,7 +248,7 @@ function jsonResponse(data) {
       'feed probe must hit the real ping endpoint',
     );
     // 跨层防回归：ping 端点不得再把探测失败的源回落成历史伪造常量 68/124/150
-    const pingSource = fs.readFileSync(path.join(root, 'scripts/server/api/market_data.py'), 'utf8');
+    const pingSource = fs.readFileSync(path.join(root, 'apps/web-console/backend/server/api/market_data.py'), 'utf8');
     for (const fake of ['else 68', 'else 124', 'else 150']) {
       assert.strictEqual(pingSource.includes(fake), false, `ping endpoint must not fabricate latency: ${fake}`);
     }

@@ -15,9 +15,9 @@ console.log('=== [验证：带有 HTML 的任务生成真实 HTML 文件与内�
 // 1. 读取源码文件
 const chatPresentationCode = fs.readFileSync(path.join(__dirname, '../../web/js/chat_presentation.js'), 'utf-8');
 const appJsCode = fs.readFileSync(path.join(__dirname, '../../web/js/app.js'), 'utf-8');
-const appPyCode = fs.readFileSync(path.join(__dirname, '../../scripts/server/app.py'), 'utf-8');
-const reportGenCode = fs.readFileSync(path.join(__dirname, '../../scripts/core/reporting/report_generator.py'), 'utf-8');
-const promptsCode = fs.readFileSync(path.join(__dirname, '../../scripts/server/agent/prompts.py'), 'utf-8');
+const appPyCode = fs.readFileSync(path.join(__dirname, '../../apps/web-console/backend/server/app.py'), 'utf-8');
+const reportGenCode = fs.readFileSync(path.join(__dirname, '../../skill_bundle/runtime/core/reporting/report_generator.py'), 'utf-8');
+const promptsCode = fs.readFileSync(path.join(__dirname, '../../apps/web-console/backend/server/agent/prompts.py'), 'utf-8');
 
 // -----------------------------------------------------------------------------
 // 1. 静态代码契约断言

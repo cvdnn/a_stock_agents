@@ -6,9 +6,9 @@
 
 ## 强制检查项
 
-1. **生产真实性**：`scripts/server/` 与 `web/js/` 不得选择 Mock、返回固定行情/账户/分析结论，或在失败后渲染成功。
+1. **生产真实性**：`apps/web-console/backend/server/` 与 `apps/web-console/frontend/js/` 不得选择 Mock、返回固定行情/账户/分析结论，或在失败后渲染成功。
 2. **Skill 单一入口**：Web 工具执行必须经过受治理的 Skill 入口；在 P1 完成前，绕过项标为未实现。
-3. **分层方向**：业务算法只在 `scripts/core/` 实现；`scripts/server/` 与 `web/` 只做装配、传输和展示。
+3. **分层方向**：业务算法只在 `skill_bundle/runtime/core/` 实现；`apps/web-console/backend/server/` 与 `web/` 只做装配、传输和展示。
 4. **凭据边界**：密钥不得进入 API、SSE、日志或浏览器存储；跨域默认只允许明确的本机来源。
 5. **失败语义**：未接通能力返回 error 或 unavailable；只有明确 success 的本次结果可进入分析或成功组件。
 6. **测试先行**：行为修改先增加能观察到预期失败的测试，再做最小实现并复跑相关套件。
@@ -17,13 +17,13 @@
 
 ## 当前关键路径
 
-- 核心能力：`scripts/core/config.py`
-- Skill 治理：`scripts/core/governance/skill_registry.py`
-- Agent 运行时：`scripts/server/agent/react_runner.py`
-- 模型装配：`scripts/server/llm/factory.py`
-- 模型管理 API：`scripts/server/api/models_mgmt.py`
-- Web API 客户端：`web/js/api.js`
-- Web 应用入口：`web/js/app.js`
+- 核心能力：`skill_bundle/runtime/core/config.py`
+- Skill 治理：`skill_bundle/runtime/core/governance/skill_registry.py`
+- Agent 运行时：`apps/web-console/backend/server/agent/react_runner.py`
+- 模型装配：`skill_bundle/runtime/core/llm/factory.py`
+- 模型管理 API：`apps/web-console/backend/server/api/models_mgmt.py`
+- Web API 客户端：`apps/web-console/frontend/js/api.js`
+- Web 应用入口：`apps/web-console/frontend/js/app.js`
 - 服务端回归：`tests/server/test_server_suite.py`
 
 ## 未完成边界

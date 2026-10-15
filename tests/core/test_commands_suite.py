@@ -90,7 +90,7 @@ class TestCommandsSuite(unittest.TestCase):
 
     def test_cli_version_via_subprocess(self):
         """Run cli.py version via subprocess."""
-        cli_path = ROOT / "scripts" / "core" / "cli.py" if (ROOT / "scripts" / "core" / "cli.py").exists() else ROOT / "core" / "cli.py"
+        cli_path = ROOT / "skill_bundle" / "runtime" / "core" / "cli.py" if (ROOT / "skill_bundle" / "runtime" / "core" / "cli.py").exists() else ROOT / "core" / "cli.py"
         cmd = [sys.executable, str(cli_path), "version"]
         res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
         self.assertEqual(res.returncode, 0, f"cli.py version failed:\n{res.stderr}")
@@ -99,7 +99,7 @@ class TestCommandsSuite(unittest.TestCase):
 
     def test_a_stocks_forwarder_via_subprocess(self):
         """Run a_stocks.py forwarder --help via subprocess."""
-        astock_script = ROOT / ".agents" / "skills" / "astock-platform-evaluate" / "scripts" / "a_stocks.py"
+        astock_script = ROOT / "skill_bundle" / "skills" / "astock-platform-evaluate" / "scripts" / "a_stocks.py"
         if not astock_script.exists():
             astock_script = ROOT / "skills" / "astock-platform-evaluate" / "scripts" / "a_stocks.py"
         cmd = [
@@ -114,8 +114,8 @@ class TestCommandsSuite(unittest.TestCase):
 
     def test_skills_forwarders_import_cleanly(self):
         """Verify skills forwarders delegate to core modules."""
-        skills_dir = ROOT / ".agents" / "skills" if (ROOT / ".agents" / "skills").exists() else ROOT / "skills"
-        core_dir = ROOT / "scripts" / "core" if (ROOT / "scripts" / "core").exists() else ROOT / "core"
+        skills_dir = ROOT / "skill_bundle" / "skills" if (ROOT / "skill_bundle" / "skills").exists() else ROOT / "skills"
+        core_dir = ROOT / "skill_bundle" / "runtime" / "core" if (ROOT / "skill_bundle" / "runtime" / "core").exists() else ROOT / "core"
 
         core_names = {p.name for p in core_dir.rglob("*.py") if p.name != "__init__.py"}
 

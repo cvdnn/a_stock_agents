@@ -37,7 +37,7 @@
 当策略或算法需要升级演进、支持多版本对比（如 A/B Testing、新旧算法回测）时，必须采用以下设计范式，严禁新建物理文件：
 
 ### 范式 1：模型注册表与工厂模式 (Model Registry & Factory Pattern)
-在 [`scripts/core/models/registry.py`](../../../scripts/core/models/registry.py) 集中注册所有模型。外部通过模型标识符（或别名）获取实例：
+在 [`scripts/core/models/registry.py`](../../../skill_bundle/runtime/core/models/registry.py) 集中注册所有模型。外部通过模型标识符（或别名）获取实例：
 
 ```python
 from core.models import ModelRegistry, get_model

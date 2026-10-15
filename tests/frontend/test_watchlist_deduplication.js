@@ -33,7 +33,7 @@ const mockAppState = {
 };
 
 // 从 web/js/app.js 提取 renderWatchlistItems 逻辑并在沙箱中执行
-const appJsContent = fs.readFileSync('web/js/app.js', 'utf8');
+const appJsContent = fs.readFileSync('apps/web-console/frontend/js/app.js', 'utf8');
 
 // 验证源码中包含唯一性去重逻辑
 assert(appJsContent.includes('const seenCodes = new Set();'), 'renderWatchlistItems 必须包含 seenCodes 去重逻辑');

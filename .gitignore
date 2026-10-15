@@ -78,3 +78,7 @@ temp/**
 *.zip
 *.tar.gz
 
+# Host discovery references are created locally, not portable repository assets.
+/.agents/skills
+/.agents/.*.astock-reference.json
+

@@ -34,7 +34,7 @@ class TestPaperTradingSuite(unittest.TestCase):
 
     def test_backtest_forwarder_and_exports(self):
         """Verify backtest_engine.py forwarder and core.paper_trading exports."""
-        forwarder = ROOT / ".agents" / "skills" / "astock-quant-engine" / "scripts" / "backtest_engine.py"
+        forwarder = ROOT / "skill_bundle" / "skills" / "astock-quant-engine" / "scripts" / "backtest_engine.py"
         if not forwarder.exists():
             forwarder = ROOT / "skills" / "astock-quant-engine" / "scripts" / "backtest_engine.py"
         self.assertTrue(forwarder.exists(), "backtest_engine.py forwarder must exist")

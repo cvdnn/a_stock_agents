@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_production_tool_source_contains_no_fabricated_success_literals() -> None:
-    source = (ROOT / "scripts/server/agent/tools.py").read_text(encoding="utf-8")
+    source = (ROOT / "skill_bundle/runtime/core/execution/tools.py").read_text(encoding="utf-8")
     forbidden = (
         '"status": "simulated"',
         '"status": "active"',

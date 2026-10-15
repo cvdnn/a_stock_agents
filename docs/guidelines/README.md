@@ -75,6 +75,7 @@ docs/guidelines/
 | 规范名称 | 类别 | 物理路径 | 对应实施看板 | 核心内容概述 |
 |:---|:---:|:---|:---:|:---|
 | **项目工程结构与智能体工作区架构规范** | 规范 | [`engineering/project-structure-specification.md`](engineering/project-structure-specification.md) | [`SPEC-ENG-001`](../specs/engineering/eng-project-structure-and-workspace.md) | 零全局污染原则、单一真理来源 (SSOT)、跨平台 CLI 门面、用户私有数据物理隔离 (`output/`) |
+| **技能总包、唯一来源与跨平台接入评估规范** | 目标规范（待实施） | [`engineering/skill-suite-portability-specification.md`](engineering/skill-suite-portability-specification.md) | [`eng-skill-suite-portability-plan.md`](../specs/engineering/eng-skill-suite-portability-plan.md) | 唯一技能/配置来源、引用式双模式、Windows/macOS/Linux链接兼容及验收 |
 | **架构命名规范与设计范式指南** | 指南 | [`engineering/naming-conventions.md`](engineering/naming-conventions.md) | [`SPEC-ENG-001`](../specs/engineering/eng-project-structure-and-workspace.md) | 消除版本号侵入、模型演进四大设计范式、废弃退役协议、两范式文档编制模板与标准目录分层 (SSOT) |
 | **代码审查标准与工程红线清单** | 指南 | [`engineering/code-review.md`](engineering/code-review.md) | [`eng-remediation-acceptance.md`](../specs/engineering/eng-remediation-acceptance.md) | 当前可检查的真实性、安全、分层与证据规则；历史结论由指南链接至审查归档与整改验收台账 |
 | **系统安全与加固开发实战指南** | 指南 | [`engineering/security-hardening-guide.md`](engineering/security-hardening-guide.md) | [`SPEC-SEC-001`](../specs/engineering/security-remediation-plan.md)<br>[`eng-remediation-plan.md`](../specs/engineering/eng-remediation-plan.md) | 8项漏洞场景与防御规约手册、物理沙箱隔离、iframe严格降权、无内联事件委托、物理DNS防SSRF |
@@ -117,5 +118,5 @@ docs/guidelines/{domain}/{domain_slug}-{category_suffix}.md
 
 - 实施进度总览：[`docs/specs/README.md`](../specs/README.md)
 - 项目全景导图：[`docs/index.md`](../index.md)
-- 审查与审计留痕：[`docs/audits/`](../audits/)（只增不改）
-- 实战速查索引：[`docs/trading/`](../trading/)（纯索引层，SSOT 见本目录 `business/`）
+- 审查与审计留痕：[`docs/audits/`](../audits)（只增不改）
+- 实战速查索引：[`docs/trading/`](../trading)（纯索引层，SSOT 见本目录 `business/`）

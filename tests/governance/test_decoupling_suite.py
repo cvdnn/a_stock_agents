@@ -189,7 +189,7 @@ class TestStockCodeDecoupling(unittest.TestCase):
         from pathlib import Path
 
         root_dir = Path(__file__).resolve().parents[2]
-        screen_path = root_dir / ".agents" / "skills" / "astock-screener-5a" / "scripts" / "screen.py"
+        screen_path = root_dir / "skill_bundle" / "skills" / "astock-screener-5a" / "scripts" / "screen.py"
         if not screen_path.exists():
             screen_path = root_dir / "skills" / "astock-screener-5a" / "scripts" / "screen.py"
         spec = importlib.util.spec_from_file_location("screen_mod", str(screen_path))

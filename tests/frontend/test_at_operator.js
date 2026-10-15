@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 console.log('=== [1. HTML 布局与结构验证] ===');
-const html = fs.readFileSync('web/index.html', 'utf8');
+const html = fs.readFileSync('apps/web-console/frontend/index.html', 'utf8');
 
 const checksHtml = [
   { name: '浮窗容器 #atOperatorPopup 存在', pass: html.includes('id="atOperatorPopup"') },
@@ -34,7 +34,7 @@ checksHtml.forEach(c => {
 });
 
 console.log('\n=== [2. CSS 样式设计与交互视觉规范验证] ===');
-const css = fs.readFileSync('web/css/style.css', 'utf8');
+const css = fs.readFileSync('apps/web-console/frontend/css/style.css', 'utf8');
 
 const checksCss = [
   { name: '.at-operator-popup 绝对定位且同宽对齐输入框', pass: css.includes('.at-operator-popup') && css.includes('width: 100%') },
@@ -69,7 +69,7 @@ checksCss.forEach(c => {
 });
 
 console.log('\n=== [3. JS 逻辑、两级焦点、搜索与板块提取验证] ===');
-const js = fs.readFileSync('web/js/app.js', 'utf8');
+const js = fs.readFileSync('apps/web-console/frontend/js/app.js', 'utf8');
 
 const checksJs = [
   { name: '已删除独立自选菜单，菜单排列严格为：股票/引用/技能/算法', pass: (

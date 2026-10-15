@@ -2,8 +2,8 @@
 
 > 文档 ID：`selection-funnel-example-1` · 类型：**漏斗模型示例**（案例说明，非规范）
 > 系列定位：本示例是「收盘突破 → 次日早盘拐点」战法的**唯一示例文档**。该战法的全部案例口径——业务叙事、问财语句、四层漏斗、示例取值、微观特征分级建议、模块划分、时点契约、参数化评估与功能提炼——统一收敛于此，不再另设并列示例文档。
-> 边界：文中所有阈值、时点、权重与模块划分均为**示例口径**，不构成系统规范或默认策略。工作台仅将其作为用户主动选择的创建模板，不把参数硬编码进引擎。规范以[《智能选股系统 · 功能建设规范》](./selection-system-specification.md)（`SPEC-ALGO-ISS-001`）、[《智能选股系统 · 模型类型设计规范》](./selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`）与 [《智能选股系统 · 选股模型通用设计规范》](./selection-model-general-specification.md)（`SPEC-ALGO-003`）为准；本文只承载该战法的具体取值与实现建议，不复述规范口径。
-> 唯一可执行配置：[`config/funnel_strategy.yaml`](../../../config/funnel_strategy.yaml)（策略 id `close_to_open_turning_point`）。
+> 边界：文中所有阈值、时点、权重与模块划分均为**示例口径**，不构成系统规范或默认策略。工作台仅将其作为用户主动选择的创建模板，不把参数硬编码进引擎。规范以[《智能选股系统 · 功能建设规范》](selection-system-specification.md)（`SPEC-ALGO-ISS-001`）、[《智能选股系统 · 模型类型设计规范》](selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`）与 [《智能选股系统 · 选股模型通用设计规范》](selection-model-general-specification.md)（`SPEC-ALGO-003`）为准；本文只承载该战法的具体取值与实现建议，不复述规范口径。
+> 唯一可执行配置：[`config/funnel_strategy.yaml`](../../../skill_bundle/assets/config/funnel_strategy.yaml)（策略 id `close_to_open_turning_point`）。
 
 ## 在工作台直接创建
 
@@ -65,7 +65,7 @@ flowchart TD
     end
 ```
 
-**与规范骨架的映射**：上图的五阶段业务叙事与 [`SPEC-ALGO-003` §3](./selection-model-general-specification.md) 的 SFTC 阶段流水线、以及本示例的四层漏斗（`post_close → market_gate → opening_gap → turning_point`）是三套等价表述，对应关系如下：
+**与规范骨架的映射**：上图的五阶段业务叙事与 [`SPEC-ALGO-003` §3](selection-model-general-specification.md) 的 SFTC 阶段流水线、以及本示例的四层漏斗（`post_close → market_gate → opening_gap → turning_point`）是三套等价表述，对应关系如下：
 
 | 业务叙事（Phase） | SFTC 阶段 | 本示例漏斗层 |
 | :-- | :-- | :-- |
@@ -77,7 +77,7 @@ flowchart TD
 | — （出票收敛） | Stage 3.5 Confirm & Publish | （`output_policy` 收敛于窗口结束） |
 | 阶段4 风控出场闭环 | Stage 4 Risk Exit | （声明态 `risk_exit`） |
 
-> **时点口径**：本示例的“阶段1 大盘熔断”在**开盘前**完成终判（见 §五时点契约），“阶段2 高开初检 / 阶段3 拐点”发生在开盘之后。规范侧对该顺序的约束（门禁须在竞价后、开盘前终判）见 [`SPEC-ALGO-003` §5.3 铁律三](./selection-model-general-specification.md)。
+> **时点口径**：本示例的“阶段1 大盘熔断”在**开盘前**完成终判（见 §五时点契约），“阶段2 高开初检 / 阶段3 拐点”发生在开盘之后。规范侧对该顺序的约束（门禁须在竞价后、开盘前终判）见 [`SPEC-ALGO-003` §5.3 铁律三](selection-model-general-specification.md)。
 
 ## 二、示例条件 → 系统模型映射
 
@@ -110,7 +110,7 @@ flowchart TD
 收盘价创20日新高，股价大于60日均线，60日均线向上，今日成交量大于昨日成交量，今日主力资金净流入，非ST，非北交所，流通市值大于30亿，今日涨幅小于7%，今日涨幅大于0%
 ```
 
-> 落地数据统一使用前复权日线，流通市值单位为元；关键字段缺失直接淘汰并标记数据不足。**单位与缺失口径为强契约**：现链快照字段以亿元交付且缺失回 `0`，与本口径冲突（裁定 W-09 / W-10，修复前启用市值阈值会无差别放行），接入前须在入库层统一换算为元并把缺失改判 `None`。其中“60日均线向上”在本示例中取**单点比较 `MA60_t > MA60_{t-1}`（`lag=1`）**，与 `config/funnel_strategy.yaml` 及执行引擎一致（口径选型见 [`SPEC-ALGO-003` §6.2](./selection-model-general-specification.md)）。
+> 落地数据统一使用前复权日线，流通市值单位为元；关键字段缺失直接淘汰并标记数据不足。**单位与缺失口径为强契约**：现链快照字段以亿元交付且缺失回 `0`，与本口径冲突（裁定 W-09 / W-10，修复前启用市值阈值会无差别放行），接入前须在入库层统一换算为元并把缺失改判 `None`。其中“60日均线向上”在本示例中取**单点比较 `MA60_t > MA60_{t-1}`（`lag=1`）**，与 `config/funnel_strategy.yaml` 及执行引擎一致（口径选型见 [`SPEC-ALGO-003` §6.2](selection-model-general-specification.md)）。
 
 ## 三、四层漏斗与示例取值
 
@@ -167,7 +167,7 @@ flowchart TD
 | **示例默认（本示例配置）** | **1.0%** | **2.0%** | 对应“高开1~2个百分点”，上限防追高 |
 | 严格档 | 2.0% | 4.0% | 仅取强高开，命中面最小 |
 
-> 规范层对 `gap_max` 的**上限护栏**为强制要求（理由见 [`SPEC-ALGO-003` §2](./selection-model-general-specification.md)），但档位取值属示例口径；默认档与最终数值须回测标定。
+> 规范层对 `gap_max` 的**上限护栏**为强制要求（理由见 [`SPEC-ALGO-003` §2](selection-model-general-specification.md)），但档位取值属示例口径；默认档与最终数值须回测标定。
 
 ### 3.4 Stage 1.5 排序因子与权重（声明态，示例）
 
@@ -248,7 +248,7 @@ P_peak
 
 ### 4.3 ERS 复合评分模型（示例实例）
 
-> **说明**：ERS（Exhaustion-Reversal Score）是**复合评分模型的一个示例实例**。下列 A/B/C 三组指标、满分配额、权重、阈值与降级规则**全部为示例口径**；评分模型的**规范定义**（`scoring_rank` 类型的过滤层/评分层/排序层/输出层、权重归一化、三态求值）见 [`SPEC-ALGO-ISS-MT-001` §5](./selection-model-types-specification.md)。
+> **说明**：ERS（Exhaustion-Reversal Score）是**复合评分模型的一个示例实例**。下列 A/B/C 三组指标、满分配额、权重、阈值与降级规则**全部为示例口径**；评分模型的**规范定义**（`scoring_rank` 类型的过滤层/评分层/排序层/输出层、权重归一化、三态求值）见 [`SPEC-ALGO-ISS-MT-001` §5](selection-model-types-specification.md)。
 
 **设计要点：不是一个指标，而是三组指标的综合评分，且要求多组同时达标，防止单侧偏科误判。**
 
@@ -354,7 +354,7 @@ def check_trigger(stock, bars_min1, ticks, book) -> Signal | None:
 
 ## 五、时点契约与调度（示例口径）
 
-> 规范侧对时点契约的**规范性要求**（每个条件必须声明数据依赖、由调度器推导最早可运行时点、杜绝未来函数）见 [`SPEC-ALGO-003` §5](./selection-model-general-specification.md)。下表的具体时钟取自本示例战法口径，实际时间点由用户在配置中参数化设定。
+> 规范侧对时点契约的**规范性要求**（每个条件必须声明数据依赖、由调度器推导最早可运行时点、杜绝未来函数）见 [`SPEC-ALGO-003` §5](selection-model-general-specification.md)。下表的具体时钟取自本示例战法口径，实际时间点由用户在配置中参数化设定。
 
 ### 5.1 时点契约表（示例）
 
@@ -416,7 +416,7 @@ def check_trigger(stock, bars_min1, ticks, book) -> Signal | None:
 
 ## 七、系统模块划分建议（示例）
 
-为便于在本项目代码库中模块化落地，示例给出以下五组件划分（**仅为实现建议，非系统架构规范**；模块职责应按[主规范 §18/§19](./selection-system-specification.md) 的模块规划对齐）：
+为便于在本项目代码库中模块化落地，示例给出以下五组件划分（**仅为实现建议，非系统架构规范**；模块职责应按[主规范 §18/§19](selection-system-specification.md) 的模块规划对齐）：
 
 ```
 scripts/core/strategy/            # 示例目录，实际落点以主规范模块规划为准
@@ -427,7 +427,7 @@ scripts/core/strategy/            # 示例目录，实际落点以主规范模�
 └── risk_guard.py          # 阶段4 阶梯止损与保本价风控监控器
 ```
 
-> **现状注记**：上述为设计期模块划分建议；当前仓库中该战法的**实际执行引擎**为 `scripts/core/strategy/stock_funnel.py`（配置驱动），CLI 入口为 `scripts/core/commands/funnel_cmds.py`，配置文件为 [`config/funnel_strategy.yaml`](../../../config/funnel_strategy.yaml)。两者命名不同属建设期过渡，规范层不对此做目录约定。
+> **现状注记**：上述为设计期模块划分建议；当前仓库中该战法的**实际执行引擎**为 `scripts/core/strategy/stock_funnel.py`（配置驱动），CLI 入口为 `scripts/core/commands/funnel_cmds.py`，配置文件为 [`config/funnel_strategy.yaml`](../../../skill_bundle/assets/config/funnel_strategy.yaml)。两者命名不同属建设期过渡，规范层不对此做目录约定。
 
 ## 八、引导式意图理解与歧义确认
 
@@ -545,7 +545,7 @@ scripts/core/strategy/            # 示例目录，实际落点以主规范模�
 
 1. **验证用途**：示例用于反向验证规范是否能把真实选股意图完整映射为“类型 + 层级 + 规则 + 参数”；
 2. **示例中需要参数化的项**（如新高周期、开盘时点、高开区间等）**必须做成参数配置**，不得写死在逻辑里；
-3. **本示例仅为案例说明与重要功能提炼，不构成系统的硬编码，也不作为系统规范**。规范以[《智能选股系统 · 功能建设规范》](./selection-system-specification.md)与 [`SPEC-ALGO-003`](./selection-model-general-specification.md) 为准。
+3. **本示例仅为案例说明与重要功能提炼，不构成系统的硬编码，也不作为系统规范**。规范以[《智能选股系统 · 功能建设规范》](selection-system-specification.md)与 [`SPEC-ALGO-003`](selection-model-general-specification.md) 为准。
 
 ### 10.2 重要功能提炼（从示例反推出的系统能力要求）
 
@@ -563,19 +563,19 @@ scripts/core/strategy/            # 示例目录，实际落点以主规范模�
 
 | 编号 | 功能点 | 对应规范 |
 |---|---|---|
-| F1 | 阶段化流水线须支持**跨时段候选传递**（盘后 → 次日早盘） | [主规范 §9](./selection-system-specification.md)、[模型类型规范 §4](./selection-model-types-specification.md) |
-| F2 | 所有阈值（新高周期、均线、涨幅上限、高开区间、止损阶梯、缩量比、OFI 阈值）须**全量参数化** | [主规范 §7](./selection-system-specification.md) |
-| F3 | 群体阈值须**板块差异化**（主板/20cm 涨跌幅上限不同） | [`SPEC-ALGO-003` §6.2](./selection-model-general-specification.md) |
-| F4 | 盘口缺失时微观特征须判 `UNKNOWN` 而非静默降级，正式信号须用真实主动买卖量 | [主规范 §7.7](./selection-system-specification.md) |
-| F5 | 窗口口径须统一（回调观察 / 确认输出 / 收敛输出三点）并支持**窗口结束一次性收敛** | [`SPEC-ALGO-003` §3](./selection-model-general-specification.md) |
-| F6 | 保本价须计入全部税费并**向上进位至分位**；止损须三级阶梯化 | [主规范 §12.3](./selection-system-specification.md) |
-| F7 | 文案入口须走**引导式意图匹配确认清单**，歧义项（如「只要高开」）须交互确认 | [主规范 §3.4.1](./selection-system-specification.md) |
+| F1 | 阶段化流水线须支持**跨时段候选传递**（盘后 → 次日早盘） | [主规范 §9](selection-system-specification.md)、[模型类型规范 §4](selection-model-types-specification.md) |
+| F2 | 所有阈值（新高周期、均线、涨幅上限、高开区间、止损阶梯、缩量比、OFI 阈值）须**全量参数化** | [主规范 §7](selection-system-specification.md) |
+| F3 | 群体阈值须**板块差异化**（主板/20cm 涨跌幅上限不同） | [`SPEC-ALGO-003` §6.2](selection-model-general-specification.md) |
+| F4 | 盘口缺失时微观特征须判 `UNKNOWN` 而非静默降级，正式信号须用真实主动买卖量 | [主规范 §7.7](selection-system-specification.md) |
+| F5 | 窗口口径须统一（回调观察 / 确认输出 / 收敛输出三点）并支持**窗口结束一次性收敛** | [`SPEC-ALGO-003` §3](selection-model-general-specification.md) |
+| F6 | 保本价须计入全部税费并**向上进位至分位**；止损须三级阶梯化 | [主规范 §12.3](selection-system-specification.md) |
+| F7 | 文案入口须走**引导式意图匹配确认清单**，歧义项（如「只要高开」）须交互确认 | [主规范 §3.4.1](selection-system-specification.md) |
 
 ### 10.3 缺口与现状（反向验证结论）
 
 | 编号 | 反向验证暴露的问题 | 现状与处置 |
 | :-- | :-- | :-- |
-| **G1** | 窗口口径在示例、规范 §3 流水线图、§7.3 调度三处不一致 | **已统一**：回调观察段 / 确认输出段 / 窗口结束一次性收敛三口径，并新增 Stage 3.5；旧「软截止」口径废止（见 [`SPEC-ALGO-003` §3](./selection-model-general-specification.md)） |
+| **G1** | 窗口口径在示例、规范 §3 流水线图、§7.3 调度三处不一致 | **已统一**：回调观察段 / 确认输出段 / 窗口结束一次性收敛三口径，并新增 Stage 3.5；旧「软截止」口径废止（见 [`SPEC-ALGO-003` §3](selection-model-general-specification.md)） |
 | **G2** | 示例原话「量能持续放大」与公式「今日量＞昨日量」不一致 | **已补能力**：新增 `volume_sustained_expansion` 规则（近 N 日均量 / 前 M 日均量，全参数化），与单日 `volume_expansion` 并存，默认关闭 |
 | **G3** | 「主力资金净流入」缺资金流数据契约 | **预留**：`main_fund_inflow` 保持 `enabled=false`；数据契约 D10 **已接入**（精算档 `eastmoney_exact` 渠道实测核验 2026-10-06 + 代理档兜底，`capital_flow_daily` 120 交易日可回补）。启用该规则的前提是 D10 精算档 `finalized` 水位（W-07：代理档判 UNKNOWN）；缺失不得当作 0 |
 | **G4** | 规则级参数 Schema 尚未定义（每条规则的可调参数未形式化） | **建设任务**：属规范 §1.4-6 待补项，是可视化配置与编译期校验的前置依赖 |
@@ -601,9 +601,9 @@ scripts/core/strategy/            # 示例目录，实际落点以主规范模�
 
 ## 附：关联索引
 
-- 选股模型通用设计规范（本示例的抽象层 SSOT）：[`selection-model-general-specification.md`](./selection-model-general-specification.md)（`SPEC-ALGO-003`）
-- 主规范（系统建设）：[`selection-system-specification.md`](./selection-system-specification.md)（`SPEC-ALGO-ISS-001`）
-- 模型类型设计规范：[`selection-model-types-specification.md`](./selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`）
-- 可执行配置：[`config/funnel_strategy.yaml`](../../../config/funnel_strategy.yaml)
+- 选股模型通用设计规范（本示例的抽象层 SSOT）：[`selection-model-general-specification.md`](selection-model-general-specification.md)（`SPEC-ALGO-003`）
+- 主规范（系统建设）：[`selection-system-specification.md`](selection-system-specification.md)（`SPEC-ALGO-ISS-001`）
+- 模型类型设计规范：[`selection-model-types-specification.md`](selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`）
+- 可执行配置：[`config/funnel_strategy.yaml`](../../../skill_bundle/assets/config/funnel_strategy.yaml)
 - 数据依赖登记与就绪水位：[《A-Stock 行情数据 · 本地同步与安全隔离规范》](../data/market-data-sync-specification.md) §5.1 登记册 D1–D12、§5.4 冲突裁定 W-01～W-10、§5.5 `UniverseWatermark` 契约
 - 实施进度看板：[`SPEC-ALGO-003` 看板](../../specs/algorithm/general-selection-and-turning-point-plan.md)、[`SPEC-ALGO-ISS-001` 看板](../../specs/algorithm/selection-system-plan.md)

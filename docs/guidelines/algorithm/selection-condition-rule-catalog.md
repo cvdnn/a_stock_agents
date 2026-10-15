@@ -1,6 +1,6 @@
 # 智能选股系统 · 第一期条件选股规则目录与示例一覆盖评估
 
-> 类型：产品规则目录与落地边界；整理日期：2026-10-12。关联 [智能选股系统规范](./selection-system-specification.md)、[模型通用设计规范](./selection-model-general-specification.md)、[漏斗示例一](./selection-funnel-example-1.md)、[数据同步规范](../data/market-data-sync-specification.md)。本目录规定一期**拟提供的意图和可核对口径**，不表示所有条件已接入运行数据或已成为正式信号。
+> 类型：产品规则目录与落地边界；整理日期：2026-10-12。关联 [智能选股系统规范](selection-system-specification.md)、[模型通用设计规范](selection-model-general-specification.md)、[漏斗示例一](selection-funnel-example-1.md)、[数据同步规范](../data/market-data-sync-specification.md)。本目录规定一期**拟提供的意图和可核对口径**，不表示所有条件已接入运行数据或已成为正式信号。
 
 ## 1. 调研结论与一期取舍
 
@@ -27,7 +27,7 @@ LLM 使用项目“系统配置”中的 `quant` 角色模型，把用户原文�
 
 ## 3. A 圈：示例一必须覆盖的条件
 
-以唯一可执行配置 [`config/funnel_strategy.yaml`](../../../config/funnel_strategy.yaml) 为示例取值来源；示例阈值和时间窗均可配置，不是新模型默认值。括号中的“已注册”只指 [`rule_registry.py`](../../../scripts/core/selection_models/rule_registry.py) 和 [`stock_funnel.py`](../../../scripts/core/strategy/stock_funnel.py) 已有规则类型，不代表本次验证了生产数据。
+以唯一可执行配置 [`config/funnel_strategy.yaml`](../../../skill_bundle/assets/config/funnel_strategy.yaml) 为示例取值来源；示例阈值和时间窗均可配置，不是新模型默认值。括号中的“已注册”只指 [`rule_registry.py`](../../../skill_bundle/runtime/core/selection_models/rule_registry.py) 和 [`stock_funnel.py`](../../../skill_bundle/runtime/core/strategy/stock_funnel.py) 已有规则类型，不代表本次验证了生产数据。
 
 | 阶段 | 中文意图及示例取值 | 受控规则 | 数据前置和当前边界 |
 |---|---|---|---|
@@ -64,7 +64,7 @@ LLM 使用项目“系统配置”中的 `quant` 角色模型，把用户原文�
 1. **20 日新高存在可复现的少看一根问题**：`rule_rolling_high` 在 `lookback=20` 时用 `series[-20:-1]` 取前 19 根；`rule_close_new_high` 用 `series[-21:-1]` 取前 20 根。示例一原文说“收盘价创 20 日新高”，但 YAML 采用前者。落地时保留旧规则版本行为以免无提示改变历史模型，新建示例和文案编译应使用 `close_new_high(20)`；若选择迁移旧版本，需版本升级、差异预览和重放验证。现有示例文档关于新高的多处描述也需同步校正。
 2. **“小于/不超过”“高开区间/至少高开”不能合并**：示例分别是 `<7%` 和闭区间 `[1%,2%]`。自然语言编译逐条保存比较符、上下界、单位与原文片段；不确定时请求改写或明确选择。
 3. **数据层级独立于规则存在**：依据[数据同步规范登记册](../data/market-data-sync-specification.md)，D6 财务、D8 行业、D11 盘口/逐笔和 D10 精算资金流各有不同的采集与水位要求。登记册包含历史核验记录，不能替代本次运行的水位检查。任何缺失值均为 UNKNOWN/数据不足，不得当 0、PASS 或直接缩小全市场分母。
-4. **示例四阶段也需时点校核**：示例 YAML 的 `market_gate` 在 `09:30–09:35`，而[示例文档](./selection-funnel-example-1.md)及[通用设计规范](./selection-model-general-specification.md)有“竞价后、开盘前终判”描述。F2 应明确采用哪种可观察且可执行的门控时点，并据此更新模板/文案/测试；不能同时声称两者已满足。
+4. **示例四阶段也需时点校核**：示例 YAML 的 `market_gate` 在 `09:30–09:35`，而[示例文档](selection-funnel-example-1.md)及[通用设计规范](selection-model-general-specification.md)有“竞价后、开盘前终判”描述。F2 应明确采用哪种可观察且可执行的门控时点，并据此更新模板/文案/测试；不能同时声称两者已满足。
 5. **当前目录不证明正式信号**：主数据、日线、资金流、指数现价、开盘和分钟点需按运行日期、股票全集及阶段候选逐层验收；盘中形态版不得解释为真实主动买卖盘供需确认。
 
 ## 6. 暂缓纳入一期可运行目录

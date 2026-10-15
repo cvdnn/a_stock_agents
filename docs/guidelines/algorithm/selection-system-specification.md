@@ -15,11 +15,11 @@
 | 层级 | 文档 | 职责 |
 |---|---|---|
 | 主规范 | **本文**（`SPEC-ALGO-ISS-001`） | 系统定义、架构、配置模型、状态机、调度、数据装配、结果研究、持久化、CLI/API/Web、模块规划、测试 |
-| 类型规范 | [`selection-model-types-specification.md`](./selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`） | 模型类型注册中心与 `condition_tree`/`funnel`/`scoring_rank`/`composite` 类型级设计（本文 §3 只保留总览与回链） |
-| 通用规范 | [`selection-model-general-specification.md`](./selection-model-general-specification.md)（`SPEC-ALGO-003`） | 模型通用维度：通用选股 SFTC 阶段流水线、条件谓词、时点契约、拐点评分与回测标定 |
-| 研究治理 | [`selection-research-governance.md`](./selection-research-governance.md) | 模型评价触发阈值与优化建议闭环（服务本文 §12 二期） |
-| 全局治理（簇外） | [`algorithm-governance.md`](./algorithm-governance.md)（`SPEC-ALGO-001`） | 全项目算法全生命周期治理 |
-| 示例（唯一） | [`selection-funnel-example-1.md`](./selection-funnel-example-1.md) | 漏斗模型唯一示例（案例说明，非规范） |
+| 类型规范 | [`selection-model-types-specification.md`](selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`） | 模型类型注册中心与 `condition_tree`/`funnel`/`scoring_rank`/`composite` 类型级设计（本文 §3 只保留总览与回链） |
+| 通用规范 | [`selection-model-general-specification.md`](selection-model-general-specification.md)（`SPEC-ALGO-003`） | 模型通用维度：通用选股 SFTC 阶段流水线、条件谓词、时点契约、拐点评分与回测标定 |
+| 研究治理 | [`selection-research-governance.md`](selection-research-governance.md) | 模型评价触发阈值与优化建议闭环（服务本文 §12 二期） |
+| 全局治理（簇外） | [`algorithm-governance.md`](algorithm-governance.md)（`SPEC-ALGO-001`） | 全项目算法全生命周期治理 |
+| 示例（唯一） | [`selection-funnel-example-1.md`](selection-funnel-example-1.md) | 漏斗模型唯一示例（案例说明，非规范） |
 
 > **示例与规范分离铁律**：示例文档（`*-example-*.md`）只作案例说明与功能提炼，**不得渗透为系统规范、默认模板或硬编码**；规范文档中的具体阈值一律视为示例口径或可配置参数。
 
@@ -157,7 +157,7 @@ flowchart LR
 
 ### 3.1 模型类型注册中心
 
-模型类型的设计与规范**独立成文**，见[《智能选股系统 · 模型类型设计规范》](./selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`）。本节只保留总览与回链，避免与类型规范重复。
+模型类型的设计与规范**独立成文**，见[《智能选股系统 · 模型类型设计规范》](selection-model-types-specification.md)（`SPEC-ALGO-ISS-MT-001`）。本节只保留总览与回链，避免与类型规范重复。
 
 平台通过 `SelectionModelTypeRegistry` 注册模型类型。每个类型必须声明配置 Schema、可用节点、编译器、调试器、Web 编辑器能力和输出契约。模型类型**不再绑定独立运行引擎**；所有模型必须先编译成统一层级中间结构（§7.2），再由层级漏斗引擎执行。
 
@@ -170,7 +170,7 @@ flowchart LR
 | 评分排序 | `scoring_rank` | 因子评分 + 权重 + Top-K | P2 |
 | 组合模型 | `composite` | 引用其他模型输出并做集合运算 | P2 |
 
-各类型的结构契约、配置 Schema、编译展开方式与首期可运行约束，详见[模型类型规范 §2–§7](./selection-model-types-specification.md)。新增模型类型不得修改已有模型定义；通过注册中心提供后向兼容的插件式扩展。
+各类型的结构契约、配置 Schema、编译展开方式与首期可运行约束，详见[模型类型规范 §2–§7](selection-model-types-specification.md)。新增模型类型不得修改已有模型定义；通过注册中心提供后向兼容的插件式扩展。
 
 ### 3.2 条件选股模型
 
@@ -180,13 +180,13 @@ flowchart LR
 - **逻辑表达式树**：仅支持安全表达式树 `AND/OR/NOT` 与嵌套分组，禁止字符串 `eval`；叶子为原子规则，参与求值的是规则产生的 `PASS/FAIL/UNKNOWN` 三态结果（§7.7）。
 - **顺序层语义**：顺序层之间等价于逐层 AND；跨层 OR 首期不允许，必须放在同一层嵌套逻辑树中。
 
-维度清单、首期数据准入表、表达式 Schema 示例与顺序层语义约束，见[模型类型规范 §3](./selection-model-types-specification.md)。
+维度清单、首期数据准入表、表达式 Schema 示例与顺序层语义约束，见[模型类型规范 §3](selection-model-types-specification.md)。
 
 ### 3.3 漏斗选股模型
 
 漏斗选股由**有序层级**构成，每层接收上游候选并输出更小的候选集合；层级除规则外还必须定义触发器（`trading_time` / `interval_window` / `upstream_completed` / `data_ready` / `condition` / `event` / `manual`）。其核心特征是**跨时段候选传递**（可跨越交易日），条件触发器同样使用受限 AST 与注册字段。
 
-触发器清单、跨时段候选传递契约以及与条件选股的关系，见[模型类型规范 §4](./selection-model-types-specification.md)。
+触发器清单、跨时段候选传递契约以及与条件选股的关系，见[模型类型规范 §4](selection-model-types-specification.md)。
 
 ### 3.4 用户自建模型生命周期
 
@@ -248,7 +248,7 @@ flowchart LR
 
 ### 3.5 四层漏斗示例的形成过程
 
-> **示例说明**：本节以「四层漏斗」为**案例**，演示 §3.4.1 匹配确认清单在真实建模中的走查过程。其中的层名、触发时钟（15:35 / 09:30 / 09:31）与窗口（09:30～09:35、09:35～09:40）均为**示例口径**，须由用户参数化配置，**不构成系统默认模板或硬编码**；完整示例见[选股漏斗示例 1](./selection-funnel-example-1.md)。
+> **示例说明**：本节以「四层漏斗」为**案例**，演示 §3.4.1 匹配确认清单在真实建模中的走查过程。其中的层名、触发时钟（15:35 / 09:30 / 09:31）与窗口（09:30～09:35、09:35～09:40）均为**示例口径**，须由用户参数化配置，**不构成系统默认模板或硬编码**；完整示例见[选股漏斗示例 1](selection-funnel-example-1.md)。
 
 用户既可“从空白模型”创建，也可“粘贴一段选股文案”由系统解析。若走文案入口，系统先执行 §3.4.1 的匹配确认清单：选股类型匹配为 `funnel`，模型层级匹配为四层漏斗（`post_close → market_gate → opening_gap → turning_point`），规则与参数逐条列出并标注歧义项（如“1～2% 高开”的上下限、“量能持续放大”的单日/多日口径），用户逐项确认或微调后生成待确认草稿，再进入构建。
 
@@ -352,7 +352,7 @@ flowchart LR
 
 ### 7.1 模型定义
 
-> **示例说明**：下列 Schema 为**示例样例**（案例说明，非规范），以[选股漏斗示例 1](./selection-funnel-example-1.md) 的字段组织方式演示模型定义结构；其中的 `id`、`version` 等标识与取值**均为示例，不代表系统内置默认模型或出厂模板**。用户模型的实际标识与版本由系统在创建时生成。
+> **示例说明**：下列 Schema 为**示例样例**（案例说明，非规范），以[选股漏斗示例 1](selection-funnel-example-1.md) 的字段组织方式演示模型定义结构；其中的 `id`、`version` 等标识与取值**均为示例，不代表系统内置默认模型或出厂模板**。用户模型的实际标识与版本由系统在创建时生成。
 
 ```yaml
 schema_version: 2
@@ -1895,8 +1895,8 @@ log/selection-models/20260921/audit.log
 
 ## 附：关联索引
 - 实施进度看板：[`SPEC-ALGO-ISS-001`](../../specs/algorithm/selection-system-plan.md)
-- 模型类型设计规范：[`selection-model-types-specification.md`](./selection-model-types-specification.md)
-- 选股模型通用设计规范：[`selection-model-general-specification.md`](./selection-model-general-specification.md)（`SPEC-ALGO-003`）
-- 研究治理规则：[`selection-research-governance.md`](./selection-research-governance.md)
-- 算法治理规范：[`algorithm-governance.md`](./algorithm-governance.md)
-- 唯一示例（案例说明，非规范）：收盘突破 → 次日早盘拐点漏斗规则：[`selection-funnel-example-1.md`](./selection-funnel-example-1.md)
+- 模型类型设计规范：[`selection-model-types-specification.md`](selection-model-types-specification.md)
+- 选股模型通用设计规范：[`selection-model-general-specification.md`](selection-model-general-specification.md)（`SPEC-ALGO-003`）
+- 研究治理规则：[`selection-research-governance.md`](selection-research-governance.md)
+- 算法治理规范：[`algorithm-governance.md`](algorithm-governance.md)
+- 唯一示例（案例说明，非规范）：收盘突破 → 次日早盘拐点漏斗规则：[`selection-funnel-example-1.md`](selection-funnel-example-1.md)

@@ -9,7 +9,7 @@
 | 层级 | 文档 | 职责 |
 |---|---|---|
 | 中枢（系统架构） | **本文**（`SPEC-A2UI-001`） | A2UI 通用核心引擎总体架构：WebApp Shell 硬锁定、1:1 骨架预占位（CLS=0）、五阶段渐进式水合与双模视口调度 |
-| 成员（技术规范） | [`a2ui-component-registry-specification.md`](./a2ui-component-registry-specification.md)（`SPEC-A2UI-002`） | 领域组件包契约、命名空间隔离、时序解耦未决缓冲池与自省清单 |
+| 成员（技术规范） | [`a2ui-component-registry-specification.md`](a2ui-component-registry-specification.md)（`SPEC-A2UI-002`） | 领域组件包契约、命名空间隔离、时序解耦未决缓冲池与自省清单 |
 
 ---
 

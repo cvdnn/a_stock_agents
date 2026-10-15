@@ -1,7 +1,7 @@
 # A-Stock Agents 快速上手指南 (Quickstart Guide)
 
 欢迎使用 **A-Stock Agents**。本项目是一套高内聚、自包含、生产就绪的 **A股全流程量化投研、多智能体协同研判与实战反应决策系统**。
-支持全平台原生 CLI、现代浅色金融风格 Web 投研工作台，以及主流 AI Agent 平台（Google Antigravity、Hermes Agent、OpenAI Codex、Claude Code 等）的就地无缝接入。
+项目以 Skill Release 作为 AI 工具接入形式，并提供统一 CLI 和可选 WebUI。宿主原生导入与发现能力按平台单独验证；开发仓库本身不会自动注册技能。
 
 ---
 
@@ -191,18 +191,11 @@ python verify.py
 
 ---
 
-## 五、主流 AI Agent 平台集成指南
+## 五、AI 工具技能接入
 
-本项目设计严格遵循**零全局污染原则 (Zero Global Pollution)**，全部 19 项技能及底层量化引擎**就地运行在当前工作区内**，严禁将技能复制到系统全局目录。
+本仓库用于技能开发和 Release 构建；打开开发仓库不会自动注册或发现技能。AI 工具使用从`skill_bundle/`生成的 Release 包，通过宿主支持的技能安装方式接入。宿主原生导入与发现能力按平台单独验证，本项目不承诺未验收宿主的专门支持。
 
-### 1. Google Antigravity / Gemini CLI
-- 将本项目根目录作为 Workspace 打开。
-- Antigravity 自动识别工作区内 [`.agents/skills/`](../.agents/skills) 的 19 项技能。
-- 支持在侧边栏或对话中直接按需激活任一技能，底层通过统一 CLI 就地执行，输出标准 JSON / Markdown 结果。
-
-### 2. Hermes / Codex / Claude Code
-- 项目根目录已提供标准化 [`AGENTS.md`](../AGENTS.md) 与 [`CLAUDE.md`](../CLAUDE.md)。
-- 智能体直接遵循规约，严禁自行编写网页爬虫脚本，统一直接调用 `./bin/astock <subcommand> --json` 获取输出。
+技能入口位于`skill_bundle/skills/<skill_id>/SKILL.md`，公共运行时和资源由 Release 一并交付。开发期间可通过统一 CLI 检查能力：`python skill_bundle/runtime/cli.py <command> --json`。Release 构建入口见`tools/packaging/`。
 
 ---
 

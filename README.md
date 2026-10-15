@@ -1,13 +1,26 @@
 # A-Stock Agents — A股全流程量化投研智能体
 
+## 当前工程布局与使用
+
+唯一技能集合为`skill_bundle/`，含`skills/`（总入口+19项专业技能）、`runtime/`、公共`assets/`及`references/`。可选Web前后端位于`apps/web-console/`；根`bin/astock*`保留为薄兼容入口。
+
+本仓库用于技能实现、测试与 Release 构建。AI工具通过发布版本使用技能，不维护打开仓库后发现技能的项目模式。
+
+离线诊断：`python skill_bundle/runtime/doctor.py`。统一CLI：`python skill_bundle/runtime/cli.py <command> --json`。总包分发器：`python skill_bundle/runtime/run_skill.py <skill-id> --params '{"code":"600519"}' --json`。
+
+用户配置与运行数据保存在`local/`、`output/`、`log/`、`temp/`；技能环境变量可放在`local/settings/.env`，WebUI开发配置放在`tools/containers/web-console/`。发布包不包含用户数据。Windows/macOS/Linux宿主验收分开记录。
+
+发布归档入口为`tools/packaging/build_codex.py`、`build_hermes.py`、`build_workbuddy.py`，输出到output/packages；归档是完整集合候选快照，不作为第二套源码维护；三个平台的原生导入和全部技能发现仍须独立验收。
+
+
+
 [![Version](https://img.shields.io/badge/Version-v3-blue.svg)](#)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-green.svg)](#)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-blue.svg)](#)
-[![AI Integration](https://img.shields.io/badge/AI%20Platforms-Antigravity%20%7C%20Hermes%20%7C%20Codex%20%7C%20Claude%20Code-orange.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](#)
 
 **A-Stock Agents** 是一套高内聚、自包含、生产就绪的 **A股全流程量化投研、多智能体协同研判与实战反应决策系统**。
-专为独立服务器部署、量化实战交易以及**主流 AI Agent 平台（Google Antigravity、Hermes Agent、OpenAI Codex、Claude Code 等）**提供开箱即用的量化分析、风控执行与自然语言 AIChat 交互能力。
+项目主要以标准化 Skill Release 供 AI 工具使用；WebUI 是可选的开发调试应用。各宿主的原生导入与发现能力需分别验证，本项目暂不承诺特定宿主的专门支持。
 
 ---
 
@@ -100,15 +113,15 @@
 # 进入项目目录
 cd a_stock_agents
 
-# 赋予执行权限并一键安装 (自动初始化虚拟环境、依赖、.agents/skills 挂载与自检)
-chmod +x install.sh update.sh run.sh bin/astock
-./install.sh
+# 赋予执行权限并一键安装 (自动初始化虚拟环境、依赖、离线结构自检)
+chmod +x tools/development/setup.sh tools/development/run-web.sh bin/astock
+./tools/development/setup.sh
 
 # 一键启动项目 (Web 智能工作台 + API 统一网关)
-./run.sh
+./tools/development/run-web.sh
 
 # 手动运行 11/11 项全功能自动化自检
-python verify.py
+python skill_bundle/runtime/doctor.py
 ```
 
 ### 2. Windows (PowerShell / CMD)
@@ -116,35 +129,39 @@ python verify.py
 # 进入项目目录
 cd a_stock_agents
 
-# 一键安装部署 (自动配置 Windows Directory Junction、依赖与自检)
-.\install.ps1
+# 初始化开发环境（依赖及离线诊断，不注册技能）
+.\tools/development/setup.ps1
 
 # 一键启动项目 (Web 智能工作台 + API 统一网关)
-.\run.ps1
-# (Git Bash / WSL 用户可运行 ./run.sh)
+.\tools/development/run-web.ps1
+# (Git Bash / WSL 用户可运行 ./tools/development/run-web.sh)
 
 # 手动运行自检
-python verify.py
+python skill_bundle/runtime/doctor.py
 ```
 
-### 3. Docker 容器化部署 (推荐，环境完全隔离)
+### 3. 可选 Docker Web 调试环境
 
-如果您希望在无 Python 环境的宿主机、服务器或 NAS 上运行，可直接使用 Docker 一键启动：
+开发调试可使用Docker隔离Web应用依赖。该环境不是技能Release安装前提；使用已存在镜像时禁止隐式构建：
 
 ```bash
-# 复制环境变量模版
-cp .env.example .env
+# 可选：复制技能运行环境变量模板，在本地填写模型凭据
+mkdir -p local/settings
+if [ ! -f local/settings/.env ]; then cp skill_bundle/assets/config/runtime.env.example local/settings/.env; fi
 
-# 一键拉起容器 (Web 界面: http://localhost:6300)
-docker compose up -d --build
+# 初始化WebUI开发配置，不覆盖已有端口设置
+if [ ! -f tools/containers/web-console/.env ]; then cp tools/containers/web-console/.env.example tools/containers/web-console/.env; fi
+
+# 使用已存在镜像启动Web调试（首次构建需另行执行）
+docker compose --env-file tools/containers/web-console/.env -f tools/containers/web-console/compose.yaml up --no-build
 
 # 查看运行状态与健康检查
-docker compose ps
+docker compose --env-file tools/containers/web-console/.env -f tools/containers/web-console/compose.yaml ps
 ```
 > 详细运维、日志排查与容器内 CLI 调用见 [Docker 容器化部署指南](docs/docker-deploy.md)。
 
 > [!TIP]
-> **自动就地挂载保障**：安装脚本会自动调用 `core/workspace.py`，根据当前操作系统自适应建立 `.agents/skills` 链接（POSIX 相对软链接 / Windows 目录联接），确保任何 AI Agent 打开即可原地工作，绝不污染全局系统。
+> **开发安装边界**：安装脚本仅初始化开发环境及诊断，不注册AI工具技能。
 
 
 
@@ -152,38 +169,17 @@ docker compose ps
 
 ## 四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)
 
-本项目原生支持 **项目级就地按需调用（In-Place Project Skills）**，**无需将技能文件复制或安装至系统全局技能库**，即可在主流 AI Agent 平台中开箱即用：
+本仓库是开发工程；宿主使用 Release。开发者先执行 P0 和产物闭包验证，再按目标平台格式完成实际安装、发现和调用验收。
 
-### 1. 核心使用原则：零全局污染（Zero Global Pollution）
-- **工作区就地检索 (Workspace In-Place Discovery)**：
-  - 打开 `a_stock_agents` 目录作为工作区，AI Agent 自动识别工作区内的技能与规则规范（[`AGENTS.md`](AGENTS.md) 与 [`.agents/skills`](.agents/skills)）。
-  - 关闭工作区后全局零残留，杜绝多处复制带来的版本冲突与环境污染。
-- **跨平台统一执行底座**：
-  - **Linux / macOS**: `./bin/astock <subcommand> --json`
-  - **Windows (PowerShell 优先 / CMD)**: `.\bin\astock.ps1 <subcommand> --json` (CMD: `.\bin\astock.cmd <subcommand> --json`)
-  - **跨平台通用回退**: `python scripts/core/cli.py <subcommand> --json`
+```bash
+python tools/packaging/build_codex.py --json
+python tools/packaging/build_hermes.py --json
+python tools/packaging/build_workbuddy.py --json
+```
 
----
+当前输出为完整集合候选 ZIP，不能据此宣称客户端直接导入兼容。20个标准入口与19项业务能力分别计数；只发现总入口的宿主记1个入口。安装版本不携带开发私有配置，用户数据与安装缓存分离。
 
-### 2. 各主流 AI 平台接入最佳实践
-
-#### A. Google Antigravity (原生工作区支持)
-- **开箱即用**：
-  - Antigravity 官方工作区定制根为 `.agents/`。本项目的技能权威源位于 `.agents/skills/`。
-  - 只需在 Antigravity 中将本项目作为工作区（Open Workspace）打开，系统原生技能列表即可**原地自动挂载 19 项技能**。
-  - 对话中直接说“帮我查茅台行情”或“5A选股”，Antigravity 会自动激活对应技能，并通过 `run_command` 执行 `./bin/astock ... --json`。
-
-#### B. Hermes Agent (会话级挂载)
-- **免参数/免复制运行**：
-  - 直接在项目根目录下启动：`hermes --skills-dir ./.agents/skills`
-  - Hermes 自动扫描 `./.agents/skills/*/SKILL.md`，并在子进程中调用当前工作区的 `./bin/astock`。
-
-#### C. OpenAI Codex / Claude Code / Cursor (规约驱动)
-- **规则自动注入**：
-  - 项目根目录已提供标准化 [`AGENTS.md`](AGENTS.md) 与 [`CLAUDE.md`](CLAUDE.md)。
-  - Agent 在打开工作区后首要阅读 `AGENTS.md`，自动获知 19 个技能的意图触发词与 CLI 命令行契约，严禁私写网络爬虫，确保输出结果确定、合规。
-
----
+完整目录、平台适配和验收要求见[Release交付规范](docs/guidelines/engineering/skill-suite-portability-specification.md)。
 
 ## 五、CLI 实战命令速查与使用说明
 
@@ -268,57 +264,9 @@ print(f"建议总仓位: {plan.max_portfolio_weight*100}%, 主力策略: {plan.p
 
 ---
 
-## 六、用户专属数据隔离 (output/)、安全打包与热更新
+## 六、开发源码与Release更新
 
-### 1. 专属数据目录规范 (`output/`)
-为了防止个人持仓、交易记录和私人报告在项目版本打包或共享时发生数据泄露，系统设计了 **`output/` 专属目录隔离机制**：
-
-```
-output/
-├── pools/             # 个人自选池、关注池、持仓池 CSV (含 .example 模板)
-├── positions/         # 个人持仓档案与实盘交易明细记录
-├── reports/           # 个股研报、多股联合报告与复盘 HTML
-├── cache/             # 个人运算与盘中监控缓存
-└── backtest/          # 个人策略回测日志
-```
-
-#### 外部磁盘挂载配置
-在 [`config/config.yaml`](config/config.yaml) 中直接修改：
-```yaml
-paths:
-  output_dir: "/var/data/astock_output" # Linux 独立数据盘
-  # output_dir: "D:/astock_output"     # Windows 独立存储盘
-```
-或直接设置环境变量：`export A_STOCK_OUTPUT_DIR=/custom/data/path`。
-
----
-
-### 2. 安全打包发布 (`bin/pack.py`)
-执行打包时，打包工具**强制排除 `output/` 目录、实盘数据、`.venv` 与日志缓存**：
-```bash
-# 自动生成排除个人数据的纯净包 a_stock_agents_v3.zip (版本规则: v2, v3, v4...)
-python bin/pack.py --tag v3
-```
-
----
-
-### 3. 安全热更新与防损回滚 (`bin/update.py`)
-升级新版本时，自动保障用户已有数据 100% 完好：
-```bash
-# Linux / macOS 安全升级
-./update.sh -from-zip a_stock_agents_v3.zip
-
-# Windows PowerShell 安全升级
-.\update.ps1 -from-zip a_stock_agents_v3.zip
-
-# 手动备份当前数据快照
-python bin/update.py --backup-only
-
-# 异常时一键回滚
-python bin/update.py --rollback backup_20260902_174003
-```
-
----
+开发仓库通过Git维护，保留未提交修改；不再用技能ZIP覆盖开发源码。旧update入口已退役并拒绝执行。宿主通过其受支持的Release更新机制管理安装版本，用户数据独立保留。
 
 ## 七、下一阶段演进路线：独立 Web AIChatUI 与 Skill 治理系统
 

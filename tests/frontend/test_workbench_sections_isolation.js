@@ -7,9 +7,9 @@ const assert = require('assert');
 
 console.log('=== [一级菜单工作区与投研助手文档视窗隔离验证] ===\n');
 
-const html = fs.readFileSync('web/index.html', 'utf8');
-const css = fs.readFileSync('web/css/style.css', 'utf8');
-const appJs = fs.readFileSync('web/js/app.js', 'utf8');
+const html = fs.readFileSync('apps/web-console/frontend/index.html', 'utf8');
+const css = fs.readFileSync('apps/web-console/frontend/css/style.css', 'utf8');
+const appJs = fs.readFileSync('apps/web-console/frontend/js/app.js', 'utf8');
 
 // --------------------------------------------------------------------------
 // 1. 各一级菜单工作区物理隔离与唯一性

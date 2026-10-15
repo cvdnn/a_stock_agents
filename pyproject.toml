@@ -43,12 +43,12 @@ browser-test = [
 astock = "core.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["scripts"]
-include = ["core*", "server*", "tools*"]
+where = ["skill_bundle/runtime", "apps/web-console/backend"]
+include = ["core*", "server*"]
 
 [tool.pytest.ini_options]
-pythonpath = ["scripts", "."]
-testpaths = ["tests", ".agents/skills"]
+pythonpath = ["skill_bundle/runtime", "apps/web-console/backend", "."]
+testpaths = ["tests", "skill_bundle/skills"]
 # 用例分层：core=P0 核心契约门禁, p1=P1 重要回归, p2=P2 补充边界
 # 能力标签：slow(>1s)/network(真实外网)/subprocess(子进程 CLI)/e2e(端到端)/ui(Node 前端)
 # strict_markers 杜绝拼写错误的标记被静默忽略（历史上 e2e 曾被误写成 endtoend）

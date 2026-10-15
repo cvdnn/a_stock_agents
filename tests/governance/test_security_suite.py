@@ -75,7 +75,7 @@ class TestSecuritySuite(unittest.TestCase):
 
     def test_investment_report_no_hardcoded_tokens(self):
         """Verify investment_report source code does not contain hardcoded bearer/auth tokens."""
-        rep_file = ROOT / "scripts" / "core" / "reporting" / "investment_report.py"
+        rep_file = ROOT / "skill_bundle" / "runtime" / "core" / "reporting" / "investment_report.py"
         if not rep_file.exists():
             rep_file = ROOT / "core" / "reporting" / "investment_report.py"
         if rep_file.exists():

@@ -50,9 +50,9 @@ os.environ["A_STOCK_DATA_SYNC_SETTINGS_FILE"] = str(_TEST_RUNTIME_ROOT / "settin
 atexit.register(shutil.rmtree, _TEST_RUNTIME_ROOT, ignore_errors=True)
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "scripts"
+SCRIPTS = ROOT / "skill_bundle" / "runtime"
 
-for p in [ROOT, SCRIPTS, SCRIPTS / "core", ROOT / "core"]:
+for p in [ROOT, SCRIPTS, ROOT / "apps/web-console/backend", SCRIPTS / "core"]:
     if p.exists() and str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
@@ -60,6 +60,8 @@ for p in [ROOT, SCRIPTS, SCRIPTS / "core", ROOT / "core"]:
 # ------------------------------------------------------------------ 分层归属表
 # 优先级：core(P0 契约门禁) > p1(重要回归) > p2(补充边界)。未登记文件默认 p2。
 _TIER_BY_PATH = {
+    "tests/core/test_development_entrypoints.py": "core",  # development failure and retired updater contracts
+    "tests/core/test_skill_suite_layout.py": "core",   # unique bundle roots and reference lifecycle
     # --- P0：量化底座与数据可信性契约（错了会直接产出假结论）---
     "tests/core/test_data_assembler.py": "core",       # 快照装配 + 水位门禁 + 字段状态
     "tests/core/test_stock_funnel.py": "core",         # 漏斗规则与分钟时间戳归一

@@ -59,7 +59,7 @@ def test_current_code_review_guide_links_history_and_existing_code_paths() -> No
     assert "../../audits/code-review-history.md" in text
 
     code_paths = re.findall(
-        r"`((?:scripts/core|scripts/server|web|tests|bin|config|\.agents)/[^`]+)`",
+        r"`((?:skill_bundle|apps|tools|tests|bin|\.agents)/[^`]+)`",
         text,
     )
     assert code_paths, "current guide must contain checkable repository-local code paths"

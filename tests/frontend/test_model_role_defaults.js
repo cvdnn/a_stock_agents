@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 
-const source = fs.readFileSync('web/js/app.js', 'utf8');
+const source = fs.readFileSync('apps/web-console/frontend/js/app.js', 'utf8');
 const helperStart = source.indexOf('function isRoleOptionCompatible(');
 const helperEnd = source.indexOf('function renderModelRolesDropdowns()', helperStart);
 

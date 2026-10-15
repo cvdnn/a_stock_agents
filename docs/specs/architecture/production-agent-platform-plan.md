@@ -72,7 +72,7 @@
 - 新增实施计划只补充模型门禁、能力统一契约、任务 DAG、MCPManager、多智能体证据隔离和跨宿主验收缺口。
 
 ## 五、关联看板
-- [`arch-web-aichat-and-skill-governance.md`](./arch-web-aichat-and-skill-governance.md)
+- [`arch-web-aichat-and-skill-governance.md`](arch-web-aichat-and-skill-governance.md)
 - [`production-agent-platform-p0-plan.md`](../engineering/production-agent-platform-p0-plan.md)
 
 ## 六、变更日志
