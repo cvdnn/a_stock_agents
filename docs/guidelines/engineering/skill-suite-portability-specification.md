@@ -102,3 +102,68 @@ PACKAGE_ROOT、RUNTIME_ROOT、SKILLS_ROOT是代码根，统一从 core.workspace
 初始化使用tools/development/setup.ps1或setup.sh；共享manage.py实现依赖选择、失败退出与离线诊断。基础requirements从现有锁导出，安装当前test/browser/full选项时以其约束版本；现有锁缺少部分测试extras，不声称开发环境整体锁定。默认安装test依赖，browser/full显式选择，不自动运行扩展测试。Web通过run-web启动并将输出保存到log/web-console。Docker归属tools/containers/web-console，仓库为context，Dockerfile专用忽略规则放在Dockerfile旁；代码/app和可写数据/data分离，output/local/log持久化，temp用可销毁tmpfs。production保留为鉴权策略标识，不表示开发容器已达到生产部署验收。
 
 旧ZIP覆盖更新入口退役并拒绝调用；开发仓库通过Git维护。离线验证入口为tools/validation/check.py，默认doctor，--core显式选择P0。旧混合verify脚本只保留在迁移日志中供恢复，不作为活跃工具。requirements.txt由tools/development/export_dependencies.py在核对基础声明一致后从uv.lock离线导出（导出工具需Python3.11+），不手工维护第二份依赖。
+
+## 8. 双模态安装与宿主发现契约 (Dual-Modality Installation & Host Discovery Contract)
+
+### 8.1 统一内核与双模态架构原则 (One Core Engine, Two Presentation Layers)
+项目安装与升级体系坚持“同一套底层部署引擎、两种交互表面”的设计铁律，严禁分化为两套割裂的安装脚本：
+- **底层统一内核**：由统一安装脚本（`install.ps1` / `install.sh`）承载 Release 下载解压、SHA256 校验、宿主目录探测、符号链接/Junction 挂载、隔离 Python `.venv` 创建、依赖安装、`doctor.py` 冒烟与安装收据（`install.json`）落盘；支持 `--json` 参数输出纯结构化机器数据。
+- **模态一（AI 任务中协助安装）**：在 AIChat / AIWork 中由 AI 智能体后台调用底层内核的 `--json` 接口，在前端以 5 阶段渐进式**信息卡片（Interactive Cards）**引导用户完成交互选择与安全确认。
+- **模态二（终端命令行手动安装）**：在 PowerShell / Bash 终端中运行，检测到 TTY 控制台时自动呈现交互式 TUI 导轨菜单（键盘上下移动、空格勾选、回车确认）；支持命令行参数（`-Agent`、`-Method`、`-Yes`）用于脚本或 CI 自动化。
+- **通用生态通道**：通过构建期派生的通用技能结构，支持 `npx skills add cvdnn/a-stock-agents -g` 直接接入通用 Skills 生态。
+
+### 8.2 模态一：AI 任务协助安装与信息卡片交互规范
+若用户仅输入模糊的“帮我安装炒股技能”，大模型易产生幻觉（盲目全局 `pip install`、误删配置或丢失宿主上下文）。官方文档与发版页必须提供**自包含、可一键复制给 AI 的标准化安装指令提示词（AI Copilot Bootstrap Prompt）**：
+
+> **标准 AI 安装指令模板**：
+> ```markdown
+> 请帮我安全安装与配置「A-Stock Agents (A股全流程量化实战决策智能体技能总包)」。
+> 本项目为生产级量化工程，严禁自行编写临时爬虫或随意 pip install。请严格遵循以下执行契约与渐进式卡片交互 SOP：
+> 
+> 【安装源与执行协议】
+> 1. 项目 Release 仓库: https://github.com/cvdnn/a-stock-agents/releases/latest
+> 2. 基础安装引导器:
+>    - Windows (PowerShell): `irm https://github.com/cvdnn/a-stock-agents/releases/latest/download/install.ps1 | iex` (或本地 `.\install.ps1`)
+>    - POSIX (Bash): `curl -fsSL https://github.com/cvdnn/a-stock-agents/releases/latest/download/install.sh | bash`
+> 3. 所有命令交互与状态查询必须追加 `--json` 参数以获取结构化数据。
+> 
+> 【执行任务流水线 (SOP)】
+> - 阶段 1 [探测环境]：调用安装引导器 `-Inspect -Json`，探测当前系统已安装的 AI 工具（Codex/Hermes/WorkBuddy/Universal目录）。
+> - 阶段 2 [配置交互]：暂停执行，向我呈现【信息卡片 1：宿主选择】与【信息卡片 2：数据源偏好】，等待我做出选择。
+> - 阶段 3 [安全确认]：根据我的选择，生成【信息卡片 3：安装前摘要与安全审计】，提示挂载路径、依赖清单与权限范围，等待我确认。
+> - 阶段 4 [分级执行]：获得确认后，组装参数调用 `install.ps1 -Agent <已选项> -Method link -Yes -Json`，并在工作区以 L1/L2 批量子任务卡片呈现部署进度。
+> - 阶段 5 [冒烟交付]：运行 `doctor.py --json` 验证全部 20 个入口，输出【信息卡片 5：交付与快速实战指令】。
+> 
+> 请先执行阶段 1，并向我输出【信息卡片 1】开始安装引导。
+> ```
+
+AI 在接收该提示词后必须按规范输出 5 类信息卡片：
+1. **卡片 1：宿主接入偏好卡片**：列出探测到的 Universal (`~/.agents/skills`)、Hermes Desktop (`~/.hermes`)、WorkBuddy (`~/.workbuddy/skills`) 供勾选；
+2. **卡片 2：数据源与配置卡片**：区分开箱即用的 L1 免费源与可选进阶库（AkShare/MyTT）及私有凭据登记（写入 `local/settings/.env`）；
+3. **卡片 3：安装摘要与安全审计卡片**：列出目标代码路径、隔离数据根、Overwrites 冲突检测结果、权限隔离声明，提供“确认安装”动作；
+4. **卡片 4：分级流水线进度卡片**：按照 AGENTS.md 规范展示批量父任务与原子子任务执行进度（下载校验、宿主挂载、环境构建、依赖安装、doctor 自检）；
+5. **卡片 5：交付与实战体验卡片**：提示各宿主专用调用语法（Codex `$a-stock-agents` / Hermes `/a-stock-agents` / WorkBuddy `@a-stock-agents`），并提供 3 个即时量化体检快捷动作。
+
+### 8.3 模态二：终端命令行手动安装与 TUI 导轨规范
+针对开发者与运维场景，终端运行 `install.ps1` 或 `install.sh` 时，自动进入 TUI 交互式选择菜单：
+- 使用键盘上下键导航、空格键切换勾选、回车键确认；
+- 明确划分 `Universal (.agents/skills)` 与 `Additional agents`（Hermes / WorkBuddy / 自定义目录）；
+- 展现安装方式单选（Symlink/Junction 推荐 vs Copy 物理复制）；
+- 严格执行 **Overwrites 哨兵**：若宿主目录已存在非链接的同名物理目录，强制拒绝盲目覆盖，保护用户历史文件；
+- 自动化与无交互支持：提供 `-Inspect`、`-Agent <列表>`、`-Method <link|copy>`、`-Yes`、`-Update`、`-Rollback`、`-Uninstall`、`-Doctor` 与 `--json` 参数。
+
+### 8.4 锚点技能架构 (Anchor Skill) 与三级寻址模型
+为解决通用生态安装器（如 `npx skills add`）只拷贝单个技能子目录、丢失平级 `runtime/` 导致的运行时瘫痪问题，Release 构建期执行架构重组：
+1. **锚点技能布局**：将公共 `runtime/`、`assets/`、`references/` 收敛注入到总入口 `skills/a-stock-agents/` 中，总入口升级为携带完整共享引擎的“锚点技能”；其余 19 个专业技能保持轻量，仅保留说明与转发壳；
+2. **三级寻址规范**：转发壳寻找引擎的逻辑升级为三级渐进式定位：
+   - **自定位**：向上查找自身目录的 `bundle.json`（单包完整解压场景）；
+   - **兄弟定位**：查找兄弟目录 `../a-stock-agents/bundle.json`（通用生态 `npx skills add` 或逐技能链接进宿主技能根场景，穿透符号链接天然连通）；
+   - **收据定位**：读取系统固定安装收据 `%LOCALAPPDATA%/a_stock_agents/install.json` 中的全局安装根；
+   - 三级均失败时，fail-closed 返回 `ANCHOR_SKILL_MISSING`，提示必须同时安装 `a-stock-agents` 锚点入口。
+
+### 8.5 多版本原子升级与回滚规范
+1. **多版本物理隔离**：代码版本解压至 `%LOCALAPPDATA%/a_stock_agents/releases/<version>/`，通过 `current` 软链接/Junction 指向当前激活版本；所有宿主注册的技能入口均指向 `current/skills/<id>`；
+2. **零拷贝原子切换**：升级时下载新版本至独立目录，验证通过后仅需原子重定向 `current` 软链接，无需逐一重建几十个宿主技能入口；
+3. **升级失败一键回滚**：若新版 doctor 冒烟未通过或执行异常，运行 `install.ps1 -Rollback` 即刻将 `current` 切换回上一可用版本；
+4. **用户数据永不覆盖**：用户的自选池、交易记录、回测报告、私有配置严格位于 `%LOCALAPPDATA%/a_stock_agents/`（与 `releases/` 同级物理隔离），代码升级与卸载严禁触碰用户数据。
+

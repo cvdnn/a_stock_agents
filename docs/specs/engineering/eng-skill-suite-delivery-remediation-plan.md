@@ -2,8 +2,9 @@
 
 - **规范编号**：归属 `SPEC-ENG-001`
 - **权威定义 (SSOT)**：[技能总包、唯一来源与跨平台接入评估规范](../../guidelines/engineering/skill-suite-portability-specification.md)
-- **评估依据**：[2026-10-15 技能总包交付形态与技能开发工程评估报告](../../audits/2026-10-15-skill-suite-delivery-assessment.md)
-- **实施状态**：🚧 实施中（P0 全部完成；P1/P2 按优先级推进中；P1-06 / P2-03 的部分事实修正已先行落地，见第五节证据）
+- **评估依据**：[2026-10-15 交付形态评估报告](../../audits/2026-10-15-skill-suite-delivery-assessment.md) 与 [2026-10-16 规范审查与安装评估报告](../../audits/2026-10-16-skill-structure-review.md)
+- **实施状态**：🚧 实施中（基座 7/7 项已完成；当前全局进度 7/24 项完成 29.2%；P0 交付阻断剩余 3 项；当前就绪活跃断点：`[▶] P0-08`）
+
 
 > 本计划只承载**任务矩阵、执行标记与验收门槛**。目录树、路径规则、链接与权限规则的正文一律以 SSOT 为准，本文件不复述。
 > 与 [eng-skill-suite-portability-plan.md](eng-skill-suite-portability-plan.md) 并行跟踪：后者记录结构迁移历史，本计划承接其遗留的「扩展验收待完成」部分。
@@ -34,7 +35,7 @@
 
 ## 二、任务矩阵
 
-状态图例：`☐ 未启动` · `◐ 进行中` · `☑ 已完成` · `⊘ 阻塞` · `— 不适用`
+状态图例：`☐ 未启动` · `[▶] 就绪待执行` · `◐ 进行中` · `☑ 已完成` · `⊘ 阻塞` · `— 不适用`
 
 ### P0 交付阻断项（必须先完成，未完成不得发布正式 Release）
 
@@ -47,6 +48,9 @@
 | `P0-05` | 安装脚本去宿主污染 | ☑ | 无对宿主全局解释器的 pip install；凭据落 `local/settings/.env`；安装流程无外网/LLM 调用；无固定父目录层数；无废弃技能 ID；P0 门禁通过 |
 | `P0-06` | 隔离解压验收转为可重复、不改源码树的常驻用例 | ☑ | 可在隔离路径解压 Release 并跑通自诊断；执行过程不修改源码树；纳入 P0 门禁 |
 | `P0-07` | 修复迁移后 P1/P2 既有失败并锚定 `output/` 忽略规则 | ☑ | 离线全量恢复 0 failed；`.gitignore` 的 `output/**` 锚定仓库根 |
+| `P0-08` | Release 产物锚点技能架构与转发壳三级寻址 | [▶] | 构建期将公共 runtime 注入 `a-stock-agents`；转发壳支持自定位/兄弟/收据三级定位；隔离解压验收通过 |
+| `P0-09` | 统一安装底层脚本核心 `install.ps1` / `install.sh` | ☐ | 支持 `-Inspect`、`-Agent`、`-Method`、`--json`；支持隔离建 venv、装依赖与 doctor 自检冒烟 |
+| `P0-10` | 逐技能粒度注册与“宿主发现模拟”门禁 | ☐ | 注册粒度改为逐技能链接；新增自动化门禁模拟 Universal / Hermes / WorkBuddy 扫描，断言 20 入口均被发现 |
 
 ### P1 质量与一致性
 
@@ -59,6 +63,9 @@
 | `P1-05` | 修复死路径与陈旧路径打印 | ☐ | 3 处 `A_DATA_DIR` 改由 `core.workspace` 或既有常量定位；不再向用户打印已迁移路径 |
 | `P1-06` | CLI `--json` 输出结构契约 + `skill list` 输出测试 | ◐ | `expected_commands` 已对齐 46 个注册子命令（2026-10-15）；执行型 `--json` 结构断言与 `skill list` 输出测试仍待补 |
 | `P1-07` | 引入 CI，承载 P0 与发布链路门禁 | ☐ | 至少覆盖 ① 核心门禁 + 发布链路门禁 + 隔离解压验收 |
+| `P1-08` | 模态一落地：AI 安装引导提示词与 5 类信息卡片渲染契约 | ☐ | 提示词模板进入发版说明；总入口与安装流支持 5 阶段卡片状态机输出 |
+| `P1-09` | 模态二落地：终端 TUI 键盘多选导轨菜单 | ☐ | 终端有 TTY 时自动启动键盘上下/空格多选菜单，对齐截图交互与 Overwrites 冲突保护 |
+| `P1-10` | 多版本原子切换与一键回滚升级链 | ☐ | `releases/<tag>` + `current` Junction 机制落地；支持 `-Update` 与 `-Rollback`，用户数据 100% 留存 |
 
 ### P2 文档口径
 
@@ -67,6 +74,7 @@
 | `P2-01` | 统一技能计数口径 | ☐ | README / `docs/index.md` / `tests/README.md` 一致为 19 项业务技能（+1 总入口 = 20 入口） |
 | `P2-02` | README 宿主清单与产品路线对齐规范 | ☐ | 宿主名含 WorkBuddy；第七节不再宣称「摆脱宿主依赖」为产品路线 |
 | `P2-03` | 测试文档映射与死配置修正 | ◐ | 基线数字 / 目录映射 / `.agents` 旧路径 / `testpaths` 死条目 / 档位漏登记已于 2026-10-15 修正；testing-guide 8.x 历史章节与 `pyproject` 注释的最终复核仍待 `P0-07` 复测后收口 |
+| `P2-04` | 独立 Release 仓库发布与 `npx skills add` 通用生态打通 | ☐ | 发布构建产物到 Release 分支/仓库，支持 `npx skills add cvdnn/a-stock-agents -g` |
 
 ---
 
@@ -146,6 +154,31 @@
   - 门槛：③ 复测 **558 passed / 0 failed**（380.27s）✅；不再有写源码树的用例（docs/save 落点经隔离重定向）✅；生产缺陷处置未改弱任何断言（`docs` 断言族、AST 哨兵、防回归断言全部保留）✅。
   - 边界：`p2` 档（含 `test_custom_output` 修复项）未纳入本轮实测；离线全量 `not network`（578 例）复跑前不引用「全量 0 failed」。
 
+- [ ] **`P0-08` Release 产物锚点技能架构与转发壳三级寻址**（▶ 当前就绪 / 下一步优先执行）
+  - 背景：通用生态工具（如 `npx skills add`）只搬运单个技能子目录，现有平级 `runtime/` 结构脱离后导致 20 个技能全部瘫痪。
+  - 动作：
+    1. 构建器 `tools/packaging/common.py` 调整归档装配：将公共 `runtime/`、`assets/`、`references/` 收敛注入到 `skills/a-stock-agents/`（锚点技能）中，其余 19 个专业技能保持轻量；
+    2. 转发壳模板升级为三级渐进式寻址：① 自身目录向上探测 `bundle.json` -> ② 探测兄弟目录 `../a-stock-agents/bundle.json`（穿透符号链接）-> ③ 探测系统固定安装收据 `%LOCALAPPDATA%/a_stock_agents/install.json`；失败时 fail-closed 提示 `ANCHOR_SKILL_MISSING`；
+    3. `tests/core/test_release_delivery_gate.py` 新增常驻断言覆盖三级寻址分支与锚点打包结构。
+  - 门槛：解压后仅将单个技能目录或全部技能移至临时目录，均能通过兄弟定位或收据定位正常唤起 `doctor.py` 并通过 P0 门禁。
+
+- [ ] **`P0-09` 统一安装底层脚本核心 `install.ps1` / `install.sh`**
+  - 背景：缺乏开箱即用的跨平台部署脚本，缺少 venv 自动构建、依赖安装与 `--json` 机器接口。
+  - 动作：
+    1. 编写跨平台安装核心 `install.ps1`（Windows）与 `install.sh`（POSIX），支持 `-Inspect`（环境探测）、`-Agent <list>`（指定宿主）、`-Method <link|copy>`（挂载方式）、`-Yes`（跳过确认）与 `--json` 输出；
+    2. 脚本自动在数据根 `%LOCALAPPDATA%/a_stock_agents/`（或 POSIX 对应路径）下构建独立隔离的 `.venv`，不污染宿主全局 Python；
+    3. 自动安装 `requirements.txt` 并执行 `doctor.py --json` 验证全部 20 个入口可用性，输出持久化凭证 `install.json`；
+    4. 增加常驻自动化测试，在临时沙箱环境中模拟运行 `install.ps1 -Inspect -Json` 与安装链路。
+  - 门槛：脚本在隔离环境一键执行成功，退出码 0，生成的 `install.json` 包含 20 个入口就绪证明与 SHA256 校验。
+
+- [ ] **`P0-10` 逐技能粒度注册与“宿主发现模拟”门禁**
+  - 背景：现有 `host.py` 将整个 `skills/` 目录作为一个链接注册，导致只扫一层的宿主（Codex/Hermes/WorkBuddy）完全无法发现子技能（H1 阻断项）。
+  - 动作：
+    1. `tools/host_adapters/host.py` 与 `references.py` 注册逻辑调整为**逐技能粒度**（20 个链接：`<宿主技能根>/<id>` -> `current/skills/<id>`）；
+    2. 新增离线自动化门禁：针对 Codex（`plugin.json` + `skills/`）、Hermes（`skills.external_dirs` 扫描）、WorkBuddy（`~/.workbuddy/skills/<id>/SKILL.md` 一层扫描）分别模拟宿主发现逻辑；
+    3. 断言三种宿主模拟器均能 100% 发现全部 20 个入口（1 个总入口 + 19 项专业技能）。
+  - 门槛：新增门禁纳入 `tests/core/test_release_delivery_gate.py`，三宿主发现数全部恒等于 20，`pytest -m core` 全绿。
+
 ### P1 质量与一致性
 
 - [ ] **`P1-01` 腾讯解析器收敛至 `tencent_fields` 单一来源**
@@ -172,11 +205,32 @@
   - 动作：新增 CI 配置，承载 ① 核心门禁 + 发布链路门禁 + 隔离解压验收。
   - 门槛：PR 上强制运行，失败即阻断。
 
-### P2 文档口径
+- [ ] **`P1-08` 模态一落地：AI 安装引导提示词与 5 类信息卡片渲染契约**
+  - 背景：避免用户发送模糊指令导致 AI 幻觉和乱装，固化自包含提示词与卡片交互规范。
+  - 动作：
+    1. 在 `README.md`、发版模板与快速上手指南中固化「一键复制给 AI 的标准化安装指令模板（AI Copilot Bootstrap Prompt）」；
+    2. 在总入口 `a-stock-agents/SKILL.md` 中增加安装引导技能分支，当检测到未安装或被显式调用时，按规范分 5 阶段输出结构化信息卡片（宿主勾选、配置项与数据源、安全摘要、任务导轨流水线、交付实战指令）；
+    3. 编写静态测试断言提示词模板中的 URL、参数、SOP 阶段标记完整无误。
+  - 门槛：在主流 LLM（Claude / GPT / Gemini）中粘贴该提示词能准确触发 5 阶段卡片交互。
+
+- [ ] **`P1-09` 模态二落地：终端 TUI 键盘多选导轨菜单**
+  - 动作：在 `install.ps1` 与 `install.sh` 中增加基于控制台的交互式多选导轨（对齐截图）：支持键盘上下光标、空格勾选、回车确认；展示 Universal 列表与 Additional agents（Hermes / WorkBuddy）；增加 Overwrites 冲突保护检测（遇真实同名目录拒绝覆盖）。
+  - 门槛：在 Windows Terminal / PowerShell 7 与 macOS Terminal 中键盘操作顺畅，回车后无缝触发静默安装。
+
+- [ ] **`P1-10` 多版本原子切换与一键回滚升级链**
+  - 动作：
+    1. 版本安装路径规范化为 `%LOCALAPPDATA%/a_stock_agents/releases/<version>/`，由 `current` 软链接统一寻址；
+    2. 实现 `install.ps1 -Update [-Version <tag>]`：下载新版 -> 校验 -> 建独立目录 -> 比对依赖 Hash 按需更新 -> 原子重定向 `current` 链接 -> doctor 冒烟；
+    3. 实现 `install.ps1 -Rollback`：冒烟失败或人工回退时，瞬时切回上一可用版本；
+    4. 验证用户数据根（`output/`、`local/`）在升级与回滚全程 100% 物理隔离不被覆盖。
+  - 门槛：新增升级与回滚自动化集成测试，断言升级前后自选股 CSV 与配置无任何修改。
+
+### P2 文档口径与生态扩展
 
 - [ ] **`P2-01` 统一技能计数口径** — 落点：`README.md`、`docs/index.md`、`tests/README.md`。
 - [ ] **`P2-02` README 宿主清单与产品路线对齐规范** — 落点：`README.md` 第四、七节。
 - [ ] **`P2-03` 测试文档映射与死配置修正** — 落点：`tests/README.md`、`pyproject.toml` 的 `testpaths`、`tests/conftest.py` 的档位登记。
+- [ ] **`P2-04` 独立 Release 仓库发布与 `npx skills add` 通用生态打通** — 落点：搭建独立 release 分支/仓库，按通用 Skills 规范打通 `npx skills add cvdnn/a-stock-agents -g`。
 
 ---
 
@@ -222,23 +276,139 @@
 
 ---
 
-## 六、执行顺序与依赖
+## 六、分时执行顺序与全局进度追踪清单 (Execution Sequence & Progress Roadmap)
 
-```text
-P0-07 ──┐
-P0-01 ──┼─→ P0-02 ──→ P0-06 ──→ P0 门禁全绿 ──→ 可产出正式 Release 候选
-P0-03 ──┤
-P0-04 ──┤
-P0-05 ──┘
-                     │
-                     └─→ P1-01…P1-07（可与 P0 并行，但 P1-06 / P1-07 依赖 P0-02 的用例骨架）
-                                          │
-                                          └─→ P2-01…P2-03（P0-07 完成后随即执行，修正已失效文档基线）
-```
+> **分时调用与断点续传机制**：本节严格将 24 项整改任务编排为 11 个执行步序，按**「执行或规范文档文件 + 任务号」**格式标准化登记，作为跨会话、分时调用、断点续传的权威进度看板。
+> **状态标记约定**：
+> - `[x]` **已完成**：已完成代码实现并通关常驻门禁，第五节已留存验收证据；
+> - `[▶]` **当前就绪 / 下一步优先执行**：前置依赖已全部就绪，作为下次会话或下一步工作的明确起点指针；
+> - `[ ]` **待执行**：待前序步骤通过验收后顺次解锁。
 
-- `P0-01` ~ `P0-07` 之间无强依赖，可并行；`P0-02` 是其余各项的**验收载体**，应优先搭建。
-- `P0-02` 与 `P0-06` 完成后，才具备「可重复验证 Release 交付闭环」的能力。
-- 宿主原生格式适配（形态 C）不在本计划范围，待 P0 全绿且取得三宿主官方导入契约后另立计划。
+### 6.1 全局进度追踪看板 (Progress Dashboard)
+
+| 阶段分类 | 任务范围 | 完成进度 | 阶段状态 | 当前活跃指针 |
+| :--- | :--- | :---: | :---: | :--- |
+| **阶段 0：基础交付基座** | `P0-01` ~ `P0-07` | **7 / 7 (100%)** | ✅ **已闭环** | 全部门禁全绿（312 passed） |
+| **阶段一：P0 交付阻断攻坚** | `P0-08` ~ `P0-10` | **0 / 3 (0.0%)** | 🚧 **当前执行攻坚中** | **`[▶] P0-08`（当前就绪）** |
+| **阶段二：P1 双模态安装与升级** | `P1-08` ~ `P1-10` | **0 / 3 (0.0%)** | ⏳ 等待阶段一完成 | 待 `P0-09` 交付安装核心 |
+| **阶段三：P1 源码工程质量治理** | `P1-01` ~ `P1-07` | **0 / 7 (0.0%)** | ⏳ 等待排期推进 | `P1-06` 结构对齐先期已打底 |
+| **阶段四：P2 文档与通用生态** | `P2-01` ~ `P2-04` | **0 / 4 (0.0%)** | ⏳ 等待最终发版 | `P2-03` 测试映射已先期修正 |
+| **全工程总计** | 全套 24 项整改任务 | **7 / 24 (29.2%)** | 🚧 实施推进中 | **唯一执行起点：`[▶] 顺序 ①: P0-08`** |
+
+---
+
+### 6.2 分时顺序执行清单 (11 步详细链路)
+
+#### 阶段一：P0 交付阻断攻坚（底层产物与宿主识别闭环，必须最优先执行）
+
+- [▶] **顺序 ①**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P0-08`**
+  - **任务名称**：**Release 产物锚点技能架构与转发壳三级寻址改造**
+  - **进度状态**：`[▶] 当前就绪（下一步优先执行）`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §8.1、§4.2
+  - **前置依赖**：`P0-01` ~ `P0-07`（已全部达成 ✅）
+  - **核心动作**：修改 `tools/packaging/common.py`，构建期将公共 `runtime/`、`assets/`、`references/` 收敛注入总入口 `skills/a-stock-agents/`；升级转发壳模板实现“自定位 ➔ 兄弟定位 `../a-stock-agents/` ➔ 收据定位 `install.json`”；在 `tests/core/test_release_delivery_gate.py` 新增锚点打包与寻址断言。
+  - **验收门槛**：单个技能被剥离到独立临时目录时，仍能通过兄弟定位或收据定位唤起 `doctor.py` 并通过 P0 门禁。
+  - **执行命令参考**：`.venv/Scripts/python.exe -m pytest tests/core/test_release_delivery_gate.py -q`
+
+- [ ] **顺序 ②**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P0-09`**
+  - **任务名称**：**统一安装底层脚本核心 `install.ps1` / `install.sh` 开发**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §8.2、§8.3
+  - **前置依赖**：`P0-08`（产物具备锚点技能与三级寻址结构）
+  - **核心动作**：编写跨平台安装核心 `install.ps1`（Windows）与 `install.sh`（POSIX），支持 `-Inspect`、`-Agent <list>`、`-Method <link|copy>`、`-Yes` 与 `--json`；在 `%LOCALAPPDATA%/a_stock_agents/`（或 POSIX 数据根）建立专用 `.venv`，安装依赖并落盘 `install.json`（持久化 `python_path` 与 `runtime_root`）。
+  - **验收门槛**：在临时沙箱中执行 `install.ps1 -Inspect -Json` 与安装链路，退出码 0，生成的收据包含 20 个入口就绪证明与 SHA256。
+  - **执行命令参考**：`powershell -File install.ps1 -Inspect -Json`
+
+- [ ] **顺序 ③**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P0-10`**
+  - **任务名称**：**逐技能粒度平级注册与“宿主发现模拟”自动化门禁**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §8.2、§5
+  - **前置依赖**：`P0-09`（统一安装脚本具备逐技能挂载能力）
+  - **核心动作**：重构宿主注册逻辑，废弃链接整个 `skills/` 的错误行为，改为在宿主技能根创建 20 个平级独立链接（Hermes 写入 `external_dirs`）；在 `tests/core/test_release_delivery_gate.py` 新增模拟门禁，模拟 Codex、Hermes、WorkBuddy 的单层扫描逻辑，**断言 20 个入口检出率 100%**。
+  - **验收门槛**：P0 核心门禁 `pytest -m core` 全绿，三宿主发现数全部恒等于 20。**至此 P0 交付阻断项全部闭环！**
+
+---
+
+#### 阶段二：P1 双模态安装交互体验与生命周期（从“能装”到“极佳体验”）
+
+- [ ] **顺序 ④**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P1-08`**
+  - **任务名称**：**模态一落地：AI 安装引导提示词与 5 类信息卡片渲染契约**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §8.4、§8.5
+  - **前置依赖**：`P0-09`、`P0-10`
+  - **核心动作**：在发版说明与快速上手中固化自包含提示词；在总入口 `a-stock-agents/SKILL.md` 中固化安装状态机，在 AIChat / AIWork 中分 5 阶段输出结构化信息卡片（宿主选择、配置登记、安全评估、任务导轨、实战交付）。
+
+- [ ] **顺序 ⑤**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P1-09`**
+  - **任务名称**：**模态二落地：终端 TUI 键盘多选导轨菜单开发**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §8.6
+  - **前置依赖**：`P0-09`
+  - **核心动作**：在 `install.ps1` 与 `install.sh` 中检测 TTY 环境，自动激活控制台交互式菜单：支持光标上下移动、空格勾选、回车确认；展示 Universal 宿主与特有 AI 工具分类；加入 Overwrites 冲突保护。
+
+- [ ] **顺序 ⑥**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P1-10`**
+  - **任务名称**：**多版本原子切换与一键回滚升级链实现**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §8.7
+  - **前置依赖**：`P0-09`
+  - **核心动作**：代码安装路径规范为 `releases/<version>/`，由 `current` 符号链接挂载；实现 `install.ps1 -Update` 与 `-Rollback`；确保升级与回滚全程 100% 隔离用户资产。
+
+---
+
+#### 阶段三：P1 源码工程单一来源治理与自动化看守（开发内聚度收口）
+
+- [ ] **顺序 ⑦**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P1-01` ~ `P1-05`**
+  - **任务名称**：**源码单一来源收敛（腾讯解析器、监控模板、指标权威、CLI 双后端合一、死路径清理）**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §2、§3
+  - **前置依赖**：P0 门禁保持全绿
+  - **核心动作**：取消技能 templates 下的重复下标解析豁免，由 AST 哨兵守住；合并 `ta_entry_monitor`；回测脚本统一复用 `core.indicators` 与 `combo_scorer`；双后端合一。
+
+- [ ] **顺序 ⑧**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P1-06`**
+  - **任务名称**：**CLI `--json` 输出结构契约与 `skill list` 输出测试**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §6
+  - **前置依赖**：`P1-01` ~ `P1-05`
+  - **核心动作**：对 20 个入口逐一进行子进程执行校验，断言标准输出必须为合法 JSON，且包含最低保本价、三级止损、三动作单铁律字段。
+
+- [ ] **顺序 ⑨**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P1-07`**
+  - **任务名称**：**引入 GitHub Actions CI 流水线**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/testing-guide.md`](../guidelines/engineering/testing-guide.md) §3.2
+  - **前置依赖**：P0 与 P1-06 门禁
+  - **核心动作**：建立 Windows + Linux 跨平台自动化测试矩阵，在 PR 和发版时自动跑通 P0 门禁、发布链路检验与隔离解压验收。
+
+---
+
+#### 阶段四：P2 文档口径对齐与通用生态分发（公开发布准备）
+
+- [ ] **顺序 ⑩**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P2-01` ~ `P2-03`**
+  - **任务名称**：**统一技能计数口径（20 入口）、README 宿主清单与测试文档映射修正**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/audits/2026-10-16-skill-structure-review.md`](../../audits/2026-10-16-skill-structure-review.md) §4.3
+  - **前置依赖**：代码与测试完成
+  - **核心动作**：明确统一为“1 个总入口（锚点）+ 19 项专业量化技能”，宿主清单正式包含 WorkBuddy；清理废弃测试映射。
+
+- [ ] **顺序 ⑪**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P2-04`**
+  - **任务名称**：**独立 Release 仓库发布与 `npx skills add` 通用生态打通**
+  - **进度状态**：`[ ] 待执行`
+  - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §8.1
+  - **前置依赖**：`P0-08` ~ `P0-10`、`P2-01` ~ `P2-03`
+  - **核心动作**：搭建独立 Release 分发仓库，将经过 `P0-08` 锚点装配的 Release 产物发布，正式支持社区一行命令接入：`npx skills add cvdnn/a-stock-agents -g`。
+
+---
+
+### 6.3 分时断点续传与执行维护守则 (Session Continuity Protocol)
+
+后续分时在不同会话中执行时，智能体与开发者必须严格遵守以下执行守则：
+1. **断点寻址**：新会话开始时，通过读取本文档第 6.1 节与 6.2 节寻找 `[▶]` 标记，即可瞬间定位当前唯一的执行起点；
+2. **任务实施与测试门禁**：
+   - 必须先完成该任务要求的代码改造与用例编写；
+   - 必须运行 P0 核心门禁验证（`.venv/Scripts/python.exe -m pytest -m core -q`），确保无回归；
+3. **标记推进与证据留痕**：
+   - 任务完成后，将当前项标记由 `[▶]` 改为 `[x]`；
+   - 将紧随其后的下一顺序项标记由 `[ ]` 改为 `[▶]`；
+   - 在第二节矩阵将状态改为 `☑`，在第三节可勾选清单中打勾；
+   - 在第五节验收证据表中追加实测命令行、测试数量、耗时与结果边界。
 
 ---
 

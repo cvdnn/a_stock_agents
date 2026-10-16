@@ -3,6 +3,9 @@
 > 本文件保存 2026-08-28 形成的原始代码审查报告。其“完成”标记属于当时声明，不代表 2026-09-10 的生产验收结论；当前规则与整改状态以 [现行代码审查指南](../guidelines/engineering/code-review.md) 和 [整改验收台账](../specs/engineering/eng-remediation-acceptance.md) 为准。
 > 最新审查：[2026-09-10 代码审查报告（生产级 Agent 平台）](2026-09-10-code-review-production-agent-platform.md) — 发现 🔴 高危 5 项（治理双绕过、保本价兜底伪造、前端编造数值存活、假会话），整改状态见该报告。
 > 专题审查：[2026-10-07 智能选股系统实现情况审查与实施计划](2026-10-07-selection-system-implementation-review.md) — ISS 主体未落地，仅底座（funnel 引擎 + 数据装配 + 手工 CLI）可用，附分批实施计划与门禁。
+> 交付审查：[2026-10-15 技能总包交付形态与技能开发工程评估报告](2026-10-15-skill-suite-delivery-assessment.md) — 识别单一来源、宿主发现与发布门禁短板，制定 SPEC-ENG-001 整改闭环。
+> 规范与宿主审查：[2026-10-16 项目结构 Skill 规范审查（含双模态安装与宿主发现再评估）](2026-10-16-skill-structure-review.md) — 确立锚点技能架构（Anchor Skill）与双模态安装引导（AI 卡片交互 / 终端 TUI），全面化解 WorkBuddy / Hermes Desktop / Codex 宿主接入阻断。
+
 
 ---
 
