@@ -164,7 +164,7 @@ ta-multi-agent-analysis
 | P0 | TA结果自动写回股池 | `ta_analyze.py` → `pool_manager.py` | ✅ 已实现 |
 | P1 | 融合评分矩阵 | `ta_analyze.py` `_consensus_rating()` | ✅ 已实现 |
 | P2 | 统一数据字段 | `pool_manager.py` CSV 新增 `ta_decision` / `ta_analysis_date` | ✅ 已实现 |
-| P3 | 三合一监控 | `templates/ta_entry_monitor.py`（entry/stop/all 模式） | ✅ 模板就绪 |
+| P3 | 三合一监控 | `runtime/core/multi_agent/templates/ta_entry_monitor.py.template`（entry/stop/all 模式） | ✅ 模板就绪 |
 | P4 | 事件驱动调度 | `scripts/ta_orchestrator.py`（daily-batch/reanalyze/check-pool） | ✅ 已实现 |
 | P5 | 反馈闭环 | `ta_analyze.py` → SELL时自动从股池移除 | ✅ 已实现 |
 

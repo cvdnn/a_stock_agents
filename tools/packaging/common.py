@@ -40,9 +40,10 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
         files.append(path)
     instructions={'platform':platform,'mode':'release-candidate-collection','skill_entries':20,'business_skills':19,
                   'runtime':'skill_bundle/runtime','skills':'skill_bundle/skills',
+                  'anchor_skill':'skill_bundle/skills/a-stock-agents',
                   'host_scan_status':'unverified',
                   'native_import_verified':False, 'data_root':'OS user data/a_stock_agents or explicit A_STOCK_WORKSPACE_ROOT',
-                  'python_requirement':'3.9+',
+                  'python_requirement':'3.9+', 'installer':{'windows':'install.ps1','posix':'install.sh'},
                   'dependency_install':'base: pip install -r requirements.txt; data-source extras (akshare/MyTT/akshare-proxy-patch/efinance): pip install -r requirements-full.txt; version constraints are declared only in pyproject.toml [full] and derived at build time',
                   'launcher':{'windows':'skill_bundle/runtime/astock.ps1','posix':'skill_bundle/runtime/astock','fallback':'python skill_bundle/runtime/cli.py'},
                   'health_check':'python skill_bundle/runtime/doctor.py (exit 0 when healthy; 20 skill entries expected)',
@@ -66,11 +67,48 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
                 marker['distribution']='release'
                 content=json.dumps(marker,ensure_ascii=False,indent=2).encode('utf-8')
             archive.writestr(info,content)
+            # P0-08: 锚点技能架构 (Anchor Skill)——收敛注入 runtime/assets/references 到 a-stock-agents
+            rel = path.relative_to(PACKAGE_ROOT)
+            if rel.parts and rel.parts[0] in {'runtime', 'assets', 'references'}:
+                anchor_name = (Path('skill_bundle/skills/a-stock-agents') / rel).as_posix()
+                anchor_info = zipfile.ZipInfo.from_file(path, anchor_name)
+                anchor_info.create_system = 3
+                anchor_info.external_attr = mode << 16
+                anchor_info.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(anchor_info, content)
+        # 锚点技能自描述 bundle.json
+        anchor_marker = json.loads((PACKAGE_ROOT / 'bundle.json').read_text(encoding='utf-8'))
+        anchor_marker['distribution'] = 'release'
+        anchor_marker['anchor'] = True
+        anchor_marker['skills'] = '..'
+        anchor_bundle_info = zipfile.ZipInfo('skill_bundle/skills/a-stock-agents/bundle.json')
+        anchor_bundle_info.create_system = 3
+        anchor_bundle_info.external_attr = 0o100644 << 16
+        anchor_bundle_info.compress_type = zipfile.ZIP_DEFLATED
+        archive.writestr(anchor_bundle_info, json.dumps(anchor_marker, ensure_ascii=False, indent=2).encode('utf-8'))
+        # 锚点技能携带的依赖清单
+        anchor_req_info = zipfile.ZipInfo('skill_bundle/skills/a-stock-agents/requirements.txt')
+        anchor_req_info.create_system = 3
+        anchor_req_info.external_attr = 0o100644 << 16
+        anchor_req_info.compress_type = zipfile.ZIP_DEFLATED
+        archive.writestr(anchor_req_info, (ROOT / 'requirements.txt').read_bytes())
+        anchor_req_full_info = zipfile.ZipInfo('skill_bundle/skills/a-stock-agents/requirements-full.txt')
+        anchor_req_full_info.create_system = 3
+        anchor_req_full_info.external_attr = 0o100644 << 16
+        anchor_req_full_info.compress_type = zipfile.ZIP_DEFLATED
+        archive.writestr(anchor_req_full_info, requirements_full.encode('utf-8'))
         # Derived installation metadata, never another business rule manifest.
         archive.writestr('INSTALL.json',json.dumps(instructions,ensure_ascii=False,indent=2))
         archive.writestr('requirements-full.txt',requirements_full)
         archive.write(ROOT/'requirements.txt','requirements.txt')
         archive.write(ROOT/'LICENSE','LICENSE')
+        if (ROOT / 'install.ps1').is_file(): archive.write(ROOT / 'install.ps1', 'install.ps1')
+        if (ROOT / 'install.sh').is_file():
+            sh_info = zipfile.ZipInfo('install.sh')
+            sh_info.create_system = 3
+            sh_info.external_attr = 0o100755 << 16
+            sh_info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(sh_info, (ROOT / 'install.sh').read_bytes())
         if platform in {'codex','hermes','workbuddy'}:
             for name in ('references.py','windows_junction.ps1','host.py',platform+'.py'):
                 path=ROOT/'tools/host_adapters'/name

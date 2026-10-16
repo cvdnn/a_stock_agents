@@ -46,10 +46,24 @@ def _get_ma20_estimate(code: str) -> Optional[float]:
 
 # ── 核心逻辑（通常无需修改）────────────────────────────────────────────────────
 
-PROJECT_ROOT = next(
-    parent for parent in Path(__file__).resolve().parents
-    if (parent / "scripts" / "core" / "workspace.py").exists()
-)
+def _find_project_root() -> Path:
+    cur = Path(__file__).resolve().parent
+    while cur.parent != cur:
+        if (cur / "bundle.json").is_file() or (cur / "pyproject.toml").is_file():
+            return cur
+        cur = cur.parent
+    return Path(__file__).resolve().parent
+
+_root = _find_project_root()
+for _p in [_root, _root / "runtime", _root / "skill_bundle" / "runtime", _root / "skill_bundle" / "runtime" / "core", _root / "core"]:
+    if _p.exists() and str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
+
+try:
+    from core.workspace import PROJECT_ROOT
+except ImportError:
+    PROJECT_ROOT = _root
+
 STATE_FILE = PROJECT_ROOT / "temp" / "monitor-state" / f"ta_monitor_{STOCK_CONFIG['code']}_state.json"
 CODE = STOCK_CONFIG["code"]
 PREFIX = "sh" if CODE.startswith(("6", "9")) else "sz" if CODE.startswith(("0", "3")) else "bj"
@@ -64,41 +78,109 @@ def is_market_hours() -> bool:
     return (9.30 <= t <= 11.30) or (13.00 <= t <= 15.00)
 
 
-def get_realtime_price() -> Optional[float]:
-    """通过腾讯 API 获取实时价格。"""
-    url = f"https://qt.gtimg.cn/q={PREFIX}{CODE}"
+def get_tencent_quote(code: str) -> dict:
+    """从腾讯行情 API 获取实时数据并使用权威 tencent_fields 解析。"""
+    url = f"https://qt.gtimg.cn/q={PREFIX}{code}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            text = resp.read().decode("gbk", errors="ignore")
-        parts = text.split("~")
-        if len(parts) > 3:
-            return float(parts[3])
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            text = resp.read().decode("gbk", errors="replace")
+        from core.data.tencent_fields import parse_tencent_quote
+        q = parse_tencent_quote(text)
+        if q:
+            return {
+                "price": q["price"],
+                "change_pct": q.get("change_pct", 0.0),
+                "high": q.get("high", 0.0),
+                "low": q.get("low", 0.0),
+                "time": "",
+                "name": q.get("name", code),
+            }
     except Exception:
         pass
-    return None
+    return {}
+
+
+def load_state() -> dict:
+    """读取已触发状态，避免重复通知。"""
+    if STATE_FILE.exists():
+        try:
+            return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {"day": "", "stop_triggered": False, "stop_warned": False, "target_triggered": False, "entry_triggered": False, "alerts": []}
+
+
+def save_state(state: dict):
+    """持久化状态。"""
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def main():
+    today = date.today().isoformat()
+    state = load_state()
+
+    # 每日重置
+    if state.get("day") != today:
+        state = {"day": today, "stop_triggered": False, "stop_warned": False, "target_triggered": False, "entry_triggered": False, "alerts": []}
+
+    # 非交易时段：静默退出
     if not is_market_hours():
+        now = datetime.now()
+        if now.hour < 9 or now.hour >= 15:
+            sys.exit(0)
+
+    # 获取行情
+    quote = get_tencent_quote(CODE)
+    if not quote or "price" not in quote:
         sys.exit(0)
 
-    price = get_realtime_price()
-    if price is None:
+    price = quote["price"]
+    name = quote.get("name", STOCK_CONFIG.get("name", CODE))
+    entry = STOCK_CONFIG.get("entry_price", 0)
+    stop = STOCK_CONFIG.get("stop_price", 0)
+    target = STOCK_CONFIG.get("target_price", 0)
+
+    signals = []
+
+    # 止损检测 (stop 或 all 模式)
+    if MODE in ("stop", "all") and stop > 0:
+        if price <= stop and not state.get("stop_triggered"):
+            signals.append(f"[RED] 止损触发！{name}({CODE}) 现价{price:.2f} <= 止损{stop:.2f}")
+            state["stop_triggered"] = True
+        elif price <= stop * 1.03 and not state.get("stop_warned"):
+            pct = (price - stop) / stop * 100
+            signals.append(f"[ORANGE] 接近止损！{name}({CODE}) 现价{price:.2f}，距止损{pct:.1f}%")
+            state["stop_warned"] = True
+
+    # 入场检测 (entry 或 all 模式)
+    if MODE in ("entry", "all") and entry > 0:
+        if price <= entry and not state.get("entry_triggered"):
+            signals.append(f"[SIGNAL] 回踩触发入场！{name}({CODE}) 现价{price:.2f} <= 目标入场价{entry:.2f}")
+            state["entry_triggered"] = True
+
+    # 目标价触发
+    if target > 0 and price >= target and not state.get("target_triggered"):
+        signals.append(f"[GREEN] 目标价触及！{name}({CODE}) 现价{price:.2f} >= 目标{target:.2f}")
+        state["target_triggered"] = True
+
+    # 记录状态
+    state["alerts"] = (state.get("alerts", []) + signals)[-20:]
+    save_state(state)
+
+    # 无事件：静默退出
+    if not signals:
         sys.exit(0)
 
-    stop_p = STOCK_CONFIG.get("stop_price", 0)
-    entry_p = STOCK_CONFIG.get("entry_price", 0)
-
-    if MODE in ("stop", "all") and stop_p > 0 and price <= stop_p:
-        print(f"[ALERT] {CODE} 触及止损线: 现价 {price:.2f} <= 止损价 {stop_p:.2f}")
-        sys.exit(1)
-
-    if MODE in ("entry", "all") and entry_p > 0 and price <= entry_p:
-        print(f"[SIGNAL] {CODE} 回踩触发入场: 现价 {price:.2f} <= 目标入场价 {entry_p:.2f}")
-        sys.exit(1)
-
-    sys.exit(0)
+    # 有事件：输出推送内容
+    print(f"=== 监控提醒: {name}({CODE}) ===")
+    for s in signals:
+        print(f"  {s}")
+    if entry:
+        profit_pct = (price / entry - 1) * 100
+        print(f"  入场: {entry:.2f} | 现价: {price:.2f} ({profit_pct:+.2f}%)")
+    print(f"  时间: {quote.get('time', '')}")
 
 
 if __name__ == "__main__":

@@ -33,14 +33,8 @@ def render_monitor_script(ticker: str,
         生成的监控脚本代码字符串
     """
     if not TEMPLATE_PATH.exists():
-        # Fallback to skills template if not found in core
-        fallback = Path(__file__).resolve().parent.parent.parent / "skills" / "ta-multi-agent-analysis" / "templates" / "ta_entry_monitor.py"
-        if fallback.exists():
-            template = fallback.read_text(encoding="utf-8")
-        else:
-            raise FileNotFoundError(f"Monitor template not found at {TEMPLATE_PATH} or {fallback}")
-    else:
-        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        raise FileNotFoundError(f"Monitor template not found at {TEMPLATE_PATH}")
+    template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
     rendered = template.replace("{{TICKER}}", ticker) \
                        .replace("{{ENTRY_PRICE}}", str(entry_price)) \

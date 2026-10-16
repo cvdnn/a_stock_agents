@@ -53,7 +53,12 @@ POOLS_BASE = OUTPUT_POOLS_DIR
 POSITIONS_PATH = os.path.join(str(POOLS_BASE), "positions.csv")
 HISTORY_PATH = os.path.join(str(POOLS_BASE), "positions_history.csv")
 SELECTED_PATH = os.path.join(str(POOLS_BASE), "selected_pool.csv")
-A_DATA_DIR = str(PROJECT_ROOT / "core" / "data")
+from core.workspace import skill_resource
+
+try:
+    FETCH_PATCHED_SCRIPT = str(skill_resource("astock-data-feed", "scripts/fetch_patched.py"))
+except Exception:
+    FETCH_PATCHED_SCRIPT = ""
 VENV_PY = sys.executable
 
 
@@ -72,7 +77,7 @@ def _get_quote(code: str) -> Dict[str, Any]:
     except Exception as exc:
         logger.debug(f"[position_manager] L1 DataBridge.get_realtime_quote({code}) failed: {exc}")
     try:
-        script_path = os.path.join(A_DATA_DIR, "fetch_patched.py")
+        script_path = FETCH_PATCHED_SCRIPT
         if os.path.exists(VENV_PY) and os.path.exists(script_path):
             r = subprocess.run(
                 [VENV_PY, script_path,

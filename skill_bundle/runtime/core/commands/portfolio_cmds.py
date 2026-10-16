@@ -51,8 +51,9 @@ def cmd_report(args):
     out_dir = OUTPUT_REPORTS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = args.output or str(out_dir / f"aStocks_{code}_{datetime.now():%Y%m%d}.html")
-    generate_simple_report(data, out_path)
-    if getattr(args, "json", False):
+    is_json = getattr(args, "json", False)
+    generate_simple_report(data, out_path, verbose=not is_json)
+    if is_json:
         print(json.dumps({"status": "success", "report_path": out_path, "code": code, "name": name}, ensure_ascii=False, indent=2))
     else:
         print(f"量化诊断 HTML 报告已成功生成: {out_path}")
@@ -145,16 +146,20 @@ def cmd_config_market(args):
 
 def cmd_skill_list(args):
     """列出注册的 Skills"""
-    skills_dir = SKILLS_DIR if SKILLS_DIR.exists() else (PROJECT_ROOT / ".agents" / "skills")
-    if not skills_dir.exists():
-        print("未找到 skills 目录")
-        return
-    skills = [d.name for d in skills_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
+    from core.workspace import SKILLS_ROOT, MANIFEST_PATH
+    skills_dir = SKILLS_ROOT
+    if skills_dir.exists():
+        skills = sorted([d.name for d in skills_dir.iterdir() if d.is_dir() and not d.name.startswith(".")])
+    elif MANIFEST_PATH.exists():
+        manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        skills = sorted([s["id"] for s in manifest.get("skills", [])] + ["a-stock-agents"])
+    else:
+        skills = []
     if getattr(args, "json", False):
-        print(json.dumps({"skills": sorted(skills)}, ensure_ascii=False, indent=2))
+        print(json.dumps({"total": len(skills), "skills": skills}, ensure_ascii=False, indent=2))
     else:
         print(f"=== A-Stock Agents 已注册技能模块 ({len(skills)} 个) ===")
-        for s in sorted(skills):
+        for s in skills:
             print(f"  - {s}")
 
 
@@ -198,7 +203,9 @@ def cmd_pool_audit(args):
     else:
         from core.strategy.pool_manager import PoolManager
 
-        pools = PoolManager().get_all_pools()
+        data_dir = getattr(args, "data", None)
+        pm = PoolManager(pools_dir=data_dir) if data_dir else PoolManager()
+        pools = pm.get_all_pools()
         result = {
             "status": "success",
             "fix": False,

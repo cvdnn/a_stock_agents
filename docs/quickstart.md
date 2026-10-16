@@ -16,7 +16,33 @@
 
 ## 二、一键安装部署
 
-### 1. Linux / macOS
+### 0. 🤖 模态一：AI 智能体协同交互安装（让 AI 帮你装，强烈推荐）
+
+若您使用 Codex、Hermes Desktop、WorkBuddy 或在 Web 工作台的 AI 对话窗口中，直接将以下标准化安装指令模板复制给 AI：
+
+> **AI Copilot Bootstrap Prompt（标准 AI 安装指令模板）**：
+> ```markdown
+> 请帮我安全安装与配置「A-Stock Agents (A股全流程量化实战决策智能体技能总包)」。
+> 本项目为生产级量化工程，严禁自行编写临时爬虫或随意 pip install。请严格遵循以下执行契约与渐进式卡片交互 SOP：
+> 
+> 【安装源与执行协议】
+> 1. 项目 Release 仓库: https://github.com/cvdnn/a-stock-agents/releases/latest
+> 2. 基础安装引导器:
+>    - Windows (PowerShell): `irm https://github.com/cvdnn/a-stock-agents/releases/latest/download/install.ps1 | iex` (或本地 `.\install.ps1`)
+>    - POSIX (Bash): `curl -fsSL https://github.com/cvdnn/a-stock-agents/releases/latest/download/install.sh | bash`
+> 3. 所有命令交互与状态查询必须追加 `--json` 参数以获取结构化数据。
+> 
+> 【执行任务流水线 (SOP)】
+> - 阶段 1 [探测环境]：调用安装引导器 `-Inspect -Json`，探测当前系统已安装的 AI 工具（Codex/Hermes/WorkBuddy/Universal目录）。
+> - 阶段 2 [配置交互]：暂停执行，向我呈现【信息卡片 1：宿主选择】与【信息卡片 2：数据源偏好】，等待我做出选择。
+> - 阶段 3 [安全确认]：根据我的选择，生成【信息卡片 3：安装前摘要与安全审计】，提示挂载路径、依赖清单与权限范围，等待我确认。
+> - 阶段 4 [分级执行]：获得确认后，组装参数调用 `install.ps1 -Agent <已选项> -Method link -Yes -Json`，并在工作区以 L1/L2 批量子任务卡片呈现部署进度。
+> - 阶段 5 [冒烟交付]：运行 `doctor.py --json` 验证全部 20 个入口，输出【信息卡片 5：交付与快速实战指令】。
+> 
+> 请先执行阶段 1，并向我输出【信息卡片 1】开始安装引导。
+> ```
+
+### 1. Linux / macOS 手动安装 (模态二)
 ```bash
 # 进入项目根目录
 cd a_stock_agents

@@ -21,10 +21,53 @@
 """
 
 import sys as _astock_sys
+import os as _astock_os
+import json as _astock_json
 from pathlib import Path as _AstPath
-_astock_bundle = next((p for p in _AstPath(__file__).resolve().parents if (p / "bundle.json").is_file()), None)
-if _astock_bundle is None:
-    raise RuntimeError("Complete a_stock_agents bundle required")
+
+def _astock_resolve_bundle():
+    _file_path = _AstPath(__file__).resolve()
+    # 1. 自定位：自身及父目录向上查找 bundle.json
+    for _p in _file_path.parents:
+        if (_p / "bundle.json").is_file():
+            return _p
+    # 2. 兄弟定位：查找兄弟目录 a-stock-agents/bundle.json（未解析/已解析上级均探测）
+    for _base in (_AstPath(__file__), _file_path):
+        for _p in _base.parents:
+            for _candidate in (_p / "a-stock-agents", _p.parent / "a-stock-agents"):
+                if (_candidate / "bundle.json").is_file():
+                    return _candidate.resolve()
+    # 3. 收据定位：读取系统固定安装收据 install.json
+    _receipts = []
+    _env_root = _astock_os.environ.get("A_STOCK_WORKSPACE_ROOT") or _astock_os.environ.get("A_STOCK_AGENTS_ROOT")
+    if _env_root:
+        _receipts.append(_AstPath(_env_root) / "install.json")
+    if _astock_sys.platform == "win32":
+        _local = _astock_os.environ.get("LOCALAPPDATA") or (_AstPath.home() / "AppData/Local")
+        _receipts.append(_AstPath(_local) / "a_stock_agents" / "install.json")
+    elif _astock_sys.platform == "darwin":
+        _receipts.append(_AstPath.home() / "Library/Application Support" / "a_stock_agents" / "install.json")
+    else:
+        _xdg = _astock_os.environ.get("XDG_DATA_HOME") or (_AstPath.home() / ".local/share")
+        _receipts.append(_AstPath(_xdg) / "a_stock_agents" / "install.json")
+    for _rp in _receipts:
+        if _rp.is_file():
+            try:
+                _data = _astock_json.loads(_rp.read_text(encoding="utf-8"))
+                _target = _data.get("bundle_root") or _data.get("runtime_root") or _data.get("anchor_root")
+                if _target:
+                    _tp = _AstPath(_target).resolve()
+                    if (_tp / "bundle.json").is_file():
+                        return _tp
+                    if (_tp / "a-stock-agents" / "bundle.json").is_file():
+                        return (_tp / "a-stock-agents").resolve()
+                    if _tp.name == "runtime" and (_tp.parent / "bundle.json").is_file():
+                        return _tp.parent
+            except Exception:
+                pass
+    raise RuntimeError("ANCHOR_SKILL_MISSING: Complete a_stock_agents bundle or a-stock-agents anchor skill required")
+
+_astock_bundle = _astock_resolve_bundle()
 _astock_runtime = _astock_bundle / "runtime"
 if str(_astock_runtime) not in _astock_sys.path:
     _astock_sys.path.insert(0, str(_astock_runtime))
@@ -44,91 +87,125 @@ def load(code):
     return k.get("qfqday") or k.get("day")  # [[date,open,close,high,low,vol],...]
 
 
-def ma(vals, n):
-    return [None if i < n - 1 else sum(vals[i - n + 1:i + 1]) / n for i in range(len(vals))]
-
-
-def ema(vals, n):
-    k = 2 / (n + 1)
-    out = [vals[0]]
-    for v in vals[1:]:
-        out.append(out[-1] + k * (v - out[-1]))
-    return out
+from core.indicators.technical_indicators import calc_all, ma
+from core.models.combo_scorer import ComboScorer
+from core.paper_trading.backtest_metrics import compute_metrics
 
 
 def tech(kl):
+    """复用 core.indicators.technical_indicators 权威计算。"""
     closes = [float(x[2]) for x in kl]
     last = closes[-1]
-    m5, m10, m20, m60 = ma(closes, 5), ma(closes, 10), ma(closes, 20), ma(closes, 60)
-    e12, e26 = ema(closes, 12), ema(closes, 26)
-    dif = [a - b for a, b in zip(e12, e26)]
-    dea = ema(dif, 9)
-    bar = 2 * (dif[-1] - dea[-1])
-    # RSI14
-    g = sum(max(closes[i] - closes[i - 1], 0) for i in range(-14, 0))
-    l = sum(max(closes[i - 1] - closes[i], 0) for i in range(-14, 0))
-    rsi = 100 if l == 0 else round(100 - 100 / (1 + g / l), 1)
-    return dict(last=last, ma5=m5[-1], ma10=m10[-1], ma20=m20[-1], ma60=m60[-1],
-                dif=dif[-1], dea=dea[-1], bar=bar, rsi=rsi,
-                d20=(last - m20[-1]) / m20[-1] * 100, d10=(last - m10[-1]) / m10[-1] * 100)
+    res = calc_all(kl)
+    latest = res.get("latest") or {}
+    ma10 = latest.get("ma10", 0.0)
+    ma20 = latest.get("ma20", 0.0)
+    bar = latest.get("macd_bar", 0.0)
+    rsi_list = res.get("rsi", [])
+    rsi = round(rsi_list[-1], 1) if rsi_list else 50.0
+    d20 = (last - ma20) / ma20 * 100 if ma20 else 0.0
+    d10 = (last - ma10) / ma10 * 100 if ma10 else 0.0
+    return dict(
+        last=last,
+        ma5=latest.get("ma5", 0.0),
+        ma10=ma10,
+        ma20=ma20,
+        ma60=latest.get("ma60", 0.0),
+        dif=latest.get("dif", 0.0),
+        dea=latest.get("dea", 0.0),
+        bar=bar,
+        rsi=rsi,
+        d20=d20,
+        d10=d10,
+        latest=latest,
+    )
 
 
-def combo_score(t):
-    """简化100分制: 均线25 + MACD40 + 量价距MA20 15"""
-    ms = 25 if (t["ma5"] > t["ma10"] and t["last"] > t["ma20"]) else (
-        15 if t["last"] > t["ma20"] else (10 if t["last"] > t["ma60"] and t["last"] > t["ma10"] else 5))
-    if t["dif"] > 0 and t["dif"] > t["dea"] and t["bar"] > 0:
-        mac = 40
-    elif t["dif"] > 0:
-        mac = 20
-    elif t["dif"] > t["dea"] and t["bar"] > 0:
-        mac = 10
+def combo_score(t, kl=None):
+    """复用 core.models.combo_scorer 权威100分制评分。"""
+    scorer = ComboScorer()
+    latest = t.get("latest") or t
+    if kl:
+        scores = scorer.score_full(kl, latest=latest)
+        total = scores.get("total", 0)
+        rating = scores.get("rating", "D")
     else:
-        mac = 0
-    vs = 15 if (t["last"] > t["ma20"] and abs(t["d20"]) < 3) else (
-        10 if t["last"] > t["ma20"] else (8 if abs(t["d20"]) < 5 else 5))
-    total = ms + mac + vs
-    return total, 'A' if total >= 80 else ('B' if total >= 65 else ('C' if total >= 50 else 'D'))
+        ma_s, _ = scorer.score_ma_structure(latest)
+        macd_s, _ = scorer.score_macd(latest)
+        total = ma_s + macd_s
+        rating = "A" if total >= 40 else ("B" if total >= 30 else ("C" if total >= 20 else "D"))
+    return total, rating
 
 
-def backtest(closes):
+def backtest(kl):
+    """复用 core.indicators 均线与 core.paper_trading.backtest_metrics 权威回测指标。"""
+    closes = [float(x[2]) for x in kl]
+    dates = [str(x[0]) for x in kl]
     m20 = ma(closes, 20)
-    bh = (closes[-1] / closes[0] - 1) * 100
-    ann = ((closes[-1] / closes[0]) ** (252 / len(closes)) - 1) * 100
-    pos = 0; equity = 1.0; peak = 1.0; maxdd = 0; trades = []; entry = 0
+    bh = (closes[-1] / closes[0] - 1.0) * 100.0 if closes[0] else 0.0
+
+    pos = 0
+    entry = 0.0
+    equity = 1.0
+    trades = []
+    equity_curve = [{"date": dates[0], "equity": 1.0}]
+
     for i in range(20, len(closes)):
-        sig = closes[i] > m20[i]
+        sig = m20[i] is not None and m20[i] > 0 and closes[i] > m20[i]
         if sig and pos == 0:
-            pos, entry = 1, closes[i]
+            pos = 1
+            entry = closes[i]
+            trades.append({"action": "buy", "price": closes[i], "qty": 100, "date": dates[i]})
         elif not sig and pos == 1:
-            r = closes[i] / entry - 1; trades.append(r); equity *= (1 + r); pos = 0
+            profit = (closes[i] / entry - 1.0) * entry * 100
+            trades.append({"action": "sell", "price": closes[i], "qty": 100, "profit": profit, "date": dates[i]})
+            equity *= (closes[i] / entry)
+            pos = 0
         elif pos == 1:
             equity *= (closes[i] / closes[i - 1])
-        cur_eq = equity * (closes[i] / entry) if pos else equity
-        peak = max(peak, cur_eq); maxdd = max(maxdd, (peak - cur_eq) / peak * 100)
-    if pos:
-        trades.append(closes[-1] / entry - 1)
-        strat = (equity * (closes[-1] / entry) - 1) * 100
+        cur_eq = equity * (closes[i] / entry) if pos and entry else equity
+        equity_curve.append({"date": dates[i], "equity": cur_eq})
+
+    if pos and entry:
+        profit = (closes[-1] / entry - 1.0) * entry * 100
+        trades.append({"action": "sell", "price": closes[-1], "qty": 100, "profit": profit, "date": dates[-1]})
+        final_eq = equity * (closes[-1] / entry)
     else:
-        strat = (equity - 1) * 100
-    wins = [x for x in trades if x > 0]; loss = [x for x in trades if x <= 0]
-    wr = len(wins) / len(trades) * 100 if trades else 0
-    pf = (sum(wins) / abs(sum(loss))) if loss and sum(loss) != 0 else float('inf')
-    return dict(bh=round(bh, 1), strat=round(strat, 1), ann=round(ann, 1), maxdd=round(maxdd, 1),
-                trades=len(trades), wr=round(wr), pf=round(pf, 2) if pf != float('inf') else 'inf')
+        final_eq = equity
+
+    metrics = compute_metrics(
+        equity_curve=equity_curve,
+        trades=trades,
+        initial_cash=1.0,
+        final_equity=final_eq,
+        days=len(closes),
+        buy_hold_return_pct=bh,
+    )
+
+    pf = metrics.get("profit_factor", 0.0)
+    pf_str = round(pf, 2) if pf != 999.0 and pf != float("inf") else "inf"
+    return dict(
+        bh=round(bh, 1),
+        strat=round(metrics.get("total_return_pct", 0.0), 1),
+        ann=round(metrics.get("annual_return_pct", 0.0), 1),
+        maxdd=round(metrics.get("max_drawdown_pct", 0.0), 1),
+        trades=metrics.get("total_trades", 0),
+        wr=round(metrics.get("win_rate_pct", 0.0)),
+        pf=pf_str,
+    )
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(__doc__); sys.exit(1)
+        print(__doc__)
+        sys.exit(1)
     print(f"{'代码':<7}{'收盘':>8}{'距MA20':>8}{'距MA10':>8}{'MACD':>8}{'RSI':>6}  {'评分':>5}  {'买持':>7}{'趋势':>8}{'年化':>7}{'回撤':>8}{'交易':>5}{'胜率':>5}{'盈亏比':>7}")
     for code in sys.argv[1:]:
         kl = load(code)
         if not kl:
             continue
-        closes = [float(x[2]) for x in kl]
         t = tech(kl)
-        total, rating = combo_score(t)
-        b = backtest(closes)
+        total, rating = combo_score(t, kl=kl)
+        b = backtest(kl)
         print(f"{code:<7}{t['last']:>8.2f}{t['d20']:>+7.1f}%{t['d10']:>+7.1f}%{t['bar']:>+8.2f}{t['rsi']:>6.1f}  {total}/{rating}  "
               f"{b['bh']:>6.1f}%{b['strat']:>7.1f}%{b['ann']:>6.1f}%{b['maxdd']:>7.1f}%{b['trades']:>5}{b['wr']:>4.0f}%{b['pf']:>7}")

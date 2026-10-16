@@ -152,14 +152,16 @@ tests/
 
 > 上表为 2026-10-15 Windows 实测收集数（`--collect-only`）。
 
-### 2.2 执行顺序与确认门
+### 2.2 执行顺序与确认门（★ 严禁后台挂起，直接在任务中顺序执行）
 
-**默认只执行 ①。② 用于定位。③~⑥ 一律先说明"核心门禁为何不足以覆盖本次改动 + 预计耗时 + 是否会触网/写盘"，取得人工确认后才跑。**
+> **【禁止后台执行铁律】**：严禁将测试命令作为后台进程（Background Process / Background Task）挂起异步执行（避免界面产生 `Background Process Running`）。所有门禁与测试必须在任务当前上下文中**直接前台顺序执行**。若单条命令过长，必须按流水线拆分前台顺序分步执行。
 
-| 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
+**默认只执行 ①（或按分步流水线前台顺序执行）。② 用于极速定位。③~⑥ 一律先说明"核心门禁为何不足以覆盖本次改动 + 预计耗时 + 是否会触网/写盘"，取得人工确认后才跑。**
+
+| 顺序 | 层级 | 命令 | 耗时 | 执行前提与执行模式 |
 | :--- | :--- | :--- | ---: | :--- |
-| ① | **P0 核心（必跑）** | `-m core` | 当前 Windows 基线约 135s | 任何代码/测试改动后**无条件先跑**，唯一自动门禁 |
-| ② | 核心离线极速（244 例） | `-m "core and not slow and not network and not subprocess"` | ~20s | ① 失败后定位时可自主使用 |
+| ① | **P0 核心（必跑·直接顺序执行）** | `-m core`（或分步流水线） | Windows 实测 ~135s-270s | 任何代码/测试改动后**前台顺序执行**，严禁挂起后台，唯一自动门禁 |
+| ② | 核心离线极速（244 例） | `-m "core and not slow and not network and not subprocess"` | ~20s | 前台极速顺序执行，① 失败定位或轻量级预验自主使用 |
 | ③ | 核心 + 重要回归（558 例） | `-m "core or p1"` | 介于 ①④ | **需人工确认** |
 | ④ | 离线全量 | `-m "not network"` | ~64s | **需人工确认** |
 | ⑤ | 全量串行 | （无参数） | ~68s | **需人工确认** |
@@ -167,6 +169,25 @@ tests/
 | ⑦ | 含外网 | `-m network` | 视网络 | **需人工确认**，且须先告知会触达真实行情源 |
 | ⑧ | 真实服务端 E2E | `A_STOCK_RUN_LIVE_E2E=1 pytest -m live` | 视环境 | **需人工确认**，须先启动已配置的服务 |
 | ⑨ | 隔离浏览器 E2E | `A_STOCK_RUN_BROWSER_E2E=1 pytest -m browser_e2e` | 视环境 | **需人工确认**；临时配置/DB、回环随机端口、系统 Edge |
+
+```bash
+# ① 推荐：直接在任务中前台顺序执行流水线（杜绝后台挂起 + 双层动态进度条 + 智能非必要用例裁剪）
+# 一键自动改动感知（具备流水线总体 + 用例细粒度双层动态进度条，支持 Rich 与 8 分位平滑 Unicode 降级）：
+.venv/bin/python tools/validation/check.py
+
+# 显式仅跑极速离线内核门禁（~20s，244例，带实时用例吞吐率与 ETA）：
+.venv/bin/python tools/validation/check.py --fast
+
+# 强制全量前台顺序执行所有阶段（带每阶段进度百分比、耗时占比直方图与统计）：
+.venv/bin/python tools/validation/check.py --sequential
+
+# 指定任务改动定向用例（微观用例精准反馈）：
+.venv/bin/python tools/validation/check.py --targeted "<用例关键字>"
+
+# 强制切换进度条样式（--rich 强制启用 Rich 动态双层进度条；--plain 强制使用高精度平滑字符降级）：
+.venv/bin/python tools/validation/check.py --rich
+.venv/bin/python tools/validation/check.py --plain
+```
 
 ```bash
 # ① 默认动作

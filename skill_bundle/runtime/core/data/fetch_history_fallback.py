@@ -530,22 +530,20 @@ def _basic_from_tencent(session: requests.Session, norm: str):
     url = TENCENT_QUOTE_URL.format(code=norm)
     try:
         text = session.get(url, timeout=8).text
-        if "~" not in text:
-            return None
-        body = text.split('"', 1)[1].rsplit('"', 1)[0]
-        arr = body.split("~")
-        if len(arr) < 38:
+        from core.data.tencent_fields import parse_tencent_quote
+        q = parse_tencent_quote(text)
+        if not q:
             return None
         return {
             "code": norm,
-            "name": arr[1],
-            "open": arr[5],
-            "preclose": arr[4],
-            "price": arr[3],
-            "high": arr[33] if len(arr) > 33 else None,
-            "low": arr[34] if len(arr) > 34 else None,
-            "volume": arr[36] if len(arr) > 36 else None,
-            "amount": arr[37] if len(arr) > 37 else None,
+            "name": q["name"],
+            "open": str(q["open"]) if q["open"] is not None else None,
+            "preclose": str(q["prev_close"]) if q["prev_close"] is not None else None,
+            "price": str(q["price"]) if q["price"] is not None else None,
+            "high": str(q["high"]) if q["high"] is not None else None,
+            "low": str(q["low"]) if q["low"] is not None else None,
+            "volume": str(q["volume_hands"]) if q["volume_hands"] is not None else None,
+            "amount": str(q["amount_wan"]) if q["amount_wan"] is not None else None,
             "source": "腾讯",
         }
     except Exception:

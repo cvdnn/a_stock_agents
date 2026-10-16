@@ -475,6 +475,45 @@ class TestDataSuite(unittest.TestCase):
         self.assertTrue(hasattr(fetch_ah_stocks, "ak"))
         self.assertTrue(hasattr(fetch_stock_events, "ak"))
 
+    def test_no_unauthoritative_tencent_parsing(self):
+        """AST 哨兵：除 core.data.tencent_fields 权威单一来源外，
+        技能目录（含 assets/templates 无豁免）及运行时严禁任何独立的 '~' 分割或下标解析。"""
+        import ast
+        from core.workspace import PROJECT_ROOT
+
+        skill_bundle = PROJECT_ROOT / "skill_bundle"
+        offenders = []
+
+        for py_path in skill_bundle.rglob("*.py"):
+            rel_path = py_path.relative_to(PROJECT_ROOT).as_posix()
+            if rel_path == "skill_bundle/runtime/core/data/tencent_fields.py":
+                continue
+            try:
+                tree = ast.parse(py_path.read_text(encoding="utf-8"))
+            except Exception as e:
+                offenders.append(f"{rel_path}: 语法解析失败 ({e})")
+                continue
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    # 匹配 .split("~") 或 .split('~') 或 split(sep="~")
+                    if isinstance(node.func, ast.Attribute) and node.func.attr == "split":
+                        has_tilde = False
+                        if node.args and isinstance(node.args[0], ast.Constant) and node.args[0].value == "~":
+                            has_tilde = True
+                        for kw in node.keywords:
+                            if kw.arg == "sep" and isinstance(kw.value, ast.Constant) and kw.value.value == "~":
+                                has_tilde = True
+                        if has_tilde:
+                            offenders.append(f"{rel_path}:L{node.lineno} 调用了 .split('~') 独立解析腾讯快照")
+
+        self.assertEqual(
+            offenders,
+            [],
+            "发现独立的腾讯快照 split('~') 解析，必须收敛复用 core.data.tencent_fields:\n"
+            + "\n".join(offenders),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,7 +10,12 @@ PACKAGE_ROOT = next((path for path in Path(__file__).resolve().parents
 if PACKAGE_ROOT is None or json.loads((PACKAGE_ROOT / 'bundle.json').read_text(encoding='utf-8')).get('name') != 'a_stock_agents':
     raise RuntimeError('Valid a_stock_agents bundle marker required')
 RUNTIME_ROOT = PACKAGE_ROOT / 'runtime'
-SKILLS_ROOT = PACKAGE_ROOT / 'skills'
+if (PACKAGE_ROOT / 'skills').is_dir():
+    SKILLS_ROOT = PACKAGE_ROOT / 'skills'
+elif PACKAGE_ROOT.name == 'a-stock-agents' and (PACKAGE_ROOT.parent / 'a-stock-agents').is_dir():
+    SKILLS_ROOT = PACKAGE_ROOT.parent
+else:
+    SKILLS_ROOT = PACKAGE_ROOT / 'skills'
 ASSETS_ROOT = PACKAGE_ROOT / 'assets'
 REFERENCES_ROOT = PACKAGE_ROOT / 'references'
 MANIFEST_PATH = ASSETS_ROOT / 'config' / 'skills_manifest.json'

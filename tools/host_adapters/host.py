@@ -2,7 +2,7 @@
 import argparse
 import json
 from pathlib import Path
-from references import register_reference
+from references import register_reference, register_skills
 
 
 def main(platform):
@@ -18,7 +18,8 @@ def main(platform):
     if args.entry:
         if platform=='workbuddy':
             result={'status':'unverified','reason_code':'HOST_REFERENCE_SUPPORT_UNVERIFIED','source':str(bundle/'skills'),'copy_fallback':False}
-        else:result=register_reference(bundle/'skills',args.entry)
+        else:
+            result=register_skills(bundle/'skills',args.entry)
     else:
         result={'status':'configured_target','platform':platform,'source':str(bundle/'skills'),
                 'mode':'external_dirs' if platform=='hermes' else 'reference-only',

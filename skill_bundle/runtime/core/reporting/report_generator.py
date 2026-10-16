@@ -72,7 +72,7 @@ def _sanitize_report_output_path(output_path: str) -> Path:
     return (OUTPUT_REPORTS_DIR / clean_name).resolve()
 
 
-def generate_simple_report(data: dict, output_path: str = None) -> str:
+def generate_simple_report(data: dict, output_path: str = None, verbose: bool = True) -> str:
     """生成符合 astock-report-html 规范的标准自包含 HTML 投研报告"""
     raw_code = data.get("code", "000001")
     raw_name = data.get("name", raw_code)
@@ -329,11 +329,12 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
             if output_path:
                 safe_path = _sanitize_report_output_path(output_path)
                 safe_path.parent.mkdir(parents=True, exist_ok=True)
-                safe_path.write_text(html_out, encoding="utf-8")
-                print(f"报告已保存: {safe_path}")
+                if verbose:
+                    print(f"报告已保存: {safe_path}")
             return html_out
         except Exception as exc:
-            print(f"模板渲染异常，使用自包含内建模板: {exc}")
+            if verbose:
+                print(f"模板渲染异常，使用自包含内建模板: {exc}")
 
     # 自包含 1344px 降级模板 (确保 100% 成功输出)
     html_fallback = f"""<!DOCTYPE html>
@@ -411,7 +412,8 @@ def generate_simple_report(data: dict, output_path: str = None) -> str:
         safe_path = _sanitize_report_output_path(output_path)
         safe_path.parent.mkdir(parents=True, exist_ok=True)
         safe_path.write_text(html_fallback, encoding="utf-8")
-        print(f"报告已保存: {safe_path}")
+        if verbose:
+            print(f"报告已保存: {safe_path}")
 
     return html_fallback
 

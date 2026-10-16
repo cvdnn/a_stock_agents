@@ -31,6 +31,10 @@
 | 退哥短线规则、连板接力、涨停回调、洗盘突破 | `astock-strategy-tuige` | 参考 `astock-strategy-tuige` |
 | 水下二次金叉、MACD底背离形态识别 | `astock-strategy-macd` | 参考 `astock-strategy-macd` |
 | 生成高颜值交互式 HTML 投研/复盘报告 | `astock-report-html` | `astock report html` |
+| 安装、配置、初始化 A-Stock 技能总包 | `a-stock-agents` (模态一) | 触发 5 阶段卡片状态机 (`install.ps1 -Inspect -Json`) |
+
+### 模态一：AI 安装引导与 5 类信息卡片交互规范
+当检测到用户要求安装技能总包或输入标准 Bootstrap 提示词时，严格遵循 5 阶段状态机（探测环境 ➔ 呈现卡片 1 宿主选择与卡片 2 数据源 ➔ 呈现卡片 3 安全审计 ➔ 执行安装并呈现卡片 4 流水线 ➔ 运行 doctor 交付并呈现卡片 5 实战测试），严禁盲目 pip install。
 
 
 ---

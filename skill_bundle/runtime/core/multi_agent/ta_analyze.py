@@ -612,13 +612,8 @@ def phase3_deploy_monitor(ticker: str, entry_price: float, stop_price: float,
     result = {"ticker": ticker, "monitors": [], "errors": []}
 
     # 使用统一模板
-    candidates = [
-        Path(__file__).resolve().parent / "templates" / "ta_entry_monitor.py.template",
-        PROJECT_ROOT / "skills" / "ta-multi-agent-analysis" / "templates" / "ta_entry_monitor.py",
-        SKILL_DIR / "templates" / "ta_entry_monitor.py",
-    ]
-    template_path = next((p for p in candidates if p.exists()), None)
-    if not template_path:
+    template_path = Path(__file__).resolve().parent / "templates" / "ta_entry_monitor.py.template"
+    if not template_path.exists():
         result["errors"].append("监控模板不存在")
         return result
 

@@ -27,12 +27,16 @@ for p in [ROOT, SCRIPTS_DIR, SCRIPTS_DIR / "core", SCRIPT_DIR]:
         sys.path.insert(0, str(p))
 
 from core.config import PROJECT_ROOT, OUTPUT_POOLS_DIR, OUTPUT_REPORTS_DIR
-from core.workspace import get_workspace_env_path
+from core.workspace import RUNTIME_ROOT, skill_resource, get_workspace_env_path
 POOLS_BASE = OUTPUT_POOLS_DIR
 
 SELECTED_PATH = os.path.join(str(POOLS_BASE), "selected_pool.csv")
 WATCH_PATH = os.path.join(str(POOLS_BASE), "watch_pool.csv")
-A_DATA_DIR = str(PROJECT_ROOT / "skill_bundle" / "runtime" / "core" / "data") if (PROJECT_ROOT / "skill_bundle" / "runtime" / "core" / "data").exists() else str(PROJECT_ROOT / "core" / "data")
+CORE_DATA_DIR = str(RUNTIME_ROOT / "core" / "data")
+try:
+    FETCH_PATCHED_SCRIPT = str(skill_resource("astock-data-feed", "scripts/fetch_patched.py"))
+except Exception:
+    FETCH_PATCHED_SCRIPT = ""
 VENV_PY = sys.executable
 
 
@@ -56,7 +60,7 @@ def get_quote(code: str) -> dict:
             return q
     except Exception:
         pass
-    r = _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_realtime.py"), "--quote", code, "--json"])
+    r = _run([VENV_PY, os.path.join(CORE_DATA_DIR, "fetch_realtime.py"), "--quote", code, "--json"])
     if r["data"]:
         try:
             return json.loads(r["data"])
@@ -77,7 +81,7 @@ def get_technical(code: str) -> dict:
             return tech.get("latest", {})
     except Exception:
         pass
-    r = _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_technical.py"), code, "--freq", "1d", "--count", "120",
+    r = _run([VENV_PY, os.path.join(CORE_DATA_DIR, "fetch_technical.py"), code, "--freq", "1d", "--count", "120",
               "--indicators", "MA,MACD,KDJ,RSI,BOLL", "--json"], timeout=45)
     if r["data"]:
         try:
@@ -133,7 +137,7 @@ def get_cyq(code: str) -> dict:
 
 def get_fund_flow(code: str) -> dict:
     """获取资金流向"""
-    r = _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_patched.py"),
+    r = _run([VENV_PY, FETCH_PATCHED_SCRIPT,
               "fetch_realtime.py", "--fund-flow", code, "--days", "5", "--json"], timeout=30)
     if r["data"]:
         try:
@@ -145,7 +149,7 @@ def get_fund_flow(code: str) -> dict:
 
 def get_sector(code: str) -> dict:
     """获取行业信息"""
-    r = _run([VENV_PY, os.path.join(A_DATA_DIR, "fetch_patched.py"),
+    r = _run([VENV_PY, FETCH_PATCHED_SCRIPT,
               "fetch_sector_info.py", "--no-concepts", "--json", code], timeout=20)
     if r["data"]:
         try:

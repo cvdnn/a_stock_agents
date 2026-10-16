@@ -326,7 +326,7 @@ $VENV_PY $SKILL_DIR/scripts/ta_analyze.py --batch stocks.txt \
 
 | 模板 | 用途 |
 |------|------|
-| `templates/ta_entry_monitor.py` | 入场条件 cron 监控模板（no_agent模式） |
+| `runtime/core/multi_agent/templates/ta_entry_monitor.py.template` | 入场条件 cron 监控统一模板（no_agent模式） |
 | `templates/2560_main.tni` | 2560战法通达信主图指标（导入后输入2560调出，含买卖信号图标） |
 | `templates/2560_buy.tn6` | 2560战法条件选股-买入（回踩MA20+缩量+J值超卖） |
 | `templates/2560_sell.tn6` | 2560战法条件选股-卖出（放量破MA20/5日死叉/天量收阴，死叉均线可选手动切换10/15日） |
