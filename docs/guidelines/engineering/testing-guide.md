@@ -409,7 +409,44 @@ A_STOCK_RUN_BROWSER_E2E=1 .venv/bin/python -m pytest -m browser_e2e -q
   表达式（`round(...)`、条件式、f-string、变量）一律放行；
 - 因此缺陷档案里对历史假值的**文字叙述**写在 docstring/注释里不会误报，而把这些值重新写回
   响应装配代码会立刻红——旧黑名单"恰好不含任何一条"的漏检模式（见前端审计第 7 项）从此不再依赖
-  人工记得补串。
-
 自检口径：8 条历史伪造写法全部被抓出，7 条合法写法（含 `f"{x:.2f}万手" if x else None`、
 `spark[:-1] + [price]`）全部放行。
+
+---
+
+## 九、`SPEC-SKILL-002` 极速测试体系重构与 WebAPI 独立分仓规范（2026-10-19 确立）
+
+> **关联架构规范**：[`docs/specs/engineering/spec-skill-1plus6-consolidation-and-test-rearchitecture.md`](../../specs/engineering/spec-skill-1plus6-consolidation-and-test-rearchitecture.md)
+> **分时实施计划**：[`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](../../specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md)
+
+为彻底解决原测试套件用例过多、Web 前后端与发布打包耦合导致核心门禁耗时高达 135s–317s 的工程瓶颈，配合「`1 + 6` 生产级股票投研技能物理精简」落地，测试体系确立以下四项重构铁律：
+
+### 9.1 铁律一：前端界面零自动化测试（Zero Frontend UI Tests）
+1. **前端界面无需设计测试用例**：不对 HTML 模板、CSS 样式、前端 DOM 节点交互或浏览器渲染界面设计任何测试用例；
+2. **物理清退历史前端与浏览器测试**：移除 `tests/frontend/`（原 30 个 Node.js 脚本）、`tests/browser/`（原 16 例系统 Edge 浏览器登录 E2E）以及 `tests/server/test_browser_e2e_security.py`，根 `tests/conftest.py` 不再维护 `browser_e2e` 收集钩子。
+
+### 9.2 铁律二：WebUI 后端 API 测试另行独立设计（Standalone `tests/webapi/`）
+1. **物理与进程级解耦**：所有针对 `apps/web-console/backend/server/` 的 FastAPI 路由、会话鉴权、数据同步接口、选股模型 REST/SSE 及智能体工具分发的测试，统一迁入独立的 `tests/webapi/` 目录，打上 `@pytest.mark.webapi` 专属标记；
+2. **Fixture 懒加载**：将 `app`、`auth_headers`、`client`、`anon_client` 下沉至 `tests/webapi/conftest.py`。日常执行量化引擎与技能核心门禁（`pytest -m core`）时，**绝不导入 FastAPI / Uvicorn 或初始化会话 SQLite 库**；
+3. **高内聚 4 模块设计**：将原 20 个零散服务端测试文件重构为 4 个结构化后端契约文件（总计约 35 例，耗时 `< 6s`）：
+   - `tests/webapi/test_webapi_auth_and_session.py`（登录鉴权、Bearer Token、RBAC、会话 CRUD 与多轮隔离）
+   - `tests/webapi/test_webapi_market_and_sync.py`（行情 REST 接口、数据同步设置、股池导入预览/提交）
+   - `tests/webapi/test_webapi_selection_api.py`（选股模型 REST 接口、阶段 E 跟踪评价 API、SSE 流式状态）
+   - `tests/webapi/test_webapi_agent_dispatch.py`（Web Agent 对 `1 + 6` 技能工具调用、LLM 就绪检查与密钥脱敏）
+
+### 9.3 铁律三：投研技能与 6 大引擎极速核心门禁（`pytest -m core` 耗时 `< 8s`）
+1. **纯内存确定性核心门禁**：默认 `core` 档严格聚焦于 **`1 + 6` 生产级投研技能 + `6` 大底层技术支撑引擎（Engine A ~ Engine F）** 的纯内存确定性测试，零外网、零重型子进程循环、零全量打包；
+2. **8 大核心测试模块布局（合计约 110 例，总耗时 `< 8s`）**：
+   - `tests/core/test_engine_a_data_sync.py`（Engine A：QuoteDict 别名、4级降级桩、增量落盘、分钟归档与水位门禁）
+   - `tests/core/test_engine_b_factors_tech.py`（Engine B：MA/MACD/KDJ/RSI/BOLL/ATR、MAD+ZScore、五大财务排雷）
+   - `tests/core/test_engine_c_funnel_iss.py`（Engine C：AST条件树编译、四阶漏斗、版本哈希、调度锁与 T+N 跟踪）
+   - `tests/core/test_engine_d_tactics_risk.py`（Engine D：`math.ceil` 保本价、三级止损、三场景反应单、凯利仓位、四大战法、五步股池 MA 审计）
+   - `tests/core/test_engine_e_paper_backtest.py`（Engine E：T+1、涨跌停拦截、分位滑点撮合、多股轮动、滚动 OOS 与过拟合警报）
+   - `tests/core/test_engine_f_infra_safety.py`（Engine F：交易日历网关、三桶目录隔离、HTML 报告 XSS 防护与费率 SSOT）
+   - `tests/skills/test_skill_suite_1plus6_contract.py`（校验 `1 + 6` 物理目录、Frontmatter、`skills_manifest.json`、六步投研闭环符合性与旧别名映射）
+   - `tests/skills/test_skill_tools_execution.py`（校验 `1 + 6` 技能端到端调用、`evidence_meta` 溯源信封、空池拦截与实战三原则输出）
+
+### 9.4 铁律四：重型打包与安装测试按需隔离（`pytest -m release_pack`）
+- 将跨平台 ZIP 构建、沙箱解压、`install.ps1`/`install.sh` 子进程安装与生命周期报告验证独立归入 `tests/release/test_release_packaging_smoke.py`，打上 `@pytest.mark.release_pack` 标签；
+- 仅在修改 `tools/packaging/`、`install.ps1`/`install.sh` 或发版前按需触发，彻底解除对日常投研算法开发的耗时阻塞。
+

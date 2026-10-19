@@ -204,12 +204,21 @@ tests/
 
 ---
 
-## 六、分步实施计划（Execution Plan）
+## 六、分时原子执行计划与看板链接（Execution Plan & Kanban）
 
-获批后，将严格按照「先底层引擎补齐 $\to$ 再 `1 + 6` 技能物理合并 $\to$ 最后测试体系瘦身重构与门禁验收」的顺序在前台同步执行：
+本规范的具体工程落地由以下两份分时实施计划与看板驱动执行（严格执行 `[▶]` $\to$ `[🚧 IN_PROGRESS: <session_id> | <时间>]` $\to$ `[x]` 原子排他协议）：
+- **主实施计划（任务矩阵与验收台账）**：[`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](eng-skill-1plus6-and-test-rearchitecture-plan.md)（任务编号：`S2-01` ~ `S2-10`）
+- **分时原子执行看板**：[`docs/specs/engineering/delivery-execution-roadmap.md`](delivery-execution-roadmap.md)（顺序 ⑫ ~ ㉑）
 
-| 阶段 | 步骤与核心任务 | 涉及路径 | 预期验证方式与耗时 |
-| :---: | :--- | :--- | :--- |
-| **Phase 1** | **底层 6 大支撑引擎缺口闭合（修复 G1–G7）**<br>1. `tools.py` 接入真实 `second_golden_cross` 与 `IntentEvaluator`；<br>2. 新增 `core/strategy/tuige.py`（涨停回踩/首阴接力纯 Python 量化识别）并内建 250 日同类信号历史胜率锚定；<br>3. 升级 `pool_manager.py` / `portfolio_cmds.py` 实现五步真实 MA 重算与止损越界审计；<br>4. 升级 `backtest_cmds.py` 补齐滚动样本外（Rolling OOS）与过拟合三重警报；<br>5. 统一 `report_generator.py` 税费与三级止损口径，注入 `EvidenceEnvelope`。 | `skill_bundle/runtime/core/` | 定向单元测试前台秒级通过 |
-| **Phase 2** | **「1 + 6」投研技能物理合并与契约升级**<br>1. 在 `skill_bundle/skills/` 构建 `a-stock-agents` + 6 大生产级专业技能目录（`astock-market-data`, `astock-deep-diagnose`, `astock-smart-screener`, `astock-tactical-signals`, `astock-portfolio-action`, `astock-paper-backtest`），整合精炼 `SKILL.md`、`references/` 与 `scripts/`；<br>2. 物理清理已被吸收的旧 19 个零散技能目录；<br>3. 更新 `skills_manifest.json`、`SkillRegistry`（含旧 19 技能 ID 兼容别名映射）、`cli.py`、`tools.py`、`doctor.py` 与 `AGENTS.md` 技能清单表。 | `skill_bundle/skills/`<br>`skill_bundle/assets/config/skills_manifest.json`<br>`skill_bundle/runtime/`<br>`AGENTS.md` | `python skill_bundle/runtime/doctor.py --json` 实测 `is_healthy: true` (`total_skills: 7`, `business_skills: 6`) |
-| **Phase 3** | **极速测试体系重构与 WebAPI 独立分仓**<br>1. 物理移除 `tests/frontend/` 与 `tests/browser/`；<br>2. 重构 `tests/core/`（6 大引擎单测）与 `tests/skills/`（`1+6` 契约与执行测试）；<br>3. 独立构建 `tests/webapi/`（WebUI 后端 API 专项测试）与 `tests/release/`（按需打包冒烟）；<br>4. 更新 `tests/conftest.py`、`tests/README.md` 与 `tools/validation/check.py`。 | `tests/`<br>`tools/validation/check.py` | 前台顺序执行：<br>① `pytest -m core` (`< 8s`, 0 failed)<br>② `pytest -m webapi` (`< 6s`, 0 failed) |
+| 阶段 | 任务范围 | 步骤与核心任务 | 涉及路径 | 预期验证方式与耗时 |
+| :---: | :---: | :--- | :--- | :--- |
+| **Phase 1** | `S2-01` ~ `S2-03` | **底层 6 大支撑引擎缺口闭合（修复 G1–G7）**<br>1. `S2-01`：统一 `EvidenceEnvelope` 溯源信封，打通 `tools.py` 真实 `second_golden_cross` 与 `IntentEvaluator`，修复 CLI `action` 参数契约；<br>2. `S2-02`：新增 `core/strategy/tuige.py`（涨停回踩/首阴接力算法）并内建 250 日同类信号历史胜率锚定；升级 `pool_manager.py` 实现五步真实 MA 重算与止损越界审计；<br>3. `S2-03`：升级 `backtest_cmds.py` 补齐滚动样本外（Rolling OOS）与过拟合三重警报；统一 `report_generator.py` 税费与三级止损口径。 | `skill_bundle/runtime/core/` | 定向单元测试前台秒级通过 |
+| **Phase 2** | `S2-04` ~ `S2-07` | **「1 + 6」投研技能物理合并与契约升级**<br>1. `S2-04`：构建 `astock-market-data`、`astock-smart-screener`、`astock-tactical-signals` 三大投研技能物理目录；<br>2. `S2-05`：构建 `astock-deep-diagnose`、`astock-portfolio-action`、`astock-paper-backtest` 及升级总控 `a-stock-agents`；<br>3. `S2-06`：物理移除旧 19 个零散技能目录，更新 `skills_manifest.json`、`SkillRegistry`（含 `LEGACY_SKILL_ALIASES` 19 项旧别名兼容）、`cli.py`、`tools.py`、`doctor.py`；<br>4. `S2-07`：同步更新打包器 `common.py`/`publish_release.py`、安装器 `install.ps1`/`install.sh` 及全仓文档口径（`1 + 6 = 7` 入口）。 | `skill_bundle/skills/`<br>`skill_bundle/assets/config/skills_manifest.json`<br>`skill_bundle/runtime/`<br>`tools/packaging/`<br>`AGENTS.md` | `python skill_bundle/runtime/doctor.py --json` 实测 `is_healthy: true` (`total_skills: 7`, `business_skills: 6`) |
+| **Phase 3** | `S2-08` ~ `S2-10` | **极速测试体系重构与 WebAPI 独立分仓**<br>1. `S2-08`：物理移除 `tests/frontend/` 与 `tests/browser/`，将 WebUI 后端测试独立剥离至 `tests/webapi/`（4 个高内聚模块，专属 `-m webapi` 与懒加载 fixture）；<br>2. `S2-09`：重构 `tests/core/`（6 大引擎纯内存单测）与 `tests/skills/`（`1+6` 契约、六步投研闭环符合性与执行测试），将重型打包移入 `tests/release/`（`-m release_pack`）；<br>3. `S2-10`：升级 `tests/conftest.py`、`tools/validation/check.py`、`tests/README.md` 并执行全链路前台顺序验收。 | `tests/`<br>`tools/validation/check.py` | 前台顺序执行：<br>① `pytest -m core` (`< 8s`, 0 failed)<br>② `pytest -m webapi` (`< 6s`, 0 failed) |
+
+---
+
+## 七、后续新增或改动技能强制符合性评估标准（Conformance Assessment Gate）
+
+自本规范生效起，任何针对技能或投研算法的新增与修改，必须严格遵循 [`docs/guidelines/engineering/skill-suite-portability-specification.md`](../../guidelines/engineering/skill-suite-portability-specification.md) 第 9 章定义的 **「专业机构股票投研六步全链路闭环（看盘知势 $\to$ 选股立池 $\to$ 择时定买 $\to$ 穿透体检 $\to$ 仓位风控 $\to$ 回测验证）」**，并逐项通过 **C1~C6 六维符合性评估门禁**（详见该规范 §9.4）。任何破坏 `1 + 6` 物理边界、缺失 `evidence_meta` 溯源信封、缺失历史胜率锚定或违背实战交易三原则的改动一律不予准入。
+
