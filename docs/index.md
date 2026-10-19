@@ -11,14 +11,13 @@ mindmap
   root((A-Stock Agents v3))
     [入口与服务]
       bin/astock[全平台 CLI 启动器 Win/Linux]
-      scripts/core/cli.py[统一命令行入口与子命令路由]
-      scripts/server/app.py[FastAPI Web 服务网关]
-      web/index.html[浅色金融风投研工作台]
-      bin/pack.py[安全打包发布]
-      bin/update.py[热更新与一键回滚]
-      install.ps1/install.sh[跨平台一键安装]
-      verify.py[11项全流程就绪性自检]
-    [核心量化引擎 scripts/core]
+      skill_bundle/runtime/cli.py[统一命令行入口与子命令路由]
+      apps/web-console/backend/server/app.py[FastAPI Web 服务网关]
+      apps/web-console/frontend/index.html[浅色金融风投研工作台]
+      tools/packaging/common.py[Release 归档安全打包]
+      install.ps1/install.sh[跨平台一键安装与升级回滚]
+      skill_bundle/runtime/doctor.py[离线就绪性全流程自检]
+    [核心量化引擎 skill_bundle/runtime/core]
       data[4级自动降级数据桥接 L1-L4]
       indicators[零编译纯Python经典技术指标]
       models[5A多维共振·AlgoRegistry 2.0·四道质量门禁]
@@ -28,28 +27,24 @@ mindmap
       governance[Skill 治理中心·Schema校验·安全熔断]
       monitor[监控守护·交易日历门控·状态存储]
       reporting[1344px居中亚光白交互式 HTML 研报]
-    [Web 服务与交互 scripts/server & web]
+    [Web 服务与交互 apps/web-console]
       fastapi_gateway[FastAPI 异步服务·SSE 流式通信]
       react_runtime[原生 ReAct 智能体运行时·领域事件解耦]
       multi_llm[多模型适配·OpenAI/Claude/Gemini/Ollama]
       async_tasks[后台异步任务队列·SQLite持久化]
       web_workbench[双模动态视口·三栏40/60·轻量金融图表]
-    [就地技能体系 .agents/skills 18项]
-      L0元系统[路由规则与避坑实战经验]
+    [唯一技能体系 skill_bundle/skills 20入口]
+      L0锚点与元系统[总入口锚点·路由规则·避坑技巧]
       L1数据平台[全链路行情引擎与统一投研平台]
-      L2选股量化[5A选股·工业级量化·时序模型验证]
-      L3执行策略[反应动作单·主板多波段·退哥短线·MACD金叉]
+      L2选股量化[5A选股·智能选股漏斗·量化引擎·时序验证]
+      L3执行策略[反应动作单·陈小群龙头·主板波段·退哥短线·MACD金叉]
       L4面板交易[股池管理·三大股池审查·模拟盘撮合]
       L5多智能体[7大分析师辩论协同研判]
       L6展现报告[标准HTML交互报告与报告归档]
-    [提示词与决策 .agents/prompts]
-      aichat_system_prompt[AIChat 系统提示词与意图路由]
-      trading_action_prompts[实战交易动作与挂单纪律提示词]
-      trapped_diagnostic_prompts[被套解套诊断决策树提示词]
-    [配置中心 config]
-      config.yaml[主配置·数据源·券商费率·风控线]
-      skills_manifest[18技能元数据与参数契约]
-      stock_pools.yaml[自选对照池与基准股票池]
+    [提示词与配置 skill_bundle/references & assets]
+      prompts[AIChat 系统提示词·实战动作单·被套解套提示词]
+      config[主配置·数据源·券商费率·风控线·20技能清单]
+      stock_pools[自选对照池与基准股票池]
     [数据隔离 output]
       pools[自选·关注·持仓池 CSV]
       positions[持仓档案与实盘交易明细]
@@ -67,13 +62,19 @@ mindmap
 
 ```
 a_stock_agents/
-├── .agents/                 # ★ 智能体专属就地配置与技能资产 (零全局污染原则)
-│   ├── manifests/           # 技能清单配置 (skills_manifest.json / yaml)
-│   ├── prompts/             # AI 系统提示词与交易反应决策模版
-│   │   ├── aichat_system_prompt.md     # AIChat 自然语言系统提示词与意图路由
-│   │   ├── trading_action_prompts.md   # 实战动作单与风控指令提示词
-│   │   └── trapped_diagnostic_prompts.md # 被套解套诊断决策树提示词
-│   └── skills/              # 19 个标准化 Agent 就地技能 (6+1 现代分层架构)
+├── skill_bundle/            # ★ 唯一技能集合与共享资产 (SSOT，含 19 项专业技能 + 1 总入口)
+│   ├── assets/              # 公共静态资产与集中配置
+│   │   ├── config/          # 配置文件中心 (application.yaml / skills_manifest.json 等)
+│   │   └── templates/       # 基础报告与系统模板
+│   ├── references/          # 跨技能共用技术规范与系统提示词
+│   │   └── prompts/         # AI 系统提示词与意图路由规范
+│   ├── runtime/             # 统一跨平台运行时与核心执行库
+│   │   ├── core/            # 核心量化算法底座 (data/indicators/models/strategy/trade...)
+│   │   ├── cli.py           # 统一 CLI 命令分发调度器
+│   │   ├── doctor.py        # 离线环境与依赖全流程自检
+│   │   └── run_skill.py     # 统一技能执行分发器
+│   └── skills/              # 19 项专业技能 + 1 锚点总入口 (共 20 个独立入口)
+│       ├── a-stock-agents/             # 20 技能总入口与锚点自诊断
 │       ├── astock-action-execution/    # 实战反应动作与精确保本价进位引擎
 │       ├── astock-agent-debate/        # 7大AI分析师多空对抗辩论与决议
 │       ├── astock-data-feed/           # A股全链路行情与技术指标数据引擎
@@ -87,20 +88,24 @@ a_stock_agents/
 │       ├── astock-report-archive/      # 报告结构化持久化与归档
 │       ├── astock-report-html/         # 亚光白 1344px 居中交互报告规范
 │       ├── astock-screener-5a/         # 5A 多维共振旋转选股模型
+│       ├── astock-selection-model/     # SPEC-ALGO-ISS-001 配置化智能选股与层级漏斗
+│       ├── astock-strategy-chenxiaoqun/# 顶级游资陈小群总龙头战法体系
 │       ├── astock-strategy-macd/       # 水下二次金叉与 MACD 底背离形态识别
 │       ├── astock-strategy-mainboard/  # 主板流动性池多波段防御反击
 │       ├── astock-strategy-tuige/      # 退哥短线与涨停接力规则体系
 │       └── astock-trade-paper/         # A股模拟盘撮合交易与事件回测
-├── bin/                     # 可执行入口与运维包装脚本
-│   ├── astock / astock.cmd  # 全平台 CLI 启动器 (自动引导 scripts/core/cli.py)
-│   ├── pack.py              # 纯净包安全发布工具 (转发 scripts/tools/pack.py)
-│   ├── run_skill.py         # 技能脚本就地执行器 (转发 scripts/tools/run_skill.py)
-│   └── update.py            # 安全热更新 + 数据快照备份 + 一键回滚
-├── config/                  # 平台集中配置文件
-│   ├── config.yaml          # 主配置文件 (数据源、券商费率、三级风控止损参数)
-│   ├── skills_manifest.json # 18 技能清单元数据与参数契约 (JSON)
-│   ├── skills_manifest.yaml # 18 技能清单元数据与参数契约 (YAML)
-│   └── stock_pools.yaml     # 预置关注池与基准测试对照股票池配置
+├── apps/                    # 可选扩展应用 (宿主独立，不复制公共算法)
+│   └── web-console/         # Web AIChat 与技能可视化控制台
+│       ├── backend/server/  # FastAPI 异步网关、ReAct 运行时与路由
+│       └── frontend/        # 浅色金融现代投研前端
+├── bin/                     # 统一跨平台 CLI 启动器
+│   ├── astock / astock.ps1  # 跨平台 CLI 门面脚本
+│   └── astock.cmd           # Windows CMD 兼容启动器
+├── tools/                   # 构建、安装与宿主适配器
+│   ├── packaging/           # Release 打包流水线 (build_codex/hermes/workbuddy)
+│   ├── host_adapters/       # 宿主平级注册与卸载适配器
+│   └── validation/          # 测试改动感知与门禁流水线
+├── install.ps1 / install.sh # 跨平台统一安装、升级与一键回滚脚本
 ├── docs/                    # 项目分级技术文档体系 (kebab-case 规范，两范式严格二分)
 │   ├── index.md             # 全景知识库导图 (本文件)
 │   ├── quickstart.md        # 快速上手向导 (环境安装 / 自检 / CLI 与 Web 演示)
@@ -263,27 +268,28 @@ a_stock_agents/
 
 | # | 子系统 | 源码路径 | 关键能力与定位 |
 | :-: | :--- | :--- | :--- |
-| 1 | **4级降级数据桥接** | `scripts/core/data` | L1 腾讯原生行情直连 → L2/L3 新浪与东财增强 → L4 本地缓存，断网毫秒级容灾。 |
-| 2 | **经典技术指标引擎** | `scripts/core/indicators` | MA/MACD/KDJ/RSI/BOLL/ATR/跳空缺口识别/水下二次金叉/波段底背离，零外部复杂 C 库依赖。 |
-| 3 | **5A多维共振与算法注册中心** | `scripts/core/models` | 40+ 项算法资产纳管（AlgoRegistry 2.0 / ALCM），5A 选股模型，四道质量门禁（G1-G4）。 |
-| 4 | **实战策略与风控中枢** | `scripts/core/strategy` | 最低保本卖出价精算（`math.ceil` 进位至分）、三级风控止损阶梯（-3%/-5%/-8%）、三场景动作单。 |
-| 5 | **多智能体协同辩论** | `scripts/core/multi_agent` | 基本面、量价、消息、政策、游资、筹码、首席风控官 7 大角色对抗辩论并形成终审决议。 |
-| 6 | **模拟盘撮合与事件驱动回测** | `scripts/core/paper_trading` | 多账户资金隔离、Almgren-Chriss 平方根冲击滑点、T+1 硬约束、单标的与多标的轮动回测。 |
-| 7 | **监控守护与告警系统** | `scripts/core/monitor` | 交易日历网关（开盘/盘中/闭市/周末状态机）、多渠道告警（Windows Toast / Webhook）。 |
-| 8 | **投资报告生成与归档** | `scripts/core/reporting` | 1344px 居中、亚光白背景、红涨绿跌单文件自包含 HTML 研报与多标的聚合归档流水线。 |
-| 9 | **Skill 治理与审计子系统** | `scripts/core/governance` | 19 项技能集中注册、OpenAI Function Schema 转换、动态启停、执行性能与安全熔断审计。 |
-| 10 | **Web 服务网关与 AIChat 前端** | `scripts/server` & `web` | FastAPI 异步网关、SSE 流式打字机、ReAct 智能体运行时、双模动态视口与现代浅色金融前端。 |
+| 1 | **4级降级数据桥接** | `skill_bundle/runtime/core/data` | L1 腾讯原生行情直连 → L2/L3 新浪与东财增强 → L4 本地缓存，断网毫秒级容灾。 |
+| 2 | **经典技术指标引擎** | `skill_bundle/runtime/core/indicators` | MA/MACD/KDJ/RSI/BOLL/ATR/跳空缺口识别/水下二次金叉/波段底背离，零外部复杂 C 库依赖。 |
+| 3 | **5A多维共振与算法注册中心** | `skill_bundle/runtime/core/models` | 40+ 项算法资产纳管（AlgoRegistry 2.0 / ALCM），5A 选股模型，四道质量门禁（G1-G4）。 |
+| 4 | **实战策略与风控中枢** | `skill_bundle/runtime/core/strategy` | 最低保本卖出价精算（`math.ceil` 进位至分）、三级风控止损阶梯（-3%/-5%/-8%）、三场景动作单。 |
+| 5 | **多智能体协同辩论** | `skill_bundle/runtime/core/multi_agent` | 基本面、量价、消息、政策、游资、筹码、首席风控官 7 大角色对抗辩论并形成终审决议。 |
+| 6 | **模拟盘撮合与事件驱动回测** | `skill_bundle/runtime/core/paper_trading` | 多账户资金隔离、Almgren-Chriss 平方根冲击滑点、T+1 硬约束、单标的与多标的轮动回测。 |
+| 7 | **监控守护与告警系统** | `skill_bundle/runtime/core/monitor` | 交易日历网关（开盘/盘中/闭市/周末状态机）、多渠道告警（Windows Toast / Webhook）。 |
+| 8 | **投资报告生成与归档** | `skill_bundle/runtime/core/reporting` | 1344px 居中、亚光白背景、红涨绿跌单文件自包含 HTML 研报与多标的聚合归档流水线。 |
+| 9 | **Skill 治理与审计子系统** | `skill_bundle/runtime/core/governance` | 19 项专业技能与 1 个总入口（共 20 个入口）集中注册、Schema 转换、动态启停、性能与安全熔断审计。 |
+| 10 | **Web 服务网关与 AIChat 前端** | `apps/web-console` | FastAPI 异步网关、SSE 流式打字机、ReAct 智能体运行时、双模动态视口与现代浅色金融前端。 |
 
 ---
 
-## 四、18 技能体系（6+1 现代分层架构）
+## 四、19 项量化技能体系与总入口（共 20 个入口，6+1 现代分层架构）
 
-全部 19 项技能严格遵循**零全局污染原则**，完全就地存放在 [`.agents/skills/`](../.agents/skills) 目录下，通过统一清单 [`config/skills_manifest.json`](../skill_bundle/assets/config/skills_manifest.json) 驱动：
+全部 19 项专业技能与 1 个总入口（共 20 个入口）单一来源存放于 `skill_bundle/skills/` 目录下，通过统一清单 [`skill_bundle/assets/config/skills_manifest.json`](../skill_bundle/assets/config/skills_manifest.json) 驱动：
 
 ```mermaid
 mindmap
-  root((18 Skills))
-    L0元系统
+  root((20 Skills Ensembles))
+    L0锚点与元系统
+      a-stock-agents[总入口与锚点自诊断]
       astock-meta-routing[任务模型路由规约]
       astock-knowledge-tips[避坑指南与竞价实战技巧]
     L1数据平台
@@ -291,10 +297,12 @@ mindmap
       astock-platform-evaluate[统一全流程投研平台]
     L2选股量化
       astock-screener-5a[5A多维共振旋转选股]
+      astock-selection-model[智能选股模型与层级漏斗]
       astock-quant-engine[工业级全流程量化工程引擎]
       astock-model-validation[时序基础模型样本外检验]
     L3执行策略
       astock-action-execution[实战反应动作与精确保本价]
+      astock-strategy-chenxiaoqun[陈小群总龙头战法体系]
       astock-strategy-mainboard[主板流动性池多波段防御]
       astock-strategy-tuige[退哥短线交易规则体系]
       astock-strategy-macd[水下二次金叉与底背离形态]
@@ -390,14 +398,14 @@ flowchart TD
     U3[AI 工具通过技能 Release 接入]
   end
 
-  subgraph 服务与网关 [scripts/server & scripts/core]
+  subgraph 服务与网关 [apps/web-console & skill_bundle/runtime]
     S1[FastAPI 异步服务网关]
     S2[ReAct 智能体运行时 + SSE 流式引擎]
     S3[CLI 命令调度器 core.cli]
     S4[Skill 治理中心 & 参数契约校验]
   end
 
-  subgraph 核心量化引擎 [scripts/core]
+  subgraph 核心量化引擎 [skill_bundle/runtime/core]
     D[4级降级数据桥接 DataBridge]
     I[经典技术指标引擎 Indicators]
     M[5A多因子模型 & AlgoRegistry 2.0]
@@ -425,7 +433,7 @@ flowchart TD
   S1 --> S2
   S2 --> S4
   U2 -->|子进程 / 命令| S3
-  U3 -->|直接索引 .agents/skills| S3
+  U3 -->|索引 Release 技能| S3
   S4 --> S3
 
   S3 --> D
@@ -453,10 +461,10 @@ flowchart TD
 ## 七、关键设计原则与工程铁律
 
 1. **零全局污染原则 (Zero Global Pollution)**：
-   - 本项目 19 项技能、提示词与量化引擎**完全就地运行在当前工作区内**。
-   - 严禁将项目技能复制到系统全局目录（如 `~/.gemini/config/skills` 或系统路径）。
+   - 本项目 19 项专业技能与 1 个总入口（共 20 个入口）、提示词与量化引擎单一来源位于 `skill_bundle/`，完全就地运行在当前工作区内。
+   - 严禁将开发源码直接注册为宿主全局技能，宿主接入统一通过 Release 产物或标准安装器进行。
 2. **单一真理来源 (SSOT) 与物理路径解耦**：
-   - 核心业务逻辑统一归集于 `scripts/core/`，服务网关归集于 `scripts/server/`，就地技能存放在 `.agents/skills/`。
+   - 核心业务逻辑统一归集于 `skill_bundle/runtime/core/`，服务网关与交互前端归集于 `apps/web-console/`，技能单一来源存放在 `skill_bundle/skills/`。
    - 彻底移除旧版根目录软链接，全链路采用动态项目根探测与自包含路径引导，实现 Windows、Linux、macOS 全跨平台无缝兼容。
 3. **用户数据强制隔离 (`output/`)**：
    - 个人自选池、持仓明细、交易账单与私有研报严格存放于 `output/` 目录。

@@ -1,6 +1,6 @@
 # A-Stock Agents 测试用例架构与回归测试规范
 
-本目录包含了 A-Stock Agents 项目的**全量功能回归测试套件**（当前收集 Python 668 例 + Node.js 前端 30 脚本，2026-10-15 实测）。测试架构与系统工程架构全面对齐，划分为 **量化核心 (`core/`)**、**服务端与智能体 (`server/`)**、**架构与合规门禁 (`governance/`)**、**技能脚本自测 (`skills/`)**、**浏览器验收 (`browser/`)** 以及 **前端交互 (`frontend/`)** 六大领域专属目录。
+本目录包含了 A-Stock Agents 项目的**全量功能回归测试套件**（当前收集 Python 718 例 + Node.js 前端 30 脚本，2026-10-19 实测）。测试架构与系统工程架构全面对齐，划分为 **量化核心 (`core/`)**、**服务端与智能体 (`server/`)**、**架构与合规门禁 (`governance/`)**、**技能脚本自测 (`skills/`)**、**浏览器验收 (`browser/`)** 以及 **前端交互 (`frontend/`)** 六大领域专属目录。
 
 设计原则：**无外部网络强依赖（桩隔离）**、**核心门禁秒级反馈**、**断言必然执行**。
 
@@ -17,7 +17,7 @@ tests/
 ├── conftest.py                   # ★ 分层唯一改动点：档位归属表(_TIER_BY_PATH/_TAGS_BY_PATH/_OVERRIDE_TAGS)
 │                                 #   + 共享基座(app / auth_headers / client / anon_client / isolated_user_pools)
 ├── README.md                     # 本速查文档
-├── core/                         # 【量化算法与核心底座 + 发布链路门禁】对应 skill_bundle/runtime/core/ — 24 文件 / 360 用例
+├── core/                         # 【量化算法与核心底座 + 发布链路门禁】对应 skill_bundle/runtime/core/ — 24 文件 / 407 用例
 │   ├── test_algo_monitoring.py            # 算法运行时健康度与降级监控
 │   ├── test_algo_registry.py              # 选股算法注册表与动态发现
 │   ├── test_algorithm_optimizations.py    # 算法执行优化与向量化验证
@@ -39,7 +39,7 @@ tests/
 │   ├── test_selection_screen_model_cmds.py # ISS 阶段 E CLI：assess/track/evaluate/tune 失败关闭
 │   ├── test_selection_stage_e.py           # ISS 结果研究/跟踪/评价/调优
 │   ├── test_skill_suite_layout.py         # 集合根唯一性、Release 归档与引用生命周期
-│   ├── test_release_delivery_gate.py      # P0-02/03/04/05/06 发布链路门禁：frontmatter/启动器/doctor/run_skill/打包八项/宿主红线/依赖SSOT/隔离解压
+│   ├── test_release_delivery_gate.py      # 发布交付全链路门禁（P0-02~P0-10 & P1-06~P1-10 & P2-01~P2-04，20 节共 102 例：frontmatter/启动器/doctor/打包八项/宿主红线/依赖SSOT/隔离解压/安装器/宿主模拟发现/卡片契约/TUI导轨/多版本回滚/CLI契约/CI流水线/口径对齐/通用生态分发）
 │   ├── test_stock_funnel.py               # 股票漏斗筛选阶段与分钟级时间戳校验
 │   └── test_strategy_suite.py             # 解套决策树、动作引擎真实契约与网格中轴算法
 │
@@ -137,8 +137,8 @@ tests/
 
 | 档位 | 用例数 | 判定标准 |
 | :--- | ---: | :--- |
-| **`core`** | **310**（含 2 个平台分支 skip） | **P0 契约门禁**——错了会直接产出假结论或造成资金/安全后果：数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock、**P0-02/03/04/05/06 发布链路（SKILL.md frontmatter / 启动器 / doctor / run_skill / 打包八项行为 / 宿主注册红线与三平台 shim / 依赖声明单一来源 / 三平台隔离解压验收 / setup.sh 零污染守卫）** |
-| `p1` | 303 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项技能契约、治理与质量门禁 |
+| **`core`** | **358**（含 2 个平台分支 skip） | **P0 契约门禁**——错了会直接产出假结论或造成资金/安全后果：数据装配与水位门禁、漏斗规则、技术指标、行情字段契约与费率 SSOT、落盘与零假数据、撮合与 T+1、税费保本与三级止损、真实性红线、XSS/Zip Slip、生产禁回落 mock、**P0-02~P0-10 & P1-06~P1-10 & P2-01~P2-04 发布交付全链路门禁（SKILL.md frontmatter / 启动器 / doctor / run_skill / 打包八项行为 / 宿主注册红线与三平台 shim / 依赖声明单一来源 / 三平台隔离解压验收 / setup.sh 零污染 / 锚点架构三级寻址 / 统一跨平台安装底层 / 逐技能平级注册与三宿主模拟发现 / 5阶段卡片渲染 / 终端 TUI 导轨与 Overwrites 冲突保护 / 多版本原子切换与一键回滚 / CLI --json 零污染与三原则字段 / CI 跨平台流水线 / 口径对齐与 npx skills add 通用生态分发）** |
+| `p1` | 305 | 重要回归：服务端 REST 契约、设置持久化与接线披露、19 项专业技能契约（+1 锚点总入口）、治理与质量门禁 |
 | `p2` | 55 | 补充边界：浏览器 E2E、文档真实性、注册表辅助路径、自定义输出目录 |
 
 | 标签 | 用例数 | 含义 |
@@ -150,7 +150,7 @@ tests/
 | `live` | 18 | 需预先启动真实服务，并显式开启 `A_STOCK_RUN_LIVE_E2E=1` 与 `A_STOCK_SERVER_TOKEN` |
 | `browser_e2e` | 16 | 隔离服务与系统 Edge 登录后 UI 验收，显式开启 `A_STOCK_RUN_BROWSER_E2E=1` |
 
-> 上表为 2026-10-15 Windows 实测收集数（`--collect-only`）。
+> 上表为 2026-10-19 Windows 实测收集数（`--collect-only`，总收集数 718 例）。
 
 ### 2.2 执行顺序与确认门（★ 严禁后台挂起，直接在任务中顺序执行）
 
@@ -206,7 +206,7 @@ tests/
 .venv/bin/python -m pytest -m core --durations=20
 ```
 
-> 2026-10-15 当前 Windows 实测：收集 668 例，P0 为 308 passed / 2 skipped（平台分支）/ 358 deselected（134.83s，含 P0-02/03/04/05/06 发布链路门禁）；② 244 例、③ 收集 613 例、`not network` 收集 633 例。
+> 2026-10-19 当前 Windows 实测：收集 718 例，P0 核心门禁为 356 passed / 2 skipped（平台分支）/ 360 deselected（含 P0-02~P0-10 与 P1-06~P1-10 阶段一至阶段三全部发布交付链路门禁及 P2-01~P2-04 文档与通用生态门禁，core 档共 358 例）；② 244 例、③ 收集 663 例（core 358 + p1 305）、`not network` 收集 683 例。
 > 2026-10-08 历史实测（564 例 / P0 227 passed / 70.91s；P0+P1 518 passed）与 2026-10-07 基线（430 例 / 12~68s）仅作历史记录，不再作为当前数量承诺。
 > `--strict-markers` 已启用，拼错的标记直接报错而非被静默忽略。
 > **2026-10-15 当前基线**：③ `-m "core or p1"` 复测 **553→修复→558 passed / 0 failed**（380.27s，P0-07 修复时点口径；P0-02/03/04/06 新增 54 例发布链路门禁并入 ③ 后收集 612 例，整体复跑待下一轮人工确认）。当日 ③ 首跑暴露 5 处 2026-10-14 目录迁移后的 p1 档既有腐化，已按 [交付闭环整改计划 `P0-07`](../docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md) 修复（`/api/docs` 端点 workspace 根硬编码 ×3、前端备份页缺非生产声明 ×1、测试旧路径 ×1）；`p2` 档 `test_custom_output` 同批修复但未实测，离线全量（`not network`，632 例）复跑前不引用「全量 0 failed」；P0-04 遗留边界：`pyproject.toml` [full] 增补 MyTT/akshare-proxy-patch 后 `uv.lock` 未联网重锁（待人工确认）。

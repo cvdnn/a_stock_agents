@@ -52,6 +52,7 @@ jobs:
       - name: Verify Packaging Build & Doctor Smoke Check (打包构建与诊断冒烟)
         run: |
           python tools/packaging/common.py --tag ci-${{ matrix.python-version }}
+          python tools/packaging/publish_release.py --dry-run --json
           python skill_bundle/runtime/doctor.py
 
       - name: Platform Installation Smoke Check (Linux)

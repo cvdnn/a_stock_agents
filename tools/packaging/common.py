@@ -40,7 +40,10 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
         files.append(path)
     instructions={'platform':platform,'mode':'release-candidate-collection','skill_entries':20,'business_skills':19,
                   'runtime':'skill_bundle/runtime','skills':'skill_bundle/skills',
+                  'universal_skills':'skills',
                   'anchor_skill':'skill_bundle/skills/a-stock-agents',
+                  'codex_plugin':'.codex-plugin/plugin.json',
+                  'ecosystem_command':'npx skills add cvdnn/a-stock-agents -g',
                   'host_scan_status':'unverified',
                   'native_import_verified':False, 'data_root':'OS user data/a_stock_agents or explicit A_STOCK_WORKSPACE_ROOT',
                   'python_requirement':'3.9+', 'installer':{'windows':'install.ps1','posix':'install.sh'},
@@ -67,6 +70,7 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
                 marker['distribution']='release'
                 content=json.dumps(marker,ensure_ascii=False,indent=2).encode('utf-8')
             archive.writestr(info,content)
+
             # P0-08: 锚点技能架构 (Anchor Skill)——收敛注入 runtime/assets/references 到 a-stock-agents
             rel = path.relative_to(PACKAGE_ROOT)
             if rel.parts and rel.parts[0] in {'runtime', 'assets', 'references'}:
@@ -76,32 +80,57 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
                 anchor_info.external_attr = mode << 16
                 anchor_info.compress_type = zipfile.ZIP_DEFLATED
                 archive.writestr(anchor_info, content)
+
         # 锚点技能自描述 bundle.json
         anchor_marker = json.loads((PACKAGE_ROOT / 'bundle.json').read_text(encoding='utf-8'))
         anchor_marker['distribution'] = 'release'
         anchor_marker['anchor'] = True
         anchor_marker['skills'] = '..'
+        anchor_bytes = json.dumps(anchor_marker, ensure_ascii=False, indent=2).encode('utf-8')
+
         anchor_bundle_info = zipfile.ZipInfo('skill_bundle/skills/a-stock-agents/bundle.json')
         anchor_bundle_info.create_system = 3
         anchor_bundle_info.external_attr = 0o100644 << 16
         anchor_bundle_info.compress_type = zipfile.ZIP_DEFLATED
-        archive.writestr(anchor_bundle_info, json.dumps(anchor_marker, ensure_ascii=False, indent=2).encode('utf-8'))
+        archive.writestr(anchor_bundle_info, anchor_bytes)
+
         # 锚点技能携带的依赖清单
+        req_bytes = (ROOT / 'requirements.txt').read_bytes()
+        req_full_bytes = requirements_full.encode('utf-8')
+
         anchor_req_info = zipfile.ZipInfo('skill_bundle/skills/a-stock-agents/requirements.txt')
         anchor_req_info.create_system = 3
         anchor_req_info.external_attr = 0o100644 << 16
         anchor_req_info.compress_type = zipfile.ZIP_DEFLATED
-        archive.writestr(anchor_req_info, (ROOT / 'requirements.txt').read_bytes())
+        archive.writestr(anchor_req_info, req_bytes)
+
         anchor_req_full_info = zipfile.ZipInfo('skill_bundle/skills/a-stock-agents/requirements-full.txt')
         anchor_req_full_info.create_system = 3
         anchor_req_full_info.external_attr = 0o100644 << 16
         anchor_req_full_info.compress_type = zipfile.ZIP_DEFLATED
-        archive.writestr(anchor_req_full_info, requirements_full.encode('utf-8'))
+        archive.writestr(anchor_req_full_info, req_full_bytes)
+
+        # P2-04: Codex 插件清单 (.codex-plugin/plugin.json)
+        plugin_meta = {
+            "name": "a-stock-agents",
+            "version": "3.0.0",
+            "description": "A-Stock Agents - A股全流程量化投研与实战反应决策智能体技能总包 (19项专业技能 + 1个总入口)",
+            "author": "cvdnn",
+            "skills": "./skills",
+            "entry": "./skills/a-stock-agents"
+        }
+        plugin_info = zipfile.ZipInfo('.codex-plugin/plugin.json')
+        plugin_info.create_system = 3
+        plugin_info.external_attr = 0o100644 << 16
+        plugin_info.compress_type = zipfile.ZIP_DEFLATED
+        archive.writestr(plugin_info, json.dumps(plugin_meta, ensure_ascii=False, indent=2).encode('utf-8'))
+
         # Derived installation metadata, never another business rule manifest.
         archive.writestr('INSTALL.json',json.dumps(instructions,ensure_ascii=False,indent=2))
         archive.writestr('requirements-full.txt',requirements_full)
         archive.write(ROOT/'requirements.txt','requirements.txt')
         archive.write(ROOT/'LICENSE','LICENSE')
+        if (ROOT / 'README.md').is_file(): archive.write(ROOT / 'README.md', 'README.md')
         if (ROOT / 'install.ps1').is_file(): archive.write(ROOT / 'install.ps1', 'install.ps1')
         if (ROOT / 'install.sh').is_file():
             sh_info = zipfile.ZipInfo('install.sh')

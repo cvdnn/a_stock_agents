@@ -1,7 +1,7 @@
 # 独立 Web AIChatUI 与 Skill 治理系统架构设计 (Web AIChat & Skill Governance Architecture)
 
 > **文档类别**：系统架构 (Architecture)  
-> **适用范围**：脱离第三方 AI 终端宿主（Antigravity / Hermes / Codex 等），自建独立 Web 界面系统并原生兼容本地客户端（Desktop / TUI）的 A股全流程量化投研交互中枢  
+> **适用范围**：脱离第三方 AI 终端宿主（Antigravity / Hermes / Codex / WorkBuddy 等），自建独立 Web 界面系统并原生兼容本地客户端（Desktop / TUI）的 A股全流程量化投研交互中枢  
 > **实施进度看板**：[`docs/specs/architecture/arch-web-aichat-and-skill-governance.md`](../../specs/architecture/arch-web-aichat-and-skill-governance.md) (`SPEC-ARCH-001`)
 
 ---
@@ -9,12 +9,12 @@
 ## 一、 架构设计目的与核心诉求
 
 ### 1. 现状与背景
-早期架构中，A-Stock Agents 作为一个高内聚的 **Skill 集合与量化引擎底座**，主要依赖外部第三方宿主工具（如 Google Antigravity、Hermes Agent、OpenAI Codex 等）提供 LLM 对话上下文、ReAct 思考循环以及终端展示交互，项目自身主要提供“执行双手（CLI Tools & SDK）”。
+早期架构中，A-Stock Agents 作为一个高内聚的 **Skill 集合与量化引擎底座**，主要依赖外部第三方宿主工具（如 Google Antigravity、Hermes Agent、OpenAI Codex、WorkBuddy 等）提供 LLM 对话上下文、ReAct 思考循环以及终端展示交互，项目自身主要提供“执行双手（CLI Tools & SDK）”。
 
 ### 2. 核心目标
 本架构旨在**脱离第三方终端工具**，为项目构建完全自闭环、开箱即用的**独立 Web AIChatUI 界面系统**，实现：
 1. **自带智能体大脑 (Native Agent Runtime)**：内置轻量 Agent 编排引擎与统一多模型网关，无需第三方工具即可进行多轮量化投研对话；
-2. **Skill 治理体系 (Skill Governance)**：对 17 大量化技能提供运行时元数据管理、动态启停、输入输出 Schema 校验、调用审计度量与分级权限风控；
+2. **Skill 治理体系 (Skill Governance)**：对 19 项专业量化技能（+1 锚点总入口，共 20 个入口）提供运行时元数据管理、动态启停、输入输出 Schema 校验、调用审计度量与分级权限风控；
 3. **沉浸式交互与研报预览 (Interactive Visualization)**：支持打字机流式输出（SSE）、Tool 调用折叠卡片、交互式 K 线图表渲染（Canvas / Lightweight-Charts）与买卖反应动作单直观呈现。
 
 ---

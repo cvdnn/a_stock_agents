@@ -61,9 +61,15 @@ cd a_stock_agents
 .\install.ps1
 ```
 
+### 3. 🌐 通用 Skills 生态一键接入 (Universal Skills CLI)
+```bash
+# 一行命令接入 Universal 技能生态 (~/.agents/skills)
+npx skills add cvdnn/a-stock-agents -g
+```
+
 > [!NOTE]
 > **全自动环境就绪保障**：
-> 安装脚本会自动创建独立的 Python 虚拟环境 `.venv`，安装项目所需全部核心依赖，并自适应就地配置 `.agents/skills` 技能目录，严格遵循**零全局污染原则 (Zero Global Pollution)**，绝不修改操作系统全局配置。
+> 安装脚本会自动创建独立的 Python 虚拟环境 `.venv`，安装项目所需全部核心依赖，并自适应就地配置 `.agents/skills` 技能目录，严格遵循**零全局污染原则 (Zero Global Pollution)**，绝不修改操作系统全局配置。通过通用生态 `npx skills add` 安装时，专业技能通过兄弟定位 `../a-stock-agents` 无缝连接共享引擎。详细规范见 [Release 分发架构与通用生态发布指南](guidelines/engineering/release-distribution-guide.md)。
 
 ---
 

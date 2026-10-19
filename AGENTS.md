@@ -126,7 +126,7 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 
 | 顺序 | 层级 | 命令 | 耗时 | 执行前提 |
 | :--- | :--- | :--- | ---: | :--- |
-| ① | **P0 核心（310 例，含 2 个平台分支 skip）** | `.venv/bin/python -m pytest -m core` | 当前 Windows 基线约 135s | 无条件先跑，唯一自动门禁 |
+| ① | **P0 核心（358 例，含 2 个平台分支 skip）** | `.venv/bin/python -m pytest -m core` | 当前 Windows 基线约 135s-300s | 无条件先跑，唯一自动门禁 |
 | ② | 核心离线极速（244 例） | `.venv/bin/python -m pytest -m "core and not slow and not network and not subprocess"` | ~20s | ① 失败定位时可自主使用 |
 | ③~⑨ | `core or p1` / `not network` / 全量 / `-n 4` / `network` / `live` / `browser_e2e` | 见测试指南 3.2 | 40~68s 或视环境 | **必须先取得人工确认** |
 
@@ -136,7 +136,7 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 2. **先征询再扩展**：确需跑 ③~⑨ 时，必须先说明「为什么核心门禁不足以覆盖本次改动」「预计耗时」「是否会触网或写盘」，得到确认后才执行。
 3. **门禁绿 ≠ 可交付**：改动落在 `p1` 覆盖面（服务端 API、设置接线、技能契约）时，须在结论中明确"建议追加执行 ③"，把决策权交回用户，既不自作主张跳过、也不自作主张全跑。
 4. **失败即止**：① 出现失败立刻停止并报告，不得用"全量里别的也挂了"稀释定位。
-5. **基线是 0 failed**（2026-10-15 实测：收集 668 例，`-m core` 308 passed / 2 skipped（平台分支）/ 358 deselected / 134.83s——含 P0-02/P0-03/P0-04/P0-05/P0-06 新增的 53 例发布链路门禁（frontmatter/启动器/doctor/打包八项行为/宿主注册红线与三平台 shim/依赖声明单一来源/三平台隔离解压验收/安装脚本零污染守卫）；③ `-m "core or p1"` 最近一次实测为 **558 passed / 0 failed**（P0-07 修复时点口径，当时收集 558 例），当前 ③ 收集 613 例未复跑。当日过程：③ 首跑暴露 5 处目录迁移后的 p1 档既有腐化（`app.py` `/api/docs` 端点 workspace 根硬编码 ×3、前端备份页缺非生产声明 ×1、测试引用迁移前旧路径 ×1），已按 `P0-07` 修复完毕并复测归零；`p2` 档含 `test_custom_output` 旧路径同步修复但未纳入本轮实测，离线全量 `not network` 复跑前不得引用「全量 0 failed」。P0-04 依赖收敛遗留边界：`pyproject.toml` [full] 增补 MyTT/akshare-proxy-patch 并统一 akshare 口径后，**uv.lock 尚未联网重锁**（`uv lock` 待人工确认后执行），锁与声明暂不同步。曾以 `xfail(strict=True)` 登记的 2 个生产缺陷（`/api/watchlist` 捏造数据、静态 API Token 分支不可达）连同复查出的 2 个同源残留（`/api/market/indices` 静态指数快照回落、`/api/portfolio/overview` 演示资金与收益）已于 2026-10-07 全部修复并转为常驻回归用例，并由 AST 级数值哨兵 `test_market_projection_has_no_hardcoded_market_values` 防止写死行情/账户数值回流；新暴露的生产缺陷仍须先以 `xfail(strict=True)` 建档，禁止为了让看板变绿而删除/放宽断言或改测试迁就实现。
+5. **基线是 0 failed**（2026-10-19 实测：收集 718 例，`-m core` 356 passed / 2 skipped（平台分支）/ 360 deselected / 317.47s——含 P0-02~P0-10、P1-06~P1-10 与 P2-01~P2-04 阶段一至阶段四全部 20 节共 102 项发布交付链路门禁（frontmatter/启动器/doctor/打包八项行为/宿主注册红线与三平台 shim/依赖声明单一来源/三平台隔离解压验收/安装脚本零污染守卫/锚点架构与三级寻址/统一跨平台安装底层/逐技能平级注册与三宿主模拟发现/5阶段卡片渲染/终端 TUI 导轨与 Overwrites 冲突保护/多版本原子切换与一键回滚/CLI --json 零污染与三原则字段/CI 跨平台流水线/口径对齐与 npx skills add 通用生态分发）；③ `-m "core or p1"` 最近一次实测为 **558 passed / 0 failed**（P0-07 修复时点口径，当时收集 558 例），当前 ③ 收集 663 例未复跑。当日过程：③ 首跑暴露 5 处目录迁移后的 p1 档既有腐化（`app.py` `/api/docs` 端点 workspace 根硬编码 ×3、前端备份页缺非生产声明 ×1、测试引用迁移前旧路径 ×1），已按 `P0-07` 修复完毕并复测归零；`p2` 档含 `test_custom_output` 旧路径同步修复但未纳入本轮实测，离线全量 `not network` 复跑前不得引用「全量 0 failed」。P0-04 依赖收敛遗留边界：`pyproject.toml` [full] 增补 MyTT/akshare-proxy-patch 并统一 akshare 口径后，**uv.lock 尚未联网重锁**（`uv lock` 待人工确认后执行），锁与声明暂不同步。曾以 `xfail(strict=True)` 登记的 2 个生产缺陷（`/api/watchlist` 捏造数据、静态 API Token 分支不可达）连同复查出的 2 个同源残留（`/api/market/indices` 静态指数快照回落、`/api/portfolio/overview` 演示资金与收益）已于 2026-10-07 全部修复并转为常驻回归用例，并由 AST 级数值哨兵 `test_market_projection_has_no_hardcoded_market_values` 防止写死行情/账户数值回流；新暴露的生产缺陷仍须先以 `xfail(strict=True)` 建档，禁止为了让看板变绿而删除/放宽断言或改测试迁就实现。
 6. **严禁后台执行，直接在任务中顺序执行（No Background Execution Guard）**：
    严禁智能体或调用方将任何测试用例、门禁命令或验证脚本作为后台任务或后台进程（Background Process / Background Task）挂起执行，严禁在交互中回复“等待后台运行完成”。所有测试命令必须在任务上下文中**直接前台顺序执行（Foreground Sequential Execution）**；若门禁较长，必须分步拆解为前台顺序步骤（如：① 极速离线内核门禁 `pytest -m "core and not slow and not subprocess"` ➔ ② 改动模块定向门禁 `pytest <模块> -k <用例>` ➔ ③ 交付链路独立子集）依次顺序执行并即时判定返回码，出现失败立刻终止。
 7. **长程测试过程进度同步与非必要用例裁剪（Live Progress & Smart Pruning）**：

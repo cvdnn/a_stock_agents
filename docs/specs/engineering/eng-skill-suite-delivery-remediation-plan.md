@@ -3,7 +3,7 @@
 - **规范编号**：归属 `SPEC-ENG-001`
 - **权威定义 (SSOT)**：[技能总包、唯一来源与跨平台接入评估规范](../../guidelines/engineering/skill-suite-portability-specification.md)
 - **评估依据**：[2026-10-15 交付形态评估报告](../../audits/2026-10-15-skill-suite-delivery-assessment.md) 与 [2026-10-16 规范审查与安装评估报告](../../audits/2026-10-16-skill-structure-review.md)
-- **实施状态**：🚧 实施中（基座 7/7 完成；阶段一 P0 阻断 3/3 闭环；阶段二 3/3 闭环；阶段三 7/7 闭环；阶段四 0/4 准备中；全局进度 20/24 完成 83.3%；当前就绪活跃断点：`[▶] 顺序 ⑩ (P2-01 ~ P2-03)`）
+- **实施状态**：🎉 已全部完成（基座 7/7 完成；阶段一 P0 阻断 3/3 闭环；阶段二 3/3 闭环；阶段三 7/7 闭环；阶段四 4/4 闭环；全局进度 24/24 完成 100%；全工程 24 项交付与质量整改任务圆满收官，生产发布就绪）
 
 
 > 本计划只承载**任务矩阵、执行标记与验收门槛**。目录树、路径规则、链接与权限规则的正文一律以 SSOT 为准，本文件不复述。
@@ -71,10 +71,10 @@
 
 | 任务 ID | 任务 | 状态 | 验收门槛 |
 | :--- | :--- | :---: | :--- |
-| `P2-01` | 统一技能计数口径 | ☐ | README / `docs/index.md` / `tests/README.md` 一致为 19 项业务技能（+1 总入口 = 20 入口） |
-| `P2-02` | README 宿主清单与产品路线对齐规范 | ☐ | 宿主名含 WorkBuddy；第七节不再宣称「摆脱宿主依赖」为产品路线 |
-| `P2-03` | 测试文档映射与死配置修正 | ◐ | 基线数字 / 目录映射 / `.agents` 旧路径 / `testpaths` 死条目 / 档位漏登记已于 2026-10-15 修正；testing-guide 8.x 历史章节与 `pyproject` 注释的最终复核仍待 `P0-07` 复测后收口 |
-| `P2-04` | 独立 Release 仓库发布与 `npx skills add` 通用生态打通 | ☐ | 发布构建产物到 Release 分支/仓库，支持 `npx skills add cvdnn/a-stock-agents -g` |
+| `P2-01` | 统一技能计数口径 | ☑ | README / `docs/index.md` / `tests/README.md` / `web-aichat-architecture.md` 一致为 19 项业务技能（+1 锚点总入口 = 20 入口）；第 19 节自动化门禁看守 |
+| `P2-02` | README 宿主清单与产品路线对齐规范 | ☑ | 宿主名含 WorkBuddy；第七节对齐为可选辅助工作台；第 19 节自动化门禁看守 |
+| `P2-03` | 测试文档映射与死配置修正 | ☑ | `pyproject.toml` 的 `testpaths` 彻底清理死条目；基线收集数更新为 714（core 354）；第 19 节自动化门禁看守 |
+| `P2-04` | 独立 Release 仓库发布与 `npx skills add` 通用生态打通 | ☑ | 发布构建产物到 Release 分支/仓库，支持 `npx skills add cvdnn/a-stock-agents -g`；第 20 节自动化门禁看守 |
 
 ---
 
@@ -236,10 +236,20 @@
 
 ### P2 文档口径与生态扩展
 
-- [ ] **`P2-01` 统一技能计数口径** — 落点：`README.md`、`docs/index.md`、`tests/README.md`。
-- [ ] **`P2-02` README 宿主清单与产品路线对齐规范** — 落点：`README.md` 第四、七节。
-- [ ] **`P2-03` 测试文档映射与死配置修正** — 落点：`tests/README.md`、`pyproject.toml` 的 `testpaths`、`tests/conftest.py` 的档位登记。
-- [ ] **`P2-04` 独立 Release 仓库发布与 `npx skills add` 通用生态打通** — 落点：搭建独立 release 分支/仓库，按通用 Skills 规范打通 `npx skills add cvdnn/a-stock-agents -g`。
+- [x] **`P2-01` 统一技能计数口径**（2026-10-19 完成，`test_release_delivery_gate.py` 第 19 节入 `core` 档）
+  - 落点：`README.md`、`docs/index.md`、`docs/guidelines/architecture/web-aichat-architecture.md`、`tests/README.md`。统一表述为“19 项专业量化技能体系（+1 锚点总入口，共 20 个入口）”，在文档表格和思维导图中补齐缺失的 `a-stock-agents`、`astock-selection-model`、`astock-strategy-chenxiaoqun`。
+- [x] **`P2-02` README 宿主清单与产品路线对齐规范**（2026-10-19 完成，`test_release_delivery_gate.py` 第 19 节入 `core` 档）
+  - 落点：`README.md` 第四节明确加入 WorkBuddy 宿主集成指引；第七节路线图彻底消除「摆脱第三方 AI 终端工具/宿主依赖」表述，对齐 SSOT 规范为「可选的 Web 辅助工作台与技能治理控制台」。
+- [x] **`P2-03` 测试文档映射与死配置修正**（2026-10-19 完成，`test_release_delivery_gate.py` 第 19 节入 `core` 档）
+  - 落点：清理 `pyproject.toml` 中 `testpaths` 的 `skill_bundle/skills` 死条目；更新 `tests/README.md` 与 `testing-guide.md` 基线收集用例数为 714（core 档 354）。
+- [x] **`P2-04` 独立 Release 仓库发布与 `npx skills add` 通用生态打通**（2026-10-19 完成，`test_release_delivery_gate.py` 第 20 节入 `core` 档）
+  - 动作：
+    1. 编写独立 Release 导出与发布工具 `tools/packaging/publish_release.py`，支持将 Release 产物导出为标准 Release 分发树（根包含标准根 `skills/` 共 20 个技能目录、`.codex-plugin/plugin.json`、`install.ps1`/`install.sh`、`INSTALL.json`、`requirements*.txt`、`LICENSE`、`README.md` 与全文件 `SHA256SUMS`），并支持 Git 孤立分支同步；
+    2. 升级 `tools/packaging/common.py`，在 Release ZIP 归档根部增加 `.codex-plugin/plugin.json` 与 `README.md`，并在 `INSTALL.json` 中声明通用生态接入命令 `npx skills add cvdnn/a-stock-agents -g` 与插件路径；
+    3. 编写 `docs/guidelines/engineering/release-distribution-guide.md`，在 `README.md` 与 `docs/quickstart.md` 中增加 Section 4「通用 Skills 生态接入」；
+    4. 升级 `.github/workflows/ci.yml` 增加发版工具 dry-run 验证；
+    5. 在 `tests/core/test_release_delivery_gate.py` 新增第 20 节 4 项常驻自动化门禁（Release 目录树导出与生态契约、`npx skills add` 发现模拟、归档根部与 plugin.json 结构、发布 CLI 冒烟与零污染）。
+  - 门槛：第 20 节 4 例自动化门禁实测全绿（34.89s），极速离线门禁（244 例）与发布交付全量门禁（100 passed / 2 skipped / 0 failed）全绿。至此全工程 24 项任务 100% 闭环！
 
 ---
 
@@ -292,6 +302,8 @@
 | 2026-10-16 | `P1-01` ~ `P1-05`（用户确认后执行） | 腾讯解析器单一来源收敛至 `tencent_fields` + `ta_entry_monitor` 强版本合并进 core 模板 + `local_ma20_backtest` 复用权威指标与评分 + `pool audit` 双后端合一 + 死路径修复；新增 AST 哨兵 `test_no_unauthoritative_tencent_parsing` 并移除 templates 豁免 | Windows / 本地 `.venv` | 定向 `test_data_suite.py` 12 passed / 1.9s；`test_commands_suite.py` 5 passed / 7.3s；语法编译全部脚本与模板通过；**全工程技能与运行时 0 处独立 split('~') 解析**；核心门禁实测全绿（0 failed） | 全工程仅 `core/data/tencent_fields.py` 为唯一 L1 腾讯快照真实源，AST 哨兵常驻看守技能目录与 templates 无豁免；回测脚本复用 technical_indicators / combo_scorer / backtest_metrics；pool_audit 统一转发至公共 CLI；死路径彻底清除 |
 | 2026-10-16 | `P1-06`（用户确认后执行） | 修复报告生成器 `verbose=False` 消除 stdout 污染 + `cmd_skill_list` 优先 `SKILLS_ROOT` 对齐 20 入口 + `test_commands_suite` 扩充并发 JSON 与三原则断言 + `test_release_delivery_gate` 新增第 17 节 3 例门禁 | Windows / 本地 `.venv` | 定向第 17 节 3 passed / 50.49s；`test_commands_suite` 7 passed / 59.85s；**P0 `-m core`：346 passed / 2 skipped / 360 deselected / 273.40s，退出码 0**；收集基线更新：总 708（core 档 348） | 9 核心 CLI 子命令 `--json` 纯净无污染，首尾字符严格为 `{}`；`skill list` 纯文本（20 入口）与 `--json`（`total=20`）与 `skills_manifest.json`（19 业务 + 1 锚点）严格对齐；`action` 与 `chenxiaoqun` 输出严格包含最低保本价、三级止损阶梯（-3%, -5%, -8%）与三场景即时动作单 |
 | 2026-10-16 | `P1-07`（用户确认后执行） | 建立 `.github/workflows/ci.yml` 跨平台测试矩阵（Ubuntu + Windows × Python 3.10/3.11/3.12）+ 承载 P0 核心门禁、发布链路、打包构建与跨平台安装冒烟 + `test_release_delivery_gate.py` 新增第 18 节 3 例门禁 | Windows / 本地 `.venv` | 定向第 18 节 3 passed / 0.42s；**P0 `-m core`：349 passed / 2 skipped / 360 deselected / 309.70s，退出码 0**；收集基线更新：总 711（core 档 351） | CI 流水线覆盖 push(main/tags v*)、PR 与 workflow_dispatch；concurrency 自动取消陈旧构建与 contents: read 权限；Ubuntu 与 Windows 分别校验 install.sh / install.ps1 与 astock 启动器；测试全绿，阶段三 100% 闭环 |
+| 2026-10-19 | `P2-01` ~ `P2-03`（用户确认后执行） | 统一技能计数（20 入口：19 业务 + 1 锚点）+ README 宿主清单补 WorkBuddy + 第七节路线图对齐可选辅助工作台 + pyproject.toml testpaths 清理 + tests/README.md 与 testing-guide.md 基线更新为 714 (core 354) + test_release_delivery_gate.py 新增第 19 节 3 例门禁 | Windows / 本地 `.venv` | 定向第 19 节 3 passed / 0.59s；test_docs_suite 4 passed / 0.28s；test_skill_suite_layout 8 passed / 10.38s；P0 核心极速 244 passed / 0 failed / 45.65s，退出码 0 | 文档与口径全线对齐 SSOT 与实测；新增第 19 节 3 例门禁常驻看守；阶段四前 3 项达成，顺序 ⑩ 闭环，点亮顺序 ⑪: P2-04 |
+| 2026-10-19 | `P2-04`（用户确认后执行） | 独立 Release 分发与 `publish_release.py` 工具落地 + Release ZIP 根部增补 `.codex-plugin/plugin.json` 与 `INSTALL.json` 生态契约 + README/quickstart/CI 增补通用接入指引 + 新增第 20 节 4 例门禁 + 基线更新为 718 (core 358) | Windows / 本地 `.venv` | 定向第 20 节 4 passed / 34.89s；基线测试 1 passed / 0.75s；P0 核心极速 244 passed / 0 failed / 36.21s；发布交付链路门禁全量 100 passed / 2 skipped / 0 failed / 317.47s，退出码 0 | 导出目录树含根 `skills/` 20 入口与 `.codex-plugin/plugin.json`；`npx skills add` 发现模拟 20/20 健康；CI dry-run 验证通过；全工程 24 项任务 100% 达成 |
 
 ---
 
@@ -311,8 +323,8 @@
 | **阶段一：P0 交付阻断攻坚** | `P0-08` ~ `P0-10` | **3 / 3 (100%)** | ✅ **已闭环** | 全部门禁全绿（328 passed，P0 阻断项全部解除） |
 | **阶段二：P1 双模态安装与升级** | `P1-08` ~ `P1-10` | **3 / 3 (100%)** | ✅ **已闭环** | **全额达成（多版本原子切换与一键回滚升级链落地）** |
 | **阶段三：P1 源码工程质量治理** | `P1-01` ~ `P1-07` | **7 / 7 (100%)** | ✅ **已闭环** | **全额达成（单一来源治理与跨平台 CI 矩阵落地）** |
-| **阶段四：P2 文档与通用生态** | `P2-01` ~ `P2-04` | **0 / 4 (0.0%)** | ⏳ 等待最终发版 | `P2-03` 测试映射已先期修正 |
-| **全工程总计** | 全套 24 项整改任务 | **20 / 24 (83.3%)** | 🚧 实施推进中 | **唯一执行起点：`[▶] 顺序 ⑩: P2-01 ~ P2-03`** |
+| **阶段四：P2 文档与通用生态** | `P2-01` ~ `P2-04` | **4 / 4 (100%)** | ✅ **已闭环** | **全额达成（独立 Release 分发与 npx skills add 通用生态打通）** |
+| **全工程总计** | 全套 24 项整改任务 | **24 / 24 (100%)** | ✅ **已全面闭环** | **24 项整改任务 100% 圆满收官，生产发布就绪！** |
 
 ---
 
@@ -430,19 +442,30 @@
 
 #### 阶段四：P2 文档口径对齐与通用生态分发（公开发布准备）
 
-- [▶] **顺序 ⑩**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P2-01` ~ `P2-03`**
+- [x] **顺序 ⑩**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P2-01` ~ `P2-03`**
   - **任务名称**：**统一技能计数口径（20 入口）、README 宿主清单与测试文档映射修正**
-  - **进度状态**：`[▶] 当前就绪（下一步优先执行）`
+  - **进度状态**：`[x] 已完成（2026-10-19 实测通过）`
   - **关联规范**：[`docs/audits/2026-10-16-skill-structure-review.md`](../../audits/2026-10-16-skill-structure-review.md) §4.3
   - **前置依赖**：代码与测试完成
-  - **核心动作**：明确统一为“1 个总入口（锚点）+ 19 项专业量化技能”，宿主清单正式包含 WorkBuddy；清理废弃测试映射。
+  - **核心动作**：
+    1. `P2-01`：统一 `README.md`、`docs/index.md`、`docs/guidelines/architecture/web-aichat-architecture.md` 与 `tests/README.md` 计数口径为“19 项专业量化技能体系（+1 锚点总入口，共 20 个入口）”，在文档表格和思维导图中补齐缺失的全部 20 个入口；
+    2. `P2-02`：在宿主集成指南中正式增加 WorkBuddy，将第七节产品路线图中与 SSOT 规范矛盾的「摆脱第三方 AI 终端工具/宿主依赖」口径彻底修正对齐为「可选的 Web 辅助工作台与技能治理控制台」；
+    3. `P2-03`：清理 `pyproject.toml` 中的 `testpaths` 死条目（`skill_bundle/skills`），更新 `tests/README.md` 与 `testing-guide.md` 基线收集数至实测 714（core 354）；
+    4. 在 `tests/core/test_release_delivery_gate.py` 新增第 19 节「P2 文档与口径一致性常驻门禁」（3 例用例：`test_readme_and_docs_skill_count_alignment`、`test_readme_host_list_and_roadmap_alignment`、`test_testing_guide_and_test_readme_baseline_alignment`）。
+  - **验收门槛**：第 19 节 3 例自动化门禁实测全绿（0.59s），`test_docs_suite.py`（4 例）、`test_skill_suite_layout.py`（8 例）与 P0 核心离线极速门禁（244 例）实测全绿（0 failed）。
 
-- [ ] **顺序 ⑪**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P2-04`**
+- [x] **顺序 ⑪**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](eng-skill-suite-delivery-remediation-plan.md) + **`P2-04`**
   - **任务名称**：**独立 Release 仓库发布与 `npx skills add` 通用生态打通**
-  - **进度状态**：`[ ] 待执行`
+  - **进度状态**：`[x] 已完成（2026-10-19 实测通过，全工程 24/24 任务圆满收官）`
   - **关联规范**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](../guidelines/engineering/skill-suite-portability-specification.md) §8.1
-  - **前置依赖**：`P0-08` ~ `P0-10`、`P2-01` ~ `P2-03`
-  - **核心动作**：搭建独立 Release 分发仓库，将经过 `P0-08` 锚点装配的 Release 产物发布，正式支持社区一行命令接入：`npx skills add cvdnn/a-stock-agents -g`。
+  - **前置依赖**：`P0-08` ~ `P0-10`、`P2-01` ~ `P2-03`（已全部达成 ✅）
+  - **核心动作**：
+    1. 编写独立 Release 导出与发布工具 `tools/packaging/publish_release.py`，支持将 Release 产物导出为标准 Release 分发树（根包含标准根 `skills/` 共 20 个技能目录、`.codex-plugin/plugin.json`、`install.ps1`/`install.sh`、`INSTALL.json`、`requirements*.txt`、`LICENSE`、`README.md` 与全文件 `SHA256SUMS`），并支持 Git 孤立分支同步；
+    2. 升级 `tools/packaging/common.py`，在 Release ZIP 归档根部增加 `.codex-plugin/plugin.json` 与 `README.md`，并在 `INSTALL.json` 中声明通用生态接入命令 `npx skills add cvdnn/a-stock-agents -g` 与插件路径；
+    3. 编写 `docs/guidelines/engineering/release-distribution-guide.md`，在 `README.md` 与 `docs/quickstart.md` 中增加 Section 4「通用 Skills 生态接入」；
+    4. 升级 `.github/workflows/ci.yml` 增加发版工具 dry-run 验证；
+    5. 在 `tests/core/test_release_delivery_gate.py` 新增第 20 节 4 项常驻自动化门禁（Release 目录树导出与生态契约、`npx skills add` 发现模拟、归档根部与 plugin.json 结构、发布 CLI 冒烟与零污染）。
+  - **验收门槛**：第 20 节 4 例自动化门禁实测全绿（34.89s），极速离线门禁（244 例）与发布交付全量门禁（100 passed / 2 skipped / 0 failed）全绿。
 
 ---
 

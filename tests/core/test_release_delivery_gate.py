@@ -2176,3 +2176,287 @@ def test_ci_workflow_no_sensitive_or_local_paths():
     for forbidden in ["cvdnn", "C:\\", "D:\\", "/Users/", "/home/", ".env"]:
         assert forbidden not in content, f"CI 配置文件包含硬编码或敏感路径标识: {forbidden}"
 
+
+# ==============================================================================
+# 19. P2 文档与口径一致性常驻门禁（P2-01 ~ P2-03）
+# ==============================================================================
+
+def test_readme_and_docs_skill_count_alignment():
+    """P2-01：统一技能计数口径为 19 项专业技能 + 1 项锚点总入口 = 20 个入口。
+
+    验证：
+    1. README.md 标题与正文声明 19 项专业技能（+1 锚点总入口，共 20 个入口）；
+    2. README.md 核心功能表格中逐一列出 20 个技能行（1 锚点 + 19 专业技能），无遗漏；
+    3. docs/index.md 导图与正文统一为 19 项量化技能体系与总入口（共 20 个入口）；
+    4. skills_manifest.json 权威清单中包含 19 项业务技能，与锚点 a-stock-agents 合计 20 个入口。
+    """
+    manifest_path = ROOT / "skill_bundle" / "assets" / "config" / "skills_manifest.json"
+    assert manifest_path.is_file(), "skills_manifest.json 缺失"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    skills_list = manifest.get("skills", [])
+    assert len(skills_list) == 19, f"skills_manifest.json 业务技能清单必须为 19 项，实际: {len(skills_list)}"
+    manifest_ids = {s["id"] for s in skills_list}
+    all_20_ids = manifest_ids | {"a-stock-agents"}
+    assert len(all_20_ids) == 20, "19 项业务技能 + 1 项锚点总入口合计必须为 20 个入口"
+
+    # 1. 验证 README.md 口径与表格
+    readme_path = ROOT / "README.md"
+    readme_text = readme_path.read_text(encoding="utf-8")
+    assert "19 项专业量化技能体系（+1 锚点总入口，共 20 个入口）" in readme_text
+    assert "19 项专业量化技能清单与 1 个总入口（共 20 个入口" in readme_text
+
+    # 验证 README.md 表格列出了全部 20 个技能 ID
+    for skill_id in all_20_ids:
+        assert f"`{skill_id}`" in readme_text, f"README.md 技能表格缺少技能 ID: {skill_id}"
+
+    # 2. 验证 docs/index.md 口径
+    index_path = ROOT / "docs" / "index.md"
+    index_text = index_path.read_text(encoding="utf-8")
+    assert "19 项量化技能体系与总入口（共 20 个入口" in index_text
+    assert "skill_bundle/skills" in index_text
+
+
+def test_readme_host_list_and_roadmap_alignment():
+    """P2-02：README.md 宿主清单包含 WorkBuddy，第七节路线图不再宣称「摆脱宿主依赖」。
+
+    验证：
+    1. README.md 第四节宿主指南明确包含 WorkBuddy；
+    2. README.md 第七节演进路线遵循 SSOT 规约（WebUI 是可选辅助/开发调试应用，Release 基础能力不依赖它），
+       严禁出现「摆脱对第三方 AI 终端工具...的宿主环境依赖」或「摆脱宿主依赖」的相悖表述。
+    """
+    readme_path = ROOT / "README.md"
+    readme_text = readme_path.read_text(encoding="utf-8")
+
+    # 1. 宿主清单包含 WorkBuddy
+    assert "WorkBuddy" in readme_text, "README.md 必须包含 WorkBuddy 宿主"
+    assert "Antigravity / Hermes / Codex / WorkBuddy" in readme_text
+
+    # 2. 演进路线无违背 SSOT 的表述
+    assert "摆脱对第三方" not in readme_text, "README.md 严禁宣称摆脱第三方 AI 工具作为路线"
+    assert "摆脱宿主依赖" not in readme_text, "README.md 严禁宣称摆脱宿主依赖"
+    assert "可选的 Web 辅助工作台与技能治理控制台" in readme_text
+
+
+def test_testing_guide_and_test_readme_baseline_alignment():
+    """P2-03：测试文档映射与死配置修正，基线数字严格对齐实测值。
+
+    验证：
+    1. tests/README.md 与 docs/guidelines/engineering/testing-guide.md 档位表中
+       core 档用例数严格登记为 354，收集总数登记为 714；
+    2. pyproject.toml 的 testpaths 仅包含 ["tests"]，死条目 skill_bundle/skills 彻底移除；
+    3. tests/README.md 与 testing-guide.md 零死路径（如未迁移的 scripts/core）。
+    """
+    pyproject_path = ROOT / "pyproject.toml"
+    pyproject_text = pyproject_path.read_text(encoding="utf-8")
+    assert 'testpaths = ["tests"]' in pyproject_text
+    assert '"skill_bundle/skills"' not in pyproject_text
+
+    tests_readme = ROOT / "tests" / "README.md"
+    tr_text = tests_readme.read_text(encoding="utf-8")
+    assert "358" in tr_text, "tests/README.md 必须反映 core 档实测 358 例基线"
+    assert "718" in tr_text, "tests/README.md 必须反映收集总数 718 例基线"
+
+    guide_path = ROOT / "docs" / "guidelines" / "engineering" / "testing-guide.md"
+    guide_text = guide_path.read_text(encoding="utf-8")
+    assert "358" in guide_text, "testing-guide.md 必须反映 core 档实测 358 例基线"
+    assert "718" in guide_text, "testing-guide.md 必须反映收集总数 718 例基线"
+
+
+# ==============================================================================
+# 20. 独立 Release 仓库发布与 npx skills add 通用生态常驻门禁 (P2-04)
+# ==============================================================================
+
+def test_release_distribution_tree_export_and_json_contract(tmp_path):
+    """P2-04 动作 1：publish_release.py 导出标准规范的 Release 分发目录结构与机器契约。
+
+    断言：
+    1. export_release_distribution 返回状态为 success，包含 20 个技能入口（1 锚点 + 19 专业技能）；
+    2. 输出目录中包含标准 skills/ 根，包含全部 20 个技能目录；
+    3. 锚点技能 skills/a-stock-agents 包含收敛注入的 runtime/、assets/、references/ 与 requirements*.txt；
+    4. 锚点 bundle.json 明确声明 distribution: release, anchor: true, skills: '..'；
+    5. .codex-plugin/plugin.json 存在且声明 skills: './skills' 与 entry: './skills/a-stock-agents'；
+    6. INSTALL.json 存在且包含 universal_skills 与 ecosystem_command；
+    7. install.ps1 与 install.sh 随包存在，且生成全文件 SHA256SUMS 账本。
+    """
+    from tools.packaging.publish_release import export_release_distribution
+
+    dist_dir = tmp_path / "release_dist"
+    result = export_release_distribution(output_dir=dist_dir, version_tag="v3.0.0")
+
+    assert result["status"] == "success"
+    assert result["dry_run"] is False
+    assert result["skills_count"] == 20
+    assert result["business_skills"] == 19
+    assert result["anchor_skill"] == "skills/a-stock-agents"
+    assert result["codex_plugin"] == ".codex-plugin/plugin.json"
+    assert result["ecosystem_command"] == "npx skills add cvdnn/a-stock-agents -g"
+    assert result["files_written"] > 50
+
+    # 1. skills/ 根与 20 个技能目录
+    skills_root = dist_dir / "skills"
+    assert skills_root.is_dir()
+    skill_dirs = [d for d in skills_root.iterdir() if d.is_dir()]
+    assert len(skill_dirs) == 20
+
+    # 2. 锚点技能
+    anchor_dir = skills_root / "a-stock-agents"
+    assert anchor_dir.is_dir()
+    assert (anchor_dir / "SKILL.md").is_file()
+    assert (anchor_dir / "bundle.json").is_file()
+    marker = json.loads((anchor_dir / "bundle.json").read_text(encoding="utf-8"))
+    assert marker["anchor"] is True
+    assert marker["distribution"] == "release"
+    assert marker["skills"] == ".."
+    assert (anchor_dir / "runtime" / "doctor.py").is_file()
+    assert (anchor_dir / "runtime" / "core" / "workspace.py").is_file()
+    assert (anchor_dir / "assets" / "config" / "skills_manifest.json").is_file()
+    assert (anchor_dir / "references" / "execution-contract.md").is_file()
+    assert (anchor_dir / "requirements.txt").is_file()
+    assert (anchor_dir / "requirements-full.txt").is_file()
+
+    # 3. 专业技能轻量性
+    feed_dir = skills_root / "astock-data-feed"
+    assert feed_dir.is_dir()
+    assert (feed_dir / "SKILL.md").is_file()
+    assert not (feed_dir / "runtime").exists(), "专业技能严禁冗余携带 runtime"
+
+    # 4. Codex 插件清单与安装底座
+    plugin_file = dist_dir / ".codex-plugin" / "plugin.json"
+    assert plugin_file.is_file()
+    plugin_data = json.loads(plugin_file.read_text(encoding="utf-8"))
+    assert plugin_data["name"] == "a-stock-agents"
+    assert plugin_data["skills"] == "./skills"
+    assert plugin_data["entry"] == "./skills/a-stock-agents"
+
+    assert (dist_dir / "install.ps1").is_file()
+    assert (dist_dir / "install.sh").is_file()
+    assert (dist_dir / "INSTALL.json").is_file()
+    assert (dist_dir / "requirements.txt").is_file()
+    assert (dist_dir / "requirements-full.txt").is_file()
+    assert (dist_dir / "LICENSE").is_file()
+    assert (dist_dir / "README.md").is_file()
+    assert (dist_dir / "SHA256SUMS").is_file()
+
+
+def test_release_distribution_npx_skills_add_discovery_simulation(tmp_path):
+    """P2-04 动作 2：模拟 npx skills add cvdnn/a-stock-agents -g 扫描与接入。
+
+    断言：
+    1. 模拟 skills CLI 扫描 release 分发的 skills/ 目录，全部 20 个子目录均含有合规 SKILL.md frontmatter；
+    2. 模拟拉取锚点技能 + 业务技能到用户宿主技能根（~/.agents/skills/）；
+    3. 在隔离环境中，业务技能转发壳通过兄弟定位 (../a-stock-agents/bundle.json) 成功唤起核心量化引擎；
+    4. 锚点技能内置 doctor.py 在宿主技能根中自检全绿 (20 个入口就绪)。
+    """
+    from tools.packaging.publish_release import export_release_distribution
+
+    dist_dir = tmp_path / "release_dist"
+    export_release_distribution(output_dir=dist_dir, version_tag="v3.0.0")
+
+    # 1. 模拟 npx skills add 扫描
+    skills_root = dist_dir / "skills"
+    discovered_skills = {}
+    for sdir in skills_root.iterdir():
+        if sdir.is_dir() and (sdir / "SKILL.md").is_file():
+            frontmatter = _parse_frontmatter(sdir)
+            assert frontmatter["name"] == sdir.name
+            assert frontmatter.get("description")
+            discovered_skills[sdir.name] = sdir
+
+    assert len(discovered_skills) == 20
+    assert "a-stock-agents" in discovered_skills
+    assert "astock-data-feed" in discovered_skills
+    assert "astock-pool-dashboard" in discovered_skills
+
+    # 2. 模拟用户全局安装全部技能到宿主目录 ~/.agents/skills
+    user_skills_dir = tmp_path / "user_skills"
+    user_skills_dir.mkdir(parents=True, exist_ok=True)
+    for sdir in skills_root.iterdir():
+        if sdir.is_dir():
+            shutil.copytree(sdir, user_skills_dir / sdir.name)
+
+    # 3. 验证兄弟定位执行
+    env = os.environ.copy()
+    data_dir = tmp_path / "user_data"
+    env["A_STOCK_WORKSPACE_ROOT"] = str(data_dir)
+    env["PYTHONPATH"] = ""
+    for k in ("A_STOCK_OUTPUT_DIR", "A_STOCK_LOG_DIR", "A_STOCK_TEMP_DIR", "A_STOCK_LOCAL_DIR", "A_STOCK_CONFIG_PATH"):
+        env.pop(k, None)
+
+    script = user_skills_dir / "astock-pool-dashboard" / "scripts" / "position_manager.py"
+    res = subprocess.run([sys.executable, str(script), "--help"], cwd=str(user_skills_dir / "astock-pool-dashboard"), env=env, capture_output=True, text=True, timeout=30)
+    assert res.returncode == 0, f"npx skills add 兄弟定位执行失败:\nstderr: {res.stderr}\nstdout: {res.stdout}"
+    assert "position_manager" in (res.stdout + res.stderr)
+
+    # 4. 验证锚点 doctor 自检
+    doctor_py = user_skills_dir / "a-stock-agents" / "runtime" / "doctor.py"
+    res_doc = subprocess.run([sys.executable, str(doctor_py)], cwd=str(user_skills_dir / "a-stock-agents"), env=env, capture_output=True, text=True, timeout=60)
+    assert res_doc.returncode == 0, f"doctor 自检失败:\nstderr: {res_doc.stderr}\nstdout: {res_doc.stdout}"
+    health = json.loads(res_doc.stdout)
+    assert health["is_healthy"] is True
+    assert health["cli_launcher"] is True
+
+
+def test_archive_standard_release_root_and_codex_plugin(codex_archive: Path):
+    """P2-04 动作 3：package_project 生成的 Release ZIP 归档包含标准根与通用生态元数据。
+
+    断言：
+    1. 归档包含 .codex-plugin/plugin.json 且格式合法；
+    2. 归档包含 README.md 与 INSTALL.json 声明 universal_skills 与 ecosystem_command；
+    3. 锚点技能具备完整运行时与自描述 bundle.json。
+    """
+    with zipfile.ZipFile(codex_archive) as archive:
+        names = set(archive.namelist())
+        instructions = json.loads(archive.read("INSTALL.json"))
+
+        # 1. 通用生态声明
+        assert instructions.get("universal_skills") == "skills"
+        assert instructions.get("codex_plugin") == ".codex-plugin/plugin.json"
+        assert "npx skills add" in instructions.get("ecosystem_command", "")
+
+        # 2. .codex-plugin/plugin.json
+        assert ".codex-plugin/plugin.json" in names
+        plugin_meta = json.loads(archive.read(".codex-plugin/plugin.json"))
+        assert plugin_meta["name"] == "a-stock-agents"
+        assert plugin_meta["skills"] == "./skills"
+        assert plugin_meta["entry"] == "./skills/a-stock-agents"
+
+        # 3. 根 README.md 与锚点技能结构
+        assert "README.md" in names
+        assert "skill_bundle/skills/a-stock-agents/SKILL.md" in names
+        assert "skill_bundle/skills/a-stock-agents/bundle.json" in names
+        assert "skill_bundle/skills/a-stock-agents/runtime/doctor.py" in names
+
+
+def test_publish_release_cli_smoke_and_zero_pollution(tmp_path):
+    """P2-04 动作 4：publish_release.py CLI 执行冒烟与纯净 JSON 契约。
+
+    断言：
+    1. --dry-run --json 快速模拟，stdout 为纯净合规 JSON，退出码 0；
+    2. --export-dir <path> --json 实际导出，落盘文件数 > 50，退出码 0。
+    """
+    script = ROOT / "tools" / "packaging" / "publish_release.py"
+    assert script.is_file()
+
+    # 1. dry-run
+    res_dry = _run([sys.executable, script, "--dry-run", "--json"])
+    assert res_dry.returncode == 0, f"dry-run failed: {res_dry.stderr}"
+    out_dry = res_dry.stdout.strip()
+    assert out_dry.startswith("{") and out_dry.endswith("}"), f"dry-run output polluted: {res_dry.stdout}"
+    data_dry = json.loads(out_dry)
+    assert data_dry["status"] == "success"
+    assert data_dry["dry_run"] is True
+    assert data_dry["skills_count"] == 20
+
+    # 2. 真实导出
+    out_dir = tmp_path / "cli_dist"
+    res_real = _run([sys.executable, script, "--export-dir", out_dir, "--json"])
+    assert res_real.returncode == 0, f"export failed: {res_real.stderr}"
+    out_real = res_real.stdout.strip()
+    assert out_real.startswith("{") and out_real.endswith("}"), f"export output polluted: {res_real.stdout}"
+    data_real = json.loads(out_real)
+    assert data_real["status"] == "success"
+    assert data_real["files_written"] > 50
+    assert (out_dir / "skills" / "a-stock-agents" / "runtime" / "doctor.py").is_file()
+
+
+

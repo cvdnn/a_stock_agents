@@ -26,9 +26,9 @@
 
 ## 📑 目录
 - [一、架构全景图](#一架构全景图)
-- [二、核心功能与 17 大智能体技能体系（6+1 分层架构）](#二核心功能与-17-大智能体技能体系61-分层架构)
+- [二、核心功能与 19 项专业量化技能体系（+1 锚点总入口，共 20 个入口）](#二核心功能与-19-项专业量化技能体系1-锚点总入口共-20-个入口)
 - [三、环境准备与常规安装](#三环境准备与常规安装)
-- [四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)](#四第三方-ai-平台与工具使用指南-antigravity--hermes--codex-等)
+- [四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex / WorkBuddy 等)](#四第三方-ai-平台与工具使用指南-antigravity--hermes--codex--workbuddy-等)
 - [五、CLI 实战命令速查与使用说明](#五cli-实战命令速查与使用说明)
 - [六、用户专属数据隔离 (output/)、安全打包与热更新](#六用户专属数据隔离-output-安全打包与热更新)
 - [七、下一阶段演进路线：独立 Web AIChatUI 与 Skill 治理系统](#七下一阶段演进路线独立-web-aichatui-与-skill-治理系统)
@@ -45,7 +45,7 @@
 
 ---
 
-## 二、核心功能与 17 大智能体技能体系（6+1 分层架构）
+## 二、核心功能与 19 项专业量化技能体系（+1 锚点总入口，共 20 个入口）
 
 ### 1. 七大量化与投研核心子系统
 1. **4 级自动降级数据桥接 (`core/data`)**：
@@ -82,16 +82,19 @@
 
 ---
 
-### 2. 19 个标准化 Agent 技能清单 (6+1 现代分层架构)
+### 2. 19 项专业量化技能清单与 1 个总入口（共 20 个入口，6+1 现代分层架构）
 
 | 技能 ID | 技能名称 | 分层 | 核心能力描述 | CLI 快速入口 |
 | :--- | :--- | :---: | :--- | :--- |
+| **`a-stock-agents`** | A-Stock Agents 智能总入口 (锚点) | L0 锚点 | 20 技能总入口与环境自检、宿主意图路由与多智能体统一分发 | `astock` / `python skill_bundle/runtime/run_skill.py a-stock-agents` |
 | **`astock-data-feed`** | A股全链路行情数据引擎 | L1 数据 | 实时行情快照、历史K线、全套技术指标、筹码分布与板块资金流 | `astock data quote <代码>` |
 | **`astock-platform-evaluate`** | 统一A股全流程投研平台 | L1 平台 | 4层降级、100分制综合评分、被套解套策略诊断、大盘健康度评估 | `astock evaluate <代码>` |
-| **`astock-screener-5a`** | 5A多维共振旋转选股 | L2 选股 | 动量/价值/质量/主线旋转多维评分模型与滚动样本外回测检验 | `astock screen 5a` |
+| **`astock-screener-5a`** | 5A多维共振旋转选股 | L2 选股 | 动量/价值/质量/主线旋转多维评分模型与滚动样本外回测检验 | `astock screen --dynamic hot_sectors` |
+| **`astock-selection-model`** | 智能选股模型与层级漏斗 | L2 选股 | SPEC-ALGO-ISS-001 配置化智能选股：漏斗/条件树模型编译、调度与结果研究跟踪 | `astock funnel run --stage <阶段>` |
 | **`astock-quant-engine`** | 工业级量化工程引擎 | L2 量化 | 截面因子提取、换手沉淀筹码模型、牛熊自适应加权、MAD去极值、凯利仓位与ATR止损 | `astock quant pipeline` |
 | **`astock-model-validation`** | 时序AI模型实证检验 | L2 验证 | 外部时序 AI 基础模型（如 Kronos/TimesFM）滚动样本外回测规范 | `astock validate-model` |
 | **`astock-action-execution`** | 实战反应动作与保本价 | L3 执行 | 最低保本卖出价精确进位、T0/T1/T2三级止损与三场景即时反应指令 | `astock action plan` |
+| **`astock-strategy-chenxiaoqun`**| 陈小群总龙头战法 | L3 策略 | 顶级游资总龙头战法：深水低吸/竞价弱转强/中军做T锁仓/首阴二波 | `astock pattern chenxiaoqun <代码>` |
 | **`astock-strategy-mainboard`** | 主板流动性池多波段防御 | L3 策略 | 主板流动性池趋势回踩（trend_pullback）与波段防守反击决策 | `astock strategy swing` |
 | **`astock-strategy-tuige`** | 退哥短线交易规则体系 | L3 策略 | 涨停回调、连板接力、洗盘突破、失效卖点与仓位纪律规则库 | `astock shortline check` |
 | **`astock-strategy-macd`** | 水下二次金叉与底背离 | L3 策略 | 波谷极值对比、波段间距过滤、水下二次金叉、双底回踩、MACD底背离形态识别 | `astock pattern macd <代码>` |
@@ -186,6 +189,21 @@ docker compose --env-file tools/containers/web-console/.env -f tools/containers/
 ```
 > 详细运维、日志排查与容器内 CLI 调用见 [Docker 容器化部署指南](docs/docker-deploy.md)。
 
+### 4. 🌐 通用 Skills 生态一键接入 (Universal Skills CLI)
+
+本系统已全面打通通用 Agent Skills 生态规范（支持将 20 个技能直接添加到全局或工作区技能目录 `~/.agents/skills/`）：
+
+```bash
+# 全局安装总包与 19 项专业量化技能
+npx skills add cvdnn/a-stock-agents -g
+
+# 或指定安装锚点总入口
+npx skills add cvdnn/a-stock-agents --skill a-stock-agents -g
+```
+> [!NOTE]
+> 经过 `P0-08` 锚点架构装配，总入口 `a-stock-agents` 携带完整公共运行时引擎与启动器；各专业技能通过兄弟寻址（`../a-stock-agents/bundle.json`）无缝共享核心引擎。详细分发设计见 [Release 分发架构与通用生态发布指南](docs/guidelines/engineering/release-distribution-guide.md)。
+
+
 > [!TIP]
 > **开发安装边界**：安装脚本仅初始化开发环境及诊断，不注册AI工具技能。
 
@@ -193,7 +211,7 @@ docker compose --env-file tools/containers/web-console/.env -f tools/containers/
 
 ---
 
-## 四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex 等)
+## 四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex / WorkBuddy 等)
 
 本仓库是开发工程；宿主使用 Release。开发者先执行 P0 和产物闭包验证，再按目标平台格式完成实际安装、发现和调用验收。
 
@@ -296,7 +314,7 @@ print(f"建议总仓位: {plan.max_portfolio_weight*100}%, 主力策略: {plan.p
 
 ## 七、下一阶段演进路线：独立 Web AIChatUI 与 Skill 治理系统
 
-为了进一步摆脱对第三方 AI 终端工具（Antigravity / Hermes / Codex）的宿主环境依赖，系统计划在下一阶段构建**自包含的 Web 版本独立交互系统**，涵盖以下三大核心子系统：
+为提供更直观的可视化图表看板与轻量级管理界面，系统规划了**可选的 Web 辅助工作台与技能治理控制台**（作为第三方 AI 宿主/终端工具的互补与开发调试增强应用，Release 技能套件自身保持高内聚、自包含与零宿主强依赖），涵盖以下三大核心子系统：
 
 ### 1. 架构演进蓝图
 
@@ -338,7 +356,7 @@ UI_Gov["Skill 治理控制台\n(19项技能看板 / 动态启停 / 契约Schema 
 1. **全功能量化 AIChat 对话台**：
    - 内置轻量 Agent ReAct 运行时与会话存储（SQLite / DuckDB）；
    - 支持 SSE（Server-Sent Events）打字机流式响应与工具调用状态（如“正在拉取腾讯行情”、“正在计算MACD水下二次金叉”）实时折叠展开；
-   - 自动映射用户意图至 17 大专业量化技能，强制输出三级风控止损与保本价进位动作。
+   - 自动映射用户意图至 19 项专业量化技能，强制输出三级风控止损与保本价进位动作。
 2. **可视化 Skill 治理控制台 (Skill Governance Console)**：
    - 基于 `config/skills_manifest.json` 与 Pydantic Schema 建立技能运行时元数据管理；
    - **动态生命周期管控**：支持在 Web 界面上一键启用/停用特定技能、调整技能参数阈值；
@@ -365,7 +383,7 @@ UI_Gov["Skill 治理控制台\n(19项技能看板 / 动态启停 / 契约Schema 
 | **代码审查** | [`docs/guidelines/engineering/code-review.md`](docs/guidelines/engineering/code-review.md) | - | 代码质量基准、安全红线与质量审查报告标准 |
 | **测试规约** | [`docs/guidelines/engineering/testing-guide.md`](docs/guidelines/engineering/testing-guide.md) | - | 10 大核心领域回归测试架构与临时用例即测即删铁律 |
 | **命名范式** | [`docs/guidelines/engineering/naming-conventions.md`](docs/guidelines/engineering/naming-conventions.md) | - | 消除文件名版本化侵入与模型演进四大设计范式 (SSOT) |
-| **系统架构** | [`docs/guidelines/architecture/web-aichat-architecture.md`](docs/guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 18 技能治理架构 |
+| **系统架构** | [`docs/guidelines/architecture/web-aichat-architecture.md`](docs/guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](docs/specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 19 项技能（20 入口）治理架构 |
 | **系统架构** | [`docs/guidelines/architecture/llm-provider-architecture.md`](docs/guidelines/architecture/llm-provider-architecture.md) | [`SPEC-ARCH-002`](docs/specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与业务场景角色绑定 (Roles) 架构 |
 | **系统架构** | [`docs/guidelines/architecture/token-security-architecture.md`](docs/guidelines/architecture/token-security-architecture.md) | [`SPEC-ARCH-003`](docs/specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离与指纹审计架构 |
 | **A2UI架构** | [`docs/guidelines/a2ui/a2ui-framework-architecture.md`](docs/guidelines/a2ui/a2ui-framework-architecture.md) | [`SPEC-A2UI-001`](docs/specs/a2ui/a2ui-framework-engine-specification.md) | A2UI 前端渲染引擎、WebApp Shell 硬锁定与五阶段渐进水合 |
@@ -376,7 +394,7 @@ UI_Gov["Skill 治理控制台\n(19项技能看板 / 动态启停 / 契约Schema 
 ### 2. 规范实施进度看板与实战索引
 | 领域分类 | 入口文件 | 核心说明 |
 |---|---|---|
-| **知识速查全景** | [`docs/index.md`](docs/index.md) | 系统导图、6大引擎与 18 技能架构速查 |
+| **知识速查全景** | [`docs/index.md`](docs/index.md) | 系统导图、6大引擎与 19 项技能（20 入口）架构速查 |
 | **快速上手向导** | [`docs/quickstart.md`](docs/quickstart.md) | 环境安装、依赖配置、自检与核心命令演示 |
 | **规范实施总览** | [`docs/specs/README.md`](docs/specs/README.md) | 6 大领域规范实施落地进度追踪总看板 (SPEC-INDEX) |
 | **实战交易手册** | [`docs/trading/execution-manual.md`](docs/trading/execution-manual.md) | 六大实战反应动作与挂单纪律实操指南 |
