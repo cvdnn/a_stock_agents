@@ -84,7 +84,7 @@ def detect_delivery_touch() -> bool:
         "install.sh",
         "SKILL.md",
         "bundle.json",
-        "test_release_delivery_gate.py",
+        "tests/release",
     )
     for f in changed_files:
         f_norm = f.replace("\\", "/")
@@ -458,10 +458,10 @@ def run_pipeline(
     """主调度函数：编排流水线阶段并通过双层动态进度条执行。"""
     stages = []
 
-    # 阶段 1：极速离线核心内核门禁（必跑）
+    # 阶段 1：极速核心门禁（必跑）
     stages.append((
-        "极速离线核心内核门禁 (244项量化/指标/撮合/真实性契约)",
-        [sys.executable, "-m", "pytest", "-m", "core and not slow and not subprocess", "-v"],
+        "极速核心门禁 (SPEC-SKILL-002: 6大支撑引擎 + 1+6技能契约与执行)",
+        [sys.executable, "-m", "pytest", "-m", "core", "-v"],
     ))
 
     # 阶段 2：任务改动定向用例（若有指定）
@@ -482,15 +482,15 @@ def run_pipeline(
             if HAS_RICH and sys.stdout.isatty():
                 console.print(
                     "\n💡 [bold green]智能裁剪生效[/bold green]: 未检测到打包器/安装脚本/宿主适配层改动，"
-                    "已自动跳过 92 例重型交付打包测试，节省 ~150s 耗时与 I/O。\n"
+                    "已自动跳过交付打包测试，保持极速响应。\n"
                 )
             else:
-                print("\n💡 [智能裁剪生效] 未检测到打包器/安装脚本改动，已跳过 92 例非必要交付打包用例。\n")
+                print("\n💡 [智能裁剪生效] 未检测到打包器/安装脚本改动，已跳过交付打包测试。\n")
 
     if need_delivery:
         stages.append((
-            "发布交付与宿主适配链路门禁 (test_release_delivery_gate.py)",
-            [sys.executable, "-m", "pytest", "tests/core/test_release_delivery_gate.py", "-v"],
+            "发布交付与打包安装集成门禁 (test_release_packaging_smoke.py)",
+            [sys.executable, "-m", "pytest", "-m", "release_pack", "-v"],
         ))
 
     runner = DualProgressBarRunner(force_rich=force_rich, step_pct=step_pct)
@@ -519,9 +519,11 @@ def run_pipeline(
 
 def main():
     parser = argparse.ArgumentParser(description="A-Stock 质量门禁流水线（双层动态进度条与智能用例裁剪）")
-    parser.add_argument("--core", action="store_true", help="强制执行全量 P0 核心门禁（含发布交付重型用例）")
+    parser.add_argument("--core", action="store_true", help="执行全量 P0 核心门禁")
+    parser.add_argument("--webapi", action="store_true", help="执行 WebUI 后端独立分仓门禁 (-m webapi)")
+    parser.add_argument("--release-pack", action="store_true", help="执行发布交付打包安装集成门禁 (-m release_pack)")
     parser.add_argument("--sequential", action="store_true", help="强制全量顺序执行全部阶段")
-    parser.add_argument("--fast", action="store_true", help="仅执行极速核心内核门禁 (~20s)")
+    parser.add_argument("--fast", action="store_true", help="仅执行极速核心内核门禁")
     parser.add_argument("--targeted", type=str, help="指定改动模块的定向测试标签或方法名")
     parser.add_argument("--doctor", action="store_true", help="仅运行结构健康自检")
     parser.add_argument("--plain", action="store_true", help="强制使用平滑 Unicode 字符降级进度条")
@@ -531,6 +533,14 @@ def main():
 
     if args.doctor:
         cmd = [sys.executable, str(ROOT / "skill_bundle" / "runtime" / "doctor.py")]
+        return subprocess.run(cmd, cwd=ROOT).returncode
+
+    if args.webapi:
+        cmd = [sys.executable, "-m", "pytest", "-m", "webapi", "-v"]
+        return subprocess.run(cmd, cwd=ROOT).returncode
+
+    if getattr(args, "release_pack", False):
+        cmd = [sys.executable, "-m", "pytest", "-m", "release_pack", "-v"]
         return subprocess.run(cmd, cwd=ROOT).returncode
 
     force_rich = True if args.rich else (False if args.plain else None)

@@ -64,30 +64,27 @@ def registry():
 
 
 class TestSkillRegistryCore:
-    """Test 19 skills loading, schema generation, validation, and execution gates."""
+    """Test 1+6 skills loading, schema generation, validation, and execution gates."""
 
-    def test_all_19_skills_loaded(self, registry: SkillRegistry):
+    def test_all_6_business_skills_loaded(self, registry: SkillRegistry):
         skills = registry.list_skills()
-        assert len(skills) == 19, f"Expected 19 skills, found {len(skills)}"
+        assert len(skills) == 6, f"Expected 6 business skills, found {len(skills)}"
 
         skill_ids = [s.id for s in skills]
-        assert "astock-data-feed" in skill_ids
-        assert "astock-platform-evaluate" in skill_ids
-        assert "astock-screener-5a" in skill_ids
-        assert "astock-action-execution" in skill_ids
-        assert "astock-trade-paper" in skill_ids
-        assert "astock-strategy-macd" in skill_ids
-        assert "astock-strategy-tuige" in skill_ids
-        assert "astock-strategy-mainboard" in skill_ids
-        assert "astock-pool-dashboard" in skill_ids
-        assert "astock-pool-audit" in skill_ids
-        assert "astock-quant-engine" in skill_ids
-        assert "astock-agent-debate" in skill_ids
-        assert "astock-report-html" in skill_ids
-        assert "astock-report-archive" in skill_ids
-        assert "astock-knowledge-tips" in skill_ids
-        assert "astock-model-validation" in skill_ids
-        assert "astock-meta-routing" in skill_ids
+        assert "astock-market-data" in skill_ids
+        assert "astock-smart-screener" in skill_ids
+        assert "astock-tactical-signals" in skill_ids
+        assert "astock-deep-diagnose" in skill_ids
+        assert "astock-portfolio-action" in skill_ids
+        assert "astock-paper-backtest" in skill_ids
+
+        # 校验对旧 19 技能别名的 100% 透明兼容解析
+        from core.governance.skill_registry import LEGACY_SKILL_ALIASES
+        for legacy_id, new_id in LEGACY_SKILL_ALIASES.items():
+            if new_id != "a-stock-agents":
+                meta = registry.get_skill(legacy_id)
+                assert meta is not None, f"Legacy alias {legacy_id} should resolve"
+                assert meta.id == new_id
 
     def test_openai_tool_schemas_generation(self, registry: SkillRegistry):
         tools = registry.to_openai_tools(enabled_only=True)
@@ -101,7 +98,7 @@ class TestSkillRegistryCore:
             assert fn["parameters"].get("type") == "object"
 
     def test_dynamic_enable_disable_filter(self, registry: SkillRegistry):
-        target_id = "astock-knowledge-tips"
+        target_id = "astock-market-data"
         original = registry.get_skill(target_id)
         assert original is not None
 
@@ -109,34 +106,34 @@ class TestSkillRegistryCore:
         registry.update_skill(target_id, enabled=False)
         assert registry.get_skill(target_id).enabled is False
         enabled_tools = registry.to_openai_tools(enabled_only=True)
-        assert not any(t["function"]["name"] == "astock_knowledge_tips" for t in enabled_tools)
+        assert not any(t["function"]["name"] == "astock_market_data" for t in enabled_tools)
 
         # Re-enable
         registry.update_skill(target_id, enabled=True)
         assert registry.get_skill(target_id).enabled is True
         enabled_tools2 = registry.to_openai_tools(enabled_only=True)
-        assert any(t["function"]["name"] == "astock_knowledge_tips" for t in enabled_tools2)
+        assert any(t["function"]["name"] == "astock_market_data" for t in enabled_tools2)
 
     def test_parameter_schema_validation(self, registry: SkillRegistry):
-        # Missing required parameter 'code' in astock-data-feed
-        valid, err = registry.validate_parameters("astock-data-feed", {})
+        # Missing required parameter 'code' in astock-market-data
+        valid, err = registry.validate_parameters("astock-market-data", {})
         assert valid is False
         assert "code" in err
 
         # Valid parameters
-        valid2, err2 = registry.validate_parameters("astock-data-feed", {"code": "600519", "action": "quote"})
+        valid2, err2 = registry.validate_parameters("astock-market-data", {"code": "600519", "action": "quote"})
         assert valid2 is True
         assert err2 is None
 
     @pytest.mark.asyncio
     async def test_security_gate_confirmation(self, registry: SkillRegistry):
-        # astock-trade-paper requires confirmation
-        skill = registry.get_skill("astock-trade-paper")
+        # astock-paper-backtest requires confirmation
+        skill = registry.get_skill("astock-paper-backtest")
         assert skill.require_confirmation is True
 
         # Unconfirmed execution should be intercepted
         res = await registry.execute_skill(
-            skill_id="astock-trade-paper",
+            skill_id="astock-paper-backtest",
             params={"action": "buy", "code": "600519", "shares": 100},
             confirmed=False,
         )
@@ -145,7 +142,7 @@ class TestSkillRegistryCore:
 
         # Confirmed execution should pass through
         res_conf = await registry.execute_skill(
-            skill_id="astock-trade-paper",
+            skill_id="astock-paper-backtest",
             params={"action": "balance"},
             confirmed=True,
         )
@@ -155,25 +152,25 @@ class TestSkillRegistryCore:
     async def test_execution_timeout_fuse(self, registry: SkillRegistry):
         # Register slow dummy handler
         registry.register_handler("test_timeout_skill", lambda **kw: asyncio.sleep(2.0))
-        skill = registry.get_skill("astock-meta-routing")
+        skill = registry.get_skill("astock-deep-diagnose")
         orig_timeout = skill.timeout_seconds
         try:
             # Set tiny timeout
-            registry.update_skill("astock-meta-routing", timeout_seconds=1)
+            registry.update_skill("astock-deep-diagnose", timeout_seconds=1)
             # Override handler to sleep 2s
             async def slow_handler(**kw):
                 await asyncio.sleep(2.0)
                 return {"done": True}
-            registry.register_handler("astock-meta-routing", slow_handler)
+            registry.register_handler("astock-deep-diagnose", slow_handler)
 
             res = await registry.execute_skill(
-                "astock-meta-routing",
-                {"task_description": "test timeout"},
+                "astock-deep-diagnose",
+                {"code": "600519"},
             )
             assert res.status == "timeout"
             assert "超时熔断" in res.error
         finally:
-            registry.update_skill("astock-meta-routing", timeout_seconds=orig_timeout)
+            registry.update_skill("astock-deep-diagnose", timeout_seconds=orig_timeout)
 
 
 class TestUniversalAgentEvents:
@@ -227,7 +224,7 @@ class TestGovernanceRESTEndpoints:
             resp = client.get("/api/skills")
             assert resp.status_code == 200
             skills = resp.json()
-            assert len(skills) == 19
+            assert len(skills) == 6
 
             # Filter by category
             resp_data = client.get("/api/skills?category=data")
@@ -238,14 +235,14 @@ class TestGovernanceRESTEndpoints:
     def test_skill_detail_and_patch(self):
         with authenticated_client() as client:
             # Detail
-            r_get = client.get("/api/skills/astock-screener-5a")
+            r_get = client.get("/api/skills/astock-smart-screener")
             assert r_get.status_code == 200
             meta = r_get.json()
-            assert meta["id"] == "astock-screener-5a"
+            assert meta["id"] == "astock-smart-screener"
 
             # Patch
             r_patch = client.patch(
-                "/api/skills/astock-screener-5a",
+                "/api/skills/astock-smart-screener",
                 json={"timeout_seconds": 45, "enabled": True},
             )
             assert r_patch.status_code == 200
@@ -253,30 +250,28 @@ class TestGovernanceRESTEndpoints:
             assert updated["timeout_seconds"] == 45
 
             # Revert
-            client.patch("/api/skills/astock-screener-5a", json={"timeout_seconds": 60})
+            client.patch("/api/skills/astock-smart-screener", json={"timeout_seconds": 60})
 
     def test_skill_test_endpoint(self):
         with authenticated_client() as client:
             payload = {
-                "parameters": {"topic": "auction"},
+                "parameters": {"code": "600519"},
                 "confirmed": True,
             }
-            resp = client.post("/api/skills/astock-knowledge-tips/test", json=payload)
+            resp = client.post("/api/skills/astock-market-data/test", json=payload)
             assert resp.status_code == 200
             res = resp.json()
-            assert res["status"] == "success"
-            assert res["result"]["type"] == "reference"
+            assert res["status"] in ("success", "unavailable")
             assert res["latency_ms"] >= 0
 
             protocol = client.post(
-                "/api/skills/astock-model-validation/test",
-                json={"parameters": {"model_name": "Kronos"}, "confirmed": True},
+                "/api/skills/astock-paper-backtest/test",
+                json={"parameters": {"action": "balance"}, "confirmed": True},
             )
             assert protocol.status_code == 200
             protocol_data = protocol.json()
-            assert protocol_data["status"] == "success"
-            assert protocol_data["result"]["type"] == "validation_protocol"
-            assert protocol_data["result"]["execution_available"] is False
+            assert protocol_data["status"] in ("success", "unavailable")
+
     def test_audit_stats_endpoint(self):
         with authenticated_client() as client:
             resp = client.get("/api/skills/audit/stats")

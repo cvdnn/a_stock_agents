@@ -436,17 +436,19 @@ A_STOCK_RUN_BROWSER_E2E=1 .venv/bin/python -m pytest -m browser_e2e -q
 
 ### 9.3 铁律三：投研技能与 6 大引擎极速核心门禁（`pytest -m core` 耗时 `< 8s`）
 1. **纯内存确定性核心门禁**：默认 `core` 档严格聚焦于 **`1 + 6` 生产级投研技能 + `6` 大底层技术支撑引擎（Engine A ~ Engine F）** 的纯内存确定性测试，零外网、零重型子进程循环、零全量打包；
-2. **8 大核心测试模块布局（合计约 110 例，总耗时 `< 8s`）**：
-   - `tests/core/test_engine_a_data_sync.py`（Engine A：QuoteDict 别名、4级降级桩、增量落盘、分钟归档与水位门禁）
-   - `tests/core/test_engine_b_factors_tech.py`（Engine B：MA/MACD/KDJ/RSI/BOLL/ATR、MAD+ZScore、五大财务排雷）
-   - `tests/core/test_engine_c_funnel_iss.py`（Engine C：AST条件树编译、四阶漏斗、版本哈希、调度锁与 T+N 跟踪）
-   - `tests/core/test_engine_d_tactics_risk.py`（Engine D：`math.ceil` 保本价、三级止损、三场景反应单、凯利仓位、四大战法、五步股池 MA 审计）
-   - `tests/core/test_engine_e_paper_backtest.py`（Engine E：T+1、涨跌停拦截、分位滑点撮合、多股轮动、滚动 OOS 与过拟合警报）
-   - `tests/core/test_engine_f_infra_safety.py`（Engine F：交易日历网关、三桶目录隔离、HTML 报告 XSS 防护与费率 SSOT）
-   - `tests/skills/test_skill_suite_1plus6_contract.py`（校验 `1 + 6` 物理目录、Frontmatter、`skills_manifest.json`、六步投研闭环符合性与旧别名映射）
-   - `tests/skills/test_skill_tools_execution.py`（校验 `1 + 6` 技能端到端调用、`evidence_meta` 溯源信封、空池拦截与实战三原则输出）
+2. **8 大核心测试模块布局（实测 44 例，总耗时 `< 8s` 秒级通关）**：
+   - `tests/core/test_engine_a_data_sync.py`（Engine A：QuoteDict 别名、4级降级桩、增量落盘、分钟归档与水位门禁，6例）
+   - `tests/core/test_engine_b_factors_tech.py`（Engine B：MA/MACD/KDJ/RSI/BOLL/ATR、MAD+ZScore、五大财务排雷，6例）
+   - `tests/core/test_engine_c_funnel_iss.py`（Engine C：AST条件树编译、四阶漏斗、版本哈希、调度锁与 T+N 跟踪，6例）
+   - `tests/core/test_engine_d_tactics_risk.py`（Engine D：`math.ceil` 保本价、三级止损、三场景反应单、凯利仓位、四大战法、五步股池 MA 审计，6例）
+   - `tests/core/test_engine_e_paper_backtest.py`（Engine E：T+1、涨跌停拦截、分位滑点撮合、多股轮动、滚动 OOS 与过拟合警报，6例）
+   - `tests/core/test_engine_f_infra_safety.py`（Engine F：交易日历网关、三桶目录隔离、HTML 报告 XSS 防护与费率 SSOT，4例）
+   - `tests/skills/test_skill_suite_1plus6_contract.py`（校验 `1 + 6` 物理目录、Frontmatter、`skills_manifest.json`、六步投研闭环符合性与旧别名映射，5例）
+   - `tests/skills/test_skill_tools_execution.py`（校验 `1 + 6` 技能端到端调用、`evidence_meta` 溯源信封、空池拦截与实战三原则输出，5例）
 
 ### 9.4 铁律四：重型打包与安装测试按需隔离（`pytest -m release_pack`）
-- 将跨平台 ZIP 构建、沙箱解压、`install.ps1`/`install.sh` 子进程安装与生命周期报告验证独立归入 `tests/release/test_release_packaging_smoke.py`，打上 `@pytest.mark.release_pack` 标签；
+- 将跨平台 ZIP 构建、沙箱解压、`install.ps1`/`install.sh` 子进程安装与生命周期报告验证独立归入 `tests/release/test_release_packaging_smoke.py`，打上 `@pytest.mark.release_pack` 标签（13 例，耗时 ~17s）；
 - 仅在修改 `tools/packaging/`、`install.ps1`/`install.sh` 或发版前按需触发，彻底解除对日常投研算法开发的耗时阻塞。
+
+> **2026-10-19 S2-10 最终验收基线**：三大门禁分档前台顺序执行全部 0 failed（`pytest -m core` 44 passed / 0 failed / 7.21s–9.25s；`pytest -m webapi` 42 passed / 0 failed / 23.22s–27.90s；`pytest -m release_pack` 13 passed / 0 failed / 17.27s；`tests/governance` 83 passed / 0 failed）。前端界面测试与浏览器 E2E 彻底清退，FastAPI 顶层解耦完成。
 

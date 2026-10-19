@@ -41,13 +41,17 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-xdist pyyaml
 
-      - name: Run P0 Core Test Gate (① 核心门禁)
+      - name: Run P0 Core Test Gate (① 纯内存核心门禁)
         run: |
           python -m pytest -m core -ra
 
-      - name: Run Release Delivery Gate & Isolated Extraction (发布链路检验与隔离解压验收)
+      - name: Run WebAPI Independent Test Gate (② WebUI 后端独立分仓门禁)
         run: |
-          python -m pytest tests/core/test_release_delivery_gate.py -v -ra
+          python -m pytest -m webapi -ra
+
+      - name: Run Release Delivery Gate (③ 发布交付打包安装集成门禁)
+        run: |
+          python -m pytest -m release_pack -v -ra
 
       - name: Verify Packaging Build & Doctor Smoke Check (打包构建与诊断冒烟)
         run: |

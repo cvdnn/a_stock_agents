@@ -26,7 +26,7 @@
 - 模型管理 API：`apps/web-console/backend/server/api/models_mgmt.py`
 - Web API 客户端：`apps/web-console/frontend/js/api.js`
 - Web 应用入口：`apps/web-console/frontend/js/app.js`
-- 服务端回归：`tests/server/test_server_suite.py`
+- 服务端回归：`tests/webapi/test_webapi_auth_and_session.py`
 
 ## 未完成边界
 

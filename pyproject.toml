@@ -69,5 +69,7 @@ markers = [
     "e2e: 端到端链路用例（真实装配→规则→输出）",
     "live: 需要预先启动真实服务并显式开启（A_STOCK_RUN_LIVE_E2E=1）",
     "browser_e2e: 使用隔离服务和系统浏览器的登录后 UI 验收（A_STOCK_RUN_BROWSER_E2E=1）",
+    "webapi: WebAPI 独立后端测试分仓（FastAPI 路由、鉴权、行情与选股接口）",
+    "release_pack: 发布打包与安装器跨平台集成测试",
 ]
 

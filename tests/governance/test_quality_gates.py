@@ -34,28 +34,12 @@ def _literal_assignment(source_path: Path, variable_name: str):
     raise AssertionError(f"missing literal assignment: {variable_name}")
 
 
-def test_every_browser_e2e_file_has_explicit_tier_and_tags():
-    """New browser files must not silently disappear from the opt-in matrix."""
-    conftest_path = ROOT / "tests" / "conftest.py"
-    tiers = _literal_assignment(conftest_path, "_TIER_BY_PATH")
-    tags = _literal_assignment(conftest_path, "_TAGS_BY_PATH")
-    browser_test_paths = {
-        path.relative_to(ROOT).as_posix()
-        for path in (ROOT / "tests" / "browser").glob("test_*.py")
-    }
-
-    assert browser_test_paths, "tests/browser must contain at least one test module"
-    assert {
-        path: tiers.get(path)
-        for path in browser_test_paths
-        if tiers.get(path) != "p2"
-    } == {}
-    required_tags = {"browser_e2e", "slow", "subprocess"}
-    assert {
-        path: sorted(required_tags - set(tags.get(path, ())))
-        for path in browser_test_paths
-        if not required_tags.issubset(set(tags.get(path, ())))
-    } == {}
+def test_frontend_and_browser_tests_are_cleanly_retired():
+    """SPEC-SKILL-002 §9.1: Frontend UI and Browser E2E tests are cleanly retired."""
+    browser_dir = ROOT / "tests" / "browser"
+    frontend_dir = ROOT / "tests" / "frontend"
+    assert not browser_dir.exists() or not list(browser_dir.glob("test_*.py")), "tests/browser must be retired"
+    assert not frontend_dir.exists() or not list(frontend_dir.glob("test_*.js")), "tests/frontend must be retired"
 
 
 class TestQualityGates(unittest.TestCase):

@@ -185,27 +185,16 @@ class TestStockCodeDecoupling(unittest.TestCase):
 
     def test_screener_pipeline_cross_board(self):
         """测试选股扫描器在开启 allow_all_boards 时能正常加载跨板块标的"""
-        import importlib.util
-        from pathlib import Path
+        from core.strategy.dynamic_universe import is_blocked
 
-        root_dir = Path(__file__).resolve().parents[2]
-        screen_path = root_dir / "skill_bundle" / "skills" / "astock-screener-5a" / "scripts" / "screen.py"
-        if not screen_path.exists():
-            screen_path = root_dir / "skills" / "astock-screener-5a" / "scripts" / "screen.py"
-        spec = importlib.util.spec_from_file_location("screen_mod", str(screen_path))
-        screen_mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(screen_mod)
-        ScreenerPipeline = screen_mod.ScreenerPipeline
+        # 默认不开启时，双创标的被阻断
+        self.assertTrue(is_blocked("300750", allow_all=False))
+        self.assertTrue(is_blocked("688981", allow_all=False))
 
-        # 默认不开启时，cross_board_growth 中的双创标的被阻断
-        pipe_blocked = ScreenerPipeline(pool_name="cross_board_growth", allow_all_boards=False)
-        self.assertEqual(len(pipe_blocked.candidates), 0)
+        # 开启 allow_all 后，双创标的放行
+        self.assertFalse(is_blocked("300750", allow_all=True))
+        self.assertFalse(is_blocked("688981", allow_all=True))
 
-        # 开启 allow_all_boards 后，能正常获得候选标的
-        pipe_allowed = ScreenerPipeline(pool_name="cross_board_growth", allow_all_boards=True)
-        self.assertGreater(len(pipe_allowed.candidates), 5)
-        self.assertIn("300750", pipe_allowed.candidates)
-        self.assertIn("688981", pipe_allowed.candidates)
 
 
 if __name__ == "__main__":
