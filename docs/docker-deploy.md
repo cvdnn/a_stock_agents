@@ -1,6 +1,6 @@
 # 可选 Web 调试容器指南
 
-Docker属于开发辅助工具，不是技能Release安装前提。当前文件仅用于调试apps/web-console；基础技能通过runtime/CLI执行，不要求HTTP服务或Docker。
+Docker 属于平台侧 WebUI 功能开发与调试部署辅助工具，与面向最终用户的技能安装（Skill Installation）完全无关。当前文件仅用于平台侧开发调试 `apps/web-console`；基础量化技能直接通过本地 Python `runtime/cli.py` 或 AI 智能体宿主符号链接执行，不要求任何 HTTP 服务或 Docker 容器环境，**Docker 严禁参与 AI 帮忙安装的任何流程或提示词**。
 
 ## 文件位置与职责
 

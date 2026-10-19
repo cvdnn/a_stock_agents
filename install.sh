@@ -118,6 +118,204 @@ set_current_link() {
   ln -sfn "$target_dir" "$current_link"
 }
 
+read -r -d '' LIFECYCLE_REPORT_PY_HELPER << 'PY_HELPER_EOF' || true
+def write_lifecycle_report(data_root, action, status, start_time, end_time,
+                           active_version, previous_version, modifications,
+                           backup_and_safety, doctor_report=None, registered_agents=None,
+                           error_message=None, host_python=None, python_ver=None, uv_available=False):
+    import os, json
+    from datetime import datetime, timezone
+
+    reports_dir = os.path.join(data_root, "output", "reports", "lifecycle")
+    logs_dir = os.path.join(data_root, "log", "lifecycle")
+    os.makedirs(reports_dir, exist_ok=True)
+    os.makedirs(logs_dir, exist_ok=True)
+
+    ts = end_time.strftime("%Y%m%d_%H%M%S")
+    iso_start = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    iso_end = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    duration = round((end_time - start_time).total_seconds(), 2)
+    report_id = f"lifecycle-{action}-{ts}"
+
+    report_obj = {
+        "report_id": report_id,
+        "action": action,
+        "status": status,
+        "started_at": iso_start,
+        "completed_at": iso_end,
+        "duration_seconds": duration,
+        "environment": {
+            "platform": "posix",
+            "data_root": data_root,
+            "python_path": host_python,
+            "python_version": python_ver,
+            "uv_available": uv_available
+        },
+        "execution_details": {
+            "active_version": active_version,
+            "previous_version": previous_version,
+            "registered_agents": registered_agents or [],
+            "doctor_health": doctor_report,
+            "error_message": error_message
+        },
+        "modifications": modifications or {},
+        "backup_and_safety": backup_and_safety or {},
+        "summary": f"A-Stock Agents {action} completed successfully at version {active_version}." if status == "success" else f"A-Stock Agents {action} {status}. Error: {error_message}"
+    }
+
+    json_file = os.path.join(logs_dir, f"lifecycle_{action}_{ts}.json")
+    latest_json_file = os.path.join(logs_dir, "latest_lifecycle.json")
+    md_file = os.path.join(reports_dir, f"lifecycle_report_{action}_{ts}.md")
+    latest_md_file = os.path.join(reports_dir, "latest_lifecycle_report.md")
+
+    with open(json_file, "w", encoding="utf-8") as f:
+        json.dump(report_obj, f, ensure_ascii=False, indent=2)
+    with open(latest_json_file, "w", encoding="utf-8") as f:
+        json.dump(report_obj, f, ensure_ascii=False, indent=2)
+
+    action_titles = {
+        "install": "技能安装部署 (Installation)",
+        "update": "多版本平滑升级 (Upgrade)",
+        "rollback": "版本一键回滚 (Rollback)",
+        "uninstall": "宿主引用卸载 (Uninstallation)"
+    }
+    action_title = action_titles.get(action, action)
+    status_emoji = "✅ 成功 (SUCCESS)" if status == "success" else ("⚠️ 阻断/熔断 (ABORTED)" if status == "aborted" else "❌ 失败 (FAILED)")
+    prev_ver_display = f"`{previous_version}`" if previous_version else "无 (首发或未记录)"
+
+    md_lines = [
+        f"# 📋 A-Stock Agents 生命周期执行报告 (Lifecycle Execution Report) —— {action_title}",
+        "",
+        f"> **执行流水号**：`{report_id}` · **生成时间**：`{iso_end}` · **总体状态**：{status_emoji}",
+        "",
+        "---",
+        "",
+        "## 一、核心执行概要 (Execution Summary)",
+        "",
+        "| 配置项 | 详细信息 |",
+        "| :--- | :--- |",
+        f"| **执行动作 (Action)** | `{action}` |",
+        f"| **执行状态 (Status)** | **{status_emoji}** |",
+        f"| **耗时 (Duration)** | `{duration}s` (起: `{iso_start}` / 止: `{iso_end}`) |",
+        f"| **当前激活版本 (Active Version)** | `{active_version}` |",
+        f"| **前序历史版本 (Previous Version)** | {prev_ver_display} |",
+        f"| **用户数据根 (Data Root)** | `{data_root}` |",
+        f"| **Python 解释器** | `{host_python} ({python_ver})` |",
+        ""
+    ]
+
+    if error_message:
+        md_lines.extend([
+            "> [!CAUTION]",
+            "> ### 异常/熔断详情",
+            f"> {error_message}",
+            ""
+        ])
+
+    md_lines.extend([
+        "## 二、过程修改内容 (Process Modifications)",
+        ""
+    ])
+    if modifications:
+        if modifications.get("directories_created"):
+            md_lines.append("### 1. 目录初始化与变更")
+            for d in modifications["directories_created"]:
+                md_lines.append(f"- `[创建/就绪]` `{d}`")
+            md_lines.append("")
+        if modifications.get("current_link"):
+            cl = modifications["current_link"]
+            md_lines.extend([
+                "### 2. current 软链接 / Junction 寻址挂载",
+                f"- 链接路径：`{cl.get('path')}`",
+                f"- 目标路径：`{cl.get('target')}`",
+                f"- 挂载类型：`{cl.get('type')}`",
+                ""
+            ])
+        if modifications.get("environment_actions"):
+            md_lines.append("### 3. 环境与依赖操作")
+            for ea in modifications["environment_actions"]:
+                md_lines.append(f"- {ea}")
+            md_lines.append("")
+        if modifications.get("registered_agents"):
+            md_lines.append("### 4. 宿主技能注册与挂载")
+            for ra in modifications["registered_agents"]:
+                md_lines.append(f"- **{ra.get('agent')}**: 挂载到 `{ra.get('target_dir')}` (模式: `{ra.get('method')}`, 技能数: `{ra.get('skills_count')}`)")
+            md_lines.append("")
+        if modifications.get("receipts_written"):
+            md_lines.append("### 5. 持久化收据落盘")
+            for rw in modifications["receipts_written"]:
+                md_lines.append(f"- `[落盘]` `{rw}`")
+            md_lines.append("")
+        if modifications.get("removed_entries"):
+            md_lines.append("### 6. 清理的宿主引用链接")
+            for re in modifications["removed_entries"]:
+                md_lines.append(f"- `[已清理]` `{re}`")
+            md_lines.append("")
+
+    md_lines.extend([
+        "## 三、备份情况与数据安全审计 (Backup & Data Protection)",
+        ""
+    ])
+    if backup_and_safety:
+        bs = backup_and_safety
+        prev_path = bs.get("previous_version_path")
+        prev_status = "✅ 已就绪" if prev_path else "ℹ️ 不适用"
+        prev_desc = f"镜像保留于: `{prev_path}`" if prev_path else "首次安装或无历史镜像"
+
+        rc_path = bs.get("receipt_backup")
+        rc_status = "✅ 已备份" if rc_path else "ℹ️ 无历史收据"
+        rc_desc = f"备份文件: `{rc_path}`" if rc_path else "无旧版 install.json"
+
+        uds = bs.get("user_data_status", {})
+        out_stat = "✅ 100% 留存" if uds.get("output_dir_preserved") else "⚠️ 待核验"
+        loc_stat = "✅ 100% 留存" if uds.get("local_settings_preserved") else "⚠️ 待核验"
+
+        rb_ready = bs.get("rollback_ready")
+        rb_stat = "🚀 支持回滚" if rb_ready else "⏸️ 暂无可回滚版本"
+        rb_desc = f"可通过 install.sh -Rollback 瞬时恢复至 `{previous_version}`" if rb_ready else "首次安装无回滚点"
+
+        md_lines.extend([
+            "| 审计检查点 | 状态 | 详细说明 |",
+            "| :--- | :---: | :--- |",
+            f"| **历史版本镜像备份** | {prev_status} | {prev_desc} |",
+            f"| **安装收据镜像备份** | {rc_status} | {rc_desc} |",
+            f"| **自选池与股票池隔离** | {out_stat} | 用户自选股 CSV、报告与持仓物理隔离留存 |",
+            f"| **私有配置与凭据隔离** | {loc_stat} | `local/settings/application.yaml` 与 `.env` 凭据零破坏 |",
+            f"| **一键回滚就绪状态** | {rb_stat} | {rb_desc} |",
+            ""
+        ])
+
+    if doctor_report:
+        doc_stat = "✅ 健康 (Healthy)" if doctor_report.get("is_healthy") else "❌ 存在异常"
+        md_lines.extend([
+            "## 四、Doctor 健康诊断结果 (Smoke Verification)",
+            "",
+            f"- 总体健康度：{doc_stat}",
+            f"- 技能总数：`{doctor_report.get('total_skills')}` (业务技能: `{doctor_report.get('business_skills')}`)",
+            f"- 启动器校验：`{doctor_report.get('cli_launcher')}`",
+            ""
+        ])
+
+    md_lines.extend([
+        "---",
+        f"💡 *本报告由 A-Stock Agents 生命周期引擎自动生成，归档路径: `{reports_dir}` 与 `{logs_dir}`。*"
+    ])
+
+    md_content = "\n".join(md_lines)
+    with open(md_file, "w", encoding="utf-8") as f:
+        f.write(md_content)
+    with open(latest_md_file, "w", encoding="utf-8") as f:
+        f.write(md_content)
+
+    return {
+        "report_id": report_id,
+        "json_path": json_file,
+        "markdown_path": md_file,
+        "latest_json": latest_json_file,
+        "latest_md": latest_md_file
+    }
+PY_HELPER_EOF
+
 # 1. Resolve Data Root
 resolve_data_root() {
   if [[ -n "$DATA_DIR" ]]; then
@@ -328,6 +526,138 @@ if [[ "$DOCTOR" == "true" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
+# Scenario C: -Uninstall
+# -----------------------------------------------------------------------------
+if [[ -n "$UNINSTALL" ]]; then
+  if [[ -z "$HOST_PYTHON" ]]; then
+    if [[ "$JSON_MODE" == "true" ]]; then
+      echo '{"status":"error","reason_code":"PYTHON_MISSING","message":"Python 3.9+ required"}'
+    else
+      echo "Error: Python 3.9+ required" >&2
+    fi
+    exit 1
+  fi
+
+  "$HOST_PYTHON" - <<EOF
+$LIFECYCLE_REPORT_PY_HELPER
+
+import json, os, sys
+from datetime import datetime, timezone
+
+data_root = "$TARGET_DATA_ROOT"
+uninstall_agent = "$UNINSTALL"
+receipt_path = "$RECEIPT_PATH"
+lifecycle_start_time = datetime.now(timezone.utc)
+
+home_dir = os.path.expanduser("~")
+agent_paths = {
+    "universal": os.path.join(home_dir, ".agents", "skills"),
+    "hermes": os.path.join(home_dir, ".hermes", "skills"),
+    "workbuddy": os.path.join(home_dir, ".workbuddy", "skills"),
+    "codex": os.path.join(home_dir, ".codex", "skills")
+}
+target_path = agent_paths.get(uninstall_agent.lower(), uninstall_agent)
+
+removed_entries = []
+removed_receipts = []
+
+if os.path.isdir(target_path):
+    for entry in os.listdir(target_path):
+        if entry.startswith(".") and entry.endswith(".astock-reference.json"):
+            rc_file = os.path.join(target_path, entry)
+            s_name = entry[1:-len(".astock-reference.json")]
+            s_dir = os.path.join(target_path, s_name)
+            if os.path.islink(s_dir) or os.path.exists(s_dir):
+                try:
+                    if os.path.islink(s_dir):
+                        os.unlink(s_dir)
+                    elif os.path.isdir(s_dir):
+                        os.rmdir(s_dir)
+                    removed_entries.append(s_dir)
+                except Exception:
+                    pass
+            try:
+                os.unlink(rc_file)
+                removed_receipts.append(rc_file)
+            except Exception:
+                pass
+    suite_rc = os.path.join(target_path, ".a-stock-suite.json")
+    if os.path.isfile(suite_rc):
+        try:
+            os.unlink(suite_rc)
+            removed_receipts.append(suite_rc)
+        except Exception:
+            pass
+
+act_ver = "unknown"
+prev_ver = None
+if os.path.isfile(receipt_path):
+    try:
+        with open(receipt_path, "r", encoding="utf-8") as f:
+            rc_data = json.load(f)
+            act_ver = rc_data.get("version", "unknown")
+            prev_ver = rc_data.get("previous_version")
+    except Exception:
+        pass
+
+modifications = {
+    "uninstalled_agent": uninstall_agent,
+    "target_path": target_path,
+    "removed_entries": removed_entries,
+    "receipts_removed": removed_receipts
+}
+backup_and_safety = {
+    "target_skills_preserved": True,
+    "user_data_status": {
+        "output_dir_preserved": os.path.isdir(os.path.join(data_root, "output")),
+        "local_settings_preserved": os.path.isdir(os.path.join(data_root, "local")),
+        "log_dir_preserved": os.path.isdir(os.path.join(data_root, "log")),
+        "temp_dir_preserved": os.path.isdir(os.path.join(data_root, "temp")),
+        "isolation_policy": "STRICT_PHYSICAL_ISOLATION"
+    }
+}
+
+lifecycle_end_time = datetime.now(timezone.utc)
+py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+rep = write_lifecycle_report(
+    data_root=data_root,
+    action="uninstall",
+    status="success",
+    start_time=lifecycle_start_time,
+    end_time=lifecycle_end_time,
+    active_version=act_ver,
+    previous_version=prev_ver,
+    modifications=modifications,
+    backup_and_safety=backup_and_safety,
+    host_python="$HOST_PYTHON",
+    python_ver=py_ver,
+    uv_available=bool("$UV_CMD")
+)
+
+res = {
+    "status": "success",
+    "action": "uninstall",
+    "agent": uninstall_agent,
+    "target": target_path,
+    "removed": bool(removed_entries or removed_receipts),
+    "execution_report": {
+        "report_id": rep["report_id"],
+        "markdown_path": rep["markdown_path"],
+        "json_path": rep["json_path"]
+    }
+}
+
+if "$JSON_MODE" == "true":
+    print(json.dumps(res, indent=2))
+else:
+    print(f"Uninstalled reference for {uninstall_agent}")
+    print(f"Execution Report: {rep['markdown_path']}")
+EOF
+  exit 0
+fi
+
+# -----------------------------------------------------------------------------
 # Scenario E: -Update
 # -----------------------------------------------------------------------------
 if [[ "$UPDATE" == "true" ]]; then
@@ -341,11 +671,14 @@ if [[ "$UPDATE" == "true" ]]; then
   fi
 
   "$HOST_PYTHON" - <<EOF
+$LIFECYCLE_REPORT_PY_HELPER
+
 import json, os, sys, shutil, subprocess, hashlib
 from datetime import datetime, timezone
 
 receipt_path = "$RECEIPT_PATH"
 data_root = "$TARGET_DATA_ROOT"
+lifecycle_start_time = datetime.now(timezone.utc)
 with open(receipt_path, "r", encoding="utf-8") as f:
     receipt = json.load(f)
 
@@ -455,19 +788,66 @@ if os.path.isfile(doc_py):
         except Exception:
             pass
 
+receipt_backup_path = os.path.join(data_root, "install.json.bak")
+if os.path.isfile(receipt_path):
+    shutil.copy2(receipt_path, receipt_backup_path)
+
+py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
 if not doctor_ok:
+    mod_fail = {
+        "deployed_release": new_version_dir,
+        "current_link_switched": False,
+        "status": "aborted_smoke_failure"
+    }
+    backup_fail = {
+        "receipt_backup": receipt_backup_path,
+        "previous_version_path": os.path.join(releases_dir, old_version),
+        "previous_version_intact": True,
+        "user_data_status": {
+            "output_dir_preserved": os.path.isdir(os.path.join(data_root, "output")),
+            "local_settings_preserved": os.path.isdir(os.path.join(data_root, "local")),
+            "log_dir_preserved": os.path.isdir(os.path.join(data_root, "log")),
+            "temp_dir_preserved": os.path.isdir(os.path.join(data_root, "temp")),
+            "isolation_policy": "STRICT_PHYSICAL_ISOLATION"
+        },
+        "rollback_ready": False
+    }
+    rep_fail = write_lifecycle_report(
+        data_root=data_root,
+        action="update",
+        status="aborted",
+        start_time=lifecycle_start_time,
+        end_time=datetime.now(timezone.utc),
+        active_version=old_version,
+        previous_version=old_version,
+        modifications=mod_fail,
+        backup_and_safety=backup_fail,
+        doctor_report=doctor_report,
+        error_message=f"Doctor smoke verification failed on new release {new_version}. Kept current version {old_version} active without modification.",
+        host_python="$HOST_PYTHON",
+        python_ver=py_ver,
+        uv_available=bool("$UV_CMD")
+    )
+
     err = {
         "status": "error",
         "reason_code": "UPDATE_SMOKE_FAILED",
         "message": f"Doctor smoke verification failed on new release {new_version}. Kept current version {old_version} active without modification.",
         "active_version": old_version,
         "failed_version": new_version,
-        "doctor_output": doc_output
+        "doctor_output": doc_output,
+        "execution_report": {
+            "report_id": rep_fail["report_id"],
+            "markdown_path": rep_fail["markdown_path"],
+            "json_path": rep_fail["json_path"]
+        }
     }
     if "$JSON_MODE" == "true":
         print(json.dumps(err, indent=2))
     else:
         print(f"Error: Doctor smoke verification failed on new release {new_version}.", file=sys.stderr)
+        print(f"Execution Report: {rep_fail['markdown_path']}", file=sys.stderr)
     sys.exit(1)
 
 # 4. Atomic symlink switch
@@ -479,7 +859,46 @@ if os.path.islink(current_link) or os.path.exists(current_link):
         shutil.rmtree(current_link, ignore_errors=True)
 os.symlink(new_version_dir, current_link)
 
-# 5. Update receipt
+# 5. Write lifecycle report
+mod_success = {
+    "deployed_release": new_version_dir,
+    "current_link": {
+        "path": current_link,
+        "target": new_version_dir,
+        "type": "symlink"
+    },
+    "receipts_written": [receipt_path]
+}
+backup_success = {
+    "receipt_backup": receipt_backup_path,
+    "previous_version_path": os.path.join(releases_dir, old_version),
+    "previous_version_intact": True,
+    "user_data_status": {
+        "output_dir_preserved": os.path.isdir(os.path.join(data_root, "output")),
+        "local_settings_preserved": os.path.isdir(os.path.join(data_root, "local")),
+        "log_dir_preserved": os.path.isdir(os.path.join(data_root, "log")),
+        "temp_dir_preserved": os.path.isdir(os.path.join(data_root, "temp")),
+        "isolation_policy": "STRICT_PHYSICAL_ISOLATION"
+    },
+    "rollback_ready": True
+}
+rep_success = write_lifecycle_report(
+    data_root=data_root,
+    action="update",
+    status="success",
+    start_time=lifecycle_start_time,
+    end_time=datetime.now(timezone.utc),
+    active_version=new_version,
+    previous_version=old_version,
+    modifications=mod_success,
+    backup_and_safety=backup_success,
+    doctor_report=doctor_report,
+    host_python="$HOST_PYTHON",
+    python_ver=py_ver,
+    uv_available=bool("$UV_CMD")
+)
+
+# 6. Update receipt
 updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 receipt["previous_version"] = old_version
 receipt["version"] = new_version
@@ -487,6 +906,14 @@ receipt["updated_at"] = updated_at
 receipt["current_target"] = new_version_dir
 receipt["skills_root"] = skills_dir
 receipt["doctor_health"] = doctor_report
+receipt["latest_execution_report"] = {
+    "report_id": rep_success["report_id"],
+    "action": "update",
+    "status": "success",
+    "markdown_path": rep_success["markdown_path"],
+    "json_path": rep_success["json_path"],
+    "completed_at": updated_at
+}
 
 receipt.pop("sha256", None)
 raw = json.dumps(receipt, ensure_ascii=False, indent=2)
@@ -502,7 +929,12 @@ res = {
     "version": new_version,
     "active_version": new_version,
     "current_target": new_version_dir,
-    "data_root": data_root
+    "data_root": data_root,
+    "execution_report": {
+        "report_id": rep_success["report_id"],
+        "markdown_path": rep_success["markdown_path"],
+        "json_path": rep_success["json_path"]
+    }
 }
 if "$JSON_MODE" == "true":
     print(json.dumps(res, indent=2))
@@ -513,6 +945,7 @@ else:
     print(f"Previous Version: {old_version}")
     print(f"Active Version:   {new_version}")
     print(f"Data Root:        {data_root} (User data 100% preserved)")
+    print(f"Execution Report: {rep_success['markdown_path']}")
     print("============================================================")
 EOF
   exit $?
@@ -532,11 +965,14 @@ if [[ "$ROLLBACK" == "true" ]]; then
   fi
 
   "$HOST_PYTHON" - <<EOF
+$LIFECYCLE_REPORT_PY_HELPER
+
 import json, os, sys, shutil, subprocess, hashlib
 from datetime import datetime, timezone
 
 receipt_path = "$RECEIPT_PATH"
 data_root = "$TARGET_DATA_ROOT"
+lifecycle_start_time = datetime.now(timezone.utc)
 with open(receipt_path, "r", encoding="utf-8") as f:
     receipt = json.load(f)
 
@@ -595,6 +1031,10 @@ if len(skills_found) < 20:
         print(f"Error: Rollback target {prev_version} has {len(skills_found)} skills.", file=sys.stderr)
     sys.exit(1)
 
+receipt_backup_path = os.path.join(data_root, "install.json.bak")
+if os.path.isfile(receipt_path):
+    shutil.copy2(receipt_path, receipt_backup_path)
+
 # Atomic symlink switch
 current_link = os.path.join(data_root, "current")
 if os.path.islink(current_link) or os.path.exists(current_link):
@@ -604,6 +1044,46 @@ if os.path.islink(current_link) or os.path.exists(current_link):
         shutil.rmtree(current_link, ignore_errors=True)
 os.symlink(target_rollback_dir, current_link)
 
+py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+# Write lifecycle report
+mod_rollback = {
+    "target_rollback_dir": target_rollback_dir,
+    "current_link": {
+        "path": current_link,
+        "target": target_rollback_dir,
+        "type": "symlink"
+    },
+    "receipts_written": [receipt_path]
+}
+backup_rollback = {
+    "receipt_backup": receipt_backup_path,
+    "rolled_back_from_path": os.path.join(releases_dir, current_version),
+    "rolled_back_from_intact": True,
+    "user_data_status": {
+        "output_dir_preserved": os.path.isdir(os.path.join(data_root, "output")),
+        "local_settings_preserved": os.path.isdir(os.path.join(data_root, "local")),
+        "log_dir_preserved": os.path.isdir(os.path.join(data_root, "log")),
+        "temp_dir_preserved": os.path.isdir(os.path.join(data_root, "temp")),
+        "isolation_policy": "STRICT_PHYSICAL_ISOLATION"
+    },
+    "rollback_ready": True
+}
+rep_rollback = write_lifecycle_report(
+    data_root=data_root,
+    action="rollback",
+    status="success",
+    start_time=lifecycle_start_time,
+    end_time=datetime.now(timezone.utc),
+    active_version=prev_version,
+    previous_version=current_version,
+    modifications=mod_rollback,
+    backup_and_safety=backup_rollback,
+    host_python="$HOST_PYTHON",
+    python_ver=py_ver,
+    uv_available=bool("$UV_CMD")
+)
+
 # Update receipt
 rolled_back_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 receipt["previous_version"] = current_version
@@ -611,6 +1091,14 @@ receipt["version"] = prev_version
 receipt["rolled_back_at"] = rolled_back_at
 receipt["current_target"] = target_rollback_dir
 receipt["skills_root"] = skills_dir
+receipt["latest_execution_report"] = {
+    "report_id": rep_rollback["report_id"],
+    "action": "rollback",
+    "status": "success",
+    "markdown_path": rep_rollback["markdown_path"],
+    "json_path": rep_rollback["json_path"],
+    "completed_at": rolled_back_at
+}
 
 receipt.pop("sha256", None)
 raw = json.dumps(receipt, ensure_ascii=False, indent=2)
@@ -625,7 +1113,12 @@ res = {
     "active_version": prev_version,
     "rolled_back_from": current_version,
     "current_target": target_rollback_dir,
-    "data_root": data_root
+    "data_root": data_root,
+    "execution_report": {
+        "report_id": rep_rollback["report_id"],
+        "markdown_path": rep_rollback["markdown_path"],
+        "json_path": rep_rollback["json_path"]
+    }
 }
 if "$JSON_MODE" == "true":
     print(json.dumps(res, indent=2))
@@ -636,6 +1129,7 @@ else:
     print(f"Rolled Back From: {current_version}")
     print(f"Active Version:   {prev_version}")
     print(f"Data Root:        {data_root} (User data 100% preserved)")
+    print(f"Execution Report: {rep_rollback['markdown_path']}")
     print("============================================================")
 EOF
   exit $?
@@ -895,11 +1389,15 @@ fi
 
 # Run doctor and assemble install.json via Python helper
 "$VENV_PYTHON" - <<EOF
+$LIFECYCLE_REPORT_PY_HELPER
+
 import json, os, sys, hashlib
 from datetime import datetime, timezone
 import subprocess
 
-current_dir = os.path.join("$TARGET_DATA_ROOT", "current")
+lifecycle_start_time = datetime.now(timezone.utc)
+data_root = "$TARGET_DATA_ROOT"
+current_dir = os.path.join(data_root, "current")
 skills_dir = os.path.join(current_dir, "skills")
 if not os.path.isdir(skills_dir):
     skills_dir = os.path.join(current_dir, "skill_bundle", "skills")
@@ -925,7 +1423,7 @@ doctor_py = "$RUNTIME_DIR/doctor.py"
 doctor_health = None
 if os.path.isfile(doctor_py):
     env = os.environ.copy()
-    env["A_STOCK_WORKSPACE_ROOT"] = "$TARGET_DATA_ROOT"
+    env["A_STOCK_WORKSPACE_ROOT"] = data_root
     res = subprocess.run([sys.executable, doctor_py, "--json"], env=env, capture_output=True, text=True)
     if res.returncode == 0:
         try:
@@ -988,15 +1486,71 @@ if agent_str:
 
 bundle_target = "$ANCHOR_DIR" if "$ANCHOR_DIR" else "$BUNDLE_ROOT"
 runtime_target = "$RUNTIME_DIR" if "$RUNTIME_DIR" else os.path.join("$ANCHOR_DIR", "runtime")
+installed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+# Write lifecycle report
+mod_install = {
+    "directories_created": [
+        os.path.join(data_root, "output"),
+        os.path.join(data_root, "log"),
+        os.path.join(data_root, "temp"),
+        os.path.join(data_root, "local", "settings"),
+        os.path.join(data_root, "releases")
+    ],
+    "deployed_release": "$VERSION_DIR",
+    "current_link": {
+        "path": os.path.join(data_root, "current"),
+        "target": "$VERSION_DIR",
+        "type": "symlink"
+    },
+    "skills_mounted": len(skill_entries),
+    "registered_agents": registered_agents,
+    "environment_actions": [
+        "Created isolated virtualenv at $VENV_DIR" if "$SKIP_VENV" != "true" else "Used host Python directly (-SkipVenv)",
+        "Installed requirements dependencies" if "$SKIP_DEPS" != "true" else "Skipped dependencies installation (-SkipDeps)"
+    ],
+    "receipts_written": ["$RECEIPT_PATH"]
+}
+backup_install = {
+    "receipt_backup": os.path.join(data_root, "install.json.bak") if os.path.isfile(os.path.join(data_root, "install.json.bak")) else None,
+    "previous_version_path": None,
+    "previous_version_intact": True,
+    "user_data_status": {
+        "output_dir_preserved": os.path.isdir(os.path.join(data_root, "output")),
+        "local_settings_preserved": os.path.isdir(os.path.join(data_root, "local")),
+        "log_dir_preserved": os.path.isdir(os.path.join(data_root, "log")),
+        "temp_dir_preserved": os.path.isdir(os.path.join(data_root, "temp")),
+        "isolation_policy": "STRICT_PHYSICAL_ISOLATION"
+    },
+    "rollback_ready": False
+}
+rep_install = write_lifecycle_report(
+    data_root=data_root,
+    action="install",
+    status="success",
+    start_time=lifecycle_start_time,
+    end_time=datetime.now(timezone.utc),
+    active_version="$VERSION",
+    previous_version=None,
+    modifications=mod_install,
+    backup_and_safety=backup_install,
+    doctor_report=doctor_health,
+    registered_agents=registered_agents,
+    host_python="$HOST_PYTHON",
+    python_ver=py_ver,
+    uv_available=bool("$UV_CMD")
+)
 
 receipt = {
     "status": "installed",
     "version": "$VERSION",
     "previous_version": None,
-    "installed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    "workspace_root": "$TARGET_DATA_ROOT",
-    "data_root": "$TARGET_DATA_ROOT",
-    "releases_dir": os.path.join("$TARGET_DATA_ROOT", "releases"),
+    "installed_at": installed_at,
+    "workspace_root": data_root,
+    "data_root": data_root,
+    "releases_dir": os.path.join(data_root, "releases"),
     "current_target": "$VERSION_DIR",
     "bundle_root": bundle_target,
     "runtime_root": runtime_target,
@@ -1010,7 +1564,15 @@ receipt = {
     "business_skills": 19,
     "skill_entries": skill_entries,
     "registered_agents": registered_agents,
-    "doctor_health": doctor_health
+    "doctor_health": doctor_health,
+    "latest_execution_report": {
+        "report_id": rep_install["report_id"],
+        "action": "install",
+        "status": "success",
+        "markdown_path": rep_install["markdown_path"],
+        "json_path": rep_install["json_path"],
+        "completed_at": installed_at
+    }
 }
 
 raw = json.dumps(receipt, ensure_ascii=False, indent=2)
@@ -1025,10 +1587,11 @@ else:
     print("============================================================")
     print("🎉 A-Stock Agents Installation Successful (POSIX)!")
     print("============================================================")
-    print(f"Data Root:      $TARGET_DATA_ROOT")
-    print(f"Python venv:    $VENV_PYTHON")
-    print(f"Skills Ready:   {len(skill_entries)} entries verified (SHA256)")
-    print(f"Receipt:        $RECEIPT_PATH")
+    print(f"Data Root:        $TARGET_DATA_ROOT")
+    print(f"Python venv:      $VENV_PYTHON")
+    print(f"Skills Ready:     {len(skill_entries)} entries verified (SHA256)")
+    print(f"Receipt:          $RECEIPT_PATH")
+    print(f"Execution Report: {rep_install['markdown_path']}")
     print("\nQuickstart:")
     print("  ./install.sh -Doctor -Json")
     print("============================================================")

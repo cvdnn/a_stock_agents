@@ -2459,4 +2459,366 @@ def test_publish_release_cli_smoke_and_zero_pollution(tmp_path):
     assert (out_dir / "skills" / "a-stock-agents" / "runtime" / "doctor.py").is_file()
 
 
+# =============================================================================
+# 阶段五：P2-05 生命周期执行报告体系 (Lifecycle Execution Report System)
+# =============================================================================
+
+@pytest.mark.skipif(not IS_WINDOWS, reason="install.ps1 真实子进程执行仅在 Windows 验证")
+def test_install_generates_lifecycle_execution_report(tmp_path):
+    """P2-05 动作 1：install.ps1 安装完成后自动生成 Markdown 与 JSON 双格式生命周期执行报告。"""
+    install_ps1 = ROOT / "install.ps1"
+    sandbox_data = tmp_path / "sandbox_install_rep"
+    sandbox_data.mkdir()
+
+    cmd = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Version", "v3.0.0",
+        "-SkipDeps",
+        "-Yes",
+        "-Json"
+    ]
+    res = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+    assert res.returncode == 0, f"install.ps1 执行失败:\nstderr: {res.stderr}\nstdout: {res.stdout}"
+
+    payload = json.loads(res.stdout)
+    assert "latest_execution_report" in payload, "安装收据应包含 latest_execution_report 元数据"
+    rep_meta = payload["latest_execution_report"]
+    assert rep_meta["action"] == "install"
+    assert rep_meta["status"] == "success"
+    assert rep_meta["report_id"].startswith("lifecycle-install-")
+
+    # 验证交付物与观测日志目录落地
+    reports_dir = sandbox_data / "output" / "reports" / "lifecycle"
+    logs_dir = sandbox_data / "log" / "lifecycle"
+    assert reports_dir.is_dir(), "output/reports/lifecycle/ 目录未创建"
+    assert logs_dir.is_dir(), "log/lifecycle/ 目录未创建"
+
+    md_file = Path(rep_meta["markdown_path"])
+    json_file = Path(rep_meta["json_path"])
+    latest_md = reports_dir / "latest_lifecycle_report.md"
+    latest_json = logs_dir / "latest_lifecycle.json"
+
+    assert md_file.is_file(), f"生命周期 Markdown 报告未找到: {md_file}"
+    assert json_file.is_file(), f"生命周期 JSON 报告未找到: {json_file}"
+    assert latest_md.is_file(), "latest_lifecycle_report.md 未找到"
+    assert latest_json.is_file(), "latest_lifecycle.json 未找到"
+
+    # 验证 Markdown 报告内容结构
+    md_text = md_file.read_text(encoding="utf-8")
+    assert "生命周期执行报告 (Lifecycle Execution Report)" in md_text
+    assert "技能安装部署 (Installation)" in md_text
+    assert "## 一、核心执行概要 (Execution Summary)" in md_text
+    assert "## 二、过程修改内容 (Process Modifications)" in md_text
+    assert "## 三、备份情况与数据安全审计 (Backup & Data Protection)" in md_text
+    assert "自选池与股票池隔离" in md_text
+    assert "私有配置与凭据隔离" in md_text
+
+    # 验证 JSON 结构字段与物理隔离断言
+    json_data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert json_data["action"] == "install"
+    assert json_data["status"] == "success"
+    assert json_data["environment"]["platform"] == "windows"
+    assert json_data["execution_details"]["active_version"] == "v3.0.0"
+    assert json_data["modifications"]["deployed_release"]
+    assert json_data["backup_and_safety"]["user_data_status"]["isolation_policy"] == "STRICT_PHYSICAL_ISOLATION"
+
+
+@pytest.mark.skipif(not IS_WINDOWS, reason="install.ps1 真实子进程执行仅在 Windows 验证")
+def test_update_generates_lifecycle_execution_report_and_backup(tmp_path):
+    """P2-05 动作 2：install.ps1 -Update 升级时自动备份旧收据，并生成升级执行报告。"""
+    install_ps1 = ROOT / "install.ps1"
+    sandbox_data = tmp_path / "sandbox_update_rep"
+    sandbox_data.mkdir()
+
+    # 1. 初始安装 v3.0.0
+    cmd_init = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Version", "v3.0.0",
+        "-SkipDeps",
+        "-Yes",
+        "-Json"
+    ]
+    assert subprocess.run(cmd_init, cwd=str(ROOT), capture_output=True, text=True, timeout=60).returncode == 0
+
+    # 2. 构造模拟新版本源 v3.1.0
+    new_release_src = tmp_path / "src_v310"
+    shutil.copytree(ROOT / "skill_bundle", new_release_src / "skill_bundle")
+    for f in ("install.ps1", "install.sh", "requirements.txt"):
+        if (ROOT / f).is_file():
+            shutil.copy2(ROOT / f, new_release_src / f)
+
+    # 3. 运行 -Update 升级
+    cmd_update = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Update",
+        "-Version", "v3.1.0",
+        "-SourceDir", str(new_release_src),
+        "-SkipDeps",
+        "-Json"
+    ]
+    res_up = subprocess.run(cmd_update, cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+    assert res_up.returncode == 0, f"Update failed: {res_up.stderr}\n{res_up.stdout}"
+
+    payload = json.loads(res_up.stdout)
+    assert payload["status"] == "success"
+    assert payload["action"] == "update"
+    assert "execution_report" in payload
+    rep_meta = payload["execution_report"]
+
+    # 验证收据备份
+    bak_receipt = sandbox_data / "install.json.bak"
+    assert bak_receipt.is_file(), "升级前必须先将旧收据镜像备份至 install.json.bak"
+    bak_data = json.loads(bak_receipt.read_text(encoding="utf-8-sig"))
+    assert bak_data["version"] == "v3.0.0"
+
+    # 验证新收据记录 latest_execution_report
+    active_receipt = json.loads((sandbox_data / "install.json").read_text(encoding="utf-8-sig"))
+    assert active_receipt["version"] == "v3.1.0"
+    assert active_receipt["previous_version"] == "v3.0.0"
+    assert active_receipt["latest_execution_report"]["action"] == "update"
+    assert active_receipt["latest_execution_report"]["report_id"] == rep_meta["report_id"]
+
+    # 验证报告内容
+    md_file = Path(rep_meta["markdown_path"])
+    json_file = Path(rep_meta["json_path"])
+    assert md_file.is_file()
+    assert json_file.is_file()
+
+    md_text = md_file.read_text(encoding="utf-8")
+    assert "多版本平滑升级 (Upgrade)" in md_text
+    assert "v3.0.0" in md_text
+    assert "v3.1.0" in md_text
+
+    json_data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert json_data["action"] == "update"
+    assert json_data["status"] == "success"
+    assert json_data["backup_and_safety"]["rollback_ready"] is True
+    assert json_data["backup_and_safety"]["receipt_backup"] == str(bak_receipt)
+
+
+@pytest.mark.skipif(not IS_WINDOWS, reason="install.ps1 真实子进程执行仅在 Windows 验证")
+def test_update_failure_generates_aborted_report_and_protects_current(tmp_path):
+    """P2-05 动作 3：新版本冒烟失败时，生成 aborted 报告、坚决守住当前版本并记录失败现场。"""
+    install_ps1 = ROOT / "install.ps1"
+    sandbox_data = tmp_path / "sandbox_abort_rep"
+    sandbox_data.mkdir()
+
+    # 1. 正常初始安装 v3.0.0
+    cmd_init = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Version", "v3.0.0",
+        "-SkipDeps",
+        "-Yes",
+        "-Json"
+    ]
+    assert subprocess.run(cmd_init, cwd=str(ROOT), capture_output=True, text=True, timeout=60).returncode == 0
+
+    # 2. 构造故意使 doctor 自检退出的破坏性新版本
+    broken_src = tmp_path / "broken_release"
+    shutil.copytree(ROOT / "skill_bundle", broken_src / "skill_bundle")
+    for f in ("install.ps1", "install.sh", "requirements.txt"):
+        if (ROOT / f).is_file():
+            shutil.copy2(ROOT / f, broken_src / f)
+
+    broken_doctor = broken_src / "skill_bundle" / "runtime" / "doctor.py"
+    broken_doctor.write_text("import sys; sys.exit(1)", encoding="utf-8")
+
+    cmd_bad = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Update",
+        "-Version", "v3.2.0-broken",
+        "-SourceDir", str(broken_src),
+        "-SkipDeps",
+        "-Json"
+    ]
+    res_bad = subprocess.run(cmd_bad, cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+    assert res_bad.returncode == 1, "冒烟失败必须退出码 1"
+
+    payload = json.loads(res_bad.stdout)
+    assert payload["status"] == "error"
+    assert payload["reason_code"] == "UPDATE_SMOKE_FAILED"
+    assert "execution_report" in payload
+    rep_meta = payload["execution_report"]
+
+    # 验证生成了 aborted 状态报告
+    json_file = Path(rep_meta["json_path"])
+    md_file = Path(rep_meta["markdown_path"])
+    assert json_file.is_file()
+    assert md_file.is_file()
+
+    json_data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert json_data["action"] == "update"
+    assert json_data["status"] == "aborted"
+    assert json_data["modifications"]["status"] == "aborted_smoke_failure"
+    assert json_data["modifications"]["current_link_switched"] is False
+    assert json_data["backup_and_safety"]["rollback_ready"] is False
+
+    # 验证守住当前版本
+    current_link = sandbox_data / "current"
+    receipt = json.loads((sandbox_data / "install.json").read_text(encoding="utf-8-sig"))
+    assert receipt["version"] == "v3.0.0"
+    assert Path(receipt["current_target"]).resolve() == (sandbox_data / "releases" / "v3.0.0").resolve()
+
+
+@pytest.mark.skipif(not IS_WINDOWS, reason="install.ps1 真实子进程执行仅在 Windows 验证")
+def test_rollback_generates_lifecycle_execution_report(tmp_path):
+    """P2-05 动作 4：install.ps1 -Rollback 回滚执行时生成回滚审计报告并记录版本跳变。"""
+    install_ps1 = ROOT / "install.ps1"
+    sandbox_data = tmp_path / "sandbox_rollback_rep"
+    sandbox_data.mkdir()
+
+    # 1. 安装 v3.0.0
+    cmd_v1 = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Version", "v3.0.0",
+        "-SkipDeps",
+        "-Yes",
+        "-Json"
+    ]
+    assert subprocess.run(cmd_v1, cwd=str(ROOT), capture_output=True, text=True, timeout=60).returncode == 0
+
+    # 2. 升级到 v3.1.0
+    new_release_src = tmp_path / "src_v310"
+    shutil.copytree(ROOT / "skill_bundle", new_release_src / "skill_bundle")
+    for f in ("install.ps1", "install.sh", "requirements.txt"):
+        if (ROOT / f).is_file():
+            shutil.copy2(ROOT / f, new_release_src / f)
+
+    cmd_v2 = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Update",
+        "-Version", "v3.1.0",
+        "-SourceDir", str(new_release_src),
+        "-SkipDeps",
+        "-Json"
+    ]
+    assert subprocess.run(cmd_v2, cwd=str(ROOT), capture_output=True, text=True, timeout=60).returncode == 0
+
+    # 3. 执行 -Rollback 回滚
+    cmd_rb = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Rollback",
+        "-Json"
+    ]
+    res_rb = subprocess.run(cmd_rb, cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+    assert res_rb.returncode == 0, f"Rollback failed: {res_rb.stderr}\n{res_rb.stdout}"
+
+    payload = json.loads(res_rb.stdout)
+    assert payload["status"] == "success"
+    assert payload["action"] == "rollback"
+    assert payload["active_version"] == "v3.0.0"
+    assert payload["rolled_back_from"] == "v3.1.0"
+    assert "execution_report" in payload
+    rep_meta = payload["execution_report"]
+
+    # 验证回滚报告
+    json_file = Path(rep_meta["json_path"])
+    md_file = Path(rep_meta["markdown_path"])
+    assert json_file.is_file()
+    assert md_file.is_file()
+
+    md_text = md_file.read_text(encoding="utf-8")
+    assert "版本一键回滚 (Rollback)" in md_text
+    assert "v3.0.0" in md_text
+    assert "v3.1.0" in md_text
+
+    json_data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert json_data["action"] == "rollback"
+    assert json_data["status"] == "success"
+    assert json_data["execution_details"]["active_version"] == "v3.0.0"
+    assert json_data["execution_details"]["previous_version"] == "v3.1.0"
+
+
+@pytest.mark.skipif(not IS_WINDOWS, reason="install.ps1 真实子进程执行仅在 Windows 验证")
+def test_uninstall_generates_lifecycle_execution_report(tmp_path):
+    """P2-05 动作 5：install.ps1 -Uninstall 卸载宿主引用时生成生命周期报告并保持用户数据物理隔离留存。"""
+    install_ps1 = ROOT / "install.ps1"
+    sandbox_data = tmp_path / "sandbox_uninst_rep"
+    mock_host = tmp_path / "mock_host_rep"
+    sandbox_data.mkdir()
+    mock_host.mkdir()
+
+    # 1. 安装并挂载至 mock_host
+    cmd_init = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Agent", str(mock_host),
+        "-Version", "v3.0.0",
+        "-SkipDeps",
+        "-Yes",
+        "-Json"
+    ]
+    assert subprocess.run(cmd_init, cwd=str(ROOT), capture_output=True, text=True, timeout=60).returncode == 0
+    assert (mock_host / "a-stock-agents").exists()
+
+    # 2. 执行卸载
+    cmd_uninst = [
+        "powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "-NonInteractive", "-File", str(install_ps1),
+        "-DataDir", str(sandbox_data),
+        "-Uninstall", str(mock_host),
+        "-Json"
+    ]
+    res_uninst = subprocess.run(cmd_uninst, cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+    assert res_uninst.returncode == 0, f"Uninstall failed: {res_uninst.stderr}\n{res_uninst.stdout}"
+
+    payload = json.loads(res_uninst.stdout)
+    assert payload["status"] == "success"
+    assert payload["action"] == "uninstall"
+    assert "execution_report" in payload
+    rep_meta = payload["execution_report"]
+
+    # 验证宿主引用已被安全移除，但目标发布目录与用户数据完好
+    assert not (mock_host / "a-stock-agents").exists()
+    assert (sandbox_data / "releases" / "v3.0.0").is_dir()
+    assert (sandbox_data / "output").is_dir()
+    assert (sandbox_data / "local").is_dir()
+
+    # 验证报告文件
+    json_file = Path(rep_meta["json_path"])
+    md_file = Path(rep_meta["markdown_path"])
+    assert json_file.is_file()
+    assert md_file.is_file()
+
+    json_data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert json_data["action"] == "uninstall"
+    assert json_data["status"] == "success"
+    assert json_data["modifications"]["uninstalled_agent"] == str(mock_host)
+    assert len(json_data["modifications"]["removed_entries"]) >= 1
+
+
+def test_install_sh_lifecycle_report_parity():
+    """P2-05 动作 6：POSIX install.sh 脚本与 Windows install.ps1 具备 100% 生命周周期报告契约一致性。"""
+    install_sh = ROOT / "install.sh"
+    assert install_sh.is_file(), "install.sh 必须存在"
+    sh_content = install_sh.read_text(encoding="utf-8")
+
+    # 1. 验证报告生成函数
+    assert "def write_lifecycle_report" in sh_content
+    assert "latest_lifecycle_report.md" in sh_content
+    assert "latest_lifecycle.json" in sh_content
+
+    # 2. 验证四大生命周期动作均调用报告生成
+    assert 'action="install"' in sh_content
+    assert 'action="update"' in sh_content
+    assert 'action="rollback"' in sh_content
+    assert 'action="uninstall"' in sh_content
+
+    # 3. 验证升级失败现场熔断报告
+    assert 'status="aborted"' in sh_content
+    assert "UPDATE_SMOKE_FAILED" in sh_content
+
+    # 4. 验证 install.json 收据与备份契约
+    assert "latest_execution_report" in sh_content
+    assert "install.json.bak" in sh_content
+
+
+
 

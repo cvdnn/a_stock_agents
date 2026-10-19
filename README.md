@@ -169,9 +169,9 @@ cd a_stock_agents
 python skill_bundle/runtime/doctor.py
 ```
 
-### 3. 可选 Docker Web 调试环境
+### 3. 可选 Docker Web 调试环境 (平台侧开发)
 
-开发调试可使用Docker隔离Web应用依赖。该环境不是技能Release安装前提；使用已存在镜像时禁止隐式构建：
+Docker 属于平台侧 Web 控制台（`apps/web-console`）功能开发与调试部署辅助工具，**与用户技能安装（Skill Installation）完全无关，不参与 AI 协助安装内容**。仅用于在隔离容器中调试 Web 应用，基础技能无需 Docker 即可原生运行：
 
 ```bash
 # 可选：复制技能运行环境变量模板，在本地填写模型凭据

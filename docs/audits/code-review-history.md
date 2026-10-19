@@ -5,6 +5,8 @@
 > 专题审查：[2026-10-07 智能选股系统实现情况审查与实施计划](2026-10-07-selection-system-implementation-review.md) — ISS 主体未落地，仅底座（funnel 引擎 + 数据装配 + 手工 CLI）可用，附分批实施计划与门禁。
 > 交付审查：[2026-10-15 技能总包交付形态与技能开发工程评估报告](2026-10-15-skill-suite-delivery-assessment.md) — 识别单一来源、宿主发现与发布门禁短板，制定 SPEC-ENG-001 整改闭环。
 > 规范与宿主审查：[2026-10-16 项目结构 Skill 规范审查（含双模态安装与宿主发现再评估）](2026-10-16-skill-structure-review.md) — 确立锚点技能架构（Anchor Skill）与双模态安装引导（AI 卡片交互 / 终端 TUI），全面化解 WorkBuddy / Hermes Desktop / Codex 宿主接入阻断。
+> 技能全景评估：[2026-10-19 技能全景功能与完成度审查评估报告](2026-10-19-skill-comprehensive-evaluation-and-governance-audit.md) — 建立六维评估体系与 4 级成熟度模型，全量评估 20 项技能（55% L4 生产完备，30% L3 主体就绪，15% L2 协议型），诊断 7 大工程差距并制定 P0–P2 整改路线图。
+> 架构精简与测试重构规范：[SPEC-SKILL-002：A股生产级投研技能「1 + 6」物理精简与极速测试体系重构规范](../specs/engineering/spec-skill-1plus6-consolidation-and-test-rearchitecture.md) — 确立「方式 A：物理精简为 `1 + 6` 生产级股票投研技能 + `6` 大底层技术支撑引擎」方案，并重塑极速核心测试门禁（移除前端测试、WebAPI 独立分仓、核心门禁 `< 8s`）。
 
 
 ---

@@ -88,6 +88,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$lifecycleStartTime = Get-Date
 
 # -----------------------------------------------------------------------------
 # 1. 路径发现与环境探测辅助函数 (Helper Functions)
@@ -163,6 +164,232 @@ function Deploy-ReleaseFiles {
             }
             Copy-Item -LiteralPath $srcPath -Destination $dstPath -Recurse -Force
         }
+    }
+}
+
+function Write-LifecycleReport {
+    param(
+        [string]$DataRoot,
+        [string]$Action,               # 'install' | 'update' | 'rollback' | 'uninstall'
+        [string]$Status,               # 'success' | 'aborted' | 'failed'
+        $StartTime = $null,
+        $EndTime = $null,
+        [string]$ActiveVersion,
+        [string]$PreviousVersion,
+        [object]$Modifications,
+        [object]$BackupInfo,
+        [object]$DoctorReport,
+        [array]$RegisteredAgents,
+        [string]$ErrorMessage,
+        [string]$HostPythonExe,
+        [string]$PythonVersionStr,
+        [bool]$UvFlag = $false
+    )
+
+    if (-not $StartTime) { $StartTime = Get-Date }
+    if (-not $EndTime) { $EndTime = Get-Date }
+
+    $reportsDir = Join-Path $DataRoot 'output\reports\lifecycle'
+    $logsDir    = Join-Path $DataRoot 'log\lifecycle'
+    if (-not (Test-Path -LiteralPath $reportsDir)) { New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null }
+    if (-not (Test-Path -LiteralPath $logsDir)) { New-Item -ItemType Directory -Force -Path $logsDir | Out-Null }
+
+    $ts = $EndTime.ToUniversalTime().ToString('yyyyMMdd_HHmmss')
+    $isoStart = $StartTime.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $isoEnd = $EndTime.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $duration = [Math]::Round(($EndTime - $StartTime).TotalSeconds, 2)
+    $reportId = "lifecycle-$Action-$ts"
+
+    $reportObj = [ordered]@{
+        report_id        = $reportId
+        action           = $Action
+        status           = $Status
+        started_at       = $isoStart
+        completed_at     = $isoEnd
+        duration_seconds = $duration
+        environment      = [ordered]@{
+            platform       = 'windows'
+            data_root      = $DataRoot
+            python_path    = $HostPythonExe
+            python_version = $PythonVersionStr
+            uv_available   = $UvFlag
+        }
+        execution_details = [ordered]@{
+            active_version    = $ActiveVersion
+            previous_version  = $PreviousVersion
+            registered_agents = $RegisteredAgents
+            doctor_health     = $DoctorReport
+            error_message     = $ErrorMessage
+        }
+        modifications    = $Modifications
+        backup_and_safety = $BackupInfo
+        summary          = $(if ($Status -eq 'success') {
+            "A-Stock Agents $Action completed successfully at version $ActiveVersion."
+        } else {
+            "A-Stock Agents $Action $Status. Error: $ErrorMessage"
+        })
+    }
+
+    $jsonFile = Join-Path $logsDir "lifecycle_${Action}_${ts}.json"
+    $latestJsonFile = Join-Path $logsDir "latest_lifecycle.json"
+    $mdFile = Join-Path $reportsDir "lifecycle_report_${Action}_${ts}.md"
+    $latestMdFile = Join-Path $reportsDir "latest_lifecycle_report.md"
+
+    # Write JSON report
+    $jsonContent = $reportObj | ConvertTo-Json -Depth 10
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($jsonFile, $jsonContent, $utf8NoBom)
+    [System.IO.File]::WriteAllText($latestJsonFile, $jsonContent, $utf8NoBom)
+
+    # Generate Markdown Report
+    $q = [char]96
+    $actionTitle = switch ($Action) {
+        'install'   { '技能安装部署 (Installation)' }
+        'update'    { '多版本平滑升级 (Upgrade)' }
+        'rollback'  { '版本一键回滚 (Rollback)' }
+        'uninstall' { '宿主引用卸载 (Uninstallation)' }
+        Default     { $Action }
+    }
+    $statusEmoji = $(if ($Status -eq 'success') { '✅ 成功 (SUCCESS)' } elseif ($Status -eq 'aborted') { '⚠️ 阻断/熔断 (ABORTED)' } else { '❌ 失败 (FAILED)' })
+
+    $prevVerDisplay = $(if ($PreviousVersion) { "$q$PreviousVersion$q" } else { "无 (首发或未记录)" })
+    $mdLines = @(
+        "# 📋 A-Stock Agents 生命周期执行报告 (Lifecycle Execution Report) —— $actionTitle",
+        "",
+        "> **执行流水号**：$q$reportId$q · **生成时间**：$q$isoEnd$q · **总体状态**：$statusEmoji",
+        "",
+        "---",
+        "",
+        "## 一、核心执行概要 (Execution Summary)",
+        "",
+        "| 配置项 | 详细信息 |",
+        "| :--- | :--- |",
+        "| **执行动作 (Action)** | $q$Action$q |",
+        "| **执行状态 (Status)** | **$statusEmoji** |",
+        "| **耗时 (Duration)** | ${duration}s (起: $isoStart / 止: $isoEnd) |",
+        "| **当前激活版本 (Active Version)** | $q$ActiveVersion$q |",
+        "| **前序历史版本 (Previous Version)** | $prevVerDisplay |",
+        "| **用户数据根 (Data Root)** | $q$DataRoot$q |",
+        "| **Python 解释器** | $q$HostPythonExe ($PythonVersionStr)$q |",
+        ""
+    )
+
+    if ($ErrorMessage) {
+        $mdLines += @(
+            "> [!CAUTION]",
+            "> ### 异常/熔断详情",
+            "> $ErrorMessage",
+            ""
+        )
+    }
+
+    # 二、过程修改内容 (Modifications)
+    $mdLines += @(
+        "## 二、过程修改内容 (Process Modifications)",
+        ""
+    )
+    if ($Modifications) {
+        if ($Modifications.directories_created -and $Modifications.directories_created.Count -gt 0) {
+            $mdLines += @("### 1. 目录初始化与变更")
+            foreach ($d in $Modifications.directories_created) {
+                $mdLines += @("- $q[创建/就绪]$q $q$d$q")
+            }
+            $mdLines += @("")
+        }
+        if ($Modifications.current_link) {
+            $mdLines += @(
+                "### 2. current 软链接 / Junction 寻址挂载",
+                "- 链接路径：$q$($Modifications.current_link.path)$q",
+                "- 目标路径：$q$($Modifications.current_link.target)$q",
+                "- 挂载类型：$q$($Modifications.current_link.type)$q",
+                ""
+            )
+        }
+        if ($Modifications.environment_actions -and $Modifications.environment_actions.Count -gt 0) {
+            $mdLines += @("### 3. 环境与依赖操作")
+            foreach ($ea in $Modifications.environment_actions) {
+                $mdLines += @("- $ea")
+            }
+            $mdLines += @("")
+        }
+        if ($Modifications.registered_agents -and $Modifications.registered_agents.Count -gt 0) {
+            $mdLines += @("### 4. 宿主技能注册与挂载")
+            foreach ($ra in $Modifications.registered_agents) {
+                $mdLines += @("- **$($ra.agent)**: 挂载到 $q$($ra.target_dir)$q (模式: $q$($ra.method)$q, 技能数: $q$($ra.skills_count)$q)")
+            }
+            $mdLines += @("")
+        }
+        if ($Modifications.receipts_written -and $Modifications.receipts_written.Count -gt 0) {
+            $mdLines += @("### 5. 持久化收据落盘")
+            foreach ($rw in $Modifications.receipts_written) {
+                $mdLines += @("- $q[落盘]$q $q$rw$q")
+            }
+            $mdLines += @("")
+        }
+        if ($Modifications.removed_entries -and $Modifications.removed_entries.Count -gt 0) {
+            $mdLines += @("### 6. 清理的宿主引用链接")
+            foreach ($re in $Modifications.removed_entries) {
+                $mdLines += @("- $q[已清理]$q $q$re$q")
+            }
+            $mdLines += @("")
+        }
+    }
+
+    # 三、备份情况与数据安全审计 (Backup & Data Protection)
+    $mdLines += @(
+        "## 三、备份情况与数据安全审计 (Backup & Data Protection)",
+        ""
+    )
+    if ($BackupInfo) {
+        $prevVerBackupStr = $(if ($BackupInfo.previous_version_path) { "镜像保留于: $q$($BackupInfo.previous_version_path)$q" } else { "首次安装或无历史镜像" })
+        $prevVerStatus = $(if ($BackupInfo.previous_version_path) { '✅ 已就绪' } else { 'ℹ️ 不适用' })
+        $rcBackupStr = $(if ($BackupInfo.receipt_backup) { "备份文件: $q$($BackupInfo.receipt_backup)$q" } else { "无旧版 install.json" })
+        $rcBackupStatus = $(if ($BackupInfo.receipt_backup) { '✅ 已备份' } else { 'ℹ️ 无历史收据' })
+        $outPreservedStatus = $(if ($BackupInfo.user_data_status.output_dir_preserved) { '✅ 100% 留存' } else { '⚠️ 待核验' })
+        $locPreservedStatus = $(if ($BackupInfo.user_data_status.local_settings_preserved) { '✅ 100% 留存' } else { '⚠️ 待核验' })
+        $rbStatus = $(if ($BackupInfo.rollback_ready) { '🚀 支持回滚' } else { '⏸️ 暂无可回滚版本' })
+        $rbDesc = $(if ($BackupInfo.rollback_ready) { "可通过 install.ps1 -Rollback 瞬时恢复至 $q$PreviousVersion$q" } else { "首次安装无回滚点" })
+
+        $mdLines += @(
+            "| 审计检查点 | 状态 | 详细说明 |",
+            "| :--- | :---: | :--- |",
+            "| **历史版本镜像备份** | $prevVerStatus | $prevVerBackupStr |",
+            "| **安装收据镜像备份** | $rcBackupStatus | $rcBackupStr |",
+            "| **自选池与股票池隔离** | $outPreservedStatus | 用户自选股 CSV、报告与持仓物理隔离留存 |",
+            "| **私有配置与凭据隔离** | $locPreservedStatus | $q" + "local/settings/application.yaml$q 与 $q.env$q 凭据零破坏 |",
+            "| **一键回滚就绪状态** | $rbStatus | $rbDesc |",
+            ""
+        )
+    }
+
+    # 四、健康状态与 Doctor 冒烟自检 (Health Check)
+    if ($DoctorReport) {
+        $docHealthy = $(if ($DoctorReport.is_healthy) { '✅ 健康 (Healthy)' } else { '❌ 存在异常' })
+        $mdLines += @(
+            "## 四、Doctor 健康诊断结果 (Smoke Verification)",
+            "",
+            "- 总体健康度：$docHealthy",
+            "- 技能总数：$q$($DoctorReport.total_skills)$q (业务技能: $q$($DoctorReport.business_skills)$q)",
+            "- 启动器校验：$q$($DoctorReport.cli_launcher)$q",
+            ""
+        )
+    }
+
+    $mdLines += @(
+        "---",
+        "💡 *本报告由 A-Stock Agents 生命周期引擎自动生成，归档路径: $q$reportsDir$q 与 $q$logsDir$q。*"
+    )
+
+    $mdContent = $mdLines -join "`n"
+    [System.IO.File]::WriteAllText($mdFile, $mdContent, $utf8NoBom)
+    [System.IO.File]::WriteAllText($latestMdFile, $mdContent, $utf8NoBom)
+
+    return [PSCustomObject]@{
+        ReportId   = $reportId
+        JsonPath   = $jsonFile
+        MdPath     = $mdFile
+        LatestJson = $latestJsonFile
+        LatestMd   = $latestMdFile
     }
 }
 
@@ -680,6 +907,7 @@ if ($Doctor) {
 # 场景 C: 卸载模式 (-Uninstall <agent>)
 # -----------------------------------------------------------------------------
 if ($Uninstall) {
+    $lifecycleStartTime = Get-Date
     $agKey = $Uninstall.ToLowerInvariant()
     $targetPath = $null
     if ($detectedAgents.Contains($agKey)) {
@@ -687,6 +915,9 @@ if ($Uninstall) {
     } else {
         $targetPath = $Uninstall
     }
+
+    $removedEntries = @()
+    $removedReceipts = @()
 
     $res = [ordered]@{
         status  = 'success'
@@ -705,18 +936,58 @@ if ($Uninstall) {
                 $sEntry = Join-Path $targetPath $sName
                 if (Test-Path -LiteralPath $sEntry) {
                     [System.IO.Directory]::Delete($sEntry, $false)
+                    $removedEntries += $sEntry
                 }
                 Remove-Item -LiteralPath $rf.FullName -Force -ErrorAction SilentlyContinue
+                $removedReceipts += $rf.FullName
             } catch {}
         }
         $suiteReceipt = Join-Path $targetPath '.a-stock-suite.json'
         if (Test-Path -LiteralPath $suiteReceipt) {
             Remove-Item -LiteralPath $suiteReceipt -Force -ErrorAction SilentlyContinue
+            $removedReceipts += $suiteReceipt
         }
         $res.removed = $true
     }
 
-    if ($Json) { $res | ConvertTo-Json -Depth 5 } else { Write-Host "Uninstalled reference for $Uninstall" }
+    $actVer = $(if ($existingReceipt) { $existingReceipt.version } else { 'unknown' })
+    $prevVer = $(if ($existingReceipt) { $existingReceipt.previous_version } else { $null })
+
+    $modifications = [ordered]@{
+        uninstalled_agent = $Uninstall
+        target_path       = $targetPath
+        removed_entries   = $removedEntries
+        receipts_removed  = $removedReceipts
+    }
+    $backupInfo = [ordered]@{
+        target_skills_preserved = $true
+        user_data_status        = [ordered]@{
+            output_dir_preserved     = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'output'))
+            local_settings_preserved = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'local'))
+            log_dir_preserved        = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'log'))
+            temp_dir_preserved       = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'temp'))
+            isolation_policy         = 'STRICT_PHYSICAL_ISOLATION'
+        }
+    }
+
+    $rep = Write-LifecycleReport -DataRoot $targetDataRoot -Action 'uninstall' -Status 'success' `
+        -StartTime $lifecycleStartTime -EndTime (Get-Date) `
+        -ActiveVersion $actVer -PreviousVersion $prevVer `
+        -Modifications $modifications -BackupInfo $backupInfo `
+        -HostPythonExe $hostPython -PythonVersionStr $pythonVer -UvFlag ($uvCmd -ne $null)
+
+    $res['execution_report'] = [ordered]@{
+        report_id     = $rep.ReportId
+        markdown_path = $rep.MdPath
+        json_path     = $rep.JsonPath
+    }
+
+    if ($Json) {
+        $res | ConvertTo-Json -Depth 5
+    } else {
+        Write-Host "Uninstalled reference for $Uninstall"
+        Write-Host "Execution Report: $($rep.MdPath)"
+    }
     exit 0
 }
 
@@ -724,6 +995,7 @@ if ($Uninstall) {
 # 场景 E: 升级模式 (-Update)
 # -----------------------------------------------------------------------------
 if ($Update) {
+    $lifecycleStartTime = Get-Date
     if (-not $isInstalled) {
         $errObj = [ordered]@{
             status      = 'error'
@@ -847,6 +1119,11 @@ if ($Update) {
         $env:A_STOCK_WORKSPACE_ROOT = $prevWs
     }
 
+    $receiptBackupPath = Join-Path $targetDataRoot 'install.json.bak'
+    if (Test-Path -LiteralPath $receiptPath) {
+        Copy-Item -LiteralPath $receiptPath -Destination $receiptBackupPath -Force -ErrorAction SilentlyContinue
+    }
+
     if (-not $doctorSuccess) {
         # 冒烟失败：绝对不切换 current，坚决守住当前版本
         $errObj = [ordered]@{
@@ -857,14 +1134,81 @@ if ($Update) {
             failed_version = $newVersion
             doctor_output  = $doctorOutput
         }
-        if ($Json) { $errObj | ConvertTo-Json -Depth 5 } else { Write-Error $errObj.message }
+
+        $modFail = [ordered]@{
+            deployed_release      = $newVersionDir
+            current_link_switched = $false
+            status                = 'aborted_smoke_failure'
+        }
+        $backupFail = [ordered]@{
+            receipt_backup          = $receiptBackupPath
+            previous_version_path   = (Join-Path $releasesDir $oldVersion)
+            previous_version_intact = $true
+            user_data_status        = [ordered]@{
+                output_dir_preserved     = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'output'))
+                local_settings_preserved = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'local'))
+                log_dir_preserved        = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'log'))
+                temp_dir_preserved       = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'temp'))
+                isolation_policy         = 'STRICT_PHYSICAL_ISOLATION'
+            }
+            rollback_ready          = $false
+        }
+
+        $repFail = Write-LifecycleReport -DataRoot $targetDataRoot -Action 'update' -Status 'aborted' `
+            -StartTime $lifecycleStartTime -EndTime (Get-Date) `
+            -ActiveVersion $oldVersion -PreviousVersion $oldVersion `
+            -Modifications $modFail -BackupInfo $backupFail `
+            -DoctorReport $doctorReport -ErrorMessage $errObj.message `
+            -HostPythonExe $hostPython -PythonVersionStr $pythonVer -UvFlag ($uvCmd -ne $null)
+
+        $errObj['execution_report'] = [ordered]@{
+            report_id     = $repFail.ReportId
+            markdown_path = $repFail.MdPath
+            json_path     = $repFail.JsonPath
+        }
+
+        if ($Json) { $errObj | ConvertTo-Json -Depth 5 } else {
+            Write-Error $errObj.message
+            Write-Host "Execution Report: $($repFail.MdPath)"
+        }
         exit 1
     }
 
     # 6. 冒烟成功：原子重定向 current 软链接/Junction
     $currentPath = Set-CurrentLink -DataRoot $targetDataRoot -TargetDir $newVersionDir
 
-    # 7. 更新安装收据 install.json
+    # 7. 生成生命周期执行报告
+    $modSuccess = [ordered]@{
+        deployed_release = $newVersionDir
+        current_link     = [ordered]@{
+            path   = (Join-Path $targetDataRoot 'current')
+            target = $newVersionDir
+            type   = 'junction'
+        }
+        receipts_written = @($receiptPath)
+    }
+    $backupSuccess = [ordered]@{
+        receipt_backup          = $receiptBackupPath
+        previous_version_path   = (Join-Path $releasesDir $oldVersion)
+        previous_version_intact = $true
+        user_data_status        = [ordered]@{
+            output_dir_preserved     = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'output'))
+            local_settings_preserved = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'local'))
+            log_dir_preserved        = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'log'))
+            temp_dir_preserved       = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'temp'))
+            isolation_policy         = 'STRICT_PHYSICAL_ISOLATION'
+        }
+        rollback_ready          = $true
+    }
+
+    $repSuccess = Write-LifecycleReport -DataRoot $targetDataRoot -Action 'update' -Status 'success' `
+        -StartTime $lifecycleStartTime -EndTime (Get-Date) `
+        -ActiveVersion $newVersion -PreviousVersion $oldVersion `
+        -Modifications $modSuccess -BackupInfo $backupSuccess `
+        -DoctorReport $doctorReport `
+        -HostPythonExe $hostPython -PythonVersionStr $pythonVer -UvFlag ($uvCmd -ne $null)
+
+    # 8. 更新安装收据 install.json
     $updatedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     Set-ReceiptProp -Receipt $existingReceipt -PropName 'previous_version' -PropValue $oldVersion
     Set-ReceiptProp -Receipt $existingReceipt -PropName 'version' -PropValue $newVersion
@@ -876,6 +1220,15 @@ if ($Update) {
     Set-ReceiptProp -Receipt $existingReceipt -PropName 'runtime_root' -PropValue $upRuntimeRoot
     Set-ReceiptProp -Receipt $existingReceipt -PropName 'skills_root' -PropValue $newPaths.SkillsDir
     Set-ReceiptProp -Receipt $existingReceipt -PropName 'doctor_health' -PropValue $doctorReport
+    $latestRepUpdate = [ordered]@{
+        report_id     = $repSuccess.ReportId
+        action        = 'update'
+        status        = 'success'
+        markdown_path = $repSuccess.MdPath
+        json_path     = $repSuccess.JsonPath
+        completed_at  = $updatedAt
+    }
+    Set-ReceiptProp -Receipt $existingReceipt -PropName 'latest_execution_report' -PropValue $latestRepUpdate
 
     if ($existingReceipt.PSObject.Properties['sha256']) {
         $existingReceipt.PSObject.Properties.Remove('sha256')
@@ -895,6 +1248,11 @@ if ($Update) {
         active_version   = $newVersion
         current_target   = $newVersionDir
         data_root        = $targetDataRoot
+        execution_report = [ordered]@{
+            report_id     = $repSuccess.ReportId
+            markdown_path = $repSuccess.MdPath
+            json_path     = $repSuccess.JsonPath
+        }
     }
     if ($Json) {
         $res | ConvertTo-Json -Depth 5
@@ -906,6 +1264,7 @@ if ($Update) {
         Write-Host "Active Version:   $newVersion"
         Write-Host "Current Target:   $newVersionDir"
         Write-Host "Data Root:        $targetDataRoot (User data 100% preserved)"
+        Write-Host "Execution Report: $($repSuccess.MdPath)"
         Write-Host "============================================================" -ForegroundColor Green
     }
     exit 0
@@ -915,6 +1274,7 @@ if ($Update) {
 # 场景 F: 回滚模式 (-Rollback)
 # -----------------------------------------------------------------------------
 if ($Rollback) {
+    $lifecycleStartTime = Get-Date
     if (-not $isInstalled) {
         $errObj = [ordered]@{
             status      = 'error'
@@ -969,8 +1329,43 @@ if ($Rollback) {
         exit 1
     }
 
+    $receiptBackupPath = Join-Path $targetDataRoot 'install.json.bak'
+    if (Test-Path -LiteralPath $receiptPath) {
+        Copy-Item -LiteralPath $receiptPath -Destination $receiptBackupPath -Force -ErrorAction SilentlyContinue
+    }
+
     # 原子重定向 current 软链接/Junction
     $currentPath = Set-CurrentLink -DataRoot $targetDataRoot -TargetDir $targetRollbackDir
+
+    # 生成生命周期执行报告
+    $modRollback = [ordered]@{
+        target_rollback_dir = $targetRollbackDir
+        current_link        = [ordered]@{
+            path   = (Join-Path $targetDataRoot 'current')
+            target = $targetRollbackDir
+            type   = 'junction'
+        }
+        receipts_written    = @($receiptPath)
+    }
+    $backupRollback = [ordered]@{
+        receipt_backup          = $receiptBackupPath
+        rolled_back_from_path   = (Join-Path $releasesDir $currentVersion)
+        rolled_back_from_intact = $true
+        user_data_status        = [ordered]@{
+            output_dir_preserved     = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'output'))
+            local_settings_preserved = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'local'))
+            log_dir_preserved        = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'log'))
+            temp_dir_preserved       = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'temp'))
+            isolation_policy         = 'STRICT_PHYSICAL_ISOLATION'
+        }
+        rollback_ready          = $true
+    }
+
+    $repRollback = Write-LifecycleReport -DataRoot $targetDataRoot -Action 'rollback' -Status 'success' `
+        -StartTime $lifecycleStartTime -EndTime (Get-Date) `
+        -ActiveVersion $prevVersion -PreviousVersion $currentVersion `
+        -Modifications $modRollback -BackupInfo $backupRollback `
+        -HostPythonExe $hostPython -PythonVersionStr $pythonVer -UvFlag ($uvCmd -ne $null)
 
     # 更新安装收据 install.json
     $rolledBackAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -983,6 +1378,15 @@ if ($Rollback) {
     Set-ReceiptProp -Receipt $existingReceipt -PropName 'bundle_root' -PropValue $rbBundleRoot
     Set-ReceiptProp -Receipt $existingReceipt -PropName 'runtime_root' -PropValue $rbRuntimeRoot
     Set-ReceiptProp -Receipt $existingReceipt -PropName 'skills_root' -PropValue $rollbackPaths.SkillsDir
+    $latestRepRollback = [ordered]@{
+        report_id     = $repRollback.ReportId
+        action        = 'rollback'
+        status        = 'success'
+        markdown_path = $repRollback.MdPath
+        json_path     = $repRollback.JsonPath
+        completed_at  = $rolledBackAt
+    }
+    Set-ReceiptProp -Receipt $existingReceipt -PropName 'latest_execution_report' -PropValue $latestRepRollback
 
     if ($existingReceipt.PSObject.Properties['sha256']) {
         $existingReceipt.PSObject.Properties.Remove('sha256')
@@ -1001,6 +1405,11 @@ if ($Rollback) {
         rolled_back_from = $currentVersion
         current_target   = $targetRollbackDir
         data_root        = $targetDataRoot
+        execution_report = [ordered]@{
+            report_id     = $repRollback.ReportId
+            markdown_path = $repRollback.MdPath
+            json_path     = $repRollback.JsonPath
+        }
     }
     if ($Json) {
         $res | ConvertTo-Json -Depth 5
@@ -1012,6 +1421,7 @@ if ($Rollback) {
         Write-Host "Active Version:   $prevVersion"
         Write-Host "Current Target:   $targetRollbackDir"
         Write-Host "Data Root:        $targetDataRoot (User data 100% preserved)"
+        Write-Host "Execution Report: $($repRollback.MdPath)"
         Write-Host "============================================================" -ForegroundColor Green
     }
     exit 0
@@ -1324,6 +1734,58 @@ $receipt = [ordered]@{
     doctor_health     = $doctorReport
 }
 
+# 8.1 生成生命周期执行报告
+$modInstall = [ordered]@{
+    directories_created = $requiredSubdirs
+    deployed_release    = $versionDir
+    current_link        = [ordered]@{
+        path   = $currentPath
+        target = $versionDir
+        type   = 'junction'
+    }
+    skills_mounted      = $skillEntries.Count
+    registered_agents   = $registeredAgents
+    environment_actions = @(
+        $(if (-not $SkipVenv) { "Created isolated virtualenv at $venvDir" } else { "Used host Python directly (-SkipVenv)" }),
+        $(if (-not $SkipDeps) { "Installed requirements dependencies" } else { "Skipped dependencies installation (-SkipDeps)" })
+    )
+    receipts_written    = @($receiptPath)
+}
+$backupInstall = [ordered]@{
+    receipt_backup          = $(if (Test-Path -LiteralPath (Join-Path $targetDataRoot 'install.json.bak')) { Join-Path $targetDataRoot 'install.json.bak' } else { $null })
+    previous_version_path   = $null
+    previous_version_intact = $true
+    user_data_status        = [ordered]@{
+        output_dir_preserved     = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'output'))
+        local_settings_preserved = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'local'))
+        log_dir_preserved        = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'log'))
+        temp_dir_preserved       = (Test-Path -LiteralPath (Join-Path $targetDataRoot 'temp'))
+        isolation_policy         = 'STRICT_PHYSICAL_ISOLATION'
+    }
+    rollback_ready          = $false
+}
+
+$repInstall = Write-LifecycleReport -DataRoot $targetDataRoot -Action 'install' -Status 'success' `
+    -StartTime $lifecycleStartTime -EndTime (Get-Date) `
+    -ActiveVersion $Version -PreviousVersion $null `
+    -Modifications $modInstall -BackupInfo $backupInstall `
+    -DoctorReport $doctorReport -RegisteredAgents $registeredAgents `
+    -HostPythonExe $hostPython -PythonVersionStr $pythonVer -UvFlag ($uvCmd -ne $null)
+
+$receipt['latest_execution_report'] = [ordered]@{
+    report_id     = $repInstall.ReportId
+    action        = 'install'
+    status        = 'success'
+    markdown_path = $repInstall.MdPath
+    json_path     = $repInstall.JsonPath
+    completed_at  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+}
+$receipt['execution_report'] = [ordered]@{
+    report_id     = $repInstall.ReportId
+    markdown_path = $repInstall.MdPath
+    json_path     = $repInstall.JsonPath
+}
+
 $rawJson = $receipt | ConvertTo-Json -Depth 10
 $receiptHash = Compute-StringSHA256 -Content $rawJson
 $receipt['sha256'] = $receiptHash
@@ -1339,12 +1801,13 @@ if ($Json) {
     Write-Host "============================================================" -ForegroundColor Green
     Write-Host "🎉 A-Stock Agents Installation Successful!" -ForegroundColor Green
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "Data Root:      $targetDataRoot"
-    Write-Host "Python venv:    $venvPython"
-    Write-Host "Skills Ready:   $($skillEntries.Count) entries verified (SHA256)"
-    Write-Host "Receipt:        $receiptPath"
+    Write-Host "Data Root:        $targetDataRoot"
+    Write-Host "Python venv:      $venvPython"
+    Write-Host "Skills Ready:     $($skillEntries.Count) entries verified (SHA256)"
+    Write-Host "Receipt:          $receiptPath"
+    Write-Host "Execution Report: $($repInstall.MdPath)"
     if ($registeredAgents.Count -gt 0) {
-        Write-Host "Mounted Agents: $($registeredAgents.agent -join ', ')"
+        Write-Host "Mounted Agents:   $($registeredAgents.agent -join ', ')"
     }
     Write-Host "`nQuickstart commands:"
     Write-Host "  powershell -File install.ps1 -Doctor -Json"

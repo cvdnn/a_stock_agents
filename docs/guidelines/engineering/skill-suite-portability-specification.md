@@ -112,6 +112,11 @@ PACKAGE_ROOT、RUNTIME_ROOT、SKILLS_ROOT是代码根，统一从 core.workspace
 - **模态二（终端命令行手动安装）**：在 PowerShell / Bash 终端中运行，检测到 TTY 控制台时自动呈现交互式 TUI 导轨菜单（键盘上下移动、空格勾选、回车确认）；支持命令行参数（`-Agent`、`-Method`、`-Yes`）用于脚本或 CI 自动化。
 - **通用生态通道**：通过构建期派生的通用技能结构，支持 `npx skills add cvdnn/a-stock-agents -g` 直接接入通用 Skills 生态。
 
+> [!IMPORTANT]
+> **平台与技能职责边界红线 (Platform vs Skill Boundary)**
+> - **平台侧 WebUI 与 Docker**：`tools/containers/web-console/` 下的 Dockerfile 及 Compose 编排属于平台侧 Web 控制台（`apps/web-console/`）的功能开发与调试部署范畴，**与用户技能安装（Skill Installation）完全无关**。
+> - **用户技能安装与 AI 协助安装**：AI 协助安装与终端安装器（`install.ps1` / `install.sh`）的目标是将 20 个量化决策技能入口接入用户环境或 AI 宿主（Universal / Hermes / WorkBuddy / Codex），建立本地 Python 隔离虚拟环境。**Docker 绝不参与 AI 帮忙安装的任何流程、提示词与交互卡片**。
+
 ### 8.2 模态一：AI 任务协助安装与信息卡片交互规范
 若用户仅输入模糊的“帮我安装炒股技能”，大模型易产生幻觉（盲目全局 `pip install`、误删配置或丢失宿主上下文）。官方文档与发版页必须提供**自包含、可一键复制给 AI 的标准化安装指令提示词（AI Copilot Bootstrap Prompt）**：
 
@@ -166,4 +171,24 @@ AI 在接收该提示词后必须按规范输出 5 类信息卡片：
 2. **零拷贝原子切换**：升级时下载新版本至独立目录，验证通过后仅需原子重定向 `current` 软链接，无需逐一重建几十个宿主技能入口；
 3. **升级失败一键回滚**：若新版 doctor 冒烟未通过或执行异常，运行 `install.ps1 -Rollback` 即刻将 `current` 切换回上一可用版本；
 4. **用户数据永不覆盖**：用户的自选池、交易记录、回测报告、私有配置严格位于 `%LOCALAPPDATA%/a_stock_agents/`（与 `releases/` 同级物理隔离），代码升级与卸载严禁触碰用户数据。
+
+### 8.6 生命周期执行报告体系规范 (Lifecycle Execution Report Specification)
+针对“技能安装部署、多版本平滑升级、升级熔断阻断、故障一键回滚、宿主引用卸载”等关键运维操作，安装引导器（`install.ps1` 与 `install.sh`）在操作执行后必须自动生成全链路执行审计报告，实现修改透明、备份可溯与故障自明。
+
+1. **双格式报告协同**：
+   - **人类可读 Markdown 报告**：落盘至 `%LOCALAPPDATA%/a_stock_agents/output/reports/lifecycle/lifecycle_report_<action>_<timestamp>.md`，并软链/镜像至同目录的 `latest_lifecycle_report.md`，提供包含状态徽章、起止耗时、环境概览、过程修改清单、备份情况审计与 Doctor 冒烟结论的直观可视化报告；
+   - **机器可读 JSON 审计收据**：落盘至 `%LOCALAPPDATA%/a_stock_agents/log/lifecycle/lifecycle_<action>_<timestamp>.json` 与 `latest_lifecycle.json`，提供结构化审计数据（包含流水号 `report_id`、退出码、平台环境、修改文件/链接、收据备份路径及数据隔离策略状态）。
+
+2. **五大生命周期场景审计要素**：
+   - **安装部署 (Installation)**：记录目录初始化清单、Release 解压部署、虚拟环境隔离构建、可选依赖跳过/安装、宿主多级挂载详情与 Doctor 冒烟结果；同时在 `install.json` 根收据中注入 `latest_execution_report` 元数据；
+   - **平滑升级 (Upgrade)**：在变更发生前先自动镜像备份旧版收据至 `install.json.bak`；校验新版本 20 项技能完整性并执行隔离环境冒烟验证。若冒烟通过，原子切换 `current` 软链接并生成 `success` 升级报告；
+   - **升级阻断与熔断保护 (Update Aborted Guard)**：若新版冒烟自检失败，**严禁切换 current 软链接**，坚决守住当前运行版本；生成状态为 `aborted` 的阻断报告，详细记录 Doctor 失败现场、保留未激活的新版镜像供排查，并退出码 `1` 阻止上游继续；
+   - **一键回滚 (Rollback)**：读取 `install.json.bak` 或历史收据，验证回滚目标版本目录的完整性；原子重定向 `current` 软链接至历史可用版本；生成记录版本跳变（如 `v3.1.0 -> v3.0.0`）的回滚审计报告；
+   - **宿主引用卸载 (Uninstallation)**：仅安全切断和清理指定宿主（如 `Universal`、`Hermes`、`WorkBuddy`）目录下的平级技能符号链接/Junction 与收据，**100% 物理隔离保留用户的自选池、交易记录、回测报告与私有配置**；生成卸载报告详细列出已清理的引用路径。
+
+3. **三存储桶物理隔离铁律遵守**：
+   - Markdown 最终报告属于交付物，存放在 `output/reports/lifecycle/`；
+   - JSON 运行轨迹与审计追踪存放在 `log/lifecycle/`；
+   - 安装临时缓存与中间下载物存放在 `temp/` 并在执行完毕后清理；
+   - 绝不将审计报告或收据散落至技能源码或外部宿主目录。
 
