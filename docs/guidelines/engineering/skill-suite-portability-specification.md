@@ -186,9 +186,89 @@ AI 在接收该提示词后必须按规范输出 5 类信息卡片：
    - **一键回滚 (Rollback)**：读取 `install.json.bak` 或历史收据，验证回滚目标版本目录的完整性；原子重定向 `current` 软链接至历史可用版本；生成记录版本跳变（如 `v3.1.0 -> v3.0.0`）的回滚审计报告；
    - **宿主引用卸载 (Uninstallation)**：仅安全切断和清理指定宿主（如 `Universal`、`Hermes`、`WorkBuddy`）目录下的平级技能符号链接/Junction 与收据，**100% 物理隔离保留用户的自选池、交易记录、回测报告与私有配置**；生成卸载报告详细列出已清理的引用路径。
 
-3. **三存储桶物理隔离铁律遵守**：
+   - 三存储桶物理隔离铁律遵守：
    - Markdown 最终报告属于交付物，存放在 `output/reports/lifecycle/`；
    - JSON 运行轨迹与审计追踪存放在 `log/lifecycle/`；
    - 安装临时缓存与中间下载物存放在 `temp/` 并在执行完毕后清理；
    - 绝不将审计报告或收据散落至技能源码或外部宿主目录。
+
+---
+
+## 9. 专业机构股票投研全链路闭环与技能设计符合性评估规范 (`SPEC-SKILL-002`)
+
+> **生效日期**：2026-10-19
+> **关联架构规范**：[`docs/specs/engineering/spec-skill-1plus6-consolidation-and-test-rearchitecture.md`](../../specs/engineering/spec-skill-1plus6-consolidation-and-test-rearchitecture.md)
+> **关联分时实施计划**：[`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](../../specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md)
+> **强制约束力**：本章节为项目技能设计、重构、合并与准入的**最高业务与架构准则**。后续任何新增技能、改动既有技能契约或扩展底层投研算法，**必须无条件先通过 9.4 节的符合性评估（Conformance Assessment）**，未通过评估严禁合入主干。
+
+### 9.1 专业机构股票投研六步全链路闭环模型 (Six-Stage Institutional Research Closed-Loop)
+
+本项目拒绝“碎片化、玩具级、单指标堆砌”的技能设计，严格遵循专业买方投研机构的**六步全链路标准实战闭环**，并将前台技能物理精简收敛为 **`1 + 6` 架构（`1` 个总控锚点技能 + `6` 个生产级专业股票投研技能）**：
+
+$$\text{① 看盘知势} \longrightarrow \text{② 选股立池} \longrightarrow \text{③ 择时定买} \longrightarrow \text{④ 穿透体检} \longrightarrow \text{⑤ 仓位风控} \longrightarrow \text{⑥ 回测验证}$$
+
+| 闭环阶段 | 机构投研核心命题 | 对应「1 + 6」生产级技能 (`skill_bundle/skills/`) | 对应底层技术支撑引擎 (`skill_bundle/runtime/core/`) | 阶段输入 / 输出核心契约 |
+| :---: | :--- | :--- | :--- | :--- |
+| **总控锚点** | **意图分流 · 环境自检 · 数据水位调度** | **`a-stock-agents`**<br>*(总入口锚点技能)* | **Engine A** (`core/data/` 同步守护)<br>**Engine F** (`core/governance/` + `doctor.py`) | **输入**：自然语言投研诉求或运维指令<br>**输出**：精准技能路由、数据水位就绪证明、5阶段安装/诊断卡片 |
+| **阶段 ①<br>看盘知势** | **当前市场处于什么情绪周期？资金主线在哪？标的真实量价筹码如何？** | **`astock-market-data`**<br>*(全景行情与大盘五维情绪中枢)* | **Engine A** (`DataBridge` 4级容灾 + 分钟切片)<br>**Engine B** (`MarketAssessor` + `technical_indicators`) | **输入**：指数/个股代码、周期参数<br>**输出**：含 `evidence_meta` 的实时报价、复权K线、筹码获利盘、五维大盘健康度（趋势/情绪/量能/结构/资金）与主线周期灯号 |
+| **阶段 ②<br>选股立池** | **全市场 5000+ 标的中，哪些符合主线共振、财务健康且具备正 Alpha？** | **`astock-smart-screener`**<br>*(智能漏斗与多因子选股中心)* | **Engine B** (`pv_factors` + `fundamental_filter`)<br>**Engine C** (`selection_models/` AST漏斗编译 + 版本库 + T+N跟踪) | **输入**：选股模式（`5a` / `funnel` / `quant`）、条件树或截面参数<br>**输出**：五大财务排雷后的候选标的池、多维共振得分、模型版本 SHA256 与 T+1/3/5/10 跟踪评估账本 |
+| **阶段 ③<br>择时定买** | **候选股当前是否出现高胜率、高盈亏比的确定性买点信号？** | **`astock-tactical-signals`**<br>*(A股实战战法与形态信号雷达)* | **Engine D** (`chenxiaoqun` + `tuige` + `second_golden_cross` + 主板波段)<br>**Engine E** (`StrategyEvaluator` 250日胜率回溯) | **输入**：标的代码、战法类型（`mainboard` / `macd` / `chenxiaoqun` / `tuige`）<br>**输出**：战法触发判定、**近 250 日同类信号历史胜率与盈亏比锚定**、45bps 摩擦成本过滤结果 |
+| **阶段 ④<br>穿透体检** | **买入或持有前，基本面有无暗雷？多空双方核心证据链与证伪位是什么？** | **`astock-deep-diagnose`**<br>*(个股全维循证诊断与多空研判)* | **Engine B** (`ComboScorer` 100分制 + 基本面排雷)<br>**Engine D** (`TrappedPositionAnalyzer` 解套树)<br>**Engine F** (`ta_analyze` 7角色对抗 + `report_generator`) | **输入**：标的代码、可选持仓成本/股数、`--debate`、`--html`<br>**输出**：**金字塔结论先行卡片（S~D评级+一句话核心观点+证伪位）**、六维循证矩阵、7角色多空证据链、自包含 HTML 研报 |
+| **阶段 ⑤<br>仓位风控** | **买多少仓位？精确到分的保本价是多少？盘中冲高/震荡/跳水如何机械应对？** | **`astock-portfolio-action`**<br>*(三级股池治理与保本反应中枢)* | **Engine D** (`execution_action_engine` + `pool_manager` 五步MA审计 + `risk_position_manager` 受限凯利) | **输入**：关注/自选/持仓三级池指令，或 `代码 + 成本 + 股数`<br>**输出**：空池即刻拦截提示、五步真实 MA 重算与失效止损清洗、`math.ceil` 保本卖出价、`-3%/-5%/-8%` 三级止损、三场景反应单、凯利建议仓位 |
+| **阶段 ⑥<br>回测验证** | **策略与动作在考虑 T+1、涨跌停、滑点税费及样本外（OOS）下是否依然有效？** | **`astock-paper-backtest`**<br>*(高保真模拟盘与样本外回测中心)* | **Engine E** (`paper_trading/engine` + `multi_backtest_engine` + 滚动 OOS 检验器) | **输入**：模拟下单指令或回测区间/组合配置（`--oos`）<br>**输出**：SQLite 多账户真实撮合流水、净值与回撤曲线、滚动样本外（Rolling OOS）绩效与**过拟合三重警报** |
+
+---
+
+### 9.2 生产级股票投研技能五大黄金品质准则 (Five Production-Grade Quality Pillars)
+
+所有归属 `skill_bundle/skills/` 的技能必须满足以下五项生产级标准，严禁退化为“静态文本参考壳”或“无根据的观点输出”：
+
+1. **准则一：功能准确性与确定性计算（Accuracy & Deterministic SSOT）**
+   - 凡涉及行情字段解析、技术指标（MA/MACD/KDJ/RSI/BOLL/ATR）、截面因子（MAD 去极值、Z-Score 标准化）、税费保本价与止损位计算，**100% 由 `skill_bundle/runtime/core/` 下的确定性 Python 算法计算得出**，严禁大模型心算或估算。
+2. **准则二：全链路可循证性（Verifiability & Evidence Envelope）**
+   - 每个技能返回的 JSON 顶层必须携带统一的数据溯源信封 `evidence_meta`（包含 `as_of_trading_day`、`quote_source`、`kline_bars_count`、`watermark_ready`、`fee_rule_ssot`）；
+   - 任何投研评级与多空结论必须附带可核验的量化数值锚点与正反双向证据链（看多催化剂 vs 看空证伪条件）。
+3. **准则三：工业级高可靠性与失败关闭（Reliability & Fail-Closed Guard）**
+   - 外部行情具备 4 级自动容灾降级（腾讯 $\to$ 东财 $\to$ 新浪 $\to$ 本地水位快照）；
+   - 当 K 线长度不足、数据水位未就绪、标的停牌或股票池为空时，必须严格执行 **Fail-Closed（失败关闭）**，返回明确错误码（如 `DATA_UNAVAILABLE`、`EMPTY_POOL_STOP`），严禁捏造默认值或虚构演示股票。
+4. **准则四：策略实战有效性与历史胜率锚定（Strategy Effectiveness & Win-Rate Anchor）**
+   - 任何择时买点或形态信号不得孤立输出，必须同步联动：
+     1. **大盘情绪门控**：大盘健康度低于阈值时自动抑制激进追涨信号；
+     2. **个股历史胜率锚定**：自动回溯该股近 250 日同类信号的历史触发次数、T+5 胜率与盈亏比；
+     3. **摩擦成本与过拟合过滤**：扣除双边 45bps 冲击与税费成本后仍具正期望，且通过样本内外衰减比（IS/OOS）过拟合检验。
+5. **准则五：分析面全覆盖与核心观点突出（Full Six-Dimensional Coverage & BLUF Pyramid）**
+   - **六维正交全覆盖**：全面覆盖「宏观大盘情绪、基本面财务排雷、技术趋势动能、量价筹码结构、游资微观博弈、风控头寸精算」六个正交分析面；
+   - **金字塔结论先行（BLUF）**：输出结构强制遵循「第一屏：核心评级与一句话主观点（含触发价/证伪位） $\to$ 第二屏：实战交易三原则动作单（`ceil`保本价 + 三级止损 + 三场景应对） $\to$ 第三屏：六维循证数据明细」。
+
+---
+
+### 9.3 技能边界与反碎片化铁律 (Anti-Fragmentation & Boundary Rules)
+
+为防止技能数量再次失控膨胀，确立以下三条物理边界铁律：
+1. **总量硬上限铁律（`1 + 6` 架构锁死）**：
+   - 仓库内一等技能目录总数固定为 **`1` 个总入口锚点技能（`a-stock-agents`） + `6` 个专业投研技能（共 7 个物理目录）**；
+   - 严禁将单一技术指标（如单独的 KDJ、BOLL、MACD）、单一游资席位、单一文件导出格式（如 HTML 渲染、Markdown 归档）或纯静态避坑文档拆分为独立的一级技能目录。
+2. **新增能力归并原则（Capability Absorption First）**：
+   - 新研发的选股因子必须并入 `astock-smart-screener`；
+   - 新研发的择时形态或游资战法必须作为 `--tactic <name>` 子模态并入 `astock-tactical-signals`；
+   - 新研发的财务排雷或估值模型必须并入 `astock-deep-diagnose`；
+   - 新研发的数据同步或基础设施能力必须下沉至 `runtime/core/` 的 6 大支撑引擎，并通过 `a-stock-agents` 运维子命令暴露。
+3. **向后兼容别名映射（Zero-Breakage Alias Mapping）**：
+   - 原 19 项旧技能 ID 在 `SkillRegistry.LEGACY_SKILL_ALIASES` 与 `tools.py` 中长期保留透明路由映射，确保外部宿主或历史脚本调用旧技能名时自动转发至对应的 `1 + 6` 新技能。
+
+---
+
+### 9.4 新增或改动技能强制符合性评估门禁 (Mandatory Conformance Assessment Gate)
+
+**自本规范生效起，任何针对技能或核心投研算法的 PR、需求新增或代码改动，必须在设计文档与提交说明中填写并通过以下《投研技能六维符合性评估表》；自动化门禁（`tests/skills/test_skill_suite_1plus6_contract.py`）将对物理结构与输出契约做常驻强制校验：**
+
+| 评估编号 | 符合性评估维度 | 强制核验标准（一票否决项） | 评估结论 (`PASS` / `REJECT`) |
+| :---: | :--- | :--- | :---: |
+| **C1** | **投研六步闭环归属与反碎片化评估** | 1. 改动是否明确归属于「看盘知势 / 选股立池 / 择时定买 / 穿透体检 / 仓位风控 / 回测验证」六步闭环之一？<br>2. 是否遵守 `1 + 6` 目录总量上限（未违规新增碎片化一级技能目录）？ | 必达 |
+| **C2** | **计算准确性与循证溯源评估** | 1. 核心数值是否 100% 由 `runtime/core/` 确定性代码产出（无静态字典充数或 LLM 口算）？<br>2. JSON 输出是否包含完整合规的 `evidence_meta` 溯源信封与双向证据链？ | 必达 |
+| **C3** | **可靠性、失败关闭与空池保护评估** | 1. 外部数据源异常、K 线不足或停牌时是否严格 Fail-Closed（绝不伪造默认行情）？<br>2. 涉及股池分析时是否严格执行「空股池即刻终止并提示登记格式」铁律？ | 必达 |
+| **C4** | **策略实战有效性与防过拟合评估** | 1. 择时/选股信号是否附带近 250 日同类信号历史胜率与盈亏比锚定？<br>2. 是否计入双边税费与冲击成本（45bps 门槛）及样本外（OOS）衰减检验？ | 必达 |
+| **C5** | **分析面完整性与金字塔结论突出评估** | 1. 诊断/选股是否覆盖相关正交分析维度（含基本面五大排雷与大盘五维情绪门控）？<br>2. 输出是否遵循「金字塔结论先行（BLUF）」，第一屏即给出评级、核心论点与证伪位？ | 必达 |
+| **C6** | **实战交易三原则与极速测试门禁评估** | 1. 个股建议是否强制包含：`math.ceil` 分位保本卖出价 + `-3%/-5%/-8%` 三级止损 + 三场景动作单？<br>2. 是否已增补纯内存确定性单元测试，且在前台顺序执行 `pytest -m core` 全绿（耗时 `< 8s`）？ | 必达 |
+
 
