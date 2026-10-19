@@ -95,6 +95,74 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(ma([10.0, 11.0], 5), [0.0, 0.0])
         self.assertEqual(len(rsi([10.0, 11.0], 14)), 2)
 
+    def test_evidence_envelope_structure_and_defaults(self):
+        """Verify build_evidence_meta produces full standard envelope conforming to C2."""
+        from core.data.evidence import build_evidence_meta, EvidenceEnvelope, FEE_RULE_SSOT_DEFAULT
+
+        meta = build_evidence_meta(quote_source="L1:tencent_realtime", kline_bars_count=120)
+        self.assertIn("as_of_trading_day", meta)
+        self.assertEqual(meta["quote_source"], "L1:tencent_realtime")
+        self.assertEqual(meta["kline_bars_count"], 120)
+        self.assertTrue(meta["watermark_ready"])
+        self.assertEqual(meta["fee_rule_ssot"], FEE_RULE_SSOT_DEFAULT)
+        self.assertEqual(meta["fee_rule_ssot"], "stamp_0.0005_comm_0.00025_min5_ceil")
+
+        env = EvidenceEnvelope(
+            as_of_trading_day="2026-10-19",
+            quote_source="L1:tencent_realtime",
+            kline_bars_count=250,
+            watermark_ready=True,
+            fee_rule_ssot=FEE_RULE_SSOT_DEFAULT,
+        )
+        self.assertEqual(env.to_dict()["fee_rule_ssot"], "stamp_0.0005_comm_0.00025_min5_ceil")
+
+    def test_sync_astock_strategy_macd_second_golden_cross_integration(self):
+        """Verify _sync_astock_strategy_macd integrates second_golden_cross and fail-closed guard (G2)."""
+        from unittest.mock import patch
+        from core.data.data_bridge import DataBridge
+        from core.execution.tools import _sync_astock_strategy_macd
+
+        # 1. Fail-closed: K-lines < 60
+        with patch.object(DataBridge, "tencent_kline", return_value=self.klines[:30]):
+            res_fail = _sync_astock_strategy_macd("600519")
+            self.assertEqual(res_fail.get("status"), "error")
+            self.assertEqual(res_fail.get("error"), "DATA_UNAVAILABLE")
+            self.assertIn("evidence_meta", res_fail)
+            self.assertFalse(res_fail["evidence_meta"]["watermark_ready"])
+
+        # 2. Success: full second_golden_cross calculation with evidence_meta
+        with patch.object(DataBridge, "tencent_kline", return_value=self.klines):
+            res_succ = _sync_astock_strategy_macd("600519")
+            self.assertEqual(res_succ.get("status"), "success")
+            self.assertIn("verdict", res_succ)
+            self.assertIn("macd_analysis", res_succ)
+            self.assertIn("pattern", res_succ)
+            self.assertIn("evidence_meta", res_succ)
+            self.assertEqual(res_succ["evidence_meta"]["kline_bars_count"], 60)
+
+    def test_sync_astock_meta_routing_dynamic_intent(self):
+        """Verify _sync_astock_meta_routing dynamically routes queries via IntentEvaluator (G4)."""
+        from core.execution.tools import _sync_astock_meta_routing
+
+        # 1. 选股意图
+        res_pick = _sync_astock_meta_routing("帮我推荐几只主线突破龙头的股票")
+        self.assertEqual(res_pick.get("status"), "success")
+        self.assertEqual(res_pick.get("primary_intent"), "STOCK_PICKING")
+        self.assertEqual(res_pick.get("target_skill"), "astock-smart-screener")
+        self.assertIn("evidence_meta", res_pick)
+
+        # 2. 解套意图
+        res_trap = _sync_astock_meta_routing("深套亏损30%如何自救补仓解套")
+        self.assertEqual(res_trap.get("primary_intent"), "TRAPPED_RECOVERY")
+        self.assertEqual(res_trap.get("target_skill"), "astock-deep-diagnose")
+        self.assertEqual(res_trap.get("recommended_model"), "pro")
+
+        # 3. 下跌应对意图
+        res_down = _sync_astock_meta_routing("大盘跳水闪崩大跌要不要割肉")
+        self.assertEqual(res_down.get("primary_intent"), "DOWNSIDE_REACTION")
+        self.assertEqual(res_down.get("target_skill"), "astock-tactical-signals")
+
 
 if __name__ == "__main__":
     unittest.main()
+

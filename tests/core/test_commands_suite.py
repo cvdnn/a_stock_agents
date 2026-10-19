@@ -93,6 +93,25 @@ class TestCommandsSuite(unittest.TestCase):
         self.assertEqual(args.code, "600519")
         self.assertEqual(args.cash, 200000.0)
 
+        # action (G1 语法兼容：action 600519 / action --code 600519 / action plan --code 600519 / action plan 600519)
+        args1 = parser.parse_args(["action", "600519"])
+        self.assertEqual(args1.command, "action")
+        self.assertEqual(args1.code, "600519")
+
+        args2 = parser.parse_args(["action", "--code", "600519"])
+        self.assertEqual(args2.command, "action")
+        self.assertEqual(args2.opt_code, "600519")
+
+        args3 = parser.parse_args(["action", "plan", "--code", "600519"])
+        self.assertEqual(args3.command, "action")
+        self.assertEqual(args3.code, "plan")
+        self.assertEqual(args3.opt_code, "600519")
+
+        args4 = parser.parse_args(["action", "plan", "600519"])
+        self.assertEqual(args4.command, "action")
+        self.assertEqual(args4.code, "plan")
+        self.assertEqual(args4.sub_code, "600519")
+
     def test_cli_version_via_subprocess(self):
         """Run cli.py version via subprocess."""
         cli_path = ROOT / "skill_bundle" / "runtime" / "core" / "cli.py" if (ROOT / "skill_bundle" / "runtime" / "core" / "cli.py").exists() else ROOT / "core" / "cli.py"
@@ -231,6 +250,7 @@ class TestCommandsSuite(unittest.TestCase):
                 self.assertGreater(data.get("breakeven_price", 0), 0)
                 self.assertIn("action_items", data)
                 self.assertIn("downside_diagnosis", data)
+                self.assertIn("evidence_meta", data)
             elif name == "chenxiaoqun":
                 # 实战交易三原则强制断言：保本价 + 三级止损 + 三场景动作单
                 self.assertGreater(data.get("breakeven_price", 0), 0)
@@ -243,6 +263,32 @@ class TestCommandsSuite(unittest.TestCase):
                 self.assertIn("intraday_consolidation", scenarios)
                 self.assertIn("sudden_drop", scenarios)
 
+    def test_action_syntax_and_evidence_meta_contract(self):
+        """Verify all 4 syntactic variants of action command resolve 600519 and produce evidence_meta (G1 + C2)."""
+        import io
+        from unittest.mock import patch
+        from core.cli import main
+
+        variants = [
+            ["cli.py", "action", "600519", "--cost", "1600", "--shares", "100", "--json"],
+            ["cli.py", "action", "--code", "600519", "--cost", "1600", "--shares", "100", "--json"],
+            ["cli.py", "action", "plan", "--code", "600519", "--cost", "1600", "--shares", "100", "--json"],
+            ["cli.py", "action", "plan", "600519", "--cost", "1600", "--shares", "100", "--json"],
+        ]
+
+        for argv in variants:
+            with patch.object(sys, "argv", argv):
+                with patch("sys.stdout", new=io.StringIO()) as fake_out:
+                    main()
+                    out = fake_out.getvalue().strip()
+                    self.assertTrue(out.startswith("{"), f"Variant {argv} did not produce JSON: {out[:100]}")
+                    data = json.loads(out)
+                    self.assertEqual(data.get("code"), "600519", f"Variant {argv} resolved wrong code: {data.get('code')}")
+                    self.assertGreater(data.get("breakeven_price", 0), 0)
+                    self.assertIn("evidence_meta", data, f"Variant {argv} missing evidence_meta")
+                    self.assertEqual(data["evidence_meta"]["fee_rule_ssot"], "stamp_0.0005_comm_0.00025_min5_ceil")
+
 
 if __name__ == "__main__":
     unittest.main()
+

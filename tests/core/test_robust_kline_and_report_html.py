@@ -73,3 +73,35 @@ def test_astock_report_html_contains_three_principles():
     assert "T2 绝杀线" in html
     assert "三场景即时操作单" in html
     assert "1344px" in html
+
+
+def test_investment_report_contains_three_principles():
+    """验证 investment_report.py 输出实战交易三原则结构契约 (G5 闭环验证)"""
+    from core.reporting.investment_report import report_single
+
+    rep = report_single("600519", json_output=True, cost=1500.0, shares=1000)
+    assert "trade_principles" in rep
+    tp = rep["trade_principles"]
+
+    # 1. 保本价校验 (math.ceil 向上进位到分位)
+    assert tp["cost"] == 1500.0
+    assert tp["shares"] == 1000
+    assert tp["min_breakeven_price"] > 1500.0
+    # 严格分位进位
+    assert round(tp["min_breakeven_price"] * 100) == tp["min_breakeven_price"] * 100
+
+    # 2. 三级止损阶梯 (-3% / -5% / -8%)
+    ladder = tp["stop_loss_ladder"]
+    assert ladder["t0_warning"]["pct"] == -3.0
+    assert ladder["t0_warning"]["price"] == round(1500.0 * 0.97, 2)
+    assert ladder["t1_reduce"]["pct"] == -5.0
+    assert ladder["t1_reduce"]["price"] == round(1500.0 * 0.95, 2)
+    assert ladder["t2_kill"]["pct"] == -8.0
+    assert ladder["t2_kill"]["price"] == round(1500.0 * 0.92, 2)
+
+    # 3. 三场景即时操作单
+    scenarios = tp["scenarios"]
+    assert "surge" in scenarios
+    assert "consolidate" in scenarios
+    assert "plunge" in scenarios
+

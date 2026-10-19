@@ -181,6 +181,30 @@ class ChenXiaoqunStrategyEngine:
             verdict = "分步低吸 / 条件触发入场"
             pos_advice = "2-3成试错仓位"
 
+        win_rate_anchor = {}
+        try:
+            from core.models.strategy_evaluator import attach_contextual_win_rate_anchor
+            win_rate_anchor = attach_contextual_win_rate_anchor(
+                code=code,
+                klines=klines,
+                signal_type="chenxiaoqun",
+                lookback_days=250,
+                cost_bps=45.0,
+            )
+        except Exception:
+            win_rate_anchor = {}
+
+        evidence = {}
+        try:
+            from core.data.evidence import build_evidence_meta
+            evidence = build_evidence_meta(
+                quote_source="L1:tencent_kline",
+                kline_bars_count=len(klines),
+                watermark_ready=True,
+            )
+        except Exception:
+            evidence = {}
+
         return {
             "code": code,
             "name": name,
@@ -216,6 +240,8 @@ class ChenXiaoqunStrategyEngine:
             "three_scenario_actions": action_plan,
             "verdict": verdict,
             "position_grade": pos_advice,
+            "win_rate_anchor": win_rate_anchor,
+            "evidence_meta": evidence,
         }
 
     @classmethod

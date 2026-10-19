@@ -494,6 +494,12 @@ class BacktestEngine:
         split_idx = int(len(klines) * ratio)
         return klines[:split_idx], klines[split_idx:]
 
+    def run_oos_validation(self, klines, strategy_func, oos_ratio=0.3):
+        """执行滚动样本外(Rolling OOS)检验与过拟合三重警报 (SPEC-SKILL-002 S2-03)"""
+        from core.paper_trading.rolling_oos import RollingOOSValidator
+        return RollingOOSValidator.run_oos_backtest(self, klines, strategy_func, oos_ratio=oos_ratio)
+
+
     # ------------------------------------------------------------------
     # 构建回测结果(计算所有指标)
     # ------------------------------------------------------------------
@@ -1063,6 +1069,7 @@ if __name__ == "__main__":
     parser.add_argument("--count", type=int, default=250)
     parser.add_argument("--cash", type=float, default=1000000)
     parser.add_argument("--split", action="store_true", help="样本内外分割过拟合检测")
+    parser.add_argument("--oos", action="store_true", help="滚动样本外(Rolling OOS)检验与过拟合三重警报")
     parser.add_argument("--json", action="store_true", default=True)
     args = parser.parse_args()
 
@@ -1076,32 +1083,19 @@ if __name__ == "__main__":
     engine = BacktestEngine(initial_cash=args.cash)
     strategy = PRESET_STRATEGIES[args.strategy]
 
-    if args.split:
-        in_sample, out_sample = engine.split_sample(klines)
-        in_result = engine.run_strategy(in_sample, strategy)
-        out_result = engine.run_strategy(out_sample, strategy)
-        # 输出两个样本的对比
+    if args.split or args.oos:
+        oos_res = engine.run_oos_validation(klines, strategy)
         output = {
             "code": args.code,
-            "in_sample": in_result["metrics"],
-            "out_sample": out_result["metrics"],
-            "overfitting_check": {
-                "in_sample_sharpe": in_result["metrics"]["sharpe_ratio"],
-                "out_sample_sharpe": out_result["metrics"]["sharpe_ratio"],
-                "overfitting_suspected": (
-                    in_result["metrics"]["sharpe_ratio"] > 3 and
-                    in_result["metrics"]["max_drawdown"] < 5 and
-                    in_result["metrics"]["win_rate"] > 75
-                ),
-                "warning": (
-                    "疑似过拟合: 样本内夏普>3+最大回撤<5%+胜率>75%"
-                    if (in_result["metrics"]["sharpe_ratio"] > 3 and
-                        in_result["metrics"]["max_drawdown"] < 5 and
-                        in_result["metrics"]["win_rate"] > 75)
-                    else "未见明显过拟合迹象"
-                ),
-            },
+            "strategy": args.strategy,
+            "mode": "rolling_oos",
+            "in_sample": oos_res["in_sample"],
+            "out_sample": oos_res["out_sample"],
+            "decay": oos_res["decay"],
+            "overfitting_check": oos_res["overfitting_check"],
+            "triple_alerts": oos_res["triple_alerts"],
         }
+
     else:
         result = engine.run_strategy(klines, strategy)
         output = {

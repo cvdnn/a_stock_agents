@@ -122,6 +122,56 @@ class TestPoolCSVIO(unittest.TestCase):
         loaded = read_pool_csv(os.path.join(self.temp_dir, "missing.csv"))
         self.assertEqual(loaded, [])
 
+    def test_audit_pools_empty_pool_fail_closed(self):
+        """Verify PoolManager.audit_pools fails closed on empty pools and provides registration guide."""
+        from core.strategy.pool_manager import PoolManager
+        empty_dir = os.path.join(self.temp_dir, "empty_pools")
+        os.makedirs(empty_dir, exist_ok=True)
+        pm = PoolManager(pools_dir=empty_dir)
+        write_pool_csv(pm.positions_path, POSITIONS_FIELDS, [])
+
+        audit_res = pm.audit_pools()
+        self.assertEqual(audit_res["status"], "empty_pool")
+        self.assertEqual(audit_res["total_stocks"], 0)
+        self.assertIn("registration_guide", audit_res)
+        self.assertIn("holding_format", audit_res["registration_guide"])
+        self.assertIn("watch_format", audit_res["registration_guide"])
+        self.assertIn("evidence_meta", audit_res)
+
+    def test_audit_pools_real_ma_breached_and_stale(self):
+        """Verify PoolManager.audit_pools audits MA levels, catches breached stops and filters stale/blocked."""
+        from core.strategy.pool_manager import PoolManager
+        pools_dir = os.path.join(self.temp_dir, "test_pools_data")
+        os.makedirs(pools_dir, exist_ok=True)
+        pm = PoolManager(pools_dir=pools_dir)
+        write_pool_csv(pm.positions_path, POSITIONS_FIELDS, [])
+
+        # 1. 写入一只自选股 (设定极高止损 9999.0 触发 breached_stops)
+        pm.add_stock("selected", {
+            "code": "600519", "name": "贵州茅台", "stop_loss": "9999.0", "rating": "A"
+        })
+        # 2. 写入一只科创板/受限股 (直接触发 is_blocked -> stale_records)
+        # 注意：add_stock 内部有 is_blocked 校验，这里直接通过底层 write_pool_csv 模拟旧脏数据
+        dirty_rows = [
+            {"code": "600519", "name": "贵州茅台", "stop_loss": "9999.0", "rating": "A"},
+            {"code": "688001", "name": "澜起科技", "stop_loss": "10.0", "rating": "C"},
+        ]
+        write_pool_csv(pm.selected_path, SELECTED_FIELDS, dirty_rows)
+
+        # 只读审查
+        res = pm.audit_pools(fix=False)
+        self.assertEqual(res["status"], "success")
+        self.assertEqual(res["total_stocks"], 2)
+        # 688001 应该在 stale_records (不可交易板块)
+        stale_codes = [r["code"] for r in res["stale_records"]]
+        self.assertIn("688001", stale_codes)
+        self.assertIn("evidence_meta", res)
+
+        # 自动清洗测试 fix=True
+        fix_res = pm.audit_pools(fix=True)
+        self.assertEqual(fix_res["status"], "success")
+        self.assertGreaterEqual(fix_res["cleaned_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

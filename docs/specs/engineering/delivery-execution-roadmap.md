@@ -1,9 +1,15 @@
-# 技能总包交付与安装整改分时执行清单 (Delivery & Installation Execution Roadmap)
+# 技能总包交付与「1 + 6」生产级投研重构分时执行清单 (Delivery & Skill Consolidation Execution Roadmap)
 
-- **归属实施计划**：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md)
-- **权威设计规范 (SSOT)**：[`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md)
-- **审查评估报告**：[`docs/audits/2026-10-16-skill-structure-review.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/audits/2026-10-16-skill-structure-review.md)
-- **实施状态**：🎉 **全链路 100% 达成圆满闭环**（基座 7/7 完成；阶段一 P0 阻断 3/3 闭环；阶段二 3/3 闭环；阶段三 7/7 闭环；阶段四 4/4 闭环；全局进度 24/24 完成 100%；全套 24 项整改任务全部实测通过；P0 核心门禁 358 例 0 failed 全绿）
+- **归属实施计划**：
+  - 第一期（交付与安装闭环）：[`docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-suite-delivery-remediation-plan.md)
+  - 第二期（「1 + 6」投研技能精简与极速测试重构）：[`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) (`SPEC-SKILL-002`)
+- **权威设计规范 (SSOT)**：
+  - [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md)（含 §9 专业机构股票投研六步闭环与符合性评估规范）
+  - [`docs/specs/engineering/spec-skill-1plus6-consolidation-and-test-rearchitecture.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/spec-skill-1plus6-consolidation-and-test-rearchitecture.md)
+- **审查评估报告**：
+  - [`docs/audits/2026-10-16-skill-structure-review.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/audits/2026-10-16-skill-structure-review.md)
+  - [`docs/audits/2026-10-19-skill-comprehensive-evaluation-and-governance-audit.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/audits/2026-10-19-skill-comprehensive-evaluation-and-governance-audit.md)
+- **实施状态**：🚀 **第一期 24/24 已圆满闭环；第二期 `SPEC-SKILL-002`（`S2-01` ~ `S2-10`）推进中，当前唯一活跃指针：`[▶] 顺序 ⑮ (S2-04)`**
 
 > [!IMPORTANT]
 > ### 🔒 看板原子执行与防并发排他规约 (Kanban Atomic Execution & Anti-Race Protocol)
@@ -15,11 +21,11 @@
 >    - 若看板中当前**不存在 `[▶]`**（全部为 `[x]` 或已存在 `[🚧 IN_PROGRESS: ...]`），**其他任何会话坚决严禁自行认领、严禁擅自抢跑后续任务、严禁并发执行同一或不同清单任务点**！
 >    - 若新会话启动时扫描到看板已存在 `[🚧 IN_PROGRESS: ...]`，**必须立刻终止认领并主动汇报**：“检测到前序任务已在进行中（会话 ID: xxx），严格等待其执行完成”，坚决禁止盲目重入或强行修改同一文件。
 > 3. **原子交付与解锁 (Check-in & Unlock)**：
->    仅当该任务的代码改造完成、对应测试门禁与 P0 核心门禁在本地实测全绿（`0 failed`）后，**持有锁的当前会话**才允许将 `[🚧 IN_PROGRESS: ...]` 更新为 `[x] 已完成`，并原子地点亮下一项为唯一的 `[▶]`。
+>    仅当该任务的代码改造完成、通过 C1~C6 投研符合性评估、且对应测试门禁在本地前台顺序实测全绿（`0 failed`）后，**持有锁的当前会话**才允许将 `[🚧 IN_PROGRESS: ...]` 更新为 `[x] 已完成`，并原子地点亮下一项为唯一的 `[▶]`。
 > 4. **死锁恢复与熔断机制 (Deadlock Recovery)**：
 >    若持有锁的会话因宿主工具异常崩溃中断且已确认完全退出，后续接管会话**必须在获得用户明确确认或下达接管指令后**，方可解除旧锁、复位或接力该任务。
 > 5. **严禁测试后台执行，直接在任务中顺序执行 (Foreground Sequential Gate Execution)**：
->    在看板任务实施与交付门禁验证阶段，**严禁将测试用例或任何验证命令作为后台进程（Background Process / Background Task）挂起异步执行**（严禁触发界面 `Background Process Running` 挂起状态）。所有验证命令必须直接在当前任务交互流中**前台顺序同步执行**。若门禁包含较多子进程或打包用例，必须按流水线分步顺序在前台串行跑通（① 极速离线门禁 ➔ ② 任务改动定向门禁 ➔ ③ 交付链路门禁），步步确认退出码 0，杜绝单命令逃逸至后台。
+>    在看板任务实施与交付门禁验证阶段，**严禁将测试用例或任何验证命令作为后台进程（Background Process / Background Task）挂起异步执行**（严禁触发界面 `Background Process Running` 挂起状态）。所有验证命令必须直接在当前任务交互流中**前台顺序同步执行**。
 
 ---
 
@@ -27,12 +33,12 @@
 
 | 阶段分类 | 任务范围 | 完成进度 | 阶段状态 | 当前活跃指针 |
 | :--- | :--- | :---: | :---: | :--- |
-| **阶段 0：基础交付基座** | `P0-01` ~ `P0-07` | **7 / 7 (100%)** | ✅ **已闭环** | 全部门禁全绿（312 passed） |
-| **阶段一：P0 交付阻断攻坚** | `P0-08` ~ `P0-10` | **3 / 3 (100%)** | ✅ **已闭环** | 全部门禁全绿（328 passed，P0 阻断项全部解除） |
-| **阶段二：P1 双模态安装与升级** | `P1-08` ~ `P1-10` | **3 / 3 (100%)** | ✅ **已闭环** | **全额达成（多版本原子切换与一键回滚升级链落地）** |
-| **阶段三：P1 源码工程质量治理** | `P1-01` ~ `P1-07` | **7 / 7 (100%)** | ✅ **已闭环** | **全额达成（单一来源治理与跨平台 CI 矩阵落地）** |
-| **阶段四：P2 文档与通用生态** | `P2-01` ~ `P2-04` | **4 / 4 (100%)** | ✅ **已闭环** | **全额达成（20 入口口径统一、WorkBuddy 宿主指引与 npx skills add 通用生态分发落地）** |
-| **全工程总计** | 全套 24 项整改任务 | **24 / 24 (100%)** | ✅ **已闭环** | **全链路圆满收官（P0/P1/P2 全部闭环，358 例 P0 核心门禁实测 0 failed 全绿）** |
+| **第一期（阶段 0 ~ 阶段四）：交付与安装闭环** | `P0-01` ~ `P2-04` | **24 / 24 (100%)** | ✅ **已闭环** | 顺序 ① ~ ⑪ 全部完成（358 例门禁全绿） |
+| **第二期·阶段五：底层 6 大支撑引擎缺口闭合** | `S2-01` ~ `S2-03` | **3 / 3 (100%)** | ✅ **已闭环** | 顺序 ⑫ ~ ⑭ 全部完成（S2-01~S2-03） |
+| **第二期·阶段六：「1 + 6」生产级投研技能物理精简** | `S2-04` ~ `S2-07` | **0 / 4 (0%)** | ⏳ **推进中** | **`[▶] 顺序 ⑮ (S2-04)`** |
+| **第二期·阶段七：极速测试重构与 WebAPI 独立分仓** | `S2-08` ~ `S2-10` | **0 / 3 (0%)** | ⏸️ **等待前序** | 等待 `S2-07` 完成解锁 |
+| **全工程总计（第一期 + 第二期）** | 24 + 10 = 34 项任务 | **27 / 34 (79.4%)** | 🚀 **分时推进中** | **当前唯一入口：`[▶] 顺序 ⑮ (S2-04)`** |
+
 
 ---
 
@@ -252,18 +258,184 @@
   5. 在 `tests/core/test_release_delivery_gate.py` 新增第 20 节常驻自动化门禁（4 例用例：`test_release_distribution_tree_export_and_json_contract`、`test_release_distribution_npx_skills_add_discovery_simulation`、`test_archive_standard_release_root_and_codex_plugin`、`test_publish_release_cli_smoke_and_zero_pollution`）。
 - **验收门槛**：第 20 节 4 例用例实测全绿（34.89s），`test_skill_suite_layout.py` 与 `test_docs_suite.py` 12 例实测全绿（5.78s），极速离线核心门禁 244 例实测全绿（36.21s），发布交付链路 102 例门禁实测全绿（100 passed, 2 skipped / 317.47s）。**至此阶段四与全工程 24 项整改任务 100% 圆满闭环！**
 
+---
+
+### 阶段五（`SPEC-SKILL-002` Phase 1）：底层 6 大技术支撑引擎缺口闭合与循证底座升级
+
+#### [x] 顺序 ⑫
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-01`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.1、§9.2、§9.4
+- **任务名称**：**统一 `EvidenceEnvelope` 溯源信封 + 修复 G1/G2/G4（CLI 参数、真实双金叉与动态意图路由）**
+- **进度状态**：`[x] 已完成（2026-10-19 实测通过：15 passed / 0 failed / 36.32s）`
+- **前置依赖**：阶段四已完成 ✅
+- **核心动作**：
+  1. 在 `skill_bundle/runtime/core/` 新增统一循证溯源信封构造器 `build_evidence_meta(...)`，强制输出 `as_of_trading_day`、`quote_source`、`kline_bars_count`、`watermark_ready`、`fee_rule_ssot`；
+  2. **修复 G1**：升级 `core/cli.py` 中 `action` 子命令参数解析，同时兼容 `astock action 600519`、`astock action --code 600519` 与 `astock action plan --code 600519`；
+  3. **修复 G2**：升级 `core/execution/tools.py::_sync_astock_strategy_macd`，接入 `technical_indicators.second_golden_cross(klines)` 真实双波谷极值对比算法；
+  4. **修复 G4**：升级 `core/execution/tools.py::_sync_astock_meta_routing`，接入 `IntentEvaluator.parse_user_query` 动态意图分流。
+- **验收门槛**：C2/C3 符合性核验通过，前台顺序执行 `pytest tests/core/test_indicators.py tests/core/test_commands_suite.py -q` 全绿（`0 failed`）。
+
+---
+
+#### [x] 顺序 ⑬
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-02`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.1（阶段 ③ 择时定买 & 阶段 ⑤ 仓位风控）、§9.2
+- **任务名称**：**实现退哥短线算法 `tuige.py` + 250 日同类信号历史胜率锚 + 修复 G3（五步真实 MA 股池审计）**
+- **进度状态**：`[x] 已完成（2026-10-19 实测通过：29 passed / 0 failed / 5.85s）`
+- **前置依赖**：`S2-01` 已达成 ✅
+- **核心动作**：
+  1. **修复 G6（退哥短线代码化）**：新增 `core/strategy/tuige.py`，实现涨停基因、缩量回踩 MA5/MA10、龙头首阴反包与连板接力纯 Python 判定引擎；
+  2. **内建 250 日同类信号历史胜率锚（C4）**：在战法输出层自动回溯该股近 250 日同类买点的触发次数、T+5 胜率、盈亏比与 45bps 成本过滤结论；
+  3. **修复 G3（五步真实 MA 股池审计）**：升级 `pool_manager.py` 与 `cmd_pool_audit`，重算真实 `MA5/10/20/60` 并检测止损跌破与均线偏离失效标的。
+- **验收门槛**：C3/C4/C6 符合性核验通过，前台顺序执行 `pytest tests/core/test_strategy_suite.py tests/core/test_pool_schema.py -q` 全绿（`0 failed`）。
+
+---
+
+#### [x] 顺序 ⑭
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-03`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.1（阶段 ④ 穿透体检 & 阶段 ⑥ 回测验证）、§9.2
+- **任务名称**：**实现滚动样本外回测（Rolling OOS）与过拟合三重警报 + 修复 G5（统一研报税费与三级止损口径）**
+- **进度状态**：`[x] 已完成（2026-10-19 实测通过：22 passed / 0 failed / 64.00s）`
+- **前置依赖**：`S2-02` 已达成 ✅
+- **核心动作**：
+  1. **修复 G6（样本外回测代码化）**：升级 `core/paper_trading/` 与 `backtest_cmds.py` 支持 `--oos` 滚动样本外检验，内建过拟合三重警报（`Sharpe > 3.5`、`WinRate > 75%`、`IS-OOS 衰减 > 50%`）；
+  2. **修复 G5（费率与止损 SSOT）**：统一 `report_generator.py` 与 `investment_report.py` 费率（万 2.5 且最低 5 元 + 0.05% 印花税 + 过户费 + `math.ceil` 分位进位）与 `-3%/-5%/-8%` 三级止损。
+- **验收门槛**：C2/C4/C6 符合性核验通过，前台顺序执行 `pytest tests/core/test_paper_trading_suite.py tests/core/test_robust_kline_and_report_html.py tests/core/test_commands_suite.py -q` 全绿（`22 passed / 0 failed`）。
+
+---
+
+### 阶段六（`SPEC-SKILL-002` Phase 2）：「1 + 6」生产级股票投研技能物理精简与网关重塑
+
+#### [▶] 顺序 ⑮
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-04`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.1（阶段 ① 看盘知势、阶段 ② 选股立池、阶段 ③ 择时定买）
+- **任务名称**：**物理构建前三大生产级投研技能（`astock-market-data`、`astock-smart-screener`、`astock-tactical-signals`）**
+- **进度状态**：`[▶] 就绪待执行（启动时必须先原子加锁为 [🚧 IN_PROGRESS: <session_id> | <时间>]）`
+- **前置依赖**：`S2-03` 已达成 ✅
+
+- **核心动作**：
+  1. 构建 `skill_bundle/skills/astock-market-data/`（吸收 `data-feed` + 大盘五维健康度 `market`）；
+  2. 构建 `skill_bundle/skills/astock-smart-screener/`（吸收 `screener-5a` + `selection-model` + `quant-engine`）；
+  3. 构建 `skill_bundle/skills/astock-tactical-signals/`（吸收 `strategy-mainboard` + `strategy-macd` + `strategy-chenxiaoqun` + `strategy-tuige`）；
+  4. 每个技能配备合规 `SKILL.md`、精选 `references/` 与三级寻址 SSOT 转发壳。
+- **验收门槛**：3 个新技能通过 C1~C6 符合性核验，Frontmatter、相对链接与转发壳自检通过。
+
+---
+
+#### [ ] 顺序 ⑯
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-05`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.1（阶段 ④ 穿透体检、阶段 ⑤ 仓位风控、阶段 ⑥ 回测验证、总控锚点）
+- **任务名称**：**物理构建后三大生产级投研技能（`astock-deep-diagnose`、`astock-portfolio-action`、`astock-paper-backtest`）及升级 `a-stock-agents`**
+- **进度状态**：`[ ] 等待 S2-04 完成解锁`
+- **前置依赖**：`S2-04`
+- **核心动作**：
+  1. 构建 `skill_bundle/skills/astock-deep-diagnose/`（吸收 `platform-evaluate` + `agent-debate` + `report-html` + `report-archive`，内建金字塔结论先行与双向证据链）；
+  2. 构建 `skill_bundle/skills/astock-portfolio-action/`（吸收 `action-execution` + `pool-dashboard` + `pool-audit` + 凯利头寸管理）；
+  3. 构建 `skill_bundle/skills/astock-paper-backtest/`（吸收 `trade-paper` + `backtest-multi` + `model-validation`）；
+  4. 升级总控锚点 `skill_bundle/skills/a-stock-agents/SKILL.md`（吸收 `meta-routing` + `knowledge-tips`，对齐 `1 + 6` 路由矩阵与 5 阶段卡片契约）。
+- **验收门槛**：后 3 个专业技能与总控锚点通过 C1~C6 符合性核验。
+
+---
+
+#### [ ] 顺序 ⑰
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-06`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.3
+- **任务名称**：**物理清退旧 19 技能目录 + 升级 `skills_manifest.json`、`SkillRegistry`（含旧别名兼容）、`cli.py`、`tools.py` 与 `doctor.py`**
+- **进度状态**：`[ ] 等待 S2-05 完成解锁`
+- **前置依赖**：`S2-05`
+- **核心动作**：
+  1. 物理删除 `skill_bundle/skills/` 下已被吸收的旧 19 个技能目录，确保持久化目录精确为 `1 + 6`（共 7 个）；
+  2. 更新 `skills_manifest.json` 为 6 项核心业务技能（含 `research_stage` 与 `legacy_aliases`）；
+  3. 升级 `SkillRegistry`、`tools.py`、`cli.py`、`cmd_skill_list` 与 `doctor.py`，内置 `LEGACY_SKILL_ALIASES` 100% 兼容旧 19 个技能名调用。
+- **验收门槛**：前台运行 `python skill_bundle/runtime/doctor.py --json` 输出 `total_skills: 7`, `business_skills: 6`, `is_healthy: true`。
+
+---
+
+#### [ ] 顺序 ⑱
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-07`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §4、§6、§8、§9
+- **任务名称**：**同步升级 Release 打包器、跨平台安装器（`install.ps1`/`install.sh`）与全仓规范文档口径（`1 + 6 = 7` 入口）**
+- **进度状态**：`[ ] 等待 S2-06 完成解锁`
+- **前置依赖**：`S2-06`
+- **核心动作**：
+  1. 升级 `tools/packaging/common.py`、`publish_release.py`、`install.ps1`、`install.sh` 对齐 `1 + 6`（7 入口）校验；
+  2. 更新 `AGENTS.md`、`README.md`、`docs/index.md`、`docs/quickstart.md`、`skill-suite-portability-specification.md` 中的技能清单表与计数口径。
+- **验收门槛**：前台运行 `python tools/packaging/publish_release.py --dry-run --json` 返回 `skills_count: 7, business_skills: 6, status: "success"`。
+
+---
+
+### 阶段七（`SPEC-SKILL-002` Phase 3）：极速测试体系重构、WebAPI 独立分仓与前端测试清退
+
+#### [ ] 顺序 ⑲
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-08`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/testing-guide.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/testing-guide.md) §9.1、§9.2
+- **任务名称**：**物理清退前端/浏览器测试（`tests/frontend/` & `tests/browser/`）+ 独立构建 `tests/webapi/`（4 大高内聚后端 API 模块）**
+- **进度状态**：`[ ] 等待 S2-07 完成解锁`
+- **前置依赖**：`S2-07`
+- **核心动作**：
+  1. 物理删除 `tests/frontend/`、`tests/browser/` 与 `tests/server/test_browser_e2e_security.py`；
+  2. 建立 `tests/webapi/`（含懒加载 `tests/webapi/conftest.py` 及 `test_webapi_auth_and_session.py`、`test_webapi_market_and_sync.py`、`test_webapi_selection_api.py`、`test_webapi_agent_dispatch.py` 4 个模块），物理移除旧 `tests/server/`。
+- **验收门槛**：前台顺序执行 `pytest tests/webapi -q` 全绿（`0 failed`，耗时 `< 6s`）。
+
+---
+
+#### [ ] 顺序 ⑳
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-09`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/testing-guide.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/testing-guide.md) §9.3、§9.4
+- **任务名称**：**重构 `tests/core/`（6 大支撑引擎单测）与 `tests/skills/`（`1+6` 符合性评估与执行测试）+ 剥离 `tests/release/`**
+- **进度状态**：`[ ] 等待 S2-08 完成解锁`
+- **前置依赖**：`S2-08`
+- **核心动作**：
+  1. 将打包与安装器测试剥离至 `tests/release/test_release_packaging_smoke.py`（`-m release_pack`）；
+  2. 重构 `tests/core/` 为对应 Engine A ~ Engine F 的 6 个纯内存极速单测文件；
+  3. 重构 `tests/skills/` 为 `test_skill_suite_1plus6_contract.py`（含 C1~C6 符合性强制门禁）与 `test_skill_tools_execution.py`，清理旧冗余测试文件。
+- **验收门槛**：前台顺序执行 `pytest tests/core tests/skills -q` 全绿（`0 failed`，耗时 `< 8s`）。
+
+---
+
+#### [ ] 顺序 ㉑
+- **执行/规范文档文件 + 任务号**：
+  [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-10`**
+- **关联权威规范**：
+  [`docs/guidelines/engineering/testing-guide.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/testing-guide.md) §9
+- **任务名称**：**升级根 `tests/conftest.py`、`tools/validation/check.py`、`tests/README.md` 与 CI 矩阵并完成全链路收官验收**
+- **进度状态**：`[ ] 等待 S2-09 完成解锁`
+- **前置依赖**：`S2-09`
+- **核心动作**：
+  1. 升级根 `tests/conftest.py`（解耦 FastAPI，确立 `core` / `webapi` / `release_pack` 分档）；
+  2. 升级 `tools/validation/check.py`、`.github/workflows/ci.yml`、`tests/README.md` 与 `testing-guide.md` 实测数据；
+  3. 前台顺序执行 `pytest -m core`、`pytest -m webapi`、`pytest -m release_pack` 完成收官验收并登记证据台账。
+- **验收门槛**：三大门禁全部 `0 failed`，默认核心门禁 `pytest -m core` 耗时 `< 8s`，全工程 `34/34` 任务 100% 闭环！
 
 ---
 
 ## 四、分时断点续传与执行维护守则 (Session Continuity Protocol)
 
 后续分时在不同会话中执行时，智能体与开发者必须严格遵守以下执行守则：
-1. **断点寻址**：新会话开始时，通过读取本文档第一节与第三节寻找 `[▶]` 标记，即可瞬间定位当前唯一的执行起点；
+1. **断点寻址与原子加锁**：新会话开始时，通过读取本文档第一节与第三节寻找唯一的 `[▶]` 标记，第一步先将本文档及 `eng-skill-1plus6-and-test-rearchitecture-plan.md` 中的 `[▶]` 原子替换为 `[🚧 IN_PROGRESS: <session_id> | <时间>]` 并落盘；
 2. **任务实施与测试门禁（严禁后台执行，直接在任务中顺序执行）**：
-   - 必须先完成该任务要求的代码改造与用例编写；
-   - **严禁后台执行**：必须直接在当前任务中前台顺序执行门禁验证（如先跑极速离线内核门禁，再跑本任务定向门禁，前台即时确认退出码 0），确保无回归；严禁挂起后台进程；
+   - 必须先完成该任务要求的代码改造、C1~C6 符合性自检与用例编写；
+   - **严禁后台执行**：必须直接在当前任务中前台顺序执行门禁验证，前台即时确认退出码 0，确保无回归；严禁挂起后台进程；
 3. **标记推进与证据留痕**：
-   - 任务完成后，将本文档及主计划中的当前项标记由 `[▶]` 改为 `[x]`；
+   - 任务完成后，将本文档及主计划中的当前项标记由 `[🚧 IN_PROGRESS: ...]` 改为 `[x]`；
    - 将紧随其后的下一顺序项标记由 `[ ]` 改为 `[▶]`；
-   - 在主计划 `eng-skill-suite-delivery-remediation-plan.md` 的第二节矩阵将状态改为 `☑`，在第三节可勾选清单中打勾；
-   - 在主计划第五节验收证据表中追加实测命令行、测试数量、耗时与结果边界。
+   - 在主计划 `eng-skill-1plus6-and-test-rearchitecture-plan.md` 的第二节矩阵将状态改为 `[x]`，并在第五节验收证据台账中登记实测命令行、测试数量、耗时与 C1~C6 符合性结论。
+

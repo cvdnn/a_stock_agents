@@ -179,40 +179,60 @@ def cmd_tips(args):
 
 
 def cmd_validate_model(args):
-    """输出外部时序模型的样本外验证协议。"""
+    """输出外部时序模型的样本外验证协议或对指定标的执行基线滚动样本外检验 (SPEC-SKILL-002 S2-03)。"""
+    code = getattr(args, "code", None)
+    model_name = getattr(args, "model", "Kronos")
+
+    if code:
+        from core.data.data_bridge import DataBridge
+        from core.paper_trading.a_stocks_backtest import BacktestEngine, sma_cross_strategy
+
+        klines = DataBridge.get_kline_robust(code, count=250)
+        if klines and len(klines) >= 30:
+            engine = BacktestEngine()
+            oos_res = engine.run_oos_validation(klines, sma_cross_strategy)
+            result = {
+                "status": "success",
+                "type": "model_validation",
+                "model_name": model_name,
+                "code": code,
+                "execution_available": True,
+                "baseline_comparison": {
+                    "baseline_strategy": "sma_cross",
+                    "in_sample": oos_res.get("in_sample", {}),
+                    "out_sample": oos_res.get("out_sample", {}),
+                    "decay": oos_res.get("decay", {}),
+                    "overfitting_check": oos_res.get("overfitting_check", {}),
+                    "triple_alerts": oos_res.get("triple_alerts", {}),
+                },
+                "verdict": "样本外检验完成；外部模型接入必须在样本外显著跑赢上述朴素基线且未触发过拟合三重警报。",
+                "steps": ["滚动样本外切分", "对比朴素基线", "计入交易摩擦", "报告IC、回撤与稳定性"],
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return
+
     result = {
         "status": "success",
         "type": "validation_protocol",
-        "model_name": getattr(args, "model", "Kronos"),
-        "code": getattr(args, "code", None),
+        "model_name": model_name,
+        "code": code,
         "execution_available": False,
         "steps": ["滚动样本外切分", "对比朴素基线", "计入交易摩擦", "报告IC、回撤与稳定性"],
-        "message": "当前命令提供验证协议；未安装目标模型时不会伪造预测结果。",
+        "message": "当前命令提供验证协议；指定 --code <代码> 时可自动执行本地朴素基线滚动样本外比对。",
     }
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
-def cmd_pool_audit(args):
-    """只读审查三级股池；尚未实现的自动修复会显式拒绝。"""
-    if getattr(args, "fix", False):
-        result = {
-            "status": "error",
-            "error": "MUTATION_NOT_IMPLEMENTED",
-            "message": "自动清洗尚未实现，已拒绝静默修改；请先人工确认审查结果。",
-        }
-    else:
-        from core.strategy.pool_manager import PoolManager
 
-        data_dir = getattr(args, "data", None)
-        pm = PoolManager(pools_dir=data_dir) if data_dir else PoolManager()
-        pools = pm.get_all_pools()
-        result = {
-            "status": "success",
-            "fix": False,
-            "total_pools": len(pools),
-            "total_stocks": sum(len(rows) for rows in pools.values()),
-            "pools": {name: len(rows) for name, rows in pools.items()},
-        }
+def cmd_pool_audit(args):
+    """五步真实 MA 股池审查与失效标的清洗。"""
+    from core.strategy.pool_manager import PoolManager
+
+    data_dir = getattr(args, "data", None)
+    pm = PoolManager(pools_dir=data_dir) if data_dir else PoolManager()
+    fix = bool(getattr(args, "fix", False))
+    pool_type = getattr(args, "pool", None)
+    result = pm.audit_pools(fix=fix, pool_type=pool_type)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

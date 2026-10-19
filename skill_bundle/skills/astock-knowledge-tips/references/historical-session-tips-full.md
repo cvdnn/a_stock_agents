@@ -828,10 +828,11 @@ raw = resp.read().decode("gbk")
 ### 持仓盈亏与最低卖出价计算
 
 ```python
-COMMISSION = 0.00012    # 万分之1.2 (双边)
-STAMP = 0.0005          # 万分之5 (卖出)
-TRANSFER = 0.00001      # 万分之0.1 (沪深双边)
-MIN_FEE = 5             # 单笔佣金最低5元
+COMMISSION = 0.00025    # 万分之2.5 (双边)
+STAMP = 0.0005          # 万分之5 (卖出，0.05%)
+TRANSFER = 0.00001      # 万分之0.1 (沪深双边，0.001%)
+MIN_FEE = 5             # 单笔佣金最低5元起收
+
 
 min_sell = cost * (1 + COMMISSION) / (1 - COMMISSION - STAMP - TRANSFER)
 ```

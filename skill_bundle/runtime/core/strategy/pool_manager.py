@@ -82,6 +82,8 @@ class PoolManager:
         """获取指定类型的股票池标的列表。"""
         pt = str(pool_type or "holding").lower().strip()
         if pt in ("holding", "holdings", "positions", "持仓", "持仓池"):
+            if self.positions_path.exists():
+                return _read_csv(self.positions_path)
             try:
                 from core.strategy.position_manager import get_open_positions
                 return get_open_positions(enrich_quote=False)
@@ -139,6 +141,215 @@ class PoolManager:
             return False
         _write_csv(path, fields, new_rows)
         return True
+
+    def audit_pools(
+        self,
+        fix: bool = False,
+        pool_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        五步真实 MA 股池审查与失效标的清洗 (G3 修复 & C3/C6 标准)。
+        1. 空股池即刻终止 (Fail-Closed)，拒绝虚构臆测并提示登记格式；
+        2. 拉取最新行情/日K，重算真实 MA5/MA10/MA20/MA60 水位；
+        3. 穿透检测止损跌破 (breached_stops)；
+        4. 穿透检测均线严重失真 (>15%) 与失效标的 (stale_records)；
+        5. 输出结构化审查报告与修复建议 (若 fix=True 执行安全自动清洗)。
+        """
+        try:
+            from core.data.evidence import build_evidence_meta
+        except ImportError:
+            build_evidence_meta = None
+
+        try:
+            from core.data.data_bridge import DataBridge
+            bridge = DataBridge()
+        except Exception:
+            bridge = None
+
+        if pool_type:
+            pools = {pool_type: self.get_pool(pool_type)}
+        else:
+            pools = self.get_all_pools()
+
+        all_stocks = []
+        for p_name, rows in pools.items():
+            for r in rows:
+                row_copy = dict(r)
+                row_copy["_pool"] = p_name
+                all_stocks.append(row_copy)
+
+        # ── 第一步：空股池即刻终止判定 (Fail-Closed) ──
+        if not all_stocks:
+            evidence = (
+                build_evidence_meta(quote_source="L0:local_pools", watermark_ready=True)
+                if build_evidence_meta
+                else {}
+            )
+            return {
+                "status": "empty_pool",
+                "fix": fix,
+                "total_pools": len(pools),
+                "total_stocks": 0,
+                "pools": {k: len(v) for k, v in pools.items()},
+                "pools_summary": {k: len(v) for k, v in pools.items()},
+                "healthy_count": 0,
+                "stale_records": [],
+                "breached_stops": [],
+                "ma_levels": {},
+                "recommendations": ["未登记任何标的，请先登记股票池后再执行审查。"],
+                "message": "⚠️ 当前检测到股池为空（持仓池/自选池/关注池无记录），未继续分析。请先按规范登记标的。",
+                "registration_guide": {
+                    "holding_format": "持仓股登记：股票:股数@成本价（例如持仓股：000001:1000@12.50）",
+                    "watch_format": "关注/自选股登记：直接输入股票代码或名称（例如：000001、600519）",
+                },
+                "evidence_meta": evidence,
+            }
+
+        # ── 第二步 ~ 第四步：真实 MA 重算、止损与失效检测 ──
+        stale_records = []
+        breached_stops = []
+        ma_levels = {}
+        cleaned_count = 0
+        healthy_count = 0
+
+        for s in all_stocks:
+            code = str(s.get("code", "")).strip()
+            name = str(s.get("name", code)).strip()
+            pool_name = s.get("_pool", "unknown")
+            if not code:
+                continue
+
+            # 4.1 检查不可交易板块
+            if is_blocked(code):
+                stale_records.append({
+                    "code": code,
+                    "name": name,
+                    "pool": pool_name,
+                    "reason": "不可交易板块标的（创业板/科创板/北交所/退市）",
+                })
+                continue
+
+            # 获取真实行情与日 K
+            klines = []
+            quote = {}
+            if bridge:
+                try:
+                    quote = bridge.get_realtime_quote(code) or {}
+                    klines = bridge.tencent_kline(code, count=60) or []
+                except Exception:
+                    pass
+
+            curr_price = float(quote.get("price", 0.0) or (klines[-1][2] if klines else 0.0))
+
+            if not klines or len(klines) < 5 or curr_price <= 0:
+                stale_records.append({
+                    "code": code,
+                    "name": name,
+                    "pool": pool_name,
+                    "reason": "行情数据缺失或长期停牌",
+                })
+                continue
+
+            closes = [float(k[2]) for k in klines]
+            ma5 = round(sum(closes[-5:]) / 5.0, 2)
+            ma10 = round(sum(closes[-10:]) / min(len(closes), 10), 2)
+            ma20 = round(sum(closes[-20:]) / min(len(closes), 20), 2)
+            ma60 = round(sum(closes[-60:]) / len(closes), 2)
+
+            ma_levels[code] = {
+                "name": name,
+                "price": curr_price,
+                "ma5": ma5,
+                "ma10": ma10,
+                "ma20": ma20,
+                "ma60": ma60,
+            }
+
+            # 3. 检测止损跌破
+            stop_val = None
+            if s.get("stop_loss"):
+                try:
+                    stop_val = float(s["stop_loss"])
+                except (ValueError, TypeError):
+                    stop_val = None
+            elif s.get("buy_price"):
+                try:
+                    bp = float(s["buy_price"])
+                    stop_val = round(bp * 0.92, 2)  # -8% 绝杀线
+                except (ValueError, TypeError):
+                    stop_val = None
+
+            if stop_val and stop_val > 0 and curr_price < stop_val:
+                loss_pct = round((curr_price - stop_val) / stop_val * 100.0, 2)
+                breached_stops.append({
+                    "code": code,
+                    "name": name,
+                    "pool": pool_name,
+                    "price": curr_price,
+                    "stop_loss": stop_val,
+                    "deviation_pct": loss_pct,
+                    "action_advice": "现价已跌破关键止损线，触及实战风控绝杀位，建议无条件止损出局",
+                })
+
+            # 4. 检测均线偏离度 (>15%)
+            bias_ma20 = (curr_price - ma20) / ma20 if ma20 > 0 else 0.0
+            if abs(bias_ma20) > 0.15:
+                stale_records.append({
+                    "code": code,
+                    "name": name,
+                    "pool": pool_name,
+                    "price": curr_price,
+                    "ma20": ma20,
+                    "bias_pct": round(bias_ma20 * 100.0, 2),
+                    "reason": f"现价偏离MA20达 {bias_ma20*100:+.1f}% (>15%)，价格失真或高位加速透支",
+                })
+            else:
+                if not (stop_val and stop_val > 0 and curr_price < stop_val):
+                    healthy_count += 1
+
+        # ── 第五步：若 fix=True 执行安全清洗 ──
+        if fix:
+            to_remove = set()
+            for item in stale_records:
+                to_remove.add((item["pool"], item["code"]))
+            for item in breached_stops:
+                to_remove.add((item["pool"], item["code"]))
+
+            for p_name, code in to_remove:
+                if p_name in ("selected", "watch"):
+                    if self.remove_stock(p_name, code):
+                        cleaned_count += 1
+
+        recs = []
+        if breached_stops:
+            recs.append(f"发现 {len(breached_stops)} 只标的跌破止损位，请优先处理风控防守")
+        if stale_records:
+            recs.append(f"发现 {len(stale_records)} 只标的偏离均线>15%或数据失效，建议清洗更新")
+        if not breached_stops and not stale_records:
+            recs.append("全量股票池运行稳健，未检测到破位或严重均线偏离标的")
+
+        evidence = (
+            build_evidence_meta(quote_source="L1:tencent_kline", watermark_ready=True)
+            if build_evidence_meta
+            else {}
+        )
+
+        return {
+            "status": "success",
+            "fix": fix,
+            "cleaned_count": cleaned_count,
+            "total_pools": len(pools),
+            "total_stocks": len(all_stocks),
+            "healthy_count": healthy_count,
+            "pools": {k: len(v) for k, v in pools.items()},
+            "pools_summary": {k: len(v) for k, v in pools.items()},
+            "breached_stops": breached_stops,
+            "stale_records": stale_records,
+            "ma_levels": ma_levels,
+            "recommendations": recs,
+            "evidence_meta": evidence,
+        }
+
 def cmd_list(args):
     """列出自选股或关注股"""
     if getattr(args, "json", False):

@@ -336,6 +336,7 @@ class ExecutionActionEngine:
                        exec_window: str, profit_pct: float, breakeven_p: float,
                        downside_diag: Optional[Dict[str, Any]] = None,
                        config_prompt: Optional[str] = None) -> Dict[str, Any]:
+        from core.data.evidence import build_evidence_meta
         return {
             "code": code,
             "name": name,
@@ -348,7 +349,8 @@ class ExecutionActionEngine:
             "recommended_window": exec_window,
             "action_items": actions,
             "downside_diagnosis": downside_diag,
-            "config_prompt": config_prompt
+            "config_prompt": config_prompt,
+            "evidence_meta": build_evidence_meta(quote_source="L1:tencent_realtime"),
         }
 
     @classmethod

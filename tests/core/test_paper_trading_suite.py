@@ -231,6 +231,81 @@ class TestPaperTradingSuite(unittest.TestCase):
         self.assertIsNotNone(pt_ctl.SERVICE_SCRIPT)
         self.assertIsNotNone(eng.PaperTradingEngine)
 
+    def test_rolling_oos_validator_and_triple_alerts(self):
+        """Verify RollingOOSValidator calculations and triple overfitting alerts."""
+        from core.paper_trading.rolling_oos import RollingOOSValidator
+
+        # 1. Splitting test
+        dummy_klines = [[f"2026-01-{i:02d}", 10, 10, 11, 9, 1000] for i in range(1, 101)]
+        is_k, oos_k = RollingOOSValidator.split_samples(dummy_klines, oos_ratio=0.3)
+        self.assertEqual(len(is_k), 70)
+        self.assertEqual(len(oos_k), 30)
+
+        # 2. Triple alert test: case A (extreme Sharpe > 3.5)
+        res_a = RollingOOSValidator.evaluate_overfitting(
+            in_sample_metrics={"sharpe_ratio": 3.8, "win_rate": 60.0, "annual_return": 20.0, "max_drawdown": 8.0},
+            out_sample_metrics={"sharpe_ratio": 2.5, "win_rate": 55.0, "annual_return": 18.0, "max_drawdown": 10.0},
+        )
+        self.assertTrue(res_a["overfitting_suspected"])
+        self.assertTrue(res_a["triple_alerts"]["sharpe_gt_3_5"])
+        self.assertFalse(res_a["triple_alerts"]["win_rate_gt_75"])
+        self.assertFalse(res_a["triple_alerts"]["decay_gt_50"])
+
+        # 3. Triple alert test: case B (extreme WinRate > 75%)
+        res_b = RollingOOSValidator.evaluate_overfitting(
+            in_sample_metrics={"sharpe_ratio": 2.0, "win_rate": 82.0, "annual_return": 25.0, "max_drawdown": 5.0},
+            out_sample_metrics={"sharpe_ratio": 1.8, "win_rate": 60.0, "annual_return": 20.0, "max_drawdown": 8.0},
+        )
+        self.assertTrue(res_b["overfitting_suspected"])
+        self.assertFalse(res_b["triple_alerts"]["sharpe_gt_3_5"])
+        self.assertTrue(res_b["triple_alerts"]["win_rate_gt_75"])
+        self.assertFalse(res_b["triple_alerts"]["decay_gt_50"])
+
+        # 4. Triple alert test: case C (IS-to-OOS decay > 50%)
+        res_c = RollingOOSValidator.evaluate_overfitting(
+            in_sample_metrics={"sharpe_ratio": 2.5, "win_rate": 65.0, "annual_return": 40.0, "max_drawdown": 10.0},
+            out_sample_metrics={"sharpe_ratio": 0.8, "win_rate": 45.0, "annual_return": 12.0, "max_drawdown": 18.0},
+        )
+        self.assertTrue(res_c["overfitting_suspected"])
+        self.assertFalse(res_c["triple_alerts"]["sharpe_gt_3_5"])
+        self.assertFalse(res_c["triple_alerts"]["win_rate_gt_75"])
+        self.assertTrue(res_c["triple_alerts"]["decay_gt_50"])
+        self.assertGreater(res_c["return_decay_pct"], 50.0)
+
+        # 5. Non-overfitting case
+        res_d = RollingOOSValidator.evaluate_overfitting(
+            in_sample_metrics={"sharpe_ratio": 1.8, "win_rate": 58.0, "annual_return": 18.0, "max_drawdown": 12.0},
+            out_sample_metrics={"sharpe_ratio": 1.5, "win_rate": 54.0, "annual_return": 15.0, "max_drawdown": 14.0},
+        )
+        self.assertFalse(res_d["overfitting_suspected"])
+        self.assertFalse(res_d["triple_alerts"]["sharpe_gt_3_5"])
+        self.assertFalse(res_d["triple_alerts"]["win_rate_gt_75"])
+        self.assertFalse(res_d["triple_alerts"]["decay_gt_50"])
+        self.assertIn("通过过拟合三重检验", res_d["summary"])
+
+    def test_backtest_engine_run_oos_validation(self):
+        """Verify BacktestEngine.run_oos_validation integration."""
+        from core.paper_trading.a_stocks_backtest import BacktestEngine, sma_cross_strategy
+
+        # Synthetic trending price bars
+        prices = [10.0 + i * 0.1 for i in range(100)]
+        klines = [
+            [f"2026-01-{i:02d}", p, p + 0.05, p + 0.1, p - 0.1, 10000]
+            for i, p in enumerate(prices)
+        ]
+        engine = BacktestEngine(initial_cash=100000.0)
+        res = engine.run_oos_validation(klines, sma_cross_strategy, oos_ratio=0.3)
+
+        self.assertEqual(res["status"], "success")
+        self.assertEqual(res["in_sample_bars"], 70)
+        self.assertEqual(res["out_sample_bars"], 30)
+        self.assertIn("in_sample", res)
+        self.assertIn("out_sample", res)
+        self.assertIn("decay", res)
+        self.assertIn("overfitting_check", res)
+        self.assertIn("triple_alerts", res)
+
 
 if __name__ == "__main__":
     unittest.main()
+

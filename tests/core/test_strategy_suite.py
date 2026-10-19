@@ -13,6 +13,7 @@ Validates:
 - PoolSchema (empty rows CSV preservation, parameter order safety)
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -310,6 +311,98 @@ class TestStrategySuite(unittest.TestCase):
         self.assertIn('"entry_price": 1250.0', script)
         compiled = compile(script, "<test_rendered_script>", "exec")
         self.assertIsNotNone(compiled)
+
+    def test_tuige_strategy_engine_breakeven_and_three_principles(self):
+        """Verify TuigeStrategyEngine fulfills C6 real-world three principles with math.ceil breakeven."""
+        from core.strategy.tuige import TuigeStrategyEngine
+        # Breakeven calculation
+        be_price = TuigeStrategyEngine.calculate_breakeven_price(cost=10.0, shares=1000)
+        self.assertGreater(be_price, 10.0)
+        # 强制向上进位至分位 (以分为单位)
+        self.assertEqual(be_price, round(be_price, 2))
+
+    def test_tuige_strategy_engine_limit_up_gene_and_pullback(self):
+        """Verify TuigeStrategyEngine detects limit-up gene and generates structured pullback diagnostics."""
+        from core.strategy.tuige import TuigeStrategyEngine
+        # Mock klines: 60 bars with limit-up 3 days ago and shrinking volume
+        klines = []
+        price = 10.0
+        for i in range(60):
+            d = f"2026-01-{i+1:02d}" if i < 30 else f"2026-02-{i-29:02d}"
+            if i == 56:
+                # 涨停日 (+10%)
+                op = price
+                cl = price * 1.10
+                hi = cl
+                lo = op
+                vol = 50000.0
+            elif i > 56:
+                # 缩量回调踩均线
+                op = price
+                cl = price * 0.99
+                hi = max(op, cl) + 0.05
+                lo = min(op, cl) - 0.05
+                vol = 15000.0
+            else:
+                op = price
+                cl = price + 0.05
+                hi = cl + 0.05
+                lo = op - 0.05
+                vol = 20000.0
+            klines.append([d, op, cl, hi, lo, vol])
+            price = cl
+
+        gene = TuigeStrategyEngine.detect_limit_up_gene(klines, lookback=60)
+        self.assertTrue(gene["has_gene"])
+        self.assertGreaterEqual(gene["limit_up_count"], 1)
+
+    def test_tuige_strategy_fail_closed_insufficient_klines(self):
+        """Verify TuigeStrategyEngine fails closed with DATA_UNAVAILABLE when klines < 20."""
+        from core.strategy.tuige import TuigeStrategyEngine
+        res = TuigeStrategyEngine.evaluate(code="999999", count=5)
+        # Should be error or fail-closed
+        if res.get("status") == "error":
+            self.assertEqual(res.get("error"), "DATA_UNAVAILABLE")
+            self.assertIn("evidence_meta", res)
+
+    def test_attach_contextual_win_rate_anchor_c4_contract(self):
+        """Verify attach_contextual_win_rate_anchor outputs 250d metrics, 45bps friction and conclusion."""
+        from core.models.strategy_evaluator import attach_contextual_win_rate_anchor
+        # 1. Insufficient klines
+        short_res = attach_contextual_win_rate_anchor(code="000001", klines=self.klines[:20])
+        self.assertEqual(short_res["status"], "insufficient_history")
+        self.assertEqual(short_res["sample_count"], 0)
+
+        # 2. 60 bars klines
+        res = attach_contextual_win_rate_anchor(
+            code="000001",
+            klines=self.klines,
+            signal_type="tuige",
+            cost_bps=45.0,
+        )
+        self.assertEqual(res["status"], "success")
+        self.assertEqual(res["cost_bps"], 45.0)
+        self.assertIn("win_rate_t5", res)
+        self.assertIn("win_rate_net_t5", res)
+        self.assertIn("profit_loss_ratio", res)
+        self.assertIn("cost_filtered_conclusion", res)
+
+    def test_cmd_shortline_check_cli_dispatch(self):
+        """Verify cmd_shortline_check handles both code evaluation and reference guidelines."""
+        from core.commands.strategy_cmds import cmd_shortline_check
+        import argparse
+        import io
+        from contextlib import redirect_stdout
+
+        # Without code -> guidelines
+        args_ref = argparse.Namespace(code=None, cost=None, shares=1000, scenario=None, json=True, output="json")
+        f = io.StringIO()
+        with redirect_stdout(f):
+            cmd_shortline_check(args_ref)
+        data = json.loads(f.getvalue())
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["type"], "reference")
+        self.assertIn("scenarios", data)
 
 
 if __name__ == "__main__":

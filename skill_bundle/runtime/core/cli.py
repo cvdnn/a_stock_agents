@@ -269,6 +269,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_bt.add_argument("--count", type=int, default=250, help="K线数量")
     p_bt.add_argument("--cash", type=float, default=1000000, help="初始本金")
     p_bt.add_argument("--split", action="store_true", help="样本内外过拟合检验")
+    p_bt.add_argument("--oos", action="store_true", help="滚动样本外(Rolling OOS)检验与过拟合三重警报")
+
 
     # multi-backtest
     p_mbt = subparsers.add_parser("multi-backtest", help="多标的事件驱动轮动回测", parents=[common_parser])
@@ -311,7 +313,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # action
     p_action = subparsers.add_parser("action", help="实战交易反应动作决策单", parents=[common_parser])
-    p_action.add_argument("code", nargs="?", default=None, help="股票代码")
+    p_action.add_argument("code", nargs="?", default=None, help="股票代码或动作子命令 (如 600519 或 plan)")
+    p_action.add_argument("sub_code", nargs="?", default=None, help="股票代码 (当第一个参数为子命令时，如 plan 600519)")
     p_action.add_argument("--code", dest="opt_code", default=None, help="股票代码 (选项传参)")
     p_action.add_argument("--cost", type=float, default=None, help="持仓成本")
     p_action.add_argument("--shares", type=int, default=None, help="持仓股数")
@@ -684,8 +687,18 @@ def main():
     elif cmd == "debate":
         cmd_debate(args)
     elif cmd == "action":
-        if getattr(args, "opt_code", None):
-            args.code = args.opt_code
+        target_code = getattr(args, "opt_code", None)
+        pos_code = getattr(args, "code", None)
+        sub_code = getattr(args, "sub_code", None)
+        if not target_code:
+            if pos_code and str(pos_code).strip().lower() == "plan":
+                target_code = sub_code
+            elif pos_code:
+                target_code = pos_code
+            elif sub_code:
+                target_code = sub_code
+        args.code = target_code
+        args.opt_code = target_code
         cmd_action_plan(args)
     elif cmd == "chenxiaoqun":
         cmd_chenxiaoqun(args)

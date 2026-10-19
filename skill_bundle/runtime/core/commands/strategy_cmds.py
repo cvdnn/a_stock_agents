@@ -163,6 +163,8 @@ def cmd_action_plan(args):
     from core.config import OUTPUT_POOLS_DIR
 
     code = getattr(args, "opt_code", None) or getattr(args, "code", None)
+    if code and str(code).strip().lower() == "plan":
+        code = None
     cost = getattr(args, "cost", None)
     shares = getattr(args, "shares", None)
     count = getattr(args, "count", 120)
@@ -413,14 +415,42 @@ def cmd_quant_pipeline(args):
 
 
 def cmd_shortline_check(args):
-    """输出退哥短线场景规则；不伪造实时信号。"""
-    result = {
-        "status": "success",
-        "type": "reference",
-        "code": getattr(args, "code", None),
-        "scenario": getattr(args, "scenario", "limit_up_pullback"),
-        "action_guide": "涨停回踩关键均线不破，分歧转一致可轻仓试错；跌破关键均线立即离场。",
-        "live_signal": False,
-    }
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    """退哥短线战法量化研判与风控指令"""
+    from core.strategy.tuige import TuigeStrategyEngine
+
+    code = getattr(args, "code", None)
+    cost = getattr(args, "cost", None)
+    shares = getattr(args, "shares", 1000)
+    scenario = getattr(args, "scenario", None)
+
+    if code:
+        res = TuigeStrategyEngine.evaluate(
+            code=code,
+            cost=cost,
+            shares=shares,
+            scenario=scenario,
+        )
+    else:
+        # 未指定具体标的时，输出退哥短线核心规则库与场景参考
+        res = {
+            "status": "success",
+            "type": "reference",
+            "scenario": scenario or "limit_up_pullback",
+            "action_guide": "涨停缩量回踩关键均线(MA5/MA10)不破，分歧转一致可轻仓低吸试错；跌破关键均线或绝杀线(-8%)立即离场。",
+            "scenarios": TuigeStrategyEngine.SCENARIO_NAMES,
+            "rules": [
+                "涨停基因：近30-60日内有过涨停板，属于活跃游资与主力关注品种",
+                "缩量回踩：涨停后缩量回调1-3日，成交量较涨停日萎缩30%以上，守住MA5/MA10",
+                "首阴弱转强：连板龙头首次分歧断板收阴，次日早盘竞价或开盘快速翻红反包",
+                "实战纪律：严格按印花税万5与佣金万2.5最低5元向上进位保本价，破-8%绝杀线无条件止损",
+            ],
+        }
+
+    if getattr(args, "json", False) or getattr(args, "output", "") == "json":
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+    else:
+        if code and res.get("status") == "success":
+            print(TuigeStrategyEngine.render_markdown(res))
+        else:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
 

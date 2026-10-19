@@ -635,35 +635,87 @@ def _sync_astock_agent_debate(code: str = "600519", rounds: int = 2) -> Dict[str
         }
 
 
-def _sync_astock_strategy_tuige(code: str, scenario: str = "limit_up_pullback") -> Dict[str, Any]:
-    return {
-        "status": "success",
-        "type": "reference",
-        "code": code,
-        "scenario": scenario,
-        "action_guide": "涨停回踩关键均线不破，分歧转一致可轻仓低吸；跌破均线无条件离场。",
-    }
+def _sync_astock_strategy_tuige(code: str, scenario: Optional[str] = "limit_up_pullback", **kwargs: Any) -> Dict[str, Any]:
+    try:
+        from core.strategy.tuige import TuigeStrategyEngine
+        return TuigeStrategyEngine.evaluate(code=str(code).strip(), scenario=scenario)
+    except Exception as exc:
+        logger.error("Error in _sync_astock_strategy_tuige: %s", exc, exc_info=True)
+        return {
+            "status": "error",
+            "error": "CAPABILITY_EXECUTION_FAILED",
+            "code": code,
+            "detail": str(exc),
+        }
 
 
 def _sync_astock_strategy_macd(code: str) -> Dict[str, Any]:
+    from core.data.evidence import build_evidence_meta
+    from core.indicators.technical_indicators import second_golden_cross
+    from core.models.strategy_evaluator import attach_contextual_win_rate_anchor
+
     bridge = DataBridge()
-    klines = bridge.tencent_kline(code, count=60)
-    if not klines or len(klines) < 26:
-        return {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"股票 {code} 的K线不足或标的不存在，无法判断 MACD 形态。"}
+    klines = bridge.tencent_kline(code, count=120)
+    if not klines or len(klines) < 60:
+        return {
+            "status": "error",
+            "error": "DATA_UNAVAILABLE",
+            "code": code,
+            "message": f"股票 {code} 的K线数据不足(需≥60根)，无法准确识别双波谷形态。",
+            "evidence_meta": build_evidence_meta(
+                quote_source="L1:tencent_kline",
+                kline_bars_count=len(klines) if klines else 0,
+                watermark_ready=False,
+            ),
+        }
+
+    macd_analysis = second_golden_cross(klines)
     tech = calc_all(klines).get("latest", {})
-    macd = tech.get("macd", {})
-    dif = macd.get("dif", 0.0)
-    dea = macd.get("dea", 0.0)
-    hist = macd.get("hist", 0.0)
-    status = "零轴下二次金叉蓄势" if (dif < 0 and dea < 0 and dif >= dea) else ("零轴上方多头加速" if dif > 0 and dea > 0 else "中性震荡")
+    macd_latest = tech.get("macd", {})
+    dif = macd_latest.get("dif", 0.0)
+    dea = macd_latest.get("dea", 0.0)
+    hist = macd_latest.get("hist", 0.0)
+
+    verdict = macd_analysis.get("verdict", "C")
+    is_divergence = bool(macd_analysis.get("is_divergence", False))
+    checklist = macd_analysis.get("checklist", [])
+    reason = macd_analysis.get("reason", "")
+
+    if verdict == "A":
+        pattern = "MACD水下二次金叉且底背离确认 (评级A)"
+    elif verdict == "B":
+        pattern = "MACD水下二次金叉蓄势 (评级B)"
+    else:
+        pattern = f"未形成有效二次金叉 ({reason or '中性震荡'})"
+
+    # 250 日胜率锚定 (C4 标准)
+    win_rate_anchor = attach_contextual_win_rate_anchor(
+        code=code,
+        klines=klines,
+        signal_type="macd_golden_cross",
+        lookback_days=250,
+        cost_bps=45.0,
+    )
+
     return {
         "status": "success",
         "code": code,
+        "pattern": pattern,
+        "verdict": verdict,
+        "is_divergence": is_divergence,
         "dif": dif,
         "dea": dea,
         "hist": hist,
-        "pattern": status,
+        "checklist": checklist,
+        "reason": reason,
+        "macd_analysis": macd_analysis,
+        "win_rate_anchor": win_rate_anchor,
+        "evidence_meta": build_evidence_meta(
+            quote_source="L1:tencent_kline",
+            kline_bars_count=len(klines),
+        ),
     }
+
 
 
 def _sync_astock_strategy_chenxiaoqun(
@@ -690,27 +742,11 @@ def _sync_astock_strategy_chenxiaoqun(
         }
 
 
-def _sync_astock_pool_audit(fix: bool = False, **kwargs: Any) -> Dict[str, Any]:
-    if fix:
-        return {
-            "status": "error",
-            "error": "MUTATION_NOT_IMPLEMENTED",
-            "fix": True,
-            "message": "自动清洗尚未实现，已拒绝静默修改；请先使用只读审查结果人工确认。",
-        }
+def _sync_astock_pool_audit(fix: bool = False, pool: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
     try:
         from core.strategy.pool_manager import PoolManager
         pm = PoolManager()
-        pools = pm.get_all_pools()
-        total_stocks = sum(len(v) for v in pools.values())
-        return {
-            "status": "success",
-            "fix": fix,
-            "total_pools": len(pools),
-            "total_stocks": total_stocks,
-            "pools": {k: len(v) for k, v in pools.items()},
-            "summary": f"股票池审查完成：全量三级股池共 {total_stocks} 只标的，运行正常",
-        }
+        return pm.audit_pools(fix=fix, pool_type=pool)
     except Exception as exc:
         logger.error("Error in _sync_astock_pool_audit: %s", exc, exc_info=True)
         return _unavailable("astock-pool-audit")
@@ -829,15 +865,87 @@ def _sync_astock_model_validation(model_name: str = "Kronos", code: Optional[str
     }
 
 
-def _sync_astock_meta_routing(task_description: str, **kwargs: Any) -> Dict[str, Any]:
+def _sync_astock_meta_routing(task_description: str = "", **kwargs: Any) -> Dict[str, Any]:
+    from core.data.evidence import build_evidence_meta
+    from core.strategy.execution_action_engine import IntentEvaluator
+
+    query_text = (
+        str(task_description).strip()
+        or str(kwargs.get("task", "")).strip()
+        or str(kwargs.get("query", "")).strip()
+    )
+    parsed = IntentEvaluator.parse_user_query(query_text)
+    primary = parsed.get("primary_intent")
+
+    # 意图到推荐模型、执行模式与目标六步闭环生产技能的动态映射
+    routing_map = {
+        IntentEvaluator.INTENT_STOCK_PICKING: {
+            "recommended_model": "flash",
+            "execution_mode": "screener_pipeline",
+            "target_skill": "astock-smart-screener",
+            "research_stage": "② 选股立池",
+            "rationale": "全市场多因子与形态筛选选股，优先使用高吞吐低延迟模型并发评估标的池。",
+        },
+        IntentEvaluator.INTENT_ORDER_EXECUTION: {
+            "recommended_model": "pro",
+            "execution_mode": "action_engine",
+            "target_skill": "astock-portfolio-action",
+            "research_stage": "⑤ 仓位风控",
+            "rationale": "精确买卖挂单点位、保本价精算与盘中冲高/急跌动作执行，使用高逻辑推演模型。",
+        },
+        IntentEvaluator.INTENT_TRAPPED_RECOVERY: {
+            "recommended_model": "pro",
+            "execution_mode": "deep_diagnose",
+            "target_skill": "astock-deep-diagnose",
+            "research_stage": "④ 穿透体检",
+            "rationale": "深套亏损自救与解套决策树分析，结合持仓成本与量化技术指标进行深度研判。",
+        },
+        IntentEvaluator.INTENT_DOWNSIDE_REACTION: {
+            "recommended_model": "pro",
+            "execution_mode": "tactical_signals",
+            "target_skill": "astock-tactical-signals",
+            "research_stage": "③ 择时定买",
+            "rationale": "盘中跳水假摔与破位识别，联动形态雷达与三级风控止损阶梯。",
+        },
+        IntentEvaluator.INTENT_REVIEW_REPORT: {
+            "recommended_model": "flash",
+            "execution_mode": "report_renderer",
+            "target_skill": "astock-deep-diagnose",
+            "research_stage": "④ 穿透体检",
+            "rationale": "盘后复盘、结构化总结与单文件交互式 HTML 研报渲染输出。",
+        },
+    }
+
+    route_info = routing_map.get(
+        primary,
+        {
+            "recommended_model": "flash",
+            "execution_mode": "direct_sdk",
+            "target_skill": "a-stock-agents",
+            "research_stage": "总控锚点",
+            "rationale": "通用投研问答与系统自检，采用标准高吞吐模型。",
+        },
+    )
+
     return {
         "status": "success",
         "type": "reference",
-        "task": task_description,
-        "recommended_model": "flash",
-        "execution_mode": "direct_sdk",
-        "rationale": "投研数据分析首选高吞吐快速模型，编程回测使用脚本直接执行。",
+        "task": query_text,
+        "primary_intent": primary,
+        "detected_codes": parsed.get("detected_codes", []),
+        "detected_names": parsed.get("detected_names", []),
+        "intent_scores": parsed.get("intent_scores", {}),
+        "recommended_model": route_info["recommended_model"],
+        "execution_mode": route_info["execution_mode"],
+        "target_skill": route_info["target_skill"],
+        "research_stage": route_info["research_stage"],
+        "rationale": route_info["rationale"],
+        "evidence_meta": build_evidence_meta(
+            quote_source="L0:intent_evaluator",
+            watermark_ready=True,
+        ),
     }
+
 
 
 def _sync_astock_selection_model(action: str = "validate", **kwargs: Any) -> Dict[str, Any]:

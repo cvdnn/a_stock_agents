@@ -17,6 +17,8 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional, Dict, Any, List, Tuple
+
 
 # ── 路径与环境自适应 ──
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -166,22 +168,60 @@ def read_pool(path: str) -> list:
         return list(csv.DictReader(f))
 
 
-def report_single(code: str, json_output: bool = False) -> dict:
-    """生成单只个股投资报告"""
+def report_single(code: str, json_output: bool = False, cost: Optional[float] = None, shares: Optional[int] = None) -> dict:
+    """生成单只个股投资报告 (集成实战交易三原则 SSOT)"""
+    from core.strategy.execution_action_engine import ExecutionActionEngine
+
     quote = get_quote(code)
     tech = get_technical(code)
     cyq = get_cyq(code)
     fund = get_fund_flow(code)
     sector = get_sector(code)
 
+    curr_price_raw = quote.get("最新价") or quote.get("price") or 10.0
+    try:
+        curr_price = float(curr_price_raw)
+    except (ValueError, TypeError):
+        curr_price = 10.0
+
+    cost_val = float(cost if cost is not None else curr_price)
+    shares_val = int(shares if shares is not None else 1000)
+
+    # 实战三原则精算
+    breakeven_price = ExecutionActionEngine.calc_min_breakeven_price(cost=cost_val, shares=shares_val)
+    stop_t0 = round(cost_val * 0.97, 2)
+    stop_t1 = round(cost_val * 0.95, 2)
+    stop_t2 = round(cost_val * 0.92, 2)
+
+    scenario_high = f"若早盘冲高受阻且量能不济，逢高减仓兑现锁定利润；放量站稳方可持有观察。"
+    scenario_flat = f"若盘中在现价 {curr_price:.2f} 附近窄幅缩量震荡，持仓者防守观望，场外切忌盲目追高。"
+    scenario_drop = f"若跳水击穿 T0警戒线 ¥{stop_t0:.2f} 启动减仓对冲；破 T1减仓线 ¥{stop_t1:.2f} 减半仓；破 T2绝杀线 ¥{stop_t2:.2f} 坚决市价清仓离场。"
+
+    trade_principles = {
+        "cost": cost_val,
+        "shares": shares_val,
+        "min_breakeven_price": breakeven_price,
+        "stop_loss_ladder": {
+            "t0_warning": {"price": stop_t0, "pct": -3.0, "action": "准备减仓或对冲"},
+            "t1_reduce": {"price": stop_t1, "pct": -5.0, "action": "减仓50%保本防守"},
+            "t2_kill": {"price": stop_t2, "pct": -8.0, "action": "无条件市价清仓出局"},
+        },
+        "scenarios": {
+            "surge": scenario_high,
+            "consolidate": scenario_flat,
+            "plunge": scenario_drop,
+        },
+    }
+
     report = {
         "code": code,
         "name": quote.get("名称", code),
         "report_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "price": quote.get("最新价"),
-        "change": quote.get("涨跌幅(%)"),
+        "price": quote.get("最新价", curr_price),
+        "change": quote.get("涨跌幅(%)", 0.0),
         "market_state": quote.get("市场状态"),
         "data_source": quote.get("数据源", "?"),
+        "trade_principles": trade_principles,
         "technical": {
             "ma": {
                 "ma5": tech.get("MA5"),
@@ -219,6 +259,18 @@ def report_single(code: str, json_output: bool = False) -> dict:
     print(f"  现价: {price} ({change:+.2f}%)")
     print(f"  数据源: {report['data_source']}")
     print("=" * 56)
+
+    # 实战交易三原则
+    print("\n── 实战交易三原则 ──")
+    print(f"  ① 最低保本卖出价: ¥{breakeven_price:.2f} (成本 ¥{cost_val:.2f} · {shares_val}股，含万2.5佣金最低5元、0.05%印花税、过户费，强制向上进位)")
+    print(f"  ② 三级风控止损阶梯:")
+    print(f"     • T0 警戒线 (-3.0%): ¥{stop_t0:.2f} (准备减仓或对冲)")
+    print(f"     • T1 减仓线 (-5.0%): ¥{stop_t1:.2f} (减仓50%保本防守)")
+    print(f"     • T2 绝杀线 (-8.0%): ¥{stop_t2:.2f} (无条件市价清仓出局)")
+    print(f"  ③ 三场景即时操作单:")
+    print(f"     • 🌞 冲高场景: {scenario_high}")
+    print(f"     • 🌤 震荡场景: {scenario_flat}")
+    print(f"     • 🌧 急跌场景: {scenario_drop}")
 
     # 技术面
     print("\n── 技术面分析 ──")
@@ -263,6 +315,7 @@ def report_single(code: str, json_output: bool = False) -> dict:
     print("=" * 56)
 
     return report
+
 
 
 def report_pool(pool_type: str):
@@ -330,6 +383,8 @@ def report_sector(sector_name: str):
 def main():
     parser = argparse.ArgumentParser(description="投资报告生成器")
     parser.add_argument("--code", help="股票代码")
+    parser.add_argument("--cost", type=float, default=None, help="持仓平均成本 (默认当前现价)")
+    parser.add_argument("--shares", type=int, default=None, help="持仓股数 (默认 1000 股)")
     parser.add_argument("--json", action="store_true", help="JSON输出")
     parser.add_argument("--pool", choices=["selected", "watch"], help="池全景报告")
     parser.add_argument("--sector", help="板块产业分析")
@@ -341,11 +396,12 @@ def main():
     elif args.sector:
         report_sector(args.sector)
     elif args.code:
-        result = report_single(args.code, json_output=args.json)
+        result = report_single(args.code, json_output=args.json, cost=args.cost, shares=args.shares)
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         parser.print_help()
+
 
 
 if __name__ == "__main__":
