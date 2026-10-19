@@ -454,3 +454,74 @@ def cmd_shortline_check(args):
         else:
             print(json.dumps(res, ensure_ascii=False, indent=2))
 
+
+def cmd_signal(args):
+    """A股实战战法识别与买点雷达，内嵌250日历史胜率锚 (SPEC-SKILL-002 阶段 ③ 择时定买)"""
+    from core.data.data_bridge import DataBridge
+    from core.indicators.technical_indicators import second_golden_cross
+    from core.strategy.tuige import TuigeStrategyEngine
+    from core.strategy.chenxiaoqun import ChenXiaoqunStrategyEngine
+    from core.strategy.daily_decisions import DailyDecisionEngine
+    from core.data.evidence import build_evidence_meta
+
+    code = getattr(args, "code", "").strip()
+    if ":" in code or "@" in code:
+        code = code.split(":")[0].split("@")[0].strip()
+    tactic = getattr(args, "tactic", "all") or "all"
+    count = getattr(args, "count", 120) or 120
+
+    bridge = DataBridge()
+    q = bridge.get_realtime_quote(code)
+    klines = bridge.tencent_kline(code, count=count)
+
+    if not q or not isinstance(q, dict) or "error" in q or not klines:
+        err = {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"无法获取股票 {code} 的行情数据。"}
+        if getattr(args, "json", False):
+            print(json.dumps(err, ensure_ascii=False, indent=2))
+        else:
+            print(f"❌ 错误: {err['message']}")
+        return
+
+    signals: Dict[str, Any] = {}
+    # 1. MACD 二次金叉与背离
+    if tactic in ("all", "macd"):
+        signals["macd"] = second_golden_cross(klines)
+
+    # 2. 退哥短线与涨停接力
+    if tactic in ("all", "tuige"):
+        signals["tuige"] = TuigeStrategyEngine.evaluate(code=code, cost=float(q.get("price", 0.0) or 0.0), shares=1000)
+
+    # 3. 游资陈小群总龙头战法
+    if tactic in ("all", "chenxiaoqun"):
+        signals["chenxiaoqun"] = ChenXiaoqunStrategyEngine.evaluate(code=code, cost=float(q.get("price", 0.0) or 0.0), shares=1000, count=count)
+
+    # 4. 主板趋势缩量回踩
+    if tactic in ("all", "mainboard"):
+        daily_eng = DailyDecisionEngine()
+        signals["mainboard"] = daily_eng.evaluate_stock(code, history_count=count)
+
+    ev_meta = build_evidence_meta(quote_source="tencent_realtime", kline_bars_count=len(klines))
+    out = {
+        "status": "success",
+        "evidence_meta": ev_meta,
+        "code": code,
+        "name": q.get("name", code),
+        "price": float(q.get("price", 0.0) or 0.0),
+        "tactic": tactic,
+        "signals": signals,
+    }
+
+    if getattr(args, "json", False):
+        print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
+    else:
+        print(f"=== [{code}] {q.get('name', code)} 实战战法买点信号雷达 ===")
+        for t_name, s_info in signals.items():
+            if isinstance(s_info, dict):
+                triggered = s_info.get("signal_triggered") or s_info.get("triggered") or s_info.get("verdict") == "PASS" or s_info.get("status") == "success"
+                flag = "🔥 信号就绪" if triggered else "— 观望/未触发"
+                print(f"  [{t_name:<12}] {flag}: {s_info.get('verdict') or s_info.get('primary_pattern') or s_info.get('decision', {}).get('verdict') or '检测完成'}")
+                if "win_rate_anchor_250d" in s_info:
+                    anchor = s_info["win_rate_anchor_250d"]
+                    print(f"    ↳ 250日历史胜率锚: 样本 {anchor.get('sample_count')} 次 | T+5胜率 {anchor.get('win_rate_pct')}% | 盈亏比 {anchor.get('profit_loss_ratio')}")
+
+

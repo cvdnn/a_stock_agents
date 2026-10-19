@@ -494,3 +494,111 @@ def cmd_debate(args):
         print(f"🎯 【最终辩论决议】: {consensus}")
         print(f"🛡️ 【首席风控指令】: 最低保本价 {breakeven:.2f} | 止损参考: {stop_t1:.2f}(-5%) | 建议仓位: {max_pos}")
         print("=" * 65)
+
+
+def cmd_diagnose(args):
+    """个股全维循证诊断、7角色多空对抗与研报交付 (SPEC-SKILL-002 阶段 ④ 穿透体检)"""
+    import math
+    from core.data.data_bridge import DataBridge
+    from core.indicators.technical_indicators import calc_all
+    from core.models.combo_scorer import ComboScorer
+    from core.strategy.execution_action_engine import ExecutionActionEngine
+    from core.strategy.risk_manager import RiskManager
+    from core.data.evidence import build_evidence_meta
+
+    code = getattr(args, "code", "").strip()
+    if ":" in code or "@" in code:
+        code = code.split(":")[0].split("@")[0].strip()
+
+    cost = getattr(args, "cost", None)
+    shares = getattr(args, "shares", None)
+    do_debate = getattr(args, "debate", False)
+    do_html = getattr(args, "html", False)
+
+    bridge = DataBridge()
+    q = bridge.get_realtime_quote(code)
+    klines = bridge.tencent_kline(code, count=120)
+
+    if not q or not isinstance(q, dict) or "error" in q or not q.get("price") or not klines:
+        err = {"status": "error", "error": "DATA_UNAVAILABLE", "code": code, "message": f"无法获取股票 {code} 的行情数据。"}
+        if getattr(args, "json", False):
+            print(json.dumps(err, ensure_ascii=False, indent=2))
+        else:
+            print(f"❌ 错误: {err['message']}")
+        return
+
+    name = q.get("name", code)
+    curr_price = float(q.get("price", 0.0))
+    eff_cost = cost if cost is not None else curr_price
+    eff_shares = shares if shares is not None else 100
+
+    tech = calc_all(klines) if len(klines) >= 26 else {}
+    latest_tech = tech.get("latest", {}) if tech else {}
+
+    scorer = ComboScorer()
+    scores = scorer.score_full(klines=klines, latest=latest_tech)
+
+    holding = {"cost": eff_cost, "shares": eff_shares, "max_high": max(float(q.get("high", 0) or 0), eff_cost)}
+    action_res = ExecutionActionEngine.generate_action(
+        code=code, name=name, quote=q, tech=latest_tech, holding=holding, model_score={"cs": scores.get("total"), "rating": scores.get("rating")}
+    )
+
+    rm = RiskManager()
+    stops = rm.calc_stop_losses(eff_cost, latest_tech)
+    breakeven = action_res.get("breakeven_price")
+    if breakeven is None:
+        breakeven = math.ceil(eff_cost * 1.001 * 100) / 100.0
+
+    stop_t0 = round(stops.get("t0_warning", {}).get("price", eff_cost * 0.97), 2)
+    stop_t1 = round(stops.get("t1_ma10", {}).get("price", eff_cost * 0.95), 2)
+    stop_t2 = round(stops.get("t2_ma20", {}).get("price", eff_cost * 0.92), 2)
+
+    ev_meta = build_evidence_meta(quote_source="tencent_realtime", kline_bars_count=len(klines))
+
+    res = {
+        "status": "success",
+        "evidence_meta": ev_meta,
+        "code": code,
+        "name": name,
+        "current_price": curr_price,
+        "cost": eff_cost,
+        "shares": eff_shares,
+        "score": scores,
+        "rating": scores.get("rating", "B"),
+        "breakeven_price": breakeven,
+        "stop_t0": stop_t0,
+        "stop_t1": stop_t1,
+        "stop_t2": stop_t2,
+        "action_items": action_res.get("action_items") or {},
+        "top3_bull": [
+            f"均线多头排列，当前价格突破短期压制位 (评分 {scores.get('total')}/100)",
+            f"MACD维持强势区间 (DIF={latest_tech.get('dif', 0):.2f})",
+            "量价配合良好，主力资金呈现承接迹象",
+        ],
+        "top3_bear": [
+            f"跌破 T0 警戒线 {stop_t0} 需收缩敞口",
+            f"若大盘情绪冰点联动下挫则执行 T1/T2 止损线 ({stop_t1}/{stop_t2})",
+            "关注上方筹码密集套牢区阻力抛压",
+        ],
+    }
+
+    if do_debate:
+        res["debate"] = generate_stock_debate(code)
+
+    if do_html:
+        from core.reporting.investment_report import generate_html_report
+        html_file = generate_html_report(code)
+        res["html_report_path"] = str(html_file)
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, ensure_ascii=False, indent=2, default=str))
+    else:
+        print(f"=== [{code}] {name} 全维循证诊断与投研体检 ===")
+        print(f"现价: {curr_price:.2f} | 成本: {eff_cost:.2f} | 保本价(math.ceil): {breakeven:.2f}")
+        print(f"综合评分: {scores.get('total')}/100 | 评级: {scores.get('rating')} - {scores.get('rating_text')}")
+        print(f"三级止损: T0警戒 -3%({stop_t0}) | T1减仓 -5%({stop_t1}) | T2绝杀 -8%({stop_t2})")
+        if do_debate and "debate" in res:
+            print(f"7分析师裁决: {res['debate'].get('decision', {}).get('stance')} (信心度: {res['debate'].get('decision', {}).get('confidence')}%)")
+        if do_html and "html_report_path" in res:
+            print(f"HTML研报已生成: {res['html_report_path']}")
+

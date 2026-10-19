@@ -48,6 +48,7 @@ from core.commands import (
     cmd_data_daemon,
     cmd_data_intraday,
     cmd_deploy_monitor,
+    cmd_diagnose,
     cmd_downside,
     cmd_evaluate,
     cmd_events,
@@ -65,6 +66,7 @@ from core.commands import (
     cmd_risk,
     cmd_quant_pipeline,
     cmd_shortline_check,
+    cmd_signal,
     cmd_strategy_swing,
     cmd_score,
     cmd_screen,
@@ -208,6 +210,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_swing.add_argument("--count", type=int, default=120, help="K线数量")
     p_swing.add_argument("--limit", type=int, default=10, help="候选数量上限")
 
+    # signal (SPEC-SKILL-002 Stage ③ 择时定买)
+    p_sig = subparsers.add_parser("signal", help="实战战法识别与买点雷达 (SPEC-SKILL-002)", parents=[common_parser])
+    p_sig.add_argument("code", help="股票代码")
+    p_sig.add_argument("--tactic", choices=["all", "mainboard", "macd", "chenxiaoqun", "tuige"], default="all", help="战法筛选 (默认 all)")
+    p_sig.add_argument("--count", type=int, default=120, help="K线数量 (默认 120)")
+
     # quant pipeline
     p_quant = subparsers.add_parser("quant", help="量化工程流水线", parents=[common_parser])
     quant_sub = p_quant.add_subparsers(dest="quant_cmd")
@@ -261,6 +269,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--interval", type=int, default=20, help="自动扫描间隔(天)")
     p_eval.add_argument("--count", type=int, default=250, help="K线数量")
     p_eval.add_argument("--days", dest="count", type=int, help="扫描天数 (同 --count)")
+
+    # diagnose (SPEC-SKILL-002 Stage ④ 穿透体检)
+    p_diag = subparsers.add_parser("diagnose", help="个股全维循证诊断与投研体检 (SPEC-SKILL-002)", parents=[common_parser])
+    p_diag.add_argument("code", help="股票代码")
+    p_diag.add_argument("--cost", type=float, default=None, help="持仓买入成本价")
+    p_diag.add_argument("--shares", type=int, default=None, help="持仓股数")
+    p_diag.add_argument("--debate", action="store_true", help="启用7大分析师多角色多空辩论研判")
+    p_diag.add_argument("--html", action="store_true", help="同时生成单文件交互式HTML研报")
 
     # backtest
     p_bt = subparsers.add_parser("backtest", help="单标的回测评估 (夏普/回撤/胜率/过拟合)", parents=[common_parser])
@@ -649,6 +665,8 @@ def main():
             cmd_strategy_swing(args)
         else:
             parser.print_help()
+    elif cmd == "signal":
+        cmd_signal(args)
     elif cmd == "quant":
         if getattr(args, "quant_cmd", None) == "pipeline":
             args.quant_action = "pipeline"
@@ -670,6 +688,8 @@ def main():
         cmd_balance(args)
     elif cmd == "evaluate":
         cmd_evaluate(args)
+    elif cmd == "diagnose":
+        cmd_diagnose(args)
     elif cmd == "backtest":
         cmd_backtest(args)
     elif cmd == "multi-backtest":

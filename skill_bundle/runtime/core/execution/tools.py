@@ -974,16 +974,124 @@ def _sync_astock_selection_model(action: str = "validate", **kwargs: Any) -> Dic
     }
 
 
+# ── 1 + 6 Consolidated Investment Research Handlers ──────────────────────────
+
+def _sync_astock_market_data(code: str, action: str = "quote", count: int = 60, **kwargs: Any) -> Dict[str, Any]:
+    if action == "tech":
+        return _sync_astock_technical(code, count=count)
+    if action == "market":
+        from core.models.market_assessor import MarketAssessor
+        return MarketAssessor().assess_all()
+    if action == "cyq":
+        from core.data.data_bridge import DataBridge
+        return DataBridge().get_cyq_chips(code) or {"code": code, "cyq": None}
+    if action == "events":
+        from core.data.data_bridge import DataBridge
+        return {"code": code, "events": DataBridge().get_stock_events(code) or []}
+    return _sync_astock_data_feed(code=code, action=action, count=count, **kwargs)
+
+
+def _sync_astock_smart_screener(mode: str = "5a", dynamic_mode: Optional[str] = None, limit: int = 10, **kwargs: Any) -> Dict[str, Any]:
+    if mode == "funnel":
+        return _sync_astock_selection_model(action="run", **kwargs)
+    if mode == "quant":
+        return _sync_astock_quant_engine(action="pipeline", **kwargs)
+    return _sync_astock_screen_5a(limit=limit, dynamic_mode=dynamic_mode, **kwargs)
+
+
+def _sync_astock_tactical_signals(code: str, tactic: str = "all", count: int = 120, **kwargs: Any) -> Dict[str, Any]:
+    if tactic == "macd":
+        return _sync_astock_strategy_macd(code)
+    if tactic == "chenxiaoqun":
+        return _sync_astock_strategy_chenxiaoqun(code)
+    if tactic == "tuige":
+        return _sync_astock_strategy_tuige(code)
+    if tactic == "mainboard":
+        return _sync_astock_strategy_mainboard(code=code)
+    macd_res = _sync_astock_strategy_macd(code)
+    tuige_res = _sync_astock_strategy_tuige(code)
+    chen_res = _sync_astock_strategy_chenxiaoqun(code)
+    mb_res = _sync_astock_strategy_mainboard(code=code)
+    return {
+        "status": "success",
+        "code": code,
+        "signals": {
+            "macd": macd_res,
+            "tuige": tuige_res,
+            "chenxiaoqun": chen_res,
+            "mainboard": mb_res,
+        },
+    }
+
+
+def _sync_astock_deep_diagnose(code: str, cost: Optional[float] = None, shares: Optional[int] = None, debate: bool = False, html: bool = False, **kwargs: Any) -> Dict[str, Any]:
+    eval_res = _sync_astock_evaluate(code)
+    action_res = _sync_astock_action_plan(code, cost=cost, shares=shares)
+    res: Dict[str, Any] = {
+        "status": "success",
+        "code": code,
+        "evaluation": eval_res,
+        "action_plan": action_res,
+    }
+    if debate:
+        res["debate"] = _sync_astock_agent_debate(code)
+    if html:
+        res["html_report"] = _sync_astock_report_html(code)
+    return res
+
+
+def _sync_astock_portfolio_action(action: str = "plan", code: Optional[str] = None, cost: Optional[float] = None, shares: Optional[int] = None, **kwargs: Any) -> Dict[str, Any]:
+    if action == "audit":
+        return _sync_astock_pool_audit(**kwargs)
+    if action in ("list", "add", "remove", "summary"):
+        return _sync_astock_pool_dashboard(action=action, **kwargs)
+    if code:
+        return _sync_astock_action_plan(code=code, cost=cost, shares=shares)
+    return _sync_astock_pool_dashboard(action="list", **kwargs)
+
+
+def _sync_astock_paper_backtest(action: str = "balance", code: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+    if action == "oos_validate" and code:
+        return _sync_astock_model_validation(code=code, **kwargs)
+    return _sync_astock_trade_paper(action=action, code=code, **kwargs)
+
+
+def _sync_a_stock_agents(task_description: str = "", action: str = "intent", **kwargs: Any) -> Dict[str, Any]:
+    if action == "tips":
+        return _sync_astock_knowledge_tips(**kwargs)
+    return _sync_astock_meta_routing(task_description=task_description)
+
+
 # ── Async Dispatcher ──────────────────────────────────────────────────────────
 
 TOOL_MAP: Dict[str, Callable[..., Any]] = {
+    # ── 1 + 6 Production Architecture Mappings ──
+    "astock_market_data": _sync_astock_market_data,
+    "astock-market-data": _sync_astock_market_data,
+    "astock_smart_screener": _sync_astock_smart_screener,
+    "astock-smart-screener": _sync_astock_smart_screener,
+    "astock_tactical_signals": _sync_astock_tactical_signals,
+    "astock-tactical-signals": _sync_astock_tactical_signals,
+    "astock_deep_diagnose": _sync_astock_deep_diagnose,
+    "astock-deep-diagnose": _sync_astock_deep_diagnose,
+    "astock_portfolio_action": _sync_astock_portfolio_action,
+    "astock-portfolio-action": _sync_astock_portfolio_action,
+    "astock_paper_backtest": _sync_astock_paper_backtest,
+    "astock-paper-backtest": _sync_astock_paper_backtest,
+    "a_stock_agents": _sync_a_stock_agents,
+    "a-stock-agents": _sync_a_stock_agents,
+    # Shorthand CLI aliases
+    "astock_diagnose": _sync_astock_deep_diagnose,
+    "astock-diagnose": _sync_astock_deep_diagnose,
+    "astock_signal": _sync_astock_tactical_signals,
+    "astock-signal": _sync_astock_tactical_signals,
     # Phase 1 Legacy Aliases
     "astock_quote": _sync_astock_quote,
     "astock_technical": _sync_astock_technical,
     "astock_action_plan": _sync_astock_action_plan,
     "astock_evaluate": _sync_astock_evaluate,
     "astock_screen_5a": _sync_astock_screen_5a,
-    # Phase 2 Unified 18 Skills Mappings
+    # Legacy 19 Skills Transparent Backward-Compatibility
     "astock_data_feed": _sync_astock_data_feed,
     "astock-data-feed": _sync_astock_data_feed,
     "astock_platform_evaluate": _sync_astock_evaluate,
@@ -1028,6 +1136,12 @@ TOOL_MAP: Dict[str, Callable[..., Any]] = {
 async def execute_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Execute tool asynchronously without blocking the event loop."""
     handler = TOOL_MAP.get(tool_name)
+    if not handler:
+        from core.governance.skill_registry import LEGACY_SKILL_ALIASES
+        normalized_name = tool_name.replace("_", "-")
+        if normalized_name in LEGACY_SKILL_ALIASES:
+            canonical = LEGACY_SKILL_ALIASES[normalized_name]
+            handler = TOOL_MAP.get(canonical) or TOOL_MAP.get(canonical.replace("-", "_"))
     if not handler:
         return _unavailable(tool_name)
 

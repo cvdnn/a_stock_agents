@@ -33,14 +33,14 @@ mindmap
       multi_llm[多模型适配·OpenAI/Claude/Gemini/Ollama]
       async_tasks[后台异步任务队列·SQLite持久化]
       web_workbench[双模动态视口·三栏40/60·轻量金融图表]
-    [唯一技能体系 skill_bundle/skills 20入口]
+    [唯一技能体系 skill_bundle/skills 7入口]
       L0锚点与元系统[总入口锚点·路由规则·避坑技巧]
-      L1数据平台[全链路行情引擎与统一投研平台]
-      L2选股量化[5A选股·智能选股漏斗·量化引擎·时序验证]
-      L3执行策略[反应动作单·陈小群龙头·主板波段·退哥短线·MACD金叉]
-      L4面板交易[股池管理·三大股池审查·模拟盘撮合]
-      L5多智能体[7大分析师辩论协同研判]
-      L6展现报告[标准HTML交互报告与报告归档]
+      阶段1看盘知势[astock-market-data 行情与大盘五维数据]
+      阶段2选股立池[astock-smart-screener 5A多维共振与选股漏斗]
+      阶段3择时定买[astock-tactical-signals 战法信号与胜率锚定]
+      阶段4穿透体检[astock-deep-diagnose 穿透体检与辩论研报]
+      阶段5仓位风控[astock-portfolio-action 仓位动作与股池审计]
+      阶段6回测验证[astock-paper-backtest 模拟撮合与样本外检验]
     [提示词与配置 skill_bundle/references & assets]
       prompts[AIChat 系统提示词·实战动作单·被套解套提示词]
       config[主配置·数据源·券商费率·风控线·20技能清单]
@@ -62,7 +62,7 @@ mindmap
 
 ```
 a_stock_agents/
-├── skill_bundle/            # ★ 唯一技能集合与共享资产 (SSOT，含 19 项专业技能 + 1 总入口)
+├── skill_bundle/            # ★ 唯一技能集合与共享资产 (SSOT，含 6 项生产级专业技能 + 1 总入口)
 │   ├── assets/              # 公共静态资产与集中配置
 │   │   ├── config/          # 配置文件中心 (application.yaml / skills_manifest.json 等)
 │   │   └── templates/       # 基础报告与系统模板
@@ -73,27 +73,14 @@ a_stock_agents/
 │   │   ├── cli.py           # 统一 CLI 命令分发调度器
 │   │   ├── doctor.py        # 离线环境与依赖全流程自检
 │   │   └── run_skill.py     # 统一技能执行分发器
-│   └── skills/              # 19 项专业技能 + 1 锚点总入口 (共 20 个独立入口)
-│       ├── a-stock-agents/             # 20 技能总入口与锚点自诊断
-│       ├── astock-action-execution/    # 实战反应动作与精确保本价进位引擎
-│       ├── astock-agent-debate/        # 7大AI分析师多空对抗辩论与决议
-│       ├── astock-data-feed/           # A股全链路行情与技术指标数据引擎
-│       ├── astock-knowledge-tips/      # 避坑指南与实战技巧库
-│       ├── astock-meta-routing/        # 任务模型路由规则
-│       ├── astock-model-validation/    # 外部时序 AI 模型样本外检验
-│       ├── astock-platform-evaluate/   # 统一全流程投研与综合分析平台
-│       ├── astock-pool-audit/          # 三大股池统一审查与清洗
-│       ├── astock-pool-dashboard/      # 投研面板与股池生命周期管理
-│       ├── astock-quant-engine/        # 工业级全流程量化工程引擎
-│       ├── astock-report-archive/      # 报告结构化持久化与归档
-│       ├── astock-report-html/         # 亚光白 1344px 居中交互报告规范
-│       ├── astock-screener-5a/         # 5A 多维共振旋转选股模型
-│       ├── astock-selection-model/     # SPEC-ALGO-ISS-001 配置化智能选股与层级漏斗
-│       ├── astock-strategy-chenxiaoqun/# 顶级游资陈小群总龙头战法体系
-│       ├── astock-strategy-macd/       # 水下二次金叉与 MACD 底背离形态识别
-│       ├── astock-strategy-mainboard/  # 主板流动性池多波段防御反击
-│       ├── astock-strategy-tuige/      # 退哥短线与涨停接力规则体系
-│       └── astock-trade-paper/         # A股模拟盘撮合交易与事件回测
+│   └── skills/              # 6 项生产级专业技能 + 1 锚点总入口 (共 7 个独立入口)
+│       ├── a-stock-agents/             # 7 技能总入口与锚点自诊断 (吸收 meta-routing/knowledge-tips)
+│       ├── astock-market-data/         # 阶段① 看盘知势：全链路行情与大盘五维数据引擎 (吸收 data-feed)
+│       ├── astock-smart-screener/      # 阶段② 选股立池：智能选股模型与多因子漏斗 (吸收 screener-5a/selection-model/quant-engine)
+│       ├── astock-tactical-signals/    # 阶段③ 择时定买：战法形态识别与胜率锚定 (吸收 macd/tuige/chenxiaoqun/mainboard)
+│       ├── astock-deep-diagnose/       # 阶段④ 穿透体检：穿透诊断/多空辩论/HTML报告 (吸收 evaluate/debate/report-html/report-archive)
+│       ├── astock-portfolio-action/    # 阶段⑤ 仓位风控：保本价进位/三级风控/股池审计 (吸收 action-execution/pool-dashboard/pool-audit)
+│       └── astock-paper-backtest/      # 阶段⑥ 回测验证：模拟撮合/轮动回测/滚动OOS检验 (吸收 trade-paper/model-validation)
 ├── apps/                    # 可选扩展应用 (宿主独立，不复制公共算法)
 │   └── web-console/         # Web AIChat 与技能可视化控制台
 │       ├── backend/server/  # FastAPI 异步网关、ReAct 运行时与路由
@@ -211,7 +198,7 @@ a_stock_agents/
 │   │   ├── agent/           # 原生 ReAct 智能体运行时
 │   │   │   ├── react_runner.py # ReAct 循环、工具调用与思考过程解析
 │   │   │   ├── events.py       # 领域事件流解耦与 SSE 事件分发
-│   │   │   ├── tools.py        # 19 项技能转换为 Agent 可调用工具函数
+│   │   │   ├── tools.py        # 「1+6」投研技能转换为 Agent 可调用工具函数
 │   │   │   └── prompts.py      # 服务端 ReAct 提示词模版
 │   │   ├── api/             # RESTful API 路由模块
 │   │   │   ├── chat.py         # 对话与 SSE 流式输出接口 (/api/chat)
@@ -276,45 +263,32 @@ a_stock_agents/
 | 6 | **模拟盘撮合与事件驱动回测** | `skill_bundle/runtime/core/paper_trading` | 多账户资金隔离、Almgren-Chriss 平方根冲击滑点、T+1 硬约束、单标的与多标的轮动回测。 |
 | 7 | **监控守护与告警系统** | `skill_bundle/runtime/core/monitor` | 交易日历网关（开盘/盘中/闭市/周末状态机）、多渠道告警（Windows Toast / Webhook）。 |
 | 8 | **投资报告生成与归档** | `skill_bundle/runtime/core/reporting` | 1344px 居中、亚光白背景、红涨绿跌单文件自包含 HTML 研报与多标的聚合归档流水线。 |
-| 9 | **Skill 治理与审计子系统** | `skill_bundle/runtime/core/governance` | 19 项专业技能与 1 个总入口（共 20 个入口）集中注册、Schema 转换、动态启停、性能与安全熔断审计。 |
+| 9 | **Skill 治理与审计子系统** | `skill_bundle/runtime/core/governance` | 「1+6」投研技能（共 7 个入口）集中注册、旧 19 别名兼容映射、Schema 转换与安全审计。 |
 | 10 | **Web 服务网关与 AIChat 前端** | `apps/web-console` | FastAPI 异步网关、SSE 流式打字机、ReAct 智能体运行时、双模动态视口与现代浅色金融前端。 |
 
 ---
 
-## 四、19 项量化技能体系与总入口（共 20 个入口，6+1 现代分层架构）
+## 四、「1 + 6」生产级投研技能体系与总入口（共 7 个入口，机构六步闭环）
 
-全部 19 项专业技能与 1 个总入口（共 20 个入口）单一来源存放于 `skill_bundle/skills/` 目录下，通过统一清单 [`skill_bundle/assets/config/skills_manifest.json`](../skill_bundle/assets/config/skills_manifest.json) 驱动：
+全部 6 项生产级专业技能与 1 个总控锚点（共 7 个入口）单一来源存放于 `skill_bundle/skills/` 目录下，通过统一清单 [`skill_bundle/assets/config/skills_manifest.json`](../skill_bundle/assets/config/skills_manifest.json) 驱动，内建对旧 19 技能别名 100% 兼容：
 
 ```mermaid
 mindmap
-  root((20 Skills Ensembles))
-    L0锚点与元系统
-      a-stock-agents[总入口与锚点自诊断]
-      astock-meta-routing[任务模型路由规约]
-      astock-knowledge-tips[避坑指南与竞价实战技巧]
-    L1数据平台
-      astock-data-feed[全链路行情与指标数据引擎]
-      astock-platform-evaluate[统一全流程投研平台]
-    L2选股量化
-      astock-screener-5a[5A多维共振旋转选股]
-      astock-selection-model[智能选股模型与层级漏斗]
-      astock-quant-engine[工业级全流程量化工程引擎]
-      astock-model-validation[时序基础模型样本外检验]
-    L3执行策略
-      astock-action-execution[实战反应动作与精确保本价]
-      astock-strategy-chenxiaoqun[陈小群总龙头战法体系]
-      astock-strategy-mainboard[主板流动性池多波段防御]
-      astock-strategy-tuige[退哥短线交易规则体系]
-      astock-strategy-macd[水下二次金叉与底背离形态]
-    L4面板交易
-      astock-pool-dashboard[投研面板与股池管理]
-      astock-pool-audit[三大股池统一审查清洗]
-      astock-trade-paper[模拟盘撮合与交易系统]
-    L5多智能体
-      astock-agent-debate[7大AI分析师多空对抗辩论]
-    L6展现报告
-      astock-report-html[标准HTML交互报告规范]
-      astock-report-archive[报告持久化与归档规范]
+  root((1+6 Skills Architecture))
+    L0总控与运维锚点
+      a-stock-agents[总控入口·意图路由·避坑指南·引导卡片]
+    阶段1看盘知势
+      astock-market-data[4级降级实时行情·K线指标·大盘健康度]
+    阶段2选股立池
+      astock-smart-screener[5A多因子共振·SPEC条件树漏斗·量化引擎]
+    阶段3择时定买
+      astock-tactical-signals[MACD双金叉·退哥接力·陈小群低吸·250日胜率锚]
+    阶段4穿透体检
+      astock-deep-diagnose[100分制打分·7分析师多空辩论·亚光HTML研报]
+    阶段5仓位风控
+      astock-portfolio-action[保本价进位·三级止损阶梯·五步MA股池清洗]
+    阶段6回测验证
+      astock-paper-backtest[模拟盘撮合·多股轮动·滚动OOS过拟合预警]
 ```
 
 ---
@@ -500,7 +474,7 @@ flowchart TD
 | **界面指南** | [`guidelines/ui/app-js-modularization-guide.md`](guidelines/ui/app-js-modularization-guide.md) | [`SPEC-UI-002`](specs/ui/app-js-modularization-plan.md) | 前端巨石单体解耦为领域驱动模块、零构建工具依赖与兼容策略 |
 | **界面指南** | [`guidelines/ui/chat-response-presentation-guide.md`](guidelines/ui/chat-response-presentation-guide.md) | [`SPEC-UI-001`](specs/ui/chat-response-presentation-plan.md) | 对话回复卡片结构、执行时间线渲染契约与工作台投射规则 |
 | **界面指南** | [`guidelines/ui/market-data-sync-control-console-specification.md`](guidelines/ui/market-data-sync-control-console-specification.md) | [`SPEC-UI-003`](specs/ui/market-data-sync-control-console-plan.md) | 行情数据同步系统的跨域控制面；覆盖运行控制、任务记录、高级设置、P3 定时增量与手动范围选择，并保持无 AI 助手隔离 |
-| **系统架构** | [`guidelines/architecture/web-aichat-architecture.md`](guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与 19 项技能治理系统架构 |
+| **系统架构** | [`guidelines/architecture/web-aichat-architecture.md`](guidelines/architecture/web-aichat-architecture.md) | [`SPEC-ARCH-001`](specs/architecture/arch-web-aichat-and-skill-governance.md) | 独立 Web AIChatUI、FastAPI 服务网关与技能治理系统架构 |
 | **系统架构** | [`guidelines/architecture/llm-provider-architecture.md`](guidelines/architecture/llm-provider-architecture.md) | [`SPEC-ARCH-002`](specs/architecture/arch-llm-provider-and-role-allocation.md) | 大模型双轨接入 (Providers) 与 5 大业务场景角色绑定 (Roles) 架构 |
 | **系统架构** | [`guidelines/architecture/token-security-architecture.md`](guidelines/architecture/token-security-architecture.md) | [`SPEC-ARCH-003`](specs/architecture/arch-token-security-gateway.md) | Token 链路安全网关、控制平面隔离、请求脱敏与指纹审计架构 |
 | **系统架构** | [`guidelines/architecture/production-agent-platform-architecture.md`](guidelines/architecture/production-agent-platform-architecture.md) | [`SPEC-ARCH-004`](specs/architecture/production-agent-platform-plan.md) | 生产级 Agent 平台分层架构、可靠性保障与演进路线 |

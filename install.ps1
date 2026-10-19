@@ -1056,11 +1056,11 @@ if ($Update) {
     # 2. 检查新版本完整性
     $newPaths = Find-BundleAndSkills -BaseDir $newVersionDir
     $newSkillList = Get-SkillList -SkillsDir $newPaths.SkillsDir
-    if ($newSkillList.Count -lt 20) {
+    if ($newSkillList.Count -lt 7) {
         $errObj = [ordered]@{
             status         = 'error'
             reason_code    = 'UPDATE_INTEGRITY_FAILED'
-            message        = "New release must contain all 20 skills, but only found $($newSkillList.Count) entries."
+            message        = "New release must contain all 7 skills, but only found $($newSkillList.Count) entries."
             skills_found   = $newSkillList.Count
             active_version = $oldVersion
         }
@@ -1317,11 +1317,11 @@ if ($Rollback) {
     # 检查回滚目标版本完整性
     $rollbackPaths = Find-BundleAndSkills -BaseDir $targetRollbackDir
     $rollbackSkills = Get-SkillList -SkillsDir $rollbackPaths.SkillsDir
-    if ($rollbackSkills.Count -lt 20) {
+    if ($rollbackSkills.Count -lt 7) {
         $errObj = [ordered]@{
             status         = 'error'
             reason_code    = 'ROLLBACK_INTEGRITY_FAILED'
-            message        = "Rollback target $prevVersion is corrupted (found $($rollbackSkills.Count) skills, expected 20)."
+            message        = "Rollback target $prevVersion is corrupted (found $($rollbackSkills.Count) skills, expected 7)."
             active_version = $currentVersion
             target_version = $prevVersion
         }
@@ -1728,7 +1728,7 @@ $receipt = [ordered]@{
     overwrites_count  = $conflicts.Count
     conflicts         = @($conflicts)
     skills_count      = $skillEntries.Count
-    business_skills   = 19
+    business_skills   = ($skillEntries | Where-Object { -not $_.is_anchor }).Count
     skill_entries     = $skillEntries
     registered_agents = $registeredAgents
     doctor_health     = $doctorReport

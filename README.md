@@ -2,7 +2,7 @@
 
 ## 当前工程布局与使用
 
-唯一技能集合为`skill_bundle/`，含`skills/`（总入口+19项专业技能）、`runtime/`、公共`assets/`及`references/`。可选Web前后端位于`apps/web-console/`；根`bin/astock*`保留为薄兼容入口。
+唯一技能集合为`skill_bundle/`，含`skills/`（1个总入口+6项生产级专业投研技能）、`runtime/`、公共`assets/`及`references/`。可选Web前后端位于`apps/web-console/`；根`bin/astock*`保留为薄兼容入口。
 
 本仓库用于技能实现、测试与 Release 构建。AI工具通过发布版本使用技能，不维护打开仓库后发现技能的项目模式。
 
@@ -26,7 +26,7 @@
 
 ## 📑 目录
 - [一、架构全景图](#一架构全景图)
-- [二、核心功能与 19 项专业量化技能体系（+1 锚点总入口，共 20 个入口）](#二核心功能与-19-项专业量化技能体系1-锚点总入口共-20-个入口)
+- [二、核心功能与「1 + 6」生产级投研技能体系（共 7 个入口）](#二核心功能与-1--6-生产级投研技能体系共-7-个入口)
 - [三、环境准备与常规安装](#三环境准备与常规安装)
 - [四、第三方 AI 平台与工具使用指南 (Antigravity / Hermes / Codex / WorkBuddy 等)](#四第三方-ai-平台与工具使用指南-antigravity--hermes--codex--workbuddy-等)
 - [五、CLI 实战命令速查与使用说明](#五cli-实战命令速查与使用说明)
@@ -45,7 +45,7 @@
 
 ---
 
-## 二、核心功能与 19 项专业量化技能体系（+1 锚点总入口，共 20 个入口）
+## 二、核心功能与「1 + 6」生产级投研技能体系（共 7 个入口）
 
 ### 1. 七大量化与投研核心子系统
 1. **4 级自动降级数据桥接 (`core/data`)**：
@@ -82,30 +82,19 @@
 
 ---
 
-### 2. 19 项专业量化技能清单与 1 个总入口（共 20 个入口，6+1 现代分层架构）
+### 2. 「1 + 6」生产级股票投研技能清单（机构六步闭环，共 7 个入口）
 
-| 技能 ID | 技能名称 | 分层 | 核心能力描述 | CLI 快速入口 |
-| :--- | :--- | :---: | :--- | :--- |
-| **`a-stock-agents`** | A-Stock Agents 智能总入口 (锚点) | L0 锚点 | 20 技能总入口与环境自检、宿主意图路由与多智能体统一分发 | `astock` / `python skill_bundle/runtime/run_skill.py a-stock-agents` |
-| **`astock-data-feed`** | A股全链路行情数据引擎 | L1 数据 | 实时行情快照、历史K线、全套技术指标、筹码分布与板块资金流 | `astock data quote <代码>` |
-| **`astock-platform-evaluate`** | 统一A股全流程投研平台 | L1 平台 | 4层降级、100分制综合评分、被套解套策略诊断、大盘健康度评估 | `astock evaluate <代码>` |
-| **`astock-screener-5a`** | 5A多维共振旋转选股 | L2 选股 | 动量/价值/质量/主线旋转多维评分模型与滚动样本外回测检验 | `astock screen --dynamic hot_sectors` |
-| **`astock-selection-model`** | 智能选股模型与层级漏斗 | L2 选股 | SPEC-ALGO-ISS-001 配置化智能选股：漏斗/条件树模型编译、调度与结果研究跟踪 | `astock funnel run --stage <阶段>` |
-| **`astock-quant-engine`** | 工业级量化工程引擎 | L2 量化 | 截面因子提取、换手沉淀筹码模型、牛熊自适应加权、MAD去极值、凯利仓位与ATR止损 | `astock quant pipeline` |
-| **`astock-model-validation`** | 时序AI模型实证检验 | L2 验证 | 外部时序 AI 基础模型（如 Kronos/TimesFM）滚动样本外回测规范 | `astock validate-model` |
-| **`astock-action-execution`** | 实战反应动作与保本价 | L3 执行 | 最低保本卖出价精确进位、T0/T1/T2三级止损与三场景即时反应指令 | `astock action plan` |
-| **`astock-strategy-chenxiaoqun`**| 陈小群总龙头战法 | L3 策略 | 顶级游资总龙头战法：深水低吸/竞价弱转强/中军做T锁仓/首阴二波 | `astock pattern chenxiaoqun <代码>` |
-| **`astock-strategy-mainboard`** | 主板流动性池多波段防御 | L3 策略 | 主板流动性池趋势回踩（trend_pullback）与波段防守反击决策 | `astock strategy swing` |
-| **`astock-strategy-tuige`** | 退哥短线交易规则体系 | L3 策略 | 涨停回调、连板接力、洗盘突破、失效卖点与仓位纪律规则库 | `astock shortline check` |
-| **`astock-strategy-macd`** | 水下二次金叉与底背离 | L3 策略 | 波谷极值对比、波段间距过滤、水下二次金叉、双底回踩、MACD底背离形态识别 | `astock pattern macd <代码>` |
-| **`astock-pool-dashboard`** | 投研面板与股池管理 | L4 面板 | 关注池/自选池/持仓池生命周期管理、通达信公式同步、盘中预警 | `astock pool list` |
-| **`astock-pool-audit`** | 三大股池统一审查 | L4 股池 | 统一审查股池、重算均线支撑阻力位、清洗过期失效标的 | `astock pool audit` |
-| **`astock-trade-paper`** | 模拟盘与撮合系统 | L4 交易 | 多账户模拟仓、平方根市场冲击滑点、限价/市价单撮合、撤单与回测 | `astock trade balance` |
-| **`astock-agent-debate`** | 7大AI分析师多空辩论 | L5 协同 | 基本面/量价/消息/政策/游资/筹码/风控 7 大智能体辩论与研报 | `astock debate <代码>` |
-| **`astock-report-html`** | 标准HTML交互报告规范 | L6 展现 | 亚光白背景、红涨绿跌、1344px居中单文件自包含 HTML 报告样式 | `astock report html` |
-| **`astock-report-archive`** | 报告持久化与归档规范 | L6 报告 | 多股联合报告输出路径规范与数据持久化存储结构标准 | `astock report generate` |
-| **`astock-meta-routing`** | 股票任务模型路由规则 | L0 元系统 | flash纯分析 vs flash+execute_code编程/脚本执行路由规约 | `astock tips` |
-| **`astock-knowledge-tips`** | 避坑指南与实战技巧 | L0 知识 | 早盘竞价复盘、接口被封应对、数据源降级策略与历史经验技巧库 | `astock tips` |
+本项目已全面升级为生产级「1 + 6」架构：1 项总控与环境自检锚点 + 6 项对应机构六步闭环的专业投研技能。所有旧 19 技能别名均通过内部 `LEGACY_SKILL_ALIASES` 100% 自动映射与向后兼容。
+
+| 技能 ID (`skills/`) | 投研阶段 | 技能名称 | 核心能力描述与吸收旧技能 | CLI 快速入口 |
+| :--- | :---: | :--- | :--- | :--- |
+| **`a-stock-agents`** | **总控锚点** | 智能总入口与运维锚点 | 7 技能总入口与环境自检、宿主意图动态路由、实战避坑技巧与 5 阶段引导卡片契约（吸收 `meta-routing`、`knowledge-tips`） | `astock tips --json`<br>`astock doctor --json` |
+| **`astock-market-data`** | **① 看盘知势** | 行情与大盘五维数据引擎 | 4 级降级实时行情快照、历史 K 线、全套经典技术指标、筹码分布与大盘五维健康度打分（吸收原 `astock-data-feed`） | `astock data quote <代码>`<br>`astock market status` |
+| **`astock-smart-screener`** | **② 选股立池** | 智能选股与量化因子漏斗 | 5A 多维共振多因子模型、SPEC-ALGO-ISS-001 配置化条件树漏斗与工业级量化流水线（吸收原 `screener-5a`、`selection-model`、`quant-engine`） | `astock screen --dynamic hot_sectors`<br>`astock funnel run --stage 3 --assemble` |
+| **`astock-tactical-signals`** | **③ 择时定买** | 经典战法择时与胜率锚定 | 纯粹 MACD 形态（水下二次金叉/底背离）、退哥短线首阴接力、陈小群总龙头低吸与主板防御，**全信号强制内嵌 250 日历史胜率锚**（吸收原 `macd`、`tuige`、`chenxiaoqun`、`mainboard`） | `astock signal <代码>`<br>`astock pattern macd <代码>`<br>`astock pattern chenxiaoqun <代码>` |
+| **`astock-deep-diagnose`** | **④ 穿透体检** | 股票穿透诊断与决议研报 | 100 分制量化打分、7 大 AI 分析师多空辩论、单文件亚光 HTML 报告与联合归档，**强制落实金字塔结论先行、双向证据链与实战三原则**（吸收原 `evaluate`、`debate`、`report-html`、`report-archive`） | `astock diagnose <代码>`<br>`astock evaluate <代码>`<br>`astock debate <代码>` |
+| **`astock-portfolio-action`** | **⑤ 仓位风控** | 实战仓位动作与股池审计 | `math.ceil` 向上进位保本价精算、-3%/-5%/-8% 三级风控阶梯、五步真实 MA 股池清洗与受限凯利头寸管理（吸收原 `action-execution`、`pool-dashboard`、`pool-audit`） | `astock action --code <代码> --cost <成本> --shares <股数>`<br>`astock pool list`<br>`astock pool audit` |
+| **`astock-paper-backtest`** | **⑥ 回测验证** | 模拟盘撮合与样本外检验 | 真实滑点与 T+1 硬约束撮合模拟盘、滚动样本外（Rolling OOS）检验与过拟合三重警报（吸收原 `trade-paper`、`model-validation`） | `astock backtest --code <代码> --oos`<br>`astock trade balance`<br>`astock validate-model` |
 
 ---
 
@@ -132,7 +121,7 @@
 > - 阶段 2 [配置交互]：暂停执行，向我呈现【信息卡片 1：宿主选择】与【信息卡片 2：数据源偏好】，等待我做出选择。
 > - 阶段 3 [安全确认]：根据我的选择，生成【信息卡片 3：安装前摘要与安全审计】，提示挂载路径、依赖清单与权限范围，等待我确认。
 > - 阶段 4 [分级执行]：获得确认后，组装参数调用 `install.ps1 -Agent <已选项> -Method link -Yes -Json`，并在工作区以 L1/L2 批量子任务卡片呈现部署进度。
-> - 阶段 5 [冒烟交付]：运行 `doctor.py --json` 验证全部 20 个入口，输出【信息卡片 5：交付与快速实战指令】。
+> - 阶段 5 [冒烟交付]：运行 `doctor.py --json` 验证全部 7 个入口，输出【信息卡片 5：交付与快速实战指令】。
 > 
 > 请先执行阶段 1，并向我输出【信息卡片 1】开始安装引导。
 > ```

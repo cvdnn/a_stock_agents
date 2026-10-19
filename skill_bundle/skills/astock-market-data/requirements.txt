@@ -1,0 +1,4 @@
+# Single Source of Truth (SSOT)：依赖版本声明唯一来源为仓库根 pyproject.toml。
+#
+# 2026-10-15（P0-04 收敛）：统一引用仓库根 requirements.txt（uv.lock 离线导出）。
+-r ../../../requirements.txt

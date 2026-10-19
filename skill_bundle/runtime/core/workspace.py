@@ -116,6 +116,6 @@ def check_workspace_health():
     return {'package_root':str(PACKAGE_ROOT),'workspace_root':str(WORKSPACE_ROOT),'skills_root':str(SKILLS_ROOT),
             'total_skills':len(found),'business_skills':len(ids),'skills_manifest':MANIFEST_PATH.exists(),
             'cli_launcher':(RUNTIME_ROOT/'cli.py').is_file(),
-            'is_healthy':len(ids)==19 and found==ids|{'a-stock-agents'} and (RUNTIME_ROOT/'cli.py').is_file()}
+            'is_healthy':len(ids)==6 and found==ids|{'a-stock-agents'} and (RUNTIME_ROOT/'cli.py').is_file()}
 
 if __name__=='__main__': print(json.dumps(check_workspace_health(),ensure_ascii=False,indent=2))

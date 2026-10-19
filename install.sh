@@ -740,7 +740,7 @@ def deploy(src, dst):
 
 deploy(source_dir, new_version_dir)
 
-# 2. Check integrity: 20 skills
+# 2. Check integrity: 7 skills
 skills_dir = os.path.join(new_version_dir, "skills")
 if not os.path.isdir(skills_dir):
     skills_dir = os.path.join(new_version_dir, "skill_bundle", "skills")
@@ -750,11 +750,11 @@ if os.path.isdir(skills_dir):
         if os.path.isfile(os.path.join(skills_dir, entry, "SKILL.md")):
             skills_found.append(entry)
 
-if len(skills_found) < 20:
+if len(skills_found) < 7:
     err = {
         "status": "error",
         "reason_code": "UPDATE_INTEGRITY_FAILED",
-        "message": f"New release must contain all 20 skills, but only found {len(skills_found)}.",
+        "message": f"New release must contain all 7 skills, but only found {len(skills_found)}.",
         "skills_found": len(skills_found),
         "active_version": old_version
     }
@@ -1017,11 +1017,11 @@ if os.path.isdir(skills_dir):
         if os.path.isfile(os.path.join(skills_dir, entry, "SKILL.md")):
             skills_found.append(entry)
 
-if len(skills_found) < 20:
+if len(skills_found) < 7:
     err = {
         "status": "error",
         "reason_code": "ROLLBACK_INTEGRITY_FAILED",
-        "message": f"Rollback target {prev_version} is corrupted (found {len(skills_found)} skills, expected 20).",
+        "message": f"Rollback target {prev_version} is corrupted (found {len(skills_found)} skills, expected 7).",
         "active_version": current_version,
         "target_version": prev_version
     }
@@ -1561,7 +1561,7 @@ receipt = {
     "overwrites_count": 0,
     "conflicts": [],
     "skills_count": len(skill_entries),
-    "business_skills": 19,
+    "business_skills": len([s for s in skill_entries if not s.get("is_anchor")]),
     "skill_entries": skill_entries,
     "registered_agents": registered_agents,
     "doctor_health": doctor_health,

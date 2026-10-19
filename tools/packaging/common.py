@@ -38,7 +38,7 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
         if path.name.startswith('.env') or path.name=='config.yaml':continue
         if path.suffix not in ALLOWED_SUFFIXES and path.name not in {'astock','LICENSE'}:continue
         files.append(path)
-    instructions={'platform':platform,'mode':'release-candidate-collection','skill_entries':20,'business_skills':19,
+    instructions={'platform':platform,'mode':'release-candidate-collection','skill_entries':7,'business_skills':6,
                   'runtime':'skill_bundle/runtime','skills':'skill_bundle/skills',
                   'universal_skills':'skills',
                   'anchor_skill':'skill_bundle/skills/a-stock-agents',
@@ -49,7 +49,7 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
                   'python_requirement':'3.9+', 'installer':{'windows':'install.ps1','posix':'install.sh'},
                   'dependency_install':'base: pip install -r requirements.txt; data-source extras (akshare/MyTT/akshare-proxy-patch/efinance): pip install -r requirements-full.txt; version constraints are declared only in pyproject.toml [full] and derived at build time',
                   'launcher':{'windows':'skill_bundle/runtime/astock.ps1','posix':'skill_bundle/runtime/astock','fallback':'python skill_bundle/runtime/cli.py'},
-                  'health_check':'python skill_bundle/runtime/doctor.py (exit 0 when healthy; 20 skill entries expected)',
+                  'health_check':'python skill_bundle/runtime/doctor.py (exit 0 when healthy; 7 skill entries expected)',
                   'notice':'Complete collection candidate. Native host import and skill discovery require separate acceptance. Do not register the development repository.'}
     full_extra=_full_extra_requirements()
     requirements_full='\n'.join(
@@ -114,7 +114,7 @@ def package_project(output_path=None,version_tag='v3',platform='collection'):
         plugin_meta = {
             "name": "a-stock-agents",
             "version": "3.0.0",
-            "description": "A-Stock Agents - A股全流程量化投研与实战反应决策智能体技能总包 (19项专业技能 + 1个总入口)",
+            "description": "A-Stock Agents - A股全流程量化投研与实战反应决策智能体技能总包 (6项生产级专业技能 + 1个总入口)",
             "author": "cvdnn",
             "skills": "./skills",
             "entry": "./skills/a-stock-agents"

@@ -20,6 +20,7 @@ from core.commands.model_cmds import (
     cmd_analyze,
     cmd_debate,
     cmd_deploy_monitor,
+    cmd_diagnose,
     cmd_evaluate,
     cmd_multi_factor,
     cmd_score,
@@ -38,6 +39,7 @@ from core.commands.strategy_cmds import (
     cmd_risk,
     cmd_quant_pipeline,
     cmd_shortline_check,
+    cmd_signal,
     cmd_strategy_swing,
     cmd_vol_breakout,
 )
@@ -107,4 +109,6 @@ __all__ = [
     "cmd_trade_dispatch",
     "cmd_funnel",
     "cmd_screen_model",
+    "cmd_diagnose",
+    "cmd_signal",
 ]

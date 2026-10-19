@@ -22,9 +22,109 @@ logger = get_logger("core.governance.skill_registry")
 
 
 
-# ── Canonical Parameter Schemas for all 19 Skills ────────────────────────────
+# ── Legacy Aliases Mapping (19 Old Skills -> 1+6 Architecture) ───────────────
+
+LEGACY_SKILL_ALIASES: Dict[str, str] = {
+    # 阶段 ① 看盘知势
+    "astock-data-feed": "astock-market-data",
+    # 阶段 ② 选股立池
+    "astock-screener-5a": "astock-smart-screener",
+    "astock-selection-model": "astock-smart-screener",
+    "astock-quant-engine": "astock-smart-screener",
+    # 阶段 ③ 择时定买
+    "astock-strategy-mainboard": "astock-tactical-signals",
+    "astock-strategy-macd": "astock-tactical-signals",
+    "astock-strategy-chenxiaoqun": "astock-tactical-signals",
+    "astock-strategy-tuige": "astock-tactical-signals",
+    # 阶段 ④ 穿透体检
+    "astock-platform-evaluate": "astock-deep-diagnose",
+    "astock-agent-debate": "astock-deep-diagnose",
+    "astock-report-html": "astock-deep-diagnose",
+    "astock-report-archive": "astock-deep-diagnose",
+    # 阶段 ⑤ 仓位风控
+    "astock-action-execution": "astock-portfolio-action",
+    "astock-pool-dashboard": "astock-portfolio-action",
+    "astock-pool-audit": "astock-portfolio-action",
+    # 阶段 ⑥ 回测验证
+    "astock-trade-paper": "astock-paper-backtest",
+    "astock-model-validation": "astock-paper-backtest",
+    # 总控与运维锚点
+    "astock-meta-routing": "a-stock-agents",
+    "astock-knowledge-tips": "a-stock-agents",
+}
+
+
+# ── Canonical Parameter Schemas for 1+6 Architecture & Legacy Aliases ─────────
 
 SKILL_SCHEMAS: Dict[str, Dict[str, Any]] = {
+    # ── 1 + 6 Production Investment Research Skills ──
+    "astock-market-data": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": "6位A股代码，如 600519、000001、300750"},
+            "action": {"type": "string", "enum": ["quote", "tech", "history", "cyq", "events", "market"], "description": "数据类型：quote (实时行情), tech (技术指标), history (历史K线), cyq (筹码分布), events (重大事件), market (大盘五维情绪)"},
+            "count": {"type": "integer", "description": "K线根数，默认 60"},
+        },
+        "required": ["code"],
+    },
+    "astock-smart-screener": {
+        "type": "object",
+        "properties": {
+            "mode": {"type": "string", "enum": ["5a", "funnel", "quant"], "description": "选股模式：5A多维共振、ISS四阶漏斗或量化截面因子"},
+            "dynamic_mode": {"type": "string", "enum": ["hot_sectors", "high_momentum"], "description": "动态股票池推断模式"},
+            "limit": {"type": "integer", "description": "选股结果数量上限，默认 10"},
+        },
+    },
+    "astock-tactical-signals": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": "6位A股股票代码"},
+            "tactic": {"type": "string", "enum": ["all", "mainboard", "macd", "chenxiaoqun", "tuige"], "description": "实战战法类型：全部、主板缩量回踩、MACD二次金叉底背离、陈小群龙头或退哥接力"},
+            "count": {"type": "integer", "description": "K线根数，默认 120"},
+        },
+        "required": ["code"],
+    },
+    "astock-deep-diagnose": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": "6位A股股票代码进行个股全维深度诊断"},
+            "cost": {"type": "number", "description": "持仓买入成本价"},
+            "shares": {"type": "integer", "description": "持仓股数"},
+            "debate": {"type": "boolean", "description": "是否开启7大分析师多空对抗辩论，默认 false"},
+            "html": {"type": "boolean", "description": "是否生成自包含交互式HTML研报，默认 false"},
+        },
+        "required": ["code"],
+    },
+    "astock-portfolio-action": {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": ["plan", "list", "add", "remove", "audit", "tdx"], "description": "动作：plan (实战保本与动作单), list (股池查看), add (加自选/持仓), remove (移除), audit (均线审计清洗), tdx (导出通达信)"},
+            "code": {"type": "string", "description": "6位A股股票代码"},
+            "cost": {"type": "number", "description": "买入成本价"},
+            "shares": {"type": "integer", "description": "持仓股数"},
+            "pool_type": {"type": "string", "enum": ["focus", "custom", "holding"], "description": "股票池类型"},
+        },
+    },
+    "astock-paper-backtest": {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": ["balance", "positions", "buy", "sell", "orders", "cancel", "backtest", "oos_validate"], "description": "交易或回测动作"},
+            "code": {"type": "string", "description": "6位股票代码"},
+            "shares": {"type": "integer", "description": "交易股数 (100的整数倍)"},
+            "price": {"type": "number", "description": "委托价格"},
+            "order_id": {"type": "string", "description": "委托单号"},
+            "oos": {"type": "boolean", "description": "是否执行滚动样本外检验与防过拟合分析"},
+        },
+        "required": ["action"],
+    },
+    "a-stock-agents": {
+        "type": "object",
+        "properties": {
+            "task_description": {"type": "string", "description": "用户投研任务或意图描述"},
+            "action": {"type": "string", "enum": ["intent", "tips", "doctor", "sync"], "description": "系统或数据动作"},
+        },
+    },
+    # ── Legacy Aliases Schemas ──
     "astock-data-feed": {
         "type": "object",
         "properties": {
@@ -217,15 +317,15 @@ class SkillRegistry:
             require_confirm = False
             timeout = 30
 
-            if sid == "astock-trade-paper":
+            if sid in ("astock-paper-backtest", "astock-trade-paper"):
                 risk = SkillRiskLevel.SIMULATION
                 require_confirm = True
-            elif sid in ("astock-pool-audit", "astock-report-archive", "astock-report-html"):
+            elif sid in ("astock-portfolio-action", "astock-pool-audit", "astock-report-archive", "astock-report-html"):
                 risk = SkillRiskLevel.FILESYSTEM_WRITE
                 require_confirm = sid == "astock-pool-audit"
-            elif sid in ("astock-screener-5a", "astock-quant-engine", "astock-model-validation"):
+            elif sid in ("astock-smart-screener", "astock-screener-5a", "astock-quant-engine", "astock-model-validation"):
                 timeout = 60
-            elif sid == "astock-agent-debate":
+            elif sid in ("astock-deep-diagnose", "astock-agent-debate"):
                 timeout = 120
 
             schema = SKILL_SCHEMAS.get(sid, {
@@ -284,10 +384,14 @@ class SkillRegistry:
         return res
 
     def get_skill(self, skill_id: str) -> Optional[SkillMeta]:
-        """Fetch metadata for a given skill id (supports hyphen or underscore format)."""
+        """Fetch metadata for a given skill id (supports hyphen, underscore, and legacy aliases)."""
         sid = skill_id.replace("_", "-")
         if sid in self._skills:
             return self._skills[sid]
+        if sid in LEGACY_SKILL_ALIASES:
+            canonical_id = LEGACY_SKILL_ALIASES[sid]
+            if canonical_id in self._skills:
+                return self._skills[canonical_id]
         # Also try reverse if keyed with underscores
         return self._skills.get(skill_id)
 

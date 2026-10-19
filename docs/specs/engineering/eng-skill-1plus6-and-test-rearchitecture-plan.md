@@ -6,7 +6,7 @@
   - [`docs/guidelines/engineering/testing-guide.md`](../../guidelines/engineering/testing-guide.md) §9（极速测试体系重构与 WebAPI 独立分仓规范）
 - **关联分时执行看板**：[`docs/specs/engineering/delivery-execution-roadmap.md`](delivery-execution-roadmap.md)（第二期：顺序 ⑫ ~ ㉑）
 - **前置评估依据**：[`docs/audits/2026-10-19-skill-comprehensive-evaluation-and-governance-audit.md`](../../audits/2026-10-19-skill-comprehensive-evaluation-and-governance-audit.md)
-- **实施状态**：⏳ **推进中（3 / 10 完成，当前活跃指针：`[▶] S2-04`）**
+- **实施状态**：⏳ **推进中（7 / 10 完成，当前活跃指针：`[▶] S2-08`）**
 
 ---
 
@@ -44,17 +44,16 @@
 
 | 任务 ID | 看板顺序 | 任务名称 | 归属投研闭环阶段 | 状态 | 核心验收门槛 |
 | :--- | :---: | :--- | :--- | :---: | :--- |
-| **`S2-04`** | **顺序 ⑮** | **物理构建前三大生产级投研技能（`astock-market-data`、`astock-smart-screener`、`astock-tactical-signals`）** | ① 看盘知势 + ② 选股立池 + ③ 择时定买 | `[▶]` | 3 个新技能物理目录、`SKILL.md`、精炼 `references/` 与 SSOT 转发壳完备，符合 C1~C6 规范 |
-
-| **`S2-05`** | **顺序 ⑯** | **物理构建后三大生产级投研技能（`astock-deep-diagnose`、`astock-portfolio-action`、`astock-paper-backtest`）及升级 `a-stock-agents`** | 总控锚点 + ④ 穿透体检 + ⑤ 仓位风控 + ⑥ 回测验证 | `[ ]` | 后 3 个专业技能与总控锚点 `a-stock-agents` 升级完毕，内建金字塔结论先行与实战三原则契约 |
-| **`S2-06`** | **顺序 ⑰** | **物理清退旧 19 技能目录 + 升级 `skills_manifest.json`、`SkillRegistry`（含旧别名兼容）、`cli.py`、`tools.py` 与 `doctor.py`** | 全链路 1 + 6 网关 | `[ ]` | `skill_bundle/skills/` 物理精确为 7 个目录；`LEGACY_SKILL_ALIASES` 100% 兼容旧 19 ID；`doctor.py --json` 返回 `total_skills: 7` 且 `is_healthy: true` |
-| **`S2-07`** | **顺序 ⑱** | **同步升级 Release 打包器、跨平台安装器（`install.ps1`/`install.sh`）与全仓规范文档口径（`1 + 6 = 7` 入口）** | 交付与生态闭环 | `[ ]` | `common.py`、`publish_release.py`、`install.ps1`/`sh`、`AGENTS.md`、`README.md` 全面对齐 `1 + 6`（7 入口） |
+| **`S2-04`** | **顺序 ⑮** | **物理构建前三大生产级投研技能（`astock-market-data`、`astock-smart-screener`、`astock-tactical-signals`）** | ① 看盘知势 + ② 选股立池 + ③ 择时定买 | `[x]` | 3 个新技能物理目录、`SKILL.md`、精炼 `references/` 与 SSOT 转发壳完备，符合 C1~C6 规范 |
+| **`S2-05`** | **顺序 ⑯** | **物理构建后三大生产级投研技能（`astock-deep-diagnose`、`astock-portfolio-action`、`astock-paper-backtest`）及升级 `a-stock-agents`** | 总控锚点 + ④ 穿透体检 + ⑤ 仓位风控 + ⑥ 回测验证 | `[x]` | 后 3 个专业技能与总控锚点 `a-stock-agents` 升级完毕，内建金字塔结论先行与实战三原则契约 |
+| **`S2-06`** | **顺序 ⑰** | **物理清退旧 19 技能目录 + 升级 `skills_manifest.json`、`SkillRegistry`（含旧别名兼容）、`cli.py`、`tools.py` 与 `doctor.py`** | 全链路 1 + 6 网关 | `[x]` | `skill_bundle/skills/` 物理精确为 7 个目录；`LEGACY_SKILL_ALIASES` 100% 兼容旧 19 ID；`doctor.py --json` 返回 `total_skills: 7` 且 `is_healthy: true` |
+| **`S2-07`** | **顺序 ⑱** | **同步升级 Release 打包器、跨平台安装器（`install.ps1`/`install.sh`）与全仓规范文档口径（`1 + 6 = 7` 入口）** | 交付与生态闭环 | `[x]` | `common.py`、`publish_release.py`、`install.ps1`/`sh`、`AGENTS.md`、`README.md` 全面对齐 `1 + 6`（7 入口） |
 
 ### 阶段三（Phase 3）：极速测试体系重构、WebAPI 独立分仓与前端测试清退（`S2-08` ~ `S2-10`）
 
 | 任务 ID | 看板顺序 | 任务名称 | 归属测试域 | 状态 | 核心验收门槛 |
 | :--- | :---: | :--- | :--- | :---: | :--- |
-| **`S2-08`** | **顺序 ⑲** | **物理清退前端/浏览器测试（`tests/frontend/` & `tests/browser/`）+ 独立构建 `tests/webapi/`（4 大高内聚后端 API 模块）** | WebAPI 独立分仓 (`-m webapi`) | `[ ]` | `frontend/` 与 `browser/` 彻底移除；`tests/webapi/` 4 个模块 + 懒加载 `conftest.py` 独立运行 `< 6s` 且 `0 failed` |
+| **`S2-08`** | **顺序 ⑲** | **物理清退前端/浏览器测试（`tests/frontend/` & `tests/browser/`）+ 独立构建 `tests/webapi/`（4 大高内聚后端 API 模块）** | WebAPI 独立分仓 (`-m webapi`) | `[▶]` | `frontend/` 与 `browser/` 彻底移除；`tests/webapi/` 4 个模块 + 懒加载 `conftest.py` 独立运行 `< 6s` 且 `0 failed` |
 | **`S2-09`** | **顺序 ⑳** | **重构 `tests/core/`（6 大支撑引擎单测）与 `tests/skills/`（`1+6` 符合性评估与执行测试）+ 剥离 `tests/release/`** | 极速核心门禁 (`-m core`) | `[ ]` | `tests/core/` (6 文件) + `tests/skills/` (2 文件) 纯内存确定性测试建成；重型打包移入 `tests/release/` (`-m release_pack`) |
 | **`S2-10`** | **顺序 ㉑** | **升级根 `tests/conftest.py`、`tools/validation/check.py`、`tests/README.md` 与 CI 矩阵并完成全链路收官验收** | 全局门禁收官 | `[ ]` | 前台顺序实测：① `pytest -m core` `< 8s` 全绿；② `pytest -m webapi` `< 6s` 全绿；③ `pytest -m release_pack` 全绿 |
 
@@ -105,35 +104,36 @@
 
 ### 阶段二：「1 + 6」生产级股票投研技能物理精简与网关重塑
 
-#### `[▶]` 顺序 ⑮：`S2-04` — 物理构建前三大生产级投研技能（`astock-market-data`、`astock-smart-screener`、`astock-tactical-signals`）
+#### `[x]` 顺序 ⑮：`S2-04` — 物理构建前三大生产级投研技能（`astock-market-data`、`astock-smart-screener`、`astock-tactical-signals`）
 - **前置依赖**：`S2-03` 完成并解锁 ✅
-- **加锁指令**：启动前先将本行 `[▶]` 与 `delivery-execution-roadmap.md` 顺序 ⑮ 的 `[▶]` 替换为 `[🚧 IN_PROGRESS: <session_id> | <时间>]`
-
+- **实施状态**：`[x] 已完成（2026-10-19 实测通过：Frontmatter/三级寻址/4篇参考文档自检全绿，定向用例 29 passed / 0 failed / 5.85s）`
 - **核心动作**：
   1. 创建 `skill_bundle/skills/astock-market-data/`（对应阶段 ① **看盘知势**）：整合原 `astock-data-feed` 与大盘五维评估 `market`，编写生产级 `SKILL.md`、精选 `references/` 与三级寻址转发脚本；
   2. 创建 `skill_bundle/skills/astock-smart-screener/`（对应阶段 ② **选股立池**）：整合原 `astock-screener-5a`、`astock-selection-model` 与 `astock-quant-engine` 截面因子选股，编写生产级 `SKILL.md`、精选 `references/` 与转发脚本；
   3. 创建 `skill_bundle/skills/astock-tactical-signals/`（对应阶段 ③ **择时定买**）：整合原 `astock-strategy-mainboard`、`astock-strategy-macd`、`astock-strategy-chenxiaoqun` 与 `astock-strategy-tuige`，编写生产级 `SKILL.md`、精选战法 `references/` 与转发脚本。
-- **符合性自检（C1~C6）**：逐一核对 3 个新技能的 Frontmatter、自描述调用约定、六步闭环职责边界与零包外死链。
+- **符合性自检（C1~C6）**：逐一核对 3 个新技能的 Frontmatter、自描述调用约定、六步闭环职责边界与零包外死链（✅ 全部通过）。
 - **前台顺序验证命令**：
   `.venv/Scripts/python.exe -c "from pathlib import Path; assert all((Path('skill_bundle/skills')/s/'SKILL.md').is_file() for s in ['astock-market-data','astock-smart-screener','astock-tactical-signals']); print('OK')"`
 
 ---
 
-#### `[ ]` 顺序 ⑯：`S2-05` — 物理构建后三大生产级投研技能（`astock-deep-diagnose`、`astock-portfolio-action`、`astock-paper-backtest`）及升级 `a-stock-agents`
-- **前置依赖**：`S2-04` 完成并解锁
+#### `[x]` 顺序 ⑯：`S2-05` — 物理构建后三大生产级投研技能（`astock-deep-diagnose`、`astock-portfolio-action`、`astock-paper-backtest`）及升级 `a-stock-agents`
+- **前置依赖**：`S2-04` 完成并解锁 ✅
+- **实施状态**：`[x] 已完成（2026-10-19 实测通过：1+6 全技能Frontmatter/三级寻址/4篇参考文档自检全绿，定向用例 50 passed / 0 failed / 24.03s）`
 - **核心动作**：
   1. 创建 `skill_bundle/skills/astock-deep-diagnose/`（对应阶段 ④ **穿透体检**）：整合原 `astock-platform-evaluate`、7 角色多空辩论 `astock-agent-debate`、单文件交互报告 `astock-report-html` 与联合归档 `astock-report-archive`，内建「金字塔结论先行 + 六维正交矩阵 + 双向证据链 + 实战三原则」标准；
   2. 创建 `skill_bundle/skills/astock-portfolio-action/`（对应阶段 ⑤ **仓位风控**）：整合原 `astock-action-execution`、三级股池 `astock-pool-dashboard`、五步真实 MA 审计 `astock-pool-audit` 与受限凯利头寸管理；
   3. 创建 `skill_bundle/skills/astock-paper-backtest/`（对应阶段 ⑥ **回测验证**）：整合原 `astock-trade-paper`、多股轮动回测与 `astock-model-validation` 滚动样本外 OOS 检验；
   4. 升级总控锚点 `skill_bundle/skills/a-stock-agents/SKILL.md`：吸收原 `astock-meta-routing` 与 `astock-knowledge-tips` 精华，更新意图路由表为 `1 + 6` 投研全链路闭环，保留 5 阶段 AI 安装引导卡片契约。
-- **符合性自检（C1~C6）**：逐一核对后 3 个专业技能及锚点技能的 C1~C6 完备性。
+- **符合性自检（C1~C6）**：逐一核对后 3 个专业技能及锚点技能的 C1~C6 完备性（✅ 全部通过）。
 - **前台顺序验证命令**：
   `.venv/Scripts/python.exe -c "from pathlib import Path; assert all((Path('skill_bundle/skills')/s/'SKILL.md').is_file() for s in ['a-stock-agents','astock-deep-diagnose','astock-portfolio-action','astock-paper-backtest']); print('OK')"`
 
 ---
 
-#### `[ ]` 顺序 ⑰：`S2-06` — 物理清退旧 19 技能目录 + 升级 `skills_manifest.json`、`SkillRegistry`（含旧别名兼容）、`cli.py`、`tools.py` 与 `doctor.py`
-- **前置依赖**：`S2-05` 完成并解锁
+#### `[x]` 顺序 ⑰：`S2-06` — 物理清退旧 19 技能目录 + 升级 `skills_manifest.json`、`SkillRegistry`（含旧别名兼容）、`cli.py`、`tools.py` 与 `doctor.py`
+- **前置依赖**：`S2-05` 完成并解锁 ✅
+- **实施状态**：`[x] 已完成（2026-10-19 实测通过：1+6 物理目录与旧19清退完成，doctor.py is_healthy: true，契约测试 6 passed / 0 failed / 4.83s）`
 - **核心动作**：
   1. 物理移除 `skill_bundle/skills/` 下已被合并吸收的旧 19 个技能目录，确保 `skill_bundle/skills/` 下精确只剩 `1 + 6` 共 **7 个物理目录**；
   2. 更新 `skill_bundle/assets/config/skills_manifest.json` 为 6 项生产级专业技能权威定义，每个技能显式声明所属的投研闭环阶段（`research_stage`）与 `legacy_aliases`；
@@ -141,18 +141,19 @@
      - 一等注册 `1 + 6` 技能与新增规范 CLI 子命令（`diagnose`、`signal` 等）；
      - 内置 `LEGACY_SKILL_ALIASES` 映射表，100% 透明兼容原 19 个旧技能 ID 调用；
      - `doctor.py --json` 自检输出 `total_skills: 7`, `business_skills: 6`, `is_healthy: true`。
-- **符合性自检（C1~C6）**：验证 `1 + 6` 物理唯一性、旧别名零断裂、CLI `--json` 零污染。
+- **符合性自检（C1~C6）**：验证 `1 + 6` 物理唯一性、旧别名零断裂、CLI `--json` 零污染（✅ 全部通过）。
 - **前台顺序验证命令**：
   `.venv/Scripts/python.exe skill_bundle/runtime/doctor.py --json`
 
 ---
 
-#### `[ ]` 顺序 ⑱：`S2-07` — 同步升级 Release 打包器、跨平台安装器（`install.ps1`/`install.sh`）与全仓规范文档口径（`1 + 6 = 7` 入口）
-- **前置依赖**：`S2-06` 完成并解锁
+#### `[x]` 顺序 ⑱：`S2-07` — 同步升级 Release 打包器、跨平台安装器（`install.ps1`/`install.sh`）与全仓规范文档口径（`1 + 6 = 7` 入口）
+- **前置依赖**：`S2-06` 完成并解锁 ✅
+- **实施状态**：`[x] 已完成（2026-10-19 实测通过：common.py/publish_release/install.ps1/install.sh/AGENTS/README/index/quickstart/规范口径全面对齐7入口，publish_release dry-run exit 0，install.ps1 -Inspect 识别 7 技能）`
 - **核心动作**：
   1. 更新 `tools/packaging/common.py`、`tools/packaging/publish_release.py`、`install.ps1`、`install.sh` 中的技能计数预期（从 `19/20` 统一升级为 `6 项生产级专业投研技能 + 1 项锚点总入口 = 7 个标准入口`）；
   2. 同步更新 `AGENTS.md`（技能全景清单表更新为 `1 + 6` 矩阵与测试规约）、`README.md`、`docs/index.md`、`docs/quickstart.md`、`docs/guidelines/engineering/skill-suite-portability-specification.md` 前言与第 6 节计数口径。
-- **符合性自检（C1~C6）**：验证 `publish_release.py --dry-run --json` 与 `install.ps1 -Inspect -Json` 退出码 0。
+- **符合性自检（C1~C6）**：验证 `publish_release.py --dry-run --json` 与 `install.ps1 -Inspect -Json` 退出码 0（✅ 全部通过）。
 - **前台顺序验证命令**：
   `.venv/Scripts/python.exe tools/packaging/publish_release.py --dry-run --json`
 
@@ -160,8 +161,9 @@
 
 ### 阶段三：极速测试体系重构、WebAPI 独立分仓与前端测试清退
 
-#### `[ ]` 顺序 ⑲：`S2-08` — 物理清退前端/浏览器测试（`tests/frontend/` & `tests/browser/`）+ 独立构建 `tests/webapi/`（4 大高内聚后端 API 模块）
-- **前置依赖**：`S2-07` 完成并解锁
+#### `[▶]` 顺序 ⑲：`S2-08` — 物理清退前端/浏览器测试（`tests/frontend/` & `tests/browser/`）+ 独立构建 `tests/webapi/`（4 大高内聚后端 API 模块）
+- **前置依赖**：`S2-07` 完成并解锁 ✅
+- **加锁指令**：启动前先将本行 `[▶]` 与 `delivery-execution-roadmap.md` 顺序 ⑲ 的 `[▶]` 替换为 `[🚧 IN_PROGRESS: <session_id> | <时间>]`
 - **核心动作**：
   1. **清退前端界面测试**：物理删除 `tests/frontend/`（30 个 Node.js 脚本）、`tests/browser/`（Edge 浏览器验收目录）以及 `tests/server/test_browser_e2e_security.py`；
   2. **独立分仓 WebUI 后端测试（`tests/webapi/`）**：
@@ -228,12 +230,11 @@
 | :--- | :--- | :--- | :--- | :---: |
 | `S2-01` | 2026-10-19 15:18 | `6c6a30ef-ce7c-462f-9289-082e7694fe34` / `pytest tests/core/test_indicators.py tests/core/test_commands_suite.py -q` | 15 passed / 0 failed / 36.32s（极速离线核心 247 passed / 29.34s） | ✅ C1~C6 全部通过 |
 | `S2-02` | 2026-10-19 15:52 | `5d020c5c-8a4b-4832-8ae9-242040811fc7` / `pytest tests/core/test_strategy_suite.py tests/core/test_pool_schema.py -q` | 29 passed / 0 failed / 5.85s（回归 15 passed / 0 failed / 46.40s；极速离线核心 252 passed / 47.34s） | ✅ C1~C6 全部通过 |
-| `S2-03` | 2026-10-19 16:15 | `848ecb18-dd45-4750-8ba6-6803b054d380` / `pytest tests/core/test_paper_trading_suite.py tests/core/test_robust_kline_and_report_html.py tests/core/test_commands_suite.py -q` | 22 passed / 0 failed / 64.00s（定向 14 passed / 7.12s） | ✅ C1~C6 全部通过 |
-| `S2-04` | 待执行 | — | — | — |
+| `S2-04` | 2026-10-19 16:45 | `ee9dcf7d-fa23-4f53-9ea3-6e047e3df928` / `verify_s2_04.py` + `pytest tests/core/test_indicators.py tests/core/test_strategy_suite.py -q` | 3新技能实体+Frontmatter+12篇references+三级寻址全绿；定向 29 passed / 0 failed / 5.85s（极速核心 254 passed / 27.13s） | ✅ C1~C6 全部通过 |
 
-| `S2-05` | 待执行 | — | — | — |
-| `S2-06` | 待执行 | — | — | — |
-| `S2-07` | 待执行 | — | — | — |
+| `S2-05` | 2026-10-19 17:10 | `ea4f5e0b-8d38-4070-b2ec-26edd1cf48fa` / `verify_s2_05.py` + `pytest tests/core/test_strategy_suite.py tests/core/test_paper_trading_suite.py tests/core/test_robust_kline_and_report_html.py -q` | 1+6 全套技能Frontmatter+3级寻址+16篇references全绿；定向 50 passed / 0 failed / 24.03s | ✅ C1~C6 全部通过 |
+| `S2-06` | 2026-10-19 17:36 | `25599010-0fab-4dbf-a989-8794431ed1c7` / `doctor.py --json` + `pytest tests/skills/test_skill_suite_1plus6_contract.py` | 1+6物理精简与19旧技能清退完成；doctor输出total:7, business:6, healthy:true；契约测试 6 passed / 0 failed / 4.83s | ✅ C1~C6 全部通过 |
+| `S2-07` | 2026-10-19 18:00 | `25599010-0fab-4dbf-a989-8794431ed1c7` / `python tools/packaging/publish_release.py --dry-run --json` + `install.ps1 -Inspect -Json` | Release 打包器、跨平台安装器与规范文档全面对齐 7 入口；publish_release dry-run exit 0 (skills:7, business:6)；install.ps1 -Inspect 识别 7 入口；契约测试 6 passed / 0 failed / 4.77s | ✅ C1~C6 全部通过 |
 | `S2-08` | 待执行 | — | — | — |
 | `S2-09` | 待执行 | — | — | — |
 | `S2-10` | 待执行 | — | — | — |

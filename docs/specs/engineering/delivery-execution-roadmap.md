@@ -9,7 +9,7 @@
 - **审查评估报告**：
   - [`docs/audits/2026-10-16-skill-structure-review.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/audits/2026-10-16-skill-structure-review.md)
   - [`docs/audits/2026-10-19-skill-comprehensive-evaluation-and-governance-audit.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/audits/2026-10-19-skill-comprehensive-evaluation-and-governance-audit.md)
-- **实施状态**：🚀 **第一期 24/24 已圆满闭环；第二期 `SPEC-SKILL-002`（`S2-01` ~ `S2-10`）推进中，当前唯一活跃指针：`[▶] 顺序 ⑮ (S2-04)`**
+- **实施状态**：🚀 **第一期 24/24 已圆满闭环；第二期 `SPEC-SKILL-002`（`S2-01` ~ `S2-10`）推进中，当前唯一活跃指针：`[▶] 顺序 ⑲ (S2-08)`**
 
 > [!IMPORTANT]
 > ### 🔒 看板原子执行与防并发排他规约 (Kanban Atomic Execution & Anti-Race Protocol)
@@ -35,9 +35,9 @@
 | :--- | :--- | :---: | :---: | :--- |
 | **第一期（阶段 0 ~ 阶段四）：交付与安装闭环** | `P0-01` ~ `P2-04` | **24 / 24 (100%)** | ✅ **已闭环** | 顺序 ① ~ ⑪ 全部完成（358 例门禁全绿） |
 | **第二期·阶段五：底层 6 大支撑引擎缺口闭合** | `S2-01` ~ `S2-03` | **3 / 3 (100%)** | ✅ **已闭环** | 顺序 ⑫ ~ ⑭ 全部完成（S2-01~S2-03） |
-| **第二期·阶段六：「1 + 6」生产级投研技能物理精简** | `S2-04` ~ `S2-07` | **0 / 4 (0%)** | ⏳ **推进中** | **`[▶] 顺序 ⑮ (S2-04)`** |
-| **第二期·阶段七：极速测试重构与 WebAPI 独立分仓** | `S2-08` ~ `S2-10` | **0 / 3 (0%)** | ⏸️ **等待前序** | 等待 `S2-07` 完成解锁 |
-| **全工程总计（第一期 + 第二期）** | 24 + 10 = 34 项任务 | **27 / 34 (79.4%)** | 🚀 **分时推进中** | **当前唯一入口：`[▶] 顺序 ⑮ (S2-04)`** |
+| **第二期·阶段六：「1 + 6」生产级投研技能物理精简** | `S2-04` ~ `S2-07` | **4 / 4 (100%)** | ✅ **已闭环** | 顺序 ⑮ ~ ⑱ 全部完成（S2-04~S2-07） |
+| **第二期·阶段七：极速测试重构与 WebAPI 独立分仓** | `S2-08` ~ `S2-10` | **0 / 3 (0%)** | ⏳ **推进中** | **`[▶] 顺序 ⑲ (S2-08)`** |
+| **全工程总计（第一期 + 第二期）** | 24 + 10 = 34 项任务 | **31 / 34 (91.2%)** | 🚀 **分时推进中** | **当前唯一活跃指针：`[▶] 顺序 ⑲ (S2-08)`** |
 
 
 ---
@@ -312,13 +312,13 @@
 
 ### 阶段六（`SPEC-SKILL-002` Phase 2）：「1 + 6」生产级股票投研技能物理精简与网关重塑
 
-#### [▶] 顺序 ⑮
+#### [x] 顺序 ⑮
 - **执行/规范文档文件 + 任务号**：
   [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-04`**
 - **关联权威规范**：
   [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.1（阶段 ① 看盘知势、阶段 ② 选股立池、阶段 ③ 择时定买）
 - **任务名称**：**物理构建前三大生产级投研技能（`astock-market-data`、`astock-smart-screener`、`astock-tactical-signals`）**
-- **进度状态**：`[▶] 就绪待执行（启动时必须先原子加锁为 [🚧 IN_PROGRESS: <session_id> | <时间>]）`
+- **进度状态**：`[x] 已完成（2026-10-19 实测通过：前台 C1~C6 符合性核验与 29 例定向测试全绿 0 failed）`
 - **前置依赖**：`S2-03` 已达成 ✅
 
 - **核心动作**：
@@ -330,14 +330,14 @@
 
 ---
 
-#### [ ] 顺序 ⑯
+#### [x] 顺序 ⑯
 - **执行/规范文档文件 + 任务号**：
   [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-05`**
 - **关联权威规范**：
   [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.1（阶段 ④ 穿透体检、阶段 ⑤ 仓位风控、阶段 ⑥ 回测验证、总控锚点）
 - **任务名称**：**物理构建后三大生产级投研技能（`astock-deep-diagnose`、`astock-portfolio-action`、`astock-paper-backtest`）及升级 `a-stock-agents`**
-- **进度状态**：`[ ] 等待 S2-04 完成解锁`
-- **前置依赖**：`S2-04`
+- **进度状态**：`[x] 已完成（2026-10-19 实测通过：1+6 完整技能与Frontmatter/三级寻址/4篇参考文档自检全绿，定向用例 50 passed / 0 failed / 24.03s）`
+- **前置依赖**：`S2-04` 已达成 ✅
 - **核心动作**：
   1. 构建 `skill_bundle/skills/astock-deep-diagnose/`（吸收 `platform-evaluate` + `agent-debate` + `report-html` + `report-archive`，内建金字塔结论先行与双向证据链）；
   2. 构建 `skill_bundle/skills/astock-portfolio-action/`（吸收 `action-execution` + `pool-dashboard` + `pool-audit` + 凯利头寸管理）；
@@ -347,13 +347,13 @@
 
 ---
 
-#### [ ] 顺序 ⑰
+#### [x] 顺序 ⑰
 - **执行/规范文档文件 + 任务号**：
   [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-06`**
 - **关联权威规范**：
   [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §9.3
 - **任务名称**：**物理清退旧 19 技能目录 + 升级 `skills_manifest.json`、`SkillRegistry`（含旧别名兼容）、`cli.py`、`tools.py` 与 `doctor.py`**
-- **进度状态**：`[ ] 等待 S2-05 完成解锁`
+- **进度状态**：`[x] 已完成（2026-10-19 实测通过：1+6 物理目录与旧19清退完成，doctor.py is_healthy: true，契约测试 6 passed / 0 failed / 4.83s）`
 - **前置依赖**：`S2-05`
 - **核心动作**：
   1. 物理删除 `skill_bundle/skills/` 下已被吸收的旧 19 个技能目录，确保持久化目录精确为 `1 + 6`（共 7 个）；
@@ -363,13 +363,13 @@
 
 ---
 
-#### [ ] 顺序 ⑱
+#### [x] 顺序 ⑱
 - **执行/规范文档文件 + 任务号**：
   [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-07`**
 - **关联权威规范**：
   [`docs/guidelines/engineering/skill-suite-portability-specification.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/skill-suite-portability-specification.md) §4、§6、§8、§9
 - **任务名称**：**同步升级 Release 打包器、跨平台安装器（`install.ps1`/`install.sh`）与全仓规范文档口径（`1 + 6 = 7` 入口）**
-- **进度状态**：`[ ] 等待 S2-06 完成解锁`
+- **进度状态**：`[x] 已完成（2026-10-19 实测通过：common.py/publish_release/install.ps1/install.sh/AGENTS/README/index/quickstart/规范口径全面对齐7入口，publish_release dry-run exit 0，install.ps1 -Inspect 识别 7 技能）`
 - **前置依赖**：`S2-06`
 - **核心动作**：
   1. 升级 `tools/packaging/common.py`、`publish_release.py`、`install.ps1`、`install.sh` 对齐 `1 + 6`（7 入口）校验；
@@ -380,13 +380,13 @@
 
 ### 阶段七（`SPEC-SKILL-002` Phase 3）：极速测试体系重构、WebAPI 独立分仓与前端测试清退
 
-#### [ ] 顺序 ⑲
+#### [▶] 顺序 ⑲
 - **执行/规范文档文件 + 任务号**：
   [`docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/specs/engineering/eng-skill-1plus6-and-test-rearchitecture-plan.md) + **`S2-08`**
 - **关联权威规范**：
   [`docs/guidelines/engineering/testing-guide.md`](file:///c:/Users/cvdnn/coding/a_stock_agents/docs/guidelines/engineering/testing-guide.md) §9.1、§9.2
 - **任务名称**：**物理清退前端/浏览器测试（`tests/frontend/` & `tests/browser/`）+ 独立构建 `tests/webapi/`（4 大高内聚后端 API 模块）**
-- **进度状态**：`[ ] 等待 S2-07 完成解锁`
+- **进度状态**：`[▶] 就绪待执行`
 - **前置依赖**：`S2-07`
 - **核心动作**：
   1. 物理删除 `tests/frontend/`、`tests/browser/` 与 `tests/server/test_browser_e2e_security.py`；

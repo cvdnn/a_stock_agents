@@ -5,9 +5,9 @@
 > [!IMPORTANT]
 > 本仓库用于技能开发和 Release 构建。AI 工具使用发布版本；不维护项目发现模式，不将开发源码注册到全局技能目录。Release 是生成产物，不作为第二套源码维护。
 
-## 当前源码与接入契约（2026-10-14）
+## 当前源码与接入契约（2026-10-19）
 
-技能唯一来源为 `skill_bundle/skills/`，公共运行时为 `skill_bundle/runtime/core/`；不建立`.agents/skills`项目发现入口。总入口`a-stock-agents`与19项专业技能共20个入口，业务清单仍为19项。
+技能唯一来源为 `skill_bundle/skills/`，公共运行时为 `skill_bundle/runtime/core/`；不建立`.agents/skills`项目发现入口。总入口`a-stock-agents`与6项生产级专业技能共7个入口，业务清单为6项（对应机构股票投研六步闭环，内建对旧 19 技能别名 100% 透明兼容）。
 
 公共配置/模板位于`skill_bundle/assets/`，共用说明位于`skill_bundle/references/`，有效用户配置位于`local/settings/application.yaml`（支持A_STOCK_CONFIG_PATH）；技能环境变量和凭据放在`local/settings/.env`。Web应用位于`apps/web-console/`，其开发端口和容器配置放在`tools/containers/web-console/`，不得复制公共算法。
 
@@ -77,31 +77,22 @@ TEMP_DIR   = PROJECT_ROOT / "temp"
 
 ---
 
-## 🧭 19 项就地技能全景清单与意图路由 (Skills Manifest)
+## 🧭 「1 + 6」生产级就地技能全景清单与意图路由 (Skills Manifest)
 
-当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** `skill_bundle/skills/<skill_id>/SKILL.md` 或 [权威技能清单](skill_bundle/assets/config/skills_manifest.json)。
+本项目现已全面升级为 **机构股票投研六步闭环「1 + 6」生产级架构**（1 项总控锚点 + 6 项核心业务技能）。当用户提出具体投资与投研诉求时，请依据下表进行意图路由。如需查阅专业交易策略细节或进阶参数，可直接**就地读取** `skill_bundle/skills/<skill_id>/SKILL.md` 或 [权威技能清单](skill_bundle/assets/config/skills_manifest.json)。
 
-| 技能 ID (`skill_bundle/skills/`) | 适用场景与触发词 | 统一 CLI 调用入口 | 核心能力描述 |
-| :--- | :--- | :--- | :--- |
-| **`astock-data-feed`** | 行情、现价、K线、筹码分布、技术指标、板块资金 | `astock data quote <代码> --json`<br>`astock data tech <代码> --json` | 4级降级实时行情与日K线，全套经典技术指标与筹码模型 |
-| **`astock-platform-evaluate`** | 全流程分析、股票诊断、综合打分、大盘健康度 | `astock evaluate <代码> --json` | 100分制量化打分、解套决策树与大盘健康度综合研判 |
-| **`astock-screener-5a`** | 选股、5A选股、主线轮动、多维评分、牛股挖掘 | `astock screen --dynamic hot_sectors --json` | 量价/基本面/估值/主线旋转 5 维共振多因子选股模型 |
-| **`astock-quant-engine`** | 截面因子、换手沉淀、MAD去极值、滚动IC | `astock quant pipeline --json` | 工业级量化工程计算流水线与因子合成引擎 |
-| **`astock-action-execution`** | 保本价、止损位、开盘冲高/急跌应对动作单 | `astock action --code <代码> --cost <成本> --shares <股数> --json` | 计入全部税费并向上进位至分位（`ceil`）的保本价精算与三级风控 |
-| **`astock-strategy-macd`** | 水下二次金叉、MACD底背离、双底形态 | `astock pattern macd <代码> --json` | 波谷极值对比与波段间距过滤的纯粹 MACD 经典形态识别 |
-| **`astock-strategy-tuige`** | 退哥短线、涨停回调、连板接力、龙头首阴 | `astock shortline check --code <代码> --json` | 纪律严明的 A 股短线与接力交易规则库 |
-| **`astock-strategy-chenxiaoqun`** | 陈小群、大连金马路、深水低吸、弱转强、地天板、中军换手板、首阴反包 | `astock pattern chenxiaoqun <代码> --json` | 顶级游资总龙头战法：深水低吸/竞价弱转强/中军做T锁仓/首阴二波 |
-| **`astock-strategy-mainboard`** | 主板波段、趋势回踩、防守反击、流动性池 | `astock strategy swing --code <代码> --json` | 聚焦主板大市值流动性品种的多波段防御策略 |
-| **`astock-pool-dashboard`** | 股票池、自选股、关注池、持仓池查看 | `astock pool list --json` | 个人三级股票池生命周期管理与盘中监控 |
-| **`astock-pool-audit`** | 审查股票池、清洗失效标的、支撑阻力重算 | `astock pool audit --json` | 自动清洗过期失效标的，更新关键位与止损参考 |
-| **`astock-trade-paper`** | 模拟盘、模拟买入/卖出、账户资金、持仓查询 | `astock trade balance --json`<br>`astock trade buy/sell --json` | 考虑市场冲击滑点与 T+1 硬约束的真实撮合模拟盘 |
-| **`astock-agent-debate`** | 多空辩论、7大分析师辩论、深度研报 | `astock debate <代码> --json` | 基本面/量价/消息/政策/游资/筹码/风控 7 角色对抗研判 |
-| **`astock-report-html`** | HTML报告、可视化报表生成 | `astock report <代码> --json` | 白色亚光背景、红涨绿跌、自包含单文件交互式报告 |
-| **`astock-report-archive`** | 报告归档、多股联合报告 | `astock report <代码> --json` | 报告结构化持久化规范与多股聚合分析文档 |
-| **`astock-meta-routing`** | 任务路由、大模型选型策略 | `astock tips --json` | 纯分析 vs 代码执行的任务分流规范与模型推荐 |
-| **`astock-knowledge-tips`** | 避坑指南、集合竞价、防被封技巧 | `astock tips --json` | 历史实战踩坑经验、数据源降级策略与风控心法 |
-| **`astock-model-validation`** | 外部AI时序模型检验、样本外回测 | `astock validate-model --json` | 外部时序模型（TimesFM/Kronos）的滚动样本外回测标准 |
-| **`astock-selection-model`** | 智能选股、选股模型、层级漏斗、条件树、模型版本、选股调度、结果研究、跟踪评估 | `astock funnel validate --json`<br>`astock funnel run --stage <阶段> --assemble --json` | SPEC-ALGO-ISS-001 配置化智能选股系统：模型编译、版本仓库、交易日调度与结果研究跟踪评估 |
+| 技能 ID (`skill_bundle/skills/`) | 投研阶段 | 适用场景与触发词 | 统一 CLI 调用入口 | 核心能力描述与吸收旧技能 |
+| :--- | :---: | :--- | :--- | :--- |
+| **`a-stock-agents`** | **总控锚点** | 总控分发、环境诊断、避坑指南、任务路由 | `astock tips --json`<br>`astock skill list --json`<br>`astock doctor --json` | 总控与生态安装锚点，内置意图动态路由、实战踩坑提示与 5 阶段引导卡片契约（吸收 `meta-routing`、`knowledge-tips`） |
+| **`astock-market-data`** | **① 看盘知势** | 行情、现价、K线、筹码分布、技术指标、大盘健康度、北向资金 | `astock data quote <代码> --json`<br>`astock data tech <代码> --json`<br>`astock market status --json` | 4 级降级实时行情与日 K 线，大盘五维打分与量价筹码模型（吸收原 `astock-data-feed`） |
+| **`astock-smart-screener`** | **② 选股立池** | 选股、5A选股、层级漏斗、条件树、截面因子、主线轮动 | `astock screen --dynamic hot_sectors --json`<br>`astock funnel run --stage 3 --assemble --json`<br>`astock quant pipeline --json` | 5A 多因子共振、SPEC-ALGO-ISS-001 配置化智能漏斗与工业级量化流水线（吸收原 `screener-5a`、`selection-model`、`quant-engine`） |
+| **`astock-tactical-signals`** | **③ 择时定买** | 战法信号、水下二次金叉、底背离、退哥短线、陈小群龙头、主板波段 | `astock signal <代码> --json`<br>`astock pattern macd <代码> --json`<br>`astock pattern chenxiaoqun <代码> --json`<br>`astock shortline check --code <代码> --json` | 纯粹 MACD 形态、退哥连板首阴、陈小群总龙头低吸与主板防御，**全信号强制内嵌 250 日胜率锚**（吸收原 `macd`、`tuige`、`chenxiaoqun`、`mainboard`） |
+| **`astock-deep-diagnose`** | **④ 穿透体检** | 股票诊断、多空辩论、深度研报、HTML报告、综合评分 | `astock diagnose <代码> --json`<br>`astock evaluate <代码> --json`<br>`astock debate <代码> --json`<br>`astock report <代码> --json` | 100 分制量化打分、7 角色对抗研判与单文件亚光 HTML 报告，**强制执行金字塔结论先行、双向证据链与实战三原则**（吸收原 `evaluate`、`debate`、`report-html`、`report-archive`） |
+| **`astock-portfolio-action`** | **⑤ 仓位风控** | 保本价精算、三级风控止损、股池审计、自选股监控、头寸管理 | `astock action --code <代码> --cost <成本> --shares <股数> --json`<br>`astock pool list --json`<br>`astock pool audit --json` | `math.ceil` 向上进位保本价、三级风控阶梯、五步真实 MA 股池清洗与受限凯利头寸管理（吸收原 `action-execution`、`pool-dashboard`、`pool-audit`） |
+| **`astock-paper-backtest`** | **⑥ 回测验证** | 模拟盘交易、多股轮动回测、样本外OOS回测、AI时序模型检验 | `astock backtest --code <代码> --oos --json`<br>`astock trade balance --json`<br>`astock trade buy/sell --json`<br>`astock validate-model --json` | 真实滑点与 T+1 硬约束撮合模拟盘、滚动样本外（Rolling OOS）检验与过拟合三重警报（吸收原 `trade-paper`、`model-validation`） |
+
+> [!NOTE]
+> **旧 19 技能别名兼容保证**：系统内部 `SkillRegistry` 与 `tools.py` 内置了 `LEGACY_SKILL_ALIASES` 100% 完整映射表，所有调用旧 19 技能名（如 `astock-strategy-tuige`、`astock-agent-debate` 等）的请求均会自动、无缝转发至对应的生产级新技能执行，保障历史生态完全兼容。
 
 
 ---
