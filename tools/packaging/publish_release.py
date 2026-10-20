@@ -11,7 +11,7 @@ A-Stock Agents 独立 Release 仓库发布与通用生态 (npx skills add) 分�
 功能职责：
 1. export_release_distribution(output_dir, version_tag):
    导出标准规范的 Release 分发目录结构：
-   - skills/：包含 20 个技能目录（1 锚点 a-stock-agents + 19 专业技能）
+   - skills/：包含 7 个技能目录（1 锚点 a-stock-agents + 6 生产级业务技能）
    - skills/a-stock-agents/：包含完整 runtime/、assets/、references/、bundle.json、requirements*.txt
    - .codex-plugin/plugin.json：Codex 插件清单
    - install.ps1 / install.sh：统一安装内核（含 0o755 执行位）
@@ -239,7 +239,7 @@ def sync_git_release_branch(branch_name: str = "release", remote: str = "origin"
         "dry_run": False,
         "target_branch": branch_name,
         "exported_root": str(temp_dist),
-        "skills_count": export_info.get("skills_count", 20),
+        "skills_count": export_info.get("skills_count", 7),
         "ecosystem_command": f"npx skills add cvdnn/a-stock-agents -g",
     }
 
@@ -266,7 +266,7 @@ def main():
     else:
         print(f"[Release Distribution] Status: {results.get('status')} | Exported to: {results.get('export_dir', results.get('exported_root'))}")
         print(f"Universal Ecosystem Entry: {results.get('ecosystem_command')}")
-        print(f"Skills Count: {results.get('skills_count')} (1 Anchor + 19 Business)")
+        print(f"Skills Count: {results.get('skills_count')} (1 Anchor + 6 Business)")
 
 
 if __name__ == "__main__":

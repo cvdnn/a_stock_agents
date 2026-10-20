@@ -20,6 +20,7 @@ UNINSTALL=""
 UPDATE=false
 ROLLBACK=false
 SOURCE_DIR=""
+CLEAN_LEGACY=false
 
 # Parse arguments (supports both single and double dash)
 while [[ $# -gt 0 ]]; do
@@ -87,6 +88,10 @@ while [[ $# -gt 0 ]]; do
     -Uninstall|--uninstall)
       UNINSTALL="$2"
       shift 2
+      ;;
+    -CleanLegacy|--clean-legacy)
+      CLEAN_LEGACY=true
+      shift
       ;;
     *)
       echo "Unknown argument: $1" >&2
@@ -435,20 +440,38 @@ agents = {
     "codex": {"name": "Codex", "path": "$CODEX_PATH", "detected": os.path.isdir(os.path.expanduser("~/.codex")), "methods": ["link", "copy"]}
 }
 
+legacy_names = [
+    'a-stock-selection', 'astock-data-feed', 'astock-platform-evaluate', 'astock-screener-5a',
+    'astock-quant-engine', 'astock-action-execution', 'astock-strategy-macd', 'astock-strategy-tuige',
+    'astock-strategy-chenxiaoqun', 'astock-strategy-mainboard', 'astock-pool-dashboard', 'astock-pool-audit',
+    'astock-trade-paper', 'astock-agent-debate', 'astock-report-html', 'astock-report-archive',
+    'astock-meta-routing', 'astock-knowledge-tips', 'astock-model-validation', 'astock-selection-model'
+]
+
 all_conflicts = []
+all_legacy = []
 for ag_key, ag_val in agents.items():
     ag_path = ag_val["path"]
     ag_conflicts = []
-    if os.path.isdir(ag_path) and skills_dir and os.path.isdir(skills_dir):
-        for s in skills:
-            entry = os.path.join(ag_path, s)
-            if os.path.exists(entry) and not os.path.islink(entry):
-                copy_rc = os.path.join(ag_path, f".{s}.astock-copy.json")
-                if not os.path.isfile(copy_rc):
-                    ag_conflicts.append({"agent": ag_key, "skill": s, "path": entry})
+    ag_legacy = []
+    if os.path.isdir(ag_path):
+        if skills_dir and os.path.isdir(skills_dir):
+            for s in skills:
+                entry = os.path.join(ag_path, s)
+                if os.path.exists(entry) and not os.path.islink(entry):
+                    copy_rc = os.path.join(ag_path, f".{s}.astock-copy.json")
+                    if not os.path.isfile(copy_rc):
+                        ag_conflicts.append({"agent": ag_key, "skill": s, "path": entry})
+        for leg in legacy_names:
+            leg_entry = os.path.join(ag_path, leg)
+            if os.path.exists(leg_entry):
+                ag_legacy.append({"agent": ag_key, "skill": leg, "path": leg_entry, "is_link": os.path.islink(leg_entry)})
     ag_val["overwrites_count"] = len(ag_conflicts)
     ag_val["conflicts"] = ag_conflicts
+    ag_val["legacy_count"] = len(ag_legacy)
+    ag_val["legacy_skills"] = ag_legacy
     all_conflicts.extend(ag_conflicts)
+    all_legacy.extend(ag_legacy)
 
 py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 existing = None
@@ -474,6 +497,8 @@ out = {
     "agents": agents,
     "overwrites_count": len(all_conflicts),
     "conflicts": all_conflicts,
+    "legacy_skills_count": len(all_legacy),
+    "legacy_skills": all_legacy,
     "skills_count": len(skills),
     "skills": skills
 }
@@ -491,7 +516,14 @@ else:
     for k, v in agents.items():
         det = "[x] Detected" if v["detected"] else "[ ] Not found"
         confl = f" (Overwrites: {v['overwrites_count']} CONFLICT)" if v.get("overwrites_count", 0) > 0 else " (Overwrites: 0)"
-        print(f"  - {v['name']}: {det} ({v['path']}){confl}")
+        leg = f" (Legacy: {v['legacy_count']} OLD)" if v.get("legacy_count", 0) > 0 else ""
+        print(f"  - {v['name']}: {det} ({v['path']}){confl}{leg}")
+    if all_legacy:
+        print(f"\n[!] Legacy Skills Detected in Host Environments ({len(all_legacy)} found):")
+        for l in all_legacy:
+            t = "Symlink" if l["is_link"] else "Physical Directory"
+            print(f"  - [{l['agent']}] {l['skill']}: {l['path']} ({t})")
+        print("💡 Notice: The new 1+6 architecture replaces all legacy skills. Pass --clean-legacy during install to backup and migrate old skills.")
 EOF
     exit 0
   else
@@ -1332,8 +1364,71 @@ EOF
       echo "$CONFLICT_DATA" | "$HOST_PYTHON" -c "import json, sys; [print(f'  - [{c[\"agent\"]}] {c[\"skill\"]}: {c[\"path\"]}') for c in json.load(sys.stdin)]" >&2
       echo "Refusing to overwrite user physical directories. Pass --force to overwrite." >&2
     fi
-    exit 1
   fi
+fi
+
+# 0.2 Legacy skills sentinel in install.sh
+if [[ -n "$AGENT" ]]; then
+  "$HOST_PYTHON" - <<EOF
+import json, os, sys, shutil
+from datetime import datetime, timezone
+
+agents_arg = "$AGENT"
+known_agents = {
+    "universal": "$UNIVERSAL_PATH",
+    "hermes": "$HERMES_PATH",
+    "workbuddy": "$WORKBUDDY_PATH",
+    "codex": "$CODEX_PATH"
+}
+target_dirs = []
+for item in [a.strip() for a in agents_arg.split(",") if a.strip()]:
+    item_lower = item.lower()
+    tdir = known_agents.get(item_lower, item)
+    target_dirs.append((item_lower, tdir))
+
+legacy_names = [
+    'a-stock-selection', 'astock-data-feed', 'astock-platform-evaluate', 'astock-screener-5a',
+    'astock-quant-engine', 'astock-action-execution', 'astock-strategy-macd', 'astock-strategy-tuige',
+    'astock-strategy-chenxiaoqun', 'astock-strategy-mainboard', 'astock-pool-dashboard', 'astock-pool-audit',
+    'astock-trade-paper', 'astock-agent-debate', 'astock-report-html', 'astock-report-archive',
+    'astock-meta-routing', 'astock-knowledge-tips', 'astock-model-validation', 'astock-selection-model'
+]
+
+found_legacy = []
+for ag_name, tdir in target_dirs:
+    if os.path.isdir(tdir):
+        for leg in legacy_names:
+            p = os.path.join(tdir, leg)
+            if os.path.exists(p):
+                found_legacy.append({"agent": ag_name, "skill": leg, "path": p, "is_link": os.path.islink(p)})
+
+if found_legacy:
+    if "$CLEAN_LEGACY" == "true":
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        backup_root = os.path.join("$TARGET_DATA_ROOT", "backups", "legacy_skills", ts)
+        print(f"🛡️ CleanLegacy: Backing up and cleaning {len(found_legacy)} legacy skill(s)...")
+        for item in found_legacy:
+            lp = item["path"]
+            if item["is_link"]:
+                try:
+                    os.unlink(lp)
+                    print(f"  - [Removed Link] {item['agent']}/{item['skill']}")
+                except Exception:
+                    pass
+            else:
+                dest = os.path.join(backup_root, item["agent"], item["skill"])
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                shutil.move(lp, dest)
+                print(f"  - [Backed up & Removed] {item['agent']}/{item['skill']} -> {dest}")
+    else:
+        print("============================================================")
+        print(f"⚠️ Legacy Skills Detected ({len(found_legacy)} old skill entries found):")
+        for item in found_legacy:
+            print(f"  - [{item['agent']}] {item['skill']} ({item['path']})")
+        print("💡 Tip: Pass --clean-legacy to automatically backup and remove legacy skills,")
+        print("   ensuring AI assistants focus solely on the new 1+6 architecture.")
+        print("============================================================")
+EOF
 fi
 
 if [[ -z "$HOST_PYTHON" ]]; then

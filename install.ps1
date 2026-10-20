@@ -84,7 +84,8 @@ param(
     [switch]$SkipDeps,
     [switch]$SkipVenv,
     [switch]$Force,
-    [switch]$Tui
+    [switch]$Tui,
+    [switch]$CleanLegacy
 )
 
 $ErrorActionPreference = 'Stop'
@@ -627,6 +628,56 @@ function Check-OverwritesConflicts {
     return @($conflicts)
 }
 
+function Detect-LegacySkills {
+    param(
+        [string[]]$TargetAgents,
+        $DetectedAgents
+    )
+    $legacyNames = @(
+        'a-stock-selection',
+        'astock-data-feed',
+        'astock-platform-evaluate',
+        'astock-screener-5a',
+        'astock-quant-engine',
+        'astock-action-execution',
+        'astock-strategy-macd',
+        'astock-strategy-tuige',
+        'astock-strategy-chenxiaoqun',
+        'astock-strategy-mainboard',
+        'astock-pool-dashboard',
+        'astock-pool-audit',
+        'astock-trade-paper',
+        'astock-agent-debate',
+        'astock-report-html',
+        'astock-report-archive',
+        'astock-meta-routing',
+        'astock-knowledge-tips',
+        'astock-model-validation',
+        'astock-selection-model'
+    )
+    $found = @()
+    foreach ($ag in $TargetAgents) {
+        $agKey = $ag.Trim().ToLowerInvariant()
+        $agTargetDir = if ($DetectedAgents.Contains($agKey)) { $DetectedAgents[$agKey].path } else { $ag }
+        if (-not $agTargetDir -or -not (Safe-TestPath -Path $agTargetDir)) {
+            continue
+        }
+        foreach ($legName in $legacyNames) {
+            $entry = Join-Path $agTargetDir $legName
+            if (Safe-TestPath -Path $entry) {
+                $isReparse = Test-IsReparsePoint -Path $entry
+                $found += [ordered]@{
+                    agent   = $agKey
+                    skill   = $legName
+                    path    = (Resolve-Path -LiteralPath $entry).Path
+                    is_link = $isReparse
+                }
+            }
+        }
+    }
+    return @($found)
+}
+
 function Show-TuiMenu {
     param(
         $DetectedAgents,
@@ -811,30 +862,37 @@ if ($isInstalled) {
 if ($Inspect) {
     $allAgentNames = @($detectedAgents.Keys)
     $inspectConflicts = @(Check-OverwritesConflicts -TargetAgents $allAgentNames -DetectedAgents $detectedAgents -SkillsDir $paths.SkillsDir)
+    $inspectLegacy = @(Detect-LegacySkills -TargetAgents $allAgentNames -DetectedAgents $detectedAgents)
 
     foreach ($k in $detectedAgents.Keys) {
         $agConflicts = @($inspectConflicts | Where-Object { $_.agent -eq $k })
         $detectedAgents[$k]['overwrites_count'] = $agConflicts.Count
         $detectedAgents[$k]['conflicts'] = @($agConflicts)
+
+        $agLeg = @($inspectLegacy | Where-Object { $_.agent -eq $k })
+        $detectedAgents[$k]['legacy_count'] = $agLeg.Count
+        $detectedAgents[$k]['legacy_skills'] = @($agLeg)
     }
 
     $inspectData = [ordered]@{
-        status           = 'success'
-        action           = 'inspect'
-        data_root        = $targetDataRoot
-        python           = [ordered]@{
+        status              = 'success'
+        action              = 'inspect'
+        data_root           = $targetDataRoot
+        python              = [ordered]@{
             path         = $hostPython
             version      = $pythonVer
             uv_available = ($uvCmd -ne $null)
         }
-        bundle_source    = $paths.BundleRoot
-        installed        = $isInstalled
-        existing_receipt = $existingReceipt
-        agents           = $detectedAgents
-        overwrites_count = $inspectConflicts.Count
-        conflicts        = @($inspectConflicts)
-        skills_count     = $skillList.Count
-        skills           = $skillList
+        bundle_source       = $paths.BundleRoot
+        installed           = $isInstalled
+        existing_receipt    = $existingReceipt
+        agents              = $detectedAgents
+        overwrites_count    = $inspectConflicts.Count
+        conflicts           = @($inspectConflicts)
+        legacy_skills_count = $inspectLegacy.Count
+        legacy_skills       = @($inspectLegacy)
+        skills_count        = $skillList.Count
+        skills              = $skillList
     }
 
     if ($Json) {
@@ -851,7 +909,16 @@ if ($Inspect) {
             $ag = $detectedAgents[$k]
             $detStr = if ($ag.detected) { "[x] Detected" } else { "[ ] Not found" }
             $conflStr = if ($ag.overwrites_count -gt 0) { " (Overwrites: $($ag.overwrites_count) CONFLICT)" } else { " (Overwrites: 0)" }
-            Write-Host "  - $($ag.name): $detStr ($($ag.path))$conflStr"
+            $legStr = if ($ag.legacy_count -gt 0) { " (Legacy: $($ag.legacy_count) OLD)" } else { "" }
+            Write-Host "  - $($ag.name): $detStr ($($ag.path))$conflStr$legStr"
+        }
+        if ($inspectLegacy.Count -gt 0) {
+            Write-Host "`n[!] Legacy Skills Detected in Host Environments ($($inspectLegacy.Count) found):" -ForegroundColor Yellow
+            foreach ($l in $inspectLegacy) {
+                $typeStr = if ($l.is_link) { "Junction/Symlink" } else { "Physical Directory" }
+                Write-Host "  - [$($l.agent)] $($l.skill): $($l.path) ($typeStr)" -ForegroundColor Yellow
+            }
+            Write-Host "💡 Notice: The new 1+6 architecture replaces all legacy skills. Pass -CleanLegacy during install to backup and migrate old skills." -ForegroundColor DarkYellow
         }
     }
     exit 0
@@ -1482,6 +1549,46 @@ if ($Agent -and $Agent.Count -gt 0) {
     }
 }
 
+# 0.2 历史旧技能检测与安全清理 (Legacy Skills Sentinel)
+$detectedLegacy = @()
+$legacyCleanedList = @()
+if ($Agent -and $Agent.Count -gt 0) {
+    $detectedLegacy = @(Detect-LegacySkills -TargetAgents $Agent -DetectedAgents $detectedAgents)
+    if ($detectedLegacy.Count -gt 0) {
+        if ($CleanLegacy) {
+            $legacyBackupRoot = Join-Path $targetDataRoot "backups\legacy_skills\$((Get-Date).ToString('yyyyMMdd_HHmmss'))"
+            Write-Host "🛡️ CleanLegacy: Backing up and cleaning $($detectedLegacy.Count) legacy skill(s)..." -ForegroundColor Cyan
+            foreach ($leg in $detectedLegacy) {
+                $legPath = $leg.path
+                if ($leg.is_link) {
+                    try {
+                        [System.IO.Directory]::Delete($legPath, $false)
+                        Write-Host "  - [Removed Link] $($leg.agent)/$($leg.skill)" -ForegroundColor Green
+                        $legacyCleanedList += [ordered]@{ agent = $leg.agent; skill = $leg.skill; type = 'link'; path = $legPath }
+                    } catch {
+                        Remove-Item -LiteralPath $legPath -Force -ErrorAction SilentlyContinue
+                    }
+                } else {
+                    $legBackupDest = Join-Path $legacyBackupRoot "$($leg.agent)\$($leg.skill)"
+                    New-Item -ItemType Directory -Force -Path (Split-Path $legBackupDest -Parent) | Out-Null
+                    Move-Item -LiteralPath $legPath -Destination $legBackupDest -Force
+                    Write-Host "  - [Backed up & Removed] $($leg.agent)/$($leg.skill) -> $legBackupDest" -ForegroundColor Green
+                    $legacyCleanedList += [ordered]@{ agent = $leg.agent; skill = $leg.skill; type = 'physical_directory'; backup_path = $legBackupDest }
+                }
+            }
+        } else {
+            Write-Host "============================================================" -ForegroundColor Yellow
+            Write-Host "⚠️ Legacy Skills Detected ($($detectedLegacy.Count) old skill entries found):" -ForegroundColor Yellow
+            foreach ($leg in $detectedLegacy) {
+                Write-Host "  - [$($leg.agent)] $($leg.skill) ($($leg.path))" -ForegroundColor Yellow
+            }
+            Write-Host "💡 Tip: Pass -CleanLegacy to automatically backup and remove legacy skills," -ForegroundColor Cyan
+            Write-Host "   ensuring AI assistants focus solely on the new 1+6 architecture." -ForegroundColor Cyan
+            Write-Host "============================================================" -ForegroundColor Yellow
+        }
+    }
+}
+
 # 1. 解释器前置检查
 if (-not $hostPython) {
     $errObj = [ordered]@{
@@ -1580,7 +1687,7 @@ if ($doctorPy -and (Test-Path -LiteralPath $doctorPy)) {
     }
 }
 
-# 6. 扫描 20 项技能并计算 SKILL.md SHA256 证明
+# 6. 扫描 7 项技能（1 锚点 + 6 业务）并计算 SKILL.md SHA256 证明
 $skillEntries = @()
 if ($paths.SkillsDir -and (Test-Path -LiteralPath $paths.SkillsDir)) {
     $dirs = Get-ChildItem -LiteralPath $paths.SkillsDir -Directory | Sort-Object Name
